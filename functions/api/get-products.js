@@ -19,10 +19,10 @@ async function getAccessToken(env) {
     if (!tokenResponse.ok) throw new Error(`從 Google 取得 access token 失敗: ${tokenData.error_description || tokenData.error}`);
     return tokenData.access_token;
 }
-
 async function getBoardGamesFromSheet(env) {
-    const { GOOGLE_SHEET_ID, BOARDGAMES_SHEET_NAME } = env;
-    if (!GOOGLE_SHEET_ID || !BOARDGAMES_SHEET_NAME) throw new Error('缺少 GOOGLE_SHEET_ID 或 BOARDGAMES_SHEET_NAME 環境變數。');
+    // 【核心修正】改用新的環境變數名稱
+    const { GOOGLE_SHEET_ID, PRODUCTS_SHEET_NAME } = env;
+    if (!GOOGLE_SHEET_ID || !PRODUCTS_SHEET_NAME) throw new Error('缺少 GOOGLE_SHEET_ID 或 PRODUCTS_SHEET_NAME 環境變數。');
 
     const accessToken = await getAccessToken(env);
     const simpleAuth = { getRequestHeaders: () => ({ 'Authorization': `Bearer ${accessToken}` }) };
@@ -30,12 +30,11 @@ async function getBoardGamesFromSheet(env) {
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
     await doc.loadInfo();
     
-    const sheet = doc.sheetsByTitle[BOARDGAMES_SHEET_NAME];
-    if (!sheet) throw new Error(`在 Google Sheets 中找不到名為 "${BOARDGAMES_SHEET_NAME}" 的工作表。`);
+    const sheet = doc.sheetsByTitle[PRODUCTS_SHEET_NAME];
+    if (!sheet) throw new Error(`在 Google Sheets 中找不到名為 "${PRODUCTS_SHEET_NAME}" 的工作表。`);
 
     return await sheet.getRows();
 }
-
 // --- 同步邏輯 ---
 async function runBoardgameSync(env) {
     const { DB } = env;

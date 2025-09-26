@@ -62,15 +62,15 @@ export async function onRequest(context) {
     const batchOperations = [];
     const returnDate = status === 'returned' ? new Date().toISOString().split('T')[0] : null;
 
-    // 【修改】只更新需要的欄位
     batchOperations.push(
         db.prepare('UPDATE Rentals SET status = ?, return_date = ? WHERE rental_id = ?')
           .bind(status, returnDate, rentalId)
     );
 
     if (status === 'returned') {
+        // 【核心修正】將 BoardGames 改為 Products
         batchOperations.push(
-            db.prepare('UPDATE BoardGames SET for_rent_stock = for_rent_stock + 1 WHERE game_id = ?')
+            db.prepare('UPDATE Products SET for_rent_stock = for_rent_stock + 1 WHERE game_id = ?')
               .bind(rental.game_id)
         );
     }

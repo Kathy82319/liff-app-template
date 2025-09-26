@@ -8,20 +8,19 @@ export const onRequest = async (context) => {
         const db = context.env.DB;
 
         // 【修正】將 ExpHistory 改為 Purchase_history
-        const stmt = db.prepare(`
-            SELECT
-                ph.history_id,
-                ph.user_id,
-                u.line_display_name,
-                u.nickname,
-                ph.exp_added,
-                ph.reason,
-                ph.created_at
-            FROM Purchase_history AS ph
-            LEFT JOIN Users AS u ON ph.user_id = u.user_id
-            ORDER BY ph.created_at DESC
-        `);
-
+    const stmt = db.prepare(`
+      SELECT
+        ph.history_id,
+        ph.user_id,
+        u.line_display_name,
+        u.nickname,
+        ph.exp_added,
+        ph.reason,
+        ph.created_at
+      FROM Purchasehistory AS ph
+      LEFT JOIN Users AS u ON ph.user_id = u.user_id
+      ORDER BY ph.created_at DESC
+    `);
         const { results } = await stmt.all();
 
         return new Response(JSON.stringify(results || []), {

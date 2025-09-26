@@ -100,10 +100,11 @@ export const onRequest = async (context) => {
         }
 
         // 【修正】將 ExpHistory 改為 Purchase_history
-        await db.batch([
-            db.prepare('UPDATE Users SET level = ?, current_exp = ? WHERE user_id = ?').bind(currentLevel, currentExp, userId),
-            db.prepare('INSERT INTO Purchase_history (user_id, exp_added, reason) VALUES (?, ?, ?)').bind(userId, exp, reason)
-        ]);
+    await db.batch([
+      db.prepare('UPDATE Users SET level = ?, current_exp = ? WHERE user_id = ?').bind(currentLevel, currentExp, userId),
+      db.prepare('INSERT INTO Purchasehistory (user_id, exp_added, reason) VALUES (?, ?, ?)').bind(userId, exp, reason)
+    ]);
+
         
         // ... (背景同步邏輯不變)
         

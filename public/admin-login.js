@@ -1047,16 +1047,17 @@ function applyGameFiltersAndRender() {
 
 async function fetchAllGames() {
     try {
-        const response = await fetch('/api/get-boardgames');
+        // 【核心修正】將 API 路徑從 get-boardgames 改為 get-products
+        const response = await fetch('/api/get-products');
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`從資料庫獲取桌遊列表失敗: ${errorText}`);
+            throw new Error(`從資料庫獲取產品列表失敗: ${errorText}`);
         }
         allGames = await response.json();
         applyGameFiltersAndRender();
         initializeGameDragAndDrop();
     } catch (error) { 
-        console.error('獲取桌遊列表失敗:', error);
+        console.error('獲取產品列表失敗:', error);
         if(gameListTbody) gameListTbody.innerHTML = `<tr><td colspan="7" style="color: red;">讀取資料失敗，請檢查 API 紀錄。</td></tr>`;
     }
 }
@@ -1122,12 +1123,13 @@ if (inventoryVisibilityFilter) {
 
 if (syncGamesBtn) {
     syncGamesBtn.addEventListener('click', async () => {
-        if (!confirm('確定要從 Google Sheet 同步所有桌遊資料到資料庫嗎？\n\n這將會用 Sheet 上的資料覆蓋現有資料。')) return;
+        if (!confirm('確定要從 Google Sheet 同步所有產品資料到資料庫嗎？\n\n這將會用 Sheet 上的資料覆蓋現有資料。')) return;
 
         try {
             syncGamesBtn.textContent = '同步中...';
             syncGamesBtn.disabled = true;
-            const response = await fetch('/api/get-boardgames', { method: 'POST' });
+            // 【核心修正】POST 請求的路徑也要修改
+            const response = await fetch('/api/get-products', { method: 'POST' });
             const result = await response.json();
             if (!response.ok) {
                 throw new Error(result.details || '同步失敗');

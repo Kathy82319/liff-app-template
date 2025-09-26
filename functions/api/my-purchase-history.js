@@ -13,11 +13,11 @@ export const onRequest = async (context) => {
         }
         
         // 【修正】將 ExpHistory 改為 Purchase_history
-        const stmt = db.prepare(
-          `SELECT * FROM Purchase_history 
-           WHERE user_id = ? 
-           ORDER BY created_at DESC`
-        );
+    const stmt = db.prepare(
+      `SELECT * FROM Purchasehistory 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`
+    );
         const { results } = await stmt.bind(userId).all();
 
         return new Response(JSON.stringify(results || []), {

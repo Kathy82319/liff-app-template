@@ -115,7 +115,7 @@ export async function onRequest(context) {
     dataToSync.is_visible = dataToSync.is_visible ? 'TRUE' : 'FALSE';
     dataToSync.for_sale_stock = for_sale_stock;
 
-    const sheetName = context.env.BOARDGAMES_SHEET_NAME;
+    const sheetName = context.env.PRODUCTS_SHEET_NAME;
     if (sheetName) {
         context.waitUntil(
             updateRowInSheet(context.env, sheetName, 'game_id', body.gameId, dataToSync)

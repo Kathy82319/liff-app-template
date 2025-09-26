@@ -564,7 +564,8 @@ async function initializeEditProfilePage() {
     // 步驟 1: 確保遊戲資料已載入
     if (allGames.length === 0) {
         try {
-            const res = await fetch('/api/get-boardgames');
+            // 【核心修正】確認此處呼叫的是 get-products
+            const res = await fetch('/api/get-products');
             if (!res.ok) throw new Error('無法獲取遊戲資料');
             allGames = await res.json();
         } catch (error) {

@@ -1,5 +1,5 @@
 // public/script.js
-const CONFIG = window.APP_CONFIG;
+
 document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 核心DOM元素與全域變數
@@ -25,22 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let bookingHistoryStack = [];
     let dailyAvailability = { limit: TOTAL_TABLES, booked: 0, available: TOTAL_TABLES };
     let enabledDatesByAdmin = [];
- 
+
     // =================================================================
     // 【改造】新增：設定檔應用函式 (Template Engine)
     // =================================================================
     function applyConfiguration() {
         try {
-            console.log("--- 測試 3 開始：準備測試術語替換 ---");
             const { FEATURES, TERMS } = CONFIG;
-
-            // 功能開關部分也保留
             const gamesTabButton = document.querySelector('.tab-button[data-target="page-games"]');
             if (gamesTabButton) gamesTabButton.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
             const bookingTabButton = document.querySelector('.tab-button[data-target="page-booking"]');
             if (bookingTabButton) bookingTabButton.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-
-            // 啟用所有術語替換
+            
             document.title = TERMS.BUSINESS_NAME;
             const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
             if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
@@ -48,17 +44,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
             const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
             if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
+
+            // 【關鍵修正】改用 if 判斷式取代 ?. 可選串連語法
             if (pageTemplates) {
-                pageTemplates.querySelector('#page-profile .page-main-title')?.textContent = TERMS.MEMBER_PROFILE_TITLE;
-                pageTemplates.querySelector('#page-games .page-main-title')?.textContent = TERMS.PRODUCT_CATALOG_TITLE;
-                pageTemplates.querySelector('#page-games #keyword-search')?.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-                pageTemplates.querySelector('#page-booking .page-main-title')?.textContent = TERMS.BOOKING_PAGE_TITLE;
+                const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
+                if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
+
+                const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
+                if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
+
+                const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
+                if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
+
+                const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
+                if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
             }
-             console.log("--- 測試 3 成功：術語替換完成 ---");
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);
+            alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
         }
     }
+
     // =================================================================
     // 頁面切換邏輯
     // =================================================================

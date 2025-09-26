@@ -448,17 +448,18 @@ async function initializeMyBookingsPage() {
         if (!userProfile) return;
         const container = document.getElementById('my-exp-history-container');
         if (!container) return;
-        container.innerHTML = '<p>正在查詢您的經驗紀錄...</p>';
+        container.innerHTML = `<p>正在查詢您的${CONFIG.TERMS.POINTS_NAME}紀錄...</p>`;
         try {
-            const response = await fetch(`/api/my-exp-history?userId=${userProfile.userId}`);
+            // 【關鍵修正】呼叫新的 API 路徑
+            const response = await fetch(`/api/my-purchase-history?userId=${userProfile.userId}`);
             if (!response.ok) throw new Error('查詢紀錄失敗');
             const records = await response.json();
             if (records.length === 0) {
-                container.innerHTML = '<p>您目前沒有任何經驗值紀錄。</p>';
+                container.innerHTML = `<p>您目前沒有任何${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
                 return;
             }
             container.innerHTML = records.map(record => {
-                const date = new Date(record.created_at).toLocaleDateString('sv'); 
+                const date = new Date(record.created_at).toLocaleDateString('sv');
                 const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
                 const expSign = record.exp_added > 0 ? '+' : '';
                 return `
@@ -466,14 +467,13 @@ async function initializeMyBookingsPage() {
                         <div class="exp-record-date">${date}</div>
                         <div class="exp-record-reason">${record.reason}</div>
                         <div class="exp-record-value ${expClass}">${expSign}${record.exp_added}</div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         } catch (error) {
-            container.innerHTML = `<p style="color: red;">無法載入經驗紀錄。</p>`;
+            container.innerHTML = `<p style="color: red;">無法載入${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
         }
     }
-
+    
 // public/script.js
 
 // REPLACE THIS FUNCTION
@@ -902,13 +902,14 @@ function renderGames() {
     async function initializeGamesPage() {
         if (allGames.length === 0) {
             try {
-                const res = await fetch('/api/get-boardgames');
+                // 【關鍵修正】呼叫新的 API 路徑
+                const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('API 請求失敗');
                 allGames = await res.json();
             } catch (error) {
-                console.error('初始化桌遊圖鑑失敗:', error);
+                console.error('初始化產品型錄失敗:', error);
                 const container = document.getElementById('game-list-container');
-                if(container) container.innerHTML = '<p style="color: red;">讀取桌遊資料失敗。</p>';
+                if (container) container.innerHTML = '<p style="color: red;">讀取產品資料失敗。</p>';
                 return;
             }
         }

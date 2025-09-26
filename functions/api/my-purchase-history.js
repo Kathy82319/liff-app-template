@@ -1,3 +1,4 @@
+// functions/api/my-purchase-history.js
 export async function onRequest(context) {
   try {
     const url = new URL(context.request.url);

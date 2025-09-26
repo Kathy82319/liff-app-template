@@ -102,7 +102,7 @@ async function runBoardgameSync(env) {
 }
 
 
-// 【** 關鍵修正：補上完整的 onRequest 函式 **】
+// functions/api/get-products.js
 export async function onRequest(context) {
     const { request, env } = context;
     const db = env.DB;
@@ -117,17 +117,10 @@ export async function onRequest(context) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-
-        // 處理 POST 請求 (給後台 CRM 的「同步至資料庫」按鈕使用)
-        if (request.method === 'POST') {
-            const result = await runBoardgameSync(env);
-            return new Response(JSON.stringify(result), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
+        
+        // 其他請求方法暫不處理
         return new Response('Invalid request method.', { status: 405 });
+
     } catch (error) {
         console.error(`Error in get-products API:`, error);
         return new Response(JSON.stringify({ error: '獲取產品列表失敗。', details: error.message }), {

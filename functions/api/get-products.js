@@ -103,23 +103,23 @@ async function runBoardgameSync(env) {
 
 
 // functions/api/get-products.js
-export async function onRequest(context) {
-    const { request, env } = context;
+export const onRequest = async (context) => {
+    const { env } = context;
     const db = env.DB;
 
     try {
-        if (request.method === 'GET') {
-            // 【修正】將 BoardGames 改為 Products
-            const stmt = db.prepare('SELECT * FROM Products ORDER BY display_order ASC');
-            const { results } = await stmt.all();
-            return new Response(JSON.stringify(results || []), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            });
+        if (context.request.method !== 'GET') {
+            return new Response('Invalid request method.', { status: 405 });
         }
         
-        // 其他請求方法暫不處理
-        return new Response('Invalid request method.', { status: 405 });
+        // 【修正】將 BoardGames 改為 Products
+        const stmt = db.prepare('SELECT * FROM Products ORDER BY display_order ASC');
+        const { results } = await stmt.all();
+
+        return new Response(JSON.stringify(results || []), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        });
 
     } catch (error) {
         console.error(`Error in get-products API:`, error);
@@ -128,4 +128,4 @@ export async function onRequest(context) {
             headers: { 'Content-Type': 'application/json' },
         });
     }
-}
+};

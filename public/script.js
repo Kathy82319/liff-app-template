@@ -444,35 +444,35 @@ async function initializeMyBookingsPage() {
     }
 }
 
-    async function initializeMyExpHistoryPage() {
-        if (!userProfile) return;
-        const container = document.getElementById('my-exp-history-container');
-        if (!container) return;
-        container.innerHTML = `<p>正在查詢您的${CONFIG.TERMS.POINTS_NAME}紀錄...</p>`;
-        try {
-            // 【關鍵修正】呼叫新的 API 路徑
-            const response = await fetch(`/api/my-purchase-history?userId=${userProfile.userId}`);
-            if (!response.ok) throw new Error('查詢紀錄失敗');
-            const records = await response.json();
-            if (records.length === 0) {
-                container.innerHTML = `<p>您目前沒有任何${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
-                return;
-            }
-            container.innerHTML = records.map(record => {
-                const date = new Date(record.created_at).toLocaleDateString('sv');
-                const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
-                const expSign = record.exp_added > 0 ? '+' : '';
-                return `
-                    <div class="exp-record-card">
-                        <div class="exp-record-date">${date}</div>
-                        <div class="exp-record-reason">${record.reason}</div>
-                        <div class="exp-record-value ${expClass}">${expSign}${record.exp_added}</div>
-                    </div>`;
-            }).join('');
-        } catch (error) {
-            container.innerHTML = `<p style="color: red;">無法載入${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
+async function initializeMyExpHistoryPage() {
+    if (!userProfile) return;
+    const container = document.getElementById('my-exp-history-container');
+    if (!container) return;
+    container.innerHTML = `<p>正在查詢您的${CONFIG.TERMS.POINTS_NAME}紀錄...</p>`;
+    try {
+        // 【關鍵修正】呼叫新的 API 路徑
+        const response = await fetch(`/api/my-purchase-history?userId=${userProfile.userId}`);
+        if (!response.ok) throw new Error('查詢紀錄失敗');
+        const records = await response.json();
+        if (records.length === 0) {
+            container.innerHTML = `<p>您目前沒有任何${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
+            return;
         }
+        container.innerHTML = records.map(record => {
+            const date = new Date(record.created_at).toLocaleDateString('sv');
+            const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
+            const expSign = record.exp_added > 0 ? '+' : '';
+            return `
+                <div class="exp-record-card">
+                    <div class="exp-record-date">${date}</div>
+                    <div class="exp-record-reason">${record.reason}</div>
+                    <div class="exp-record-value ${expClass}">${expSign}${record.exp_added}</div>
+                </div>`;
+        }).join('');
+    } catch (error) {
+        container.innerHTML = `<p style="color: red;">無法載入${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
     }
+}
     
 // public/script.js
 
@@ -899,21 +899,21 @@ function renderGames() {
         });
     }
 
-    async function initializeGamesPage() {
-        if (allGames.length === 0) {
-            try {
-                // 【關鍵修正】呼叫新的 API 路徑
-                const res = await fetch('/api/get-products');
-                if (!res.ok) throw new Error('API 請求失敗');
-                allGames = await res.json();
-            } catch (error) {
-                console.error('初始化產品型錄失敗:', error);
-                const container = document.getElementById('game-list-container');
-                if (container) container.innerHTML = '<p style="color: red;">讀取產品資料失敗。</p>';
-                return;
-            }
+async function initializeGamesPage() {
+    if (allGames.length === 0) {
+        try {
+            // 【關鍵修正】呼叫新的 API 路徑
+            const res = await fetch('/api/get-products');
+            if (!res.ok) throw new Error('API 請求失敗');
+            allGames = await res.json();
+        } catch (error) {
+            console.error('初始化產品型錄失敗:', error);
+            const container = document.getElementById('game-list-container');
+            if (container) container.innerHTML = '<p style="color: red;">讀取產品資料失敗。</p>';
+            return;
         }
-        renderGames();
+    }
+    renderGames();
         populateFilters();
         document.getElementById('keyword-search').addEventListener('input', e => { activeFilters.keyword = e.target.value; renderGames(); });
         document.getElementById('clear-filters').addEventListener('click', () => {

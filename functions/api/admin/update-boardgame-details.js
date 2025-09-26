@@ -86,26 +86,26 @@ export async function onRequest(context) {
   
     const db = context.env.DB;
     
-    const stmt = db.prepare(
-      `UPDATE BoardGames SET
-         name = ?, description = ?, image_url = ?, image_url_2 = ?, image_url_3 = ?, tags = ?,
-         min_players = ?, max_players = ?, difficulty = ?,
-         total_stock = ?, for_rent_stock = ?, for_sale_stock = ?,
-         sale_price = ?, rent_price = ?, deposit = ?, late_fee_per_day = ?,
-         is_visible = ?, supplementary_info = ?
-       WHERE game_id = ?`
-    );
-    const for_sale_stock = (Number(body.total_stock) || 0) - (Number(body.for_rent_stock) || 0);
+        const stmt = db.prepare(
+          `UPDATE Products SET
+             name = ?, description = ?, image_url = ?, image_url_2 = ?, image_url_3 = ?, tags = ?,
+             min_players = ?, max_players = ?, difficulty = ?,
+             total_stock = ?, for_rent_stock = ?, for_sale_stock = ?,
+             sale_price = ?, rent_price = ?, deposit = ?, late_fee_per_day = ?,
+             is_visible = ?, supplementary_info = ?
+           WHERE game_id = ?`
+        );
+        const for_sale_stock = (Number(body.total_stock) || 0) - (Number(body.for_rent_stock) || 0);
 
-    const result = await stmt.bind(
-        body.name, body.description || '', body.image_url || '', body.image_url_2 || '', body.image_url_3 || '', body.tags || '',
-        Number(body.min_players), Number(body.max_players), body.difficulty,
-        Number(body.total_stock), Number(body.for_rent_stock), for_sale_stock,
-        Number(body.sale_price), Number(body.rent_price),
-        Number(body.deposit), Number(body.late_fee_per_day),
-        body.is_visible ? 1 : 0, body.supplementary_info || '',
-        body.gameId
-    ).run();
+        const result = await stmt.bind(
+            body.name, body.description || '', body.image_url || '', body.image_url_2 || '', body.image_url_3 || '', body.tags || '',
+            Number(body.min_players), Number(body.max_players), body.difficulty,
+            Number(body.total_stock), Number(body.for_rent_stock), for_sale_stock,
+            Number(body.sale_price), Number(body.rent_price),
+            Number(body.deposit), Number(body.late_fee_per_day),
+            body.is_visible ? 1 : 0, body.supplementary_info || '',
+            body.gameId
+        ).run();
 
     if (result.meta.changes === 0) {
       return new Response(JSON.stringify({ error: `找不到遊戲 ID: ${body.gameId}，無法更新。` }), { status: 404 });

@@ -105,8 +105,8 @@ export async function onRequest(context) {
             userId, gameId, dueDate, name, phone, rentPriceNum, depositNum, lateFeeNum
         ));
         
-        const updateStmt = db.prepare('UPDATE BoardGames SET for_rent_stock = for_rent_stock - 1 WHERE game_id = ?');
-        dbOperations.push(updateStmt.bind(gameId));
+            const updateStmt = db.prepare('UPDATE Products SET for_rent_stock = for_rent_stock - 1 WHERE game_id = ?');
+            dbOperations.push(updateStmt.bind(gameId));
     }
     
     const results = await db.batch(dbOperations);

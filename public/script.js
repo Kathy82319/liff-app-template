@@ -1,5 +1,5 @@
 // public/script.js
-
+const CONFIG = window.APP_CONFIG;
 document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 核心DOM元素與全域變數

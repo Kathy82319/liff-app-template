@@ -31,34 +31,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     function applyConfiguration() {
         try {
-            console.log("--- 測試 1 開始：準備讀取設定檔 ---");
+            console.log("--- 測試 2 開始：準備測試功能開關 ---");
             const { FEATURES, TERMS } = CONFIG;
-            console.log("--- 測試 1 成功：已成功讀取設定檔 ---");
-            // 以下功能暫時停用
-            /*
+
+            // 只啟用這部分
             const gamesTabButton = document.querySelector('.tab-button[data-target="page-games"]');
             if (gamesTabButton) gamesTabButton.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
             const bookingTabButton = document.querySelector('.tab-button[data-target="page-booking"]');
             if (bookingTabButton) bookingTabButton.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+            
+            console.log("--- 測試 2 成功：功能開關設定完成 ---");
+
+            // 以下功能暫時停用
+            /*
             document.title = TERMS.BUSINESS_NAME;
-            const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
-            if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
-            const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
-            if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
-            const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
-            if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
-            if (pageTemplates) {
-                pageTemplates.querySelector('#page-profile .page-main-title')?.textContent = TERMS.MEMBER_PROFILE_TITLE;
-                pageTemplates.querySelector('#page-games .page-main-title')?.textContent = TERMS.PRODUCT_CATALOG_TITLE;
-                pageTemplates.querySelector('#page-games #keyword-search')?.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-                pageTemplates.querySelector('#page-booking .page-main-title')?.textContent = TERMS.BOOKING_PAGE_TITLE;
-            }
+            // ... (其他術語替換的程式碼) ...
             */
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);
         }
     }
-
 
     // =================================================================
     // 頁面切換邏輯

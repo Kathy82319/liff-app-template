@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 登出邏輯 (保持不變)
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
-            await fetch('/api/admin/auth/logout');
+            await fetch('/admin/auth/logout');
             // 登出後導向到新的登入頁面
             window.location.href = '/admin-login.html';
         });
@@ -118,7 +118,7 @@ async function initializeAdminPanel() {
                 fullSyncRentalsBtn.textContent = '同步中...';
                 fullSyncRentalsBtn.disabled = true;
                 // 我們呼叫您之前就有的 sync-rentals API
-                const response = await fetch('/api/admin/sync-rentals', { method: 'POST' });
+                const response = await fetch('/admin/sync-rentals', { method: 'POST' });
                 const result = await response.json();
                 if (!response.ok) { throw new Error(result.details || '同步失敗'); }
                 alert(result.message || '同步成功！');
@@ -140,7 +140,7 @@ async function initializeAdminPanel() {
             try {
                 fullSyncBookingsBtn.textContent = '同步中...';
                 fullSyncBookingsBtn.disabled = true;
-                const response = await fetch('/api/admin/sync-bookings-to-sheet', { method: 'POST' });
+                const response = await fetch('/admin/sync-bookings-to-sheet', { method: 'POST' });
                 const result = await response.json();
                 if (!response.ok) { throw new Error(result.details || '同步失敗'); }
                 alert(result.message || '同步成功！');
@@ -207,7 +207,7 @@ async function initializeAdminPanel() {
     // =================================================================
     async function fetchDashboardStats() {
         try {
-            const response = await fetch('/api/admin/dashboard-stats');
+            const response = await fetch('/admin/dashboard-stats');
             if (!response.ok) throw new Error('無法獲取儀表板數據');
             const stats = await response.json();
             
@@ -299,7 +299,7 @@ async function initializeAdminPanel() {
         // (此函式邏輯不變)
         if (allUsers.length > 0) return;
         try {
-            const response = await fetch('/api/get-users');
+            const response = await fetch('/get-users');
             if (!response.ok) throw new Error('無法獲取使用者列表');
             allUsers = await response.json();
             renderUserList(allUsers);
@@ -312,7 +312,7 @@ async function initializeAdminPanel() {
             try {
                 syncD1ToSheetBtn.textContent = '同步中...';
                 syncD1ToSheetBtn.disabled = true;
-                const response = await fetch('/api/sync-d1-to-sheet', { method: 'POST' });
+                const response = await fetch('/sync-d1-to-sheet', { method: 'POST' });
                 const result = await response.json();
                 if (!response.ok) { throw new Error(result.details || '同步失敗'); }
                 alert(result.message || '同步成功！');
@@ -468,7 +468,7 @@ async function initializeAdminPanel() {
                 notes: document.getElementById('edit-notes-textarea').value
             };
             try {
-                const response = await fetch('/api/update-user-details', {
+                const response = await fetch('/update-user-details', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
                 });
@@ -530,7 +530,7 @@ async function openUserDetailsModal(userId) {
         console.log("CRM 檢查點 D: 已將 Modal 的 display 設為 'flex'，準備呼叫後端 API...");
 
         try {
-            const response = await fetch(`/api/admin/user-details?userId=${userId}`);
+            const response = await fetch(`/admin/user-details?userId=${userId}`);
             console.log("CRM 檢查點 E: 後端 API 回應狀態碼:", response.status);
 
             if (!response.ok) {
@@ -558,7 +558,7 @@ function renderUserDetails(data) {
     contentContainer.innerHTML = '';
 
     const creationDate = new Date(profile.created_at).toLocaleDateString();
-    const avatarSrc = `/api/admin/get-avatar?userId=${profile.user_id}`;
+    const avatarSrc = `/admin/get-avatar?userId=${profile.user_id}`;
 
     const grid = document.createElement('div');
     grid.className = 'details-grid';
@@ -756,7 +756,7 @@ function renderUserDetails(data) {
             return;
         }
         try {
-            const response = await fetch('/api/admin/message-drafts');
+            const response = await fetch('/admin/message-drafts');
             if (!response.ok) throw new Error('無法獲取訊息草稿');
             allDrafts = await response.json();
             renderDraftList(allDrafts);
@@ -828,7 +828,7 @@ function renderUserDetails(data) {
             };
 
             const isUpdating = !!currentEditingDraftId;
-            const url = '/api/admin/message-drafts';
+            const url = '/admin/message-drafts';
             const method = isUpdating ? 'PUT' : 'POST';
 
             try {
@@ -863,7 +863,7 @@ function renderUserDetails(data) {
             } else if (target.classList.contains('btn-delete-draft')) {
                 if (confirm('確定要刪除這則草稿嗎？')) {
                     try {
-                        const response = await fetch('/api/admin/message-drafts', {
+                        const response = await fetch('/admin/message-drafts', {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ draft_id: Number(draftId) })
@@ -905,7 +905,7 @@ function renderUserDetails(data) {
             sendBtn.textContent = '傳送中...';
             sendBtn.disabled = true;
             try {
-                const response = await fetch('/api/send-message', {
+                const response = await fetch('/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, message })
@@ -1048,7 +1048,7 @@ function applyGameFiltersAndRender() {
 async function fetchAllGames() {
     try {
         // 【核心修正】將 API 路徑從 get-boardgames 改為 get-products
-        const response = await fetch('/api/get-products');
+        const response = await fetch('/get-products');
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`從資料庫獲取產品列表失敗: ${errorText}`);
@@ -1077,7 +1077,7 @@ function initializeGameDragAndDrop() {
                 applyGameFiltersAndRender();
 
                 try {
-                    const response = await fetch('/api/admin/update-boardgame-order', {
+                    const response = await fetch('/admin/update-boardgame-order', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ orderedGameIds: orderedIds })
@@ -1129,7 +1129,7 @@ if (syncGamesBtn) {
             syncGamesBtn.textContent = '同步中...';
             syncGamesBtn.disabled = true;
             // 【核心修正】POST 請求的路徑也要修改
-            const response = await fetch('/api/get-products', { method: 'POST' });
+            const response = await fetch('/get-products', { method: 'POST' });
             const result = await response.json();
             if (!response.ok) {
                 throw new Error(result.details || '同步失敗');
@@ -1220,7 +1220,7 @@ if(editGameModal) {
             };
 
             try {
-                const response = await fetch('/api/admin/update-boardgame-details', {
+                const response = await fetch('/admin/update-boardgame-details', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
@@ -1263,7 +1263,7 @@ async function applyRentalFiltersAndRender() {
         if(activeFilter) status = activeFilter.dataset.filter;
     }
 
-    let url = '/api/admin/get-all-rentals';
+    let url = '/admin/get-all-rentals';
     if (status !== 'all') {
         url += `?status=${status}`;
     }
@@ -1412,7 +1412,7 @@ if (rentalListTbody) {
 
             if (confirm(`確定要將《${rental.game_name}》標記為已歸還嗎？`)) {
                 try {
-                    const response = await fetch('/api/admin/update-rental-status', {
+                    const response = await fetch('/admin/update-rental-status', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1488,7 +1488,7 @@ async function loadAndBindRentalMessageDrafts(userId) {
         newSendBtn.textContent = '傳送中...';
         newSendBtn.disabled = true;
         try {
-            const response = await fetch('/api/send-message', {
+            const response = await fetch('/send-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, message })
@@ -1520,7 +1520,7 @@ if (editRentalForm) {
         };
 
         try {
-            const response = await fetch('/api/admin/update-rental-details', {
+            const response = await fetch('/admin/update-rental-details', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData)
@@ -1736,7 +1736,7 @@ if (createRentalForm) {
             if (!confirm(confirmationMessage)) return;
             
             try {
-                const response = await fetch('/api/admin/create-rental', {
+                const response = await fetch('/admin/create-rental', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(rentalData)
@@ -1840,7 +1840,7 @@ flatpickr("#rental-due-date", { dateFormat: "Y-m-d", minDate: "today" });
 
     async function fetchAllBookings(status = 'today') {
         try {
-            const response = await fetch(`/api/get-bookings?status=${status}`);
+            const response = await fetch(`/get-bookings?status=${status}`);
             if (!response.ok) throw new Error('無法獲取預約列表');
             allBookings = await response.json();
             renderBookingList(allBookings);
@@ -1865,14 +1865,14 @@ flatpickr("#rental-due-date", { dateFormat: "Y-m-d", minDate: "today" });
     async function initializeBookingSettings() {
         if (bookingDatepicker) {
             // 如果已存在，只需更新日期
-            const response = await fetch('/api/admin/booking-settings');
+            const response = await fetch('/admin/booking-settings');
             enabledDates = await response.json();
             bookingDatepicker.setDate(enabledDates, false); // 更新日曆上的選中日期
             return;
         }
 
         try {
-            const response = await fetch('/api/admin/booking-settings');
+            const response = await fetch('/admin/booking-settings');
             if (!response.ok) throw new Error('無法獲取公休日設定');
             enabledDates = await response.json(); // <--- 變數改名
 
@@ -1918,13 +1918,13 @@ flatpickr("#rental-due-date", { dateFormat: "Y-m-d", minDate: "today" });
 
             const promises = [];
             datesToAdd.forEach(date => {
-                promises.push(fetch('/api/admin/booking-settings', {
+                promises.push(fetch('/admin/booking-settings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ date, action: 'add' })
                 }));
             });
             datesToRemove.forEach(date => {
-                promises.push(fetch('/api/admin/booking-settings', {
+                promises.push(fetch('/admin/booking-settings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ date, action: 'remove' })
                 }));
@@ -1974,7 +1974,7 @@ flatpickr("#rental-due-date", { dateFormat: "Y-m-d", minDate: "today" });
                 openMonthBtn.textContent = '處理中...';
                 openMonthBtn.disabled = true;
                 try {
-                    const response = await fetch('/api/admin/booking-settings', {
+                    const response = await fetch('/admin/booking-settings', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'open_month', year, month })
@@ -2009,7 +2009,7 @@ if(bookingListTbody){
             if (!booking) return;
             if (confirm(confirmMsg)) {
                  try {
-                    const response = await fetch('/api/update-booking-status', {
+                    const response = await fetch('/update-booking-status', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ bookingId: Number(id), status: newStatus })
                     });
@@ -2075,7 +2075,7 @@ async function openCancelBookingModal(booking) {
             newConfirmBtn.disabled = true;
 
             if (shouldSendMessage) {
-                const msgResponse = await fetch('/api/send-message', {
+                const msgResponse = await fetch('/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: booking.user_id, message: message })
@@ -2083,7 +2083,7 @@ async function openCancelBookingModal(booking) {
                  if (!msgResponse.ok) console.error("發送 LINE 通知失敗");
             }
 
-            const statusResponse = await fetch('/api/update-booking-status', {
+            const statusResponse = await fetch('/update-booking-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bookingId: Number(booking.booking_id), status: 'cancelled' })
@@ -2183,7 +2183,7 @@ if(cancelBookingModal) {
                     scanStatusMessage.className = '';
                 }
                 submitExpBtn.disabled = true;
-                const response = await fetch('/api/add-exp', {
+                const response = await fetch('/add-exp', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, expValue, reason }),
                 });
@@ -2213,7 +2213,7 @@ if(cancelBookingModal) {
 async function fetchAllExpHistory() {
     try {
         // 【修改這裡】將網址對應到新的檔案名稱
-        const response = await fetch('/api/admin/exp-history-list');
+        const response = await fetch('/admin/exp-history-list');
 
         if (!response.ok) throw new Error('無法獲取經驗紀錄');
         allExpHistory = await response.json();
@@ -2316,7 +2316,7 @@ async function fetchAllExpHistory() {
 
     async function fetchAllNews() {
         try {
-            const response = await fetch('/api/admin/get-all-news');
+            const response = await fetch('/admin/get-all-news');
             if (!response.ok) throw new Error('無法獲取情報列表');
             allNews = await response.json();
             renderNewsList(allNews);
@@ -2372,7 +2372,7 @@ async function fetchAllExpHistory() {
                 content: document.getElementById('edit-news-content').value,
                 is_published: document.getElementById('edit-news-published').checked
             };
-            const url = currentEditingNewsId ? '/api/admin/update-news' : '/api/admin/create-news';
+            const url = currentEditingNewsId ? '/admin/update-news' : '/admin/create-news';
             try {
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2391,7 +2391,7 @@ async function fetchAllExpHistory() {
         deleteNewsBtn.addEventListener('click', async () => {
             if (!currentEditingNewsId || !confirm('確定要刪除這則情報嗎？此操作無法復原。')) return;
             try {
-                const response = await fetch('/api/admin/delete-news', {
+                const response = await fetch('/admin/delete-news', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: currentEditingNewsId })
                 });
@@ -2411,7 +2411,7 @@ async function fetchAllExpHistory() {
     // =================================================================
     async function fetchStoreInfo() {
         try {
-            const response = await fetch('/api/get-store-info');
+            const response = await fetch('/get-store-info');
             if (!response.ok) throw new Error('無法載入店家資訊');
             const info = await response.json();
             document.getElementById('info-address').value = info.address;
@@ -2431,7 +2431,7 @@ async function fetchAllExpHistory() {
                 description: document.getElementById('info-desc').value
             };
             try {
-                const response = await fetch('/api/admin/update-store-info', {
+                const response = await fetch('/admin/update-store-info', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
@@ -2445,7 +2445,7 @@ async function fetchAllExpHistory() {
     // ---- 初始化 ----
     async function initialize() {
         try {
-            const response = await fetch('/api/get-class-perks');
+            const response = await fetch('/get-class-perks');
             if (!response.ok) throw new Error('無法獲取職業設定');
             classPerks = await response.json();
         } catch (error) {

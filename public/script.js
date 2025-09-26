@@ -217,7 +217,7 @@ function renderNews(filterCategory = 'ALL') {
 
     async function initializeHomePage() {
         try {
-            const response = await fetch('/api/get-news');
+            const response = await fetch('/get-news');
             if (!response.ok) throw new Error('無法獲取最新情報');
             allNews = await response.json();
             setupNewsFilters();
@@ -331,7 +331,7 @@ async function initializeLiff() {
     async function fetchGameData(forceRefresh = false) { 
         if (!forceRefresh && gameData && gameData.user_id) return gameData;
         try {
-            const response = await fetch('/api/user', {
+            const response = await fetch('/user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
@@ -412,7 +412,7 @@ async function initializeMyBookingsPage() {
 
     try {
         // 預設載入目前的預約
-        const currentResponse = await fetch(`/api/my-bookings?userId=${userProfile.userId}&filter=current`);
+        const currentResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=current`);
         if (!currentResponse.ok) throw new Error('查詢預約失敗');
         const currentBookings = await currentResponse.json();
         renderBookings(currentBookings, currentContainer);
@@ -426,7 +426,7 @@ async function initializeMyBookingsPage() {
                 toggleBtn.textContent = '隱藏過往紀錄';
 
                 try {
-                    const pastResponse = await fetch(`/api/my-bookings?userId=${userProfile.userId}&filter=past`);
+                    const pastResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=past`);
                     if (!pastResponse.ok) throw new Error('查詢過往預約失敗');
                     const pastBookings = await pastResponse.json();
                     renderBookings(pastBookings, pastContainer, true);
@@ -451,7 +451,7 @@ async function initializeMyExpHistoryPage() {
     container.innerHTML = `<p>正在查詢您的${CONFIG.TERMS.POINTS_NAME}紀錄...</p>`;
     try {
         // 【關鍵修正】呼叫新的 API 路徑
-        const response = await fetch(`/api/my-purchase-history?userId=${userProfile.userId}`);
+        const response = await fetch(`/my-purchase-history?userId=${userProfile.userId}`);
         if (!response.ok) throw new Error('查詢紀錄失敗');
         const records = await response.json();
         if (records.length === 0) {
@@ -525,7 +525,7 @@ async function initializeRentalHistoryPage() {
 
     try {
         // 預設載入目前的租借
-        const currentResponse = await fetch(`/api/my-rental-history?userId=${userProfile.userId}&filter=current`);
+        const currentResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=current`);
         if (!currentResponse.ok) throw new Error('查詢租借紀錄失敗');
         const currentRentals = await currentResponse.json();
         renderRentals(currentRentals, currentContainer);
@@ -539,7 +539,7 @@ async function initializeRentalHistoryPage() {
                 toggleBtn.textContent = '隱藏過往紀錄';
 
                 try {
-                    const pastResponse = await fetch(`/api/my-rental-history?userId=${userProfile.userId}&filter=past`);
+                    const pastResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=past`);
                     if (!pastResponse.ok) throw new Error('查詢過往租借失敗');
                     const pastRentals = await pastResponse.json();
                     renderRentals(pastRentals, pastContainer, true);
@@ -565,7 +565,7 @@ async function initializeEditProfilePage() {
     if (allGames.length === 0) {
         try {
             // 【核心修正】確認此處呼叫的是 get-products
-            const res = await fetch('/api/get-products');
+            const res = await fetch('/get-products');
             if (!res.ok) throw new Error('無法獲取遊戲資料');
             allGames = await res.json();
         } catch (error) {
@@ -684,7 +684,7 @@ async function initializeEditProfilePage() {
         };
 
         try {
-            const response = await fetch('/api/update-user-profile', {
+            const response = await fetch('/update-user-profile', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
             });
             const result = await response.json();
@@ -904,7 +904,7 @@ async function initializeGamesPage() {
     if (allGames.length === 0) {
         try {
             // 【關鍵修正】呼叫新的 API 路徑
-            const res = await fetch('/api/get-products');
+            const res = await fetch('/get-products');
             if (!res.ok) throw new Error('API 請求失敗');
             allGames = await res.json();
         } catch (error) {
@@ -974,7 +974,7 @@ async function initializeGamesPage() {
 
         try {
             // 請求的 API 端點不變，但後端回傳的內容已改變
-            const response = await fetch('/api/bookings-check?month-init=true');
+            const response = await fetch('/bookings-check?month-init=true');
             const data = await response.json();
             // 將接收到的資料存到 enabledDatesByAdmin
             enabledDatesByAdmin = data.enabledDates || []; 
@@ -1073,7 +1073,7 @@ async function initializeGamesPage() {
         slotsPlaceholder.style.display = 'block';
 
         try {
-            const response = await fetch(`/api/bookings-check?date=${date}`);
+            const response = await fetch(`/bookings-check?date=${date}`);
             if (!response.ok) throw new Error('查詢失敗');
             dailyAvailability = await response.json();
             
@@ -1142,7 +1142,7 @@ async function initializeGamesPage() {
                 contactPhone: bookingData.phone
             };
 
-            const createRes = await fetch('/api/bookings-create', {
+            const createRes = await fetch('/bookings-create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bookingPayload)
@@ -1155,7 +1155,7 @@ async function initializeGamesPage() {
             
             const result = await createRes.json();
             
-            await fetch('/api/send-message', {
+            await fetch('/send-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
@@ -1183,7 +1183,7 @@ async function initializeGamesPage() {
     // =================================================================
     async function initializeInfoPage() {
         try {
-            const response = await fetch('/api/get-store-info');
+            const response = await fetch('/get-store-info');
             if (!response.ok) throw new Error('無法獲取店家資訊');
             const info = await response.json();
             document.getElementById('store-address').textContent = info.address;

@@ -32,7 +32,7 @@ export async function onRequest(context) {
     }
     
     // 如果有 token，我們可以在這裡選擇性地驗證它。
-    // 但因為所有 /api/admin 的請求都已經有 middleware 保護，
+    // 但因為所有 /admin 的請求都已經有 middleware 保護，
     // 這裡只做存在性檢查也可以達到保護頁面的效果。
   }
 

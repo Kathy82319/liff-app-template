@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店務管理系統</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
+    <style>
+            /* 【新增這一段】響應式 CRM 樣式 */
+    @media (max-width: 768px) {
+        .details-grid {
+            grid-template-columns: 1fr; /* 在手機上，從左右兩欄變成垂直單欄 */
+        }
+        .profile-summary {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+    }
+        :root {
+            --primary-color: #007bff; --secondary-color: #6c757d; --danger-color: #dc3545;
+            --success-color: #28a745; --warning-color: #ffc107; --info-color: #17a2b8;
+            --light-gray: #f8f9fa; --border-color: #dee2e6;
+            --text-dark: #343a40; --text-light: #6c757d;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--light-gray); }
+        .header { background-color: var(--text-dark); color: white; padding: 0.8rem 1.5rem; }
+        .header h1 { margin: 0; font-size: 1.4rem; }
+        .nav-tabs { background-color: white; padding: 0 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: nowrap; overflow-x: auto; }
+        .nav-tabs a { padding: 0.8rem; color: var(--text-light); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+        .nav-tabs a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        .main-content { padding: 1.5rem; }
+        .page { display: none; } .page.active { display: block; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .page-header h2 { margin: 0; font-size: 1.8rem; color: var(--text-dark); }
+        
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 0.8rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; text-align: center; }
+        th { background-color: var(--light-gray); font-weight: 600; font-size: 0.9rem; }
+        td { font-size: 0.9rem; }
+        
+        .compound-cell .main-info { font-weight: bold; }
+        .compound-cell .sub-info { font-size: 0.8rem; color: var(--text-light); }
+        .action-btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .btn-edit { background-color: var(--warning-color); color: #212529; }
+        .btn-sync { background-color: var(--info-color); }
+
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; align-items: center; }
+        .filter-group { display: flex; gap: 0.5rem; }
+        .filter-group button { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: 1px solid var(--border-color); background-color: white; border-radius: 5px; cursor: pointer; }
+        .filter-group button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-start; z-index: 1000; overflow-y: auto; padding-top: 5vh; padding-bottom: 5vh; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; }
+        .modal-close { font-size: 1.5rem; font-weight: bold; border: none; background: none; cursor: pointer; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .form-actions { margin-top: 20px; text-align: right; }
+        .btn-save { background-color: var(--primary-color); }
+        .btn-cancel { background-color: var(--secondary-color); }
+
+        /* Dashboard Styles */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+        .stat-card { background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-card h3 { margin-top: 0; color: var(--text-light); font-size: 1rem; }
+        .stat-card .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary-color); }
+        .stat-card .stat-subtext { color: var(--text-light); font-size: 0.9rem; margin-top: 5px;}
+
+    /* CRM Modal Styles (優化空間版本) */
+        #user-details-modal .modal-content {
+            max-width: 800px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1rem; /* 縮小網格間距 */
+        }
+        .profile-summary {
+            text-align: left;
+            word-break: break-all; /* 避免長字串撐開版面 */
+        }
+        .profile-summary img {
+            width: 80px; /* 縮小頭像 */
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 0.5rem; /* 縮小頭像下方間距 */
+            display: block;
+            background-color: #f0f0f0;
+            border: 1px solid var(--border-color);
+        }
+        .profile-summary h4 { margin: 0.2rem 0; }
+        .profile-summary p {
+            margin: 0.15rem 0; /* 大幅縮小文字行間距 */
+            font-size: 0.8rem; /* 稍微縮小字體 */
+            color: var(--text-light);
+        }
+        .profile-summary hr { margin: 0.5rem 0; }
+
+        .details-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 0.5rem; /* 縮小頁籤下方間距 */
+        }
+        .details-tab {
+            padding: 0.5rem 0.8rem; /* 縮小頁籤上下內距 */
+            cursor: pointer;
+        }
+        .details-tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            font-weight: bold;
+        }
+        .details-tab-content { display: none; }
+        .details-tab-content.active {
+            display: block;
+            max-height: 220px; /* 設定一個最大高度，內容超長時內部會產生捲軸 */
+            overflow-y: auto;
+        }
+        #user-details-modal table { font-size: 0.8rem; }
+        #user-details-modal th, #user-details-modal td { padding: 0.4rem; } /* 縮小表格內距 */
+
+        .message-sender {
+            margin-top: 1rem; /* 縮小訊息發送區上方間距 */
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem; /* 縮小訊息發送區上方內距 */
+        }
+
+
+        /* 【** 庫存管理頁樣式 **】 */
+        .draggable-row { cursor: default; }
+        .drag-handle-cell { text-align: left !important; }
+        .drag-handle { cursor: move; display: inline-block; width: 20px; font-size: 1.2rem; color: #999; margin-right: 5px; }
+
+        /* 【** 編輯遊戲視窗專用 RWD 樣式 **】 */
+        #edit-game-modal .modal-content { max-width: 800px; }
+        .edit-game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-span-2 { grid-column: span 2; }
+        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .sub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        @media (max-width: 768px) {
+            .details-grid, .edit-game-grid, .sub-grid, .sub-grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .grid-span-2 { grid-column: span 1; }
+            .profile-summary { border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        }
+                .modal-content {
+            background: white; padding: 25px; border-radius: 8px;
+            width: 90%; max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+            max-height: 90vh;
+        }
+
+        /* 【** 步驟 1: 讓表單填滿可用空間 **】 */
+        /* 我們需要讓 form 元素也成為 flex 容器的一部分 */
+        #edit-game-form {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 確保內容不會溢出 form */
+            flex-grow: 1; /* 讓 form 填滿 modal-content 的剩餘空間 */
+        }
+        
+        .modal-body {
+            overflow-y: auto; /* 讓內容區塊可以垂直滾動 */
+            padding-right: 15px; /* 增加一點右邊距，避免滾動條太貼近內容 */
+        }
+        
+        .modal-header, .form-actions {
+            flex-shrink: 0; /* 確保頭部和腳部不會被壓縮 */
+        }
+
+        /* 【** 步驟 2: (可選，但建議) 幫按鈕區塊加上分隔線 **】 */
+        .form-actions {
+            margin-top: 20px;
+            text-align: right;
+            flex-shrink: 0;
+            padding-top: 20px; /* 增加上方間距 */
+            border-top: 1px solid var(--border-color); /* 加上分隔線 */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="admin-panel" style="display: none;">
+        <header class="header">
+            <h1>店務管理系統</h1>
+        </header>
+        <nav class="nav-tabs">
+            <a href="#dashboard" class="active">儀表板</a>
+            <a href="#users">顧客管理</a>
+            <a href="#inventory">庫存管理</a>
+            <a href="#rentals">桌遊租借</a>
+            <a href="#bookings">訂位管理</a>
+            <a href="#exp-history">經驗紀錄</a>
+            <a href="#news">情報管理</a>
+            <a href="#drafts">訊息草稿</a>
+            <a href="#store-info">店家資訊</a>
+            <a href="#scan">掃碼加點</a>
+        </nav>
+    
+<main class="main-content">
+        <div id="page-dashboard" class="page active">
+            <div class="page-header">
+                <h2>今日狀態總覽</h2>
+            </div>
+            <div id="dashboard-grid" class="dashboard-grid">
+                <div class="stat-card" data-target="bookings">
+                    <h3>今日預約總人數</h3>
+                    <p id="stat-today-guests" class="stat-value">讀取中...</p>
+                </div>
+                <div class="stat-card" data-target="rentals-rented">
+                    <h3>未歸還遊戲總數</h3>
+                    <p id="stat-outstanding-rentals" class="stat-value">讀取中...</p>
+                </div>
+                <div class="stat-card" data-target="rentals-due-today">
+                    <h3>今日到期遊戲</h3>
+                    <p id="stat-due-today" class="stat-value">讀取中...</p>
+                    <p class="stat-subtext">筆租借紀錄</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-users" class="page">
+            <div class="page-header">
+                <h2>顧客總表</h2>
+                <button id="sync-d1-to-sheet-btn" class="action-btn" style="background-color: var(--success-color);">同步至 Google Sheet</button>
+            </div>
+            <input type="text" id="user-search-input" placeholder="依 LINE 名稱或暱稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
+            <table>
+                <thead>
+                    <tr><th>LINE 名稱 / 暱稱</th><th>等級</th><th>經驗值</th><th>職業</th><th>標籤</th><th>操作</th></tr>
+                </thead>
+                <tbody id="user-list-tbody"></tbody>
+            </table>
+        </div>
+
+<div id="page-inventory" class="page">
+            <div class="page-header">
+                <h2>庫存管理</h2>
+                <button id="sync-games-btn" class="action-btn" style="background-color: #28a745;">同步至資料庫</button>
+            </div>
+            <div class="filter-bar">
+                <input type="text" id="game-search-input" placeholder="依桌遊名稱搜尋..." style="flex-grow: 1; padding: 8px;">
+                <div id="inventory-stock-filter" class="filter-group">
+                    <button class="active" data-filter="all">全部庫存</button>
+                    <button data-filter="in_stock">有庫存</button>
+                    <button data-filter="out_of_stock">無庫存</button>
+                </div>
+                <div id="inventory-visibility-filter" class="filter-group">
+                    <button class="active" data-filter="all">全部狀態</button>
+                    <button data-filter="visible">已上架</button>
+                    <button data-filter="hidden">未上架</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">順序</th>
+                        <th>遊戲 (ID / 標籤)</th>
+                        <th>總庫存</th>
+                        <th>租借庫存</th>
+                        <th>售價 / 租金</th>
+                        <th>上架</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="game-list-tbody"></tbody>
+            </table>
+        </div>
+
+        <div id="page-rentals" class="page">
+            <div class="page-header">
+                <h2>桌遊租借總表</h2>
+                <button id="full-sync-rentals-btn" class="action-btn" style="background-color: #17a2b8;">手動完整同步至 Sheet</button>
+            </div>
+            <div class="filter-bar">
+                <input type="text" id="rental-search-input" placeholder="依遊戲或會員名稱搜尋..." style="flex-grow: 1; padding: 8px;">
+                <div id="rental-status-filter" class="filter-group">
+                    <button class="active" data-filter="all">全部顯示</button>
+                    <button data-filter="rented">租借中</button>
+                    <button data-filter="overdue" style="color: var(--danger-color); font-weight: bold;">逾期未歸還</button>
+                    <button data-filter="due_today">今日到期</button>
+                    <button data-filter="returned">已歸還</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>狀態</th>
+                        <th>遊戲名稱</th>
+                        <th>租借人</th>
+                        <th id="sort-due-date" class="sortable">應還日期</th>
+                        <th>實際歸還日期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="rental-list-tbody"></tbody>
+            </table>
+        </div>
+
+<div id="create-rental-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>建立租借紀錄</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div id="rental-modal-status" style="text-align: center; color: var(--primary-color); min-height: 20px; margin-bottom: 15px;"></div>
+<form id="create-rental-form">
+    <div class="form-group">
+        <label for="rental-user-search">搜尋租借會員 (姓名/暱稱/ID)</label>
+        <input type="text" id="rental-user-search" placeholder="請至少輸入 2 個字元...">
+        <select id="rental-user-select" style="margin-top: 10px; display: none;"></select>
+    </div>
+    <div class="form-group">
+        <label>租借品項 (可多選)</label>
+        <div id="rental-games-container">
+            <input type="text" id="rental-game-search" placeholder="輸入遊戲名稱搜尋...">
+        </div>
+        <ul id="game-search-results" style="display: none;"></ul>
+    </div>
+    <div class="form-group">
+        <label for="rental-contact-name">租借人姓名</label>
+        <input type="text" id="rental-contact-name" required>
+    </div>
+    <div class="form-group">
+        <label for="rental-contact-phone">聯絡電話</label>
+        <input type="tel" id="rental-contact-phone" required maxlength="10">
+    </div>
+    <div class="form-group">
+        <label for="rental-due-date">歸還日期</label>
+        <input type="text" id="rental-due-date" required>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+            <label for="rental-rent-price">租金</label>
+            <input type="number" id="rental-rent-price" value="0" min="0">
+        </div>
+        <div class="form-group">
+            <label for="rental-deposit">押金</label>
+            <input type="number" id="rental-deposit" value="0" min="0">
+        </div>
+        <div class="form-group">
+            <label for="rental-late-fee">每日逾期費</label>
+            <input type="number" id="rental-late-fee" value="50" min="0">
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="button" class="action-btn btn-cancel">取消</button>
+        <button type="submit" class="action-btn btn-save">確認租借</button>
+    </div>
+</form>
+    </div>
+</div>
+
+<div id="page-bookings" class="page">
+    <div class="page-header">
+        <h2>訂位管理</h2>
+        <div>
+            <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
+            <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
+        </div>
+    </div>
+    <div class="filter-bar">
+        <div id="booking-status-filter" class="filter-group">
+            <button class="active" data-filter="today">今日預約</button>
+            <button data-filter="confirmed">未來預約</button>
+            <button data-filter="checked-in">已報到</button>
+            <button data-filter="cancelled">已取消</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr><th>時間</th><th>客戶</th><th>人數</th><th>狀態</th><th>操作</th></tr>
+        </thead>
+        <tbody id="booking-list-tbody"></tbody>
+    </table>
+</div>
+        <div id="page-exp-history" class="page">
+            <div class="page-header">
+                <h2>經驗紀錄查詢</h2>
+            </div>
+            <div class="filter-bar">
+                <input type="search" id="exp-user-filter-input" placeholder="依使用者名稱或 LINE ID 搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>使用者</th>
+                        <th>日期</th>
+                        <th>原因</th>
+                        <th>經驗值</th>
+                    </tr>
+                </thead>
+                <tbody id="exp-history-tbody"></tbody>
+            </table>
+        </div>
+        <div id="page-news" class="page">
+            <div class="page-header">
+                <h2>情報管理</h2>
+                <button id="add-news-btn" class="action-btn btn-save">新增情報</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>標題</th><th>分類</th><th>發布日期</th><th>狀態</th><th>操作</th></tr>
+                </thead>
+                <tbody id="news-list-tbody"></tbody>
+            </table>
+        </div>
+        <div id="page-drafts" class="page">
+            <div class="page-header">
+                <h2>訊息草稿管理</h2>
+                <button id="add-draft-btn" class="action-btn btn-save">新增草稿</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>標題</th><th>內容預覽</th><th>操作</th></tr>
+                </thead>
+                <tbody id="draft-list-tbody"></tbody>
+            </table>
+        </div>
+
+
+        <div id="page-store-info" class="page">
+            <div class="page-header"><h2>店家資訊管理</h2></div>
+            <form id="store-info-form">
+                <div class="form-group"><label for="info-address">地址</label><input type="text" id="info-address" required></div>
+                <div class="form-group"><label for="info-phone">電話</label><input type="text" id="info-phone" required></div>
+                <div class="form-group"><label for="info-hours">營業時間 (換行請直接按 Enter)</label><textarea id="info-hours" rows="5" required></textarea></div>
+                <div class="form-group"><label for="info-desc">公會介紹</label><textarea id="info-desc" rows="8" required></textarea></div>
+                <div class="form-actions"><button type="submit" class="action-btn btn-save">儲存變更</button></div>
+            </form>
+        </div>
+
+        <div id="page-scan" class="page">
+            <div class="page-header"><h2>掃碼加點</h2></div>
+            <div id="scan-container">
+                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
+                <div id="scan-result" style="display: none; max-width: 500px; margin: 0 auto;">
+                    <div class="form-group">
+                        <label for="user-id-display">掃描結果 (使用者 ID):</label>
+                        <input type="text" id="user-id-display" readonly style="background-color: #e9ecef; cursor: not-allowed;">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group"><label for="reason-select">點數名稱 (原因):</label><select id="reason-select"><option value="消費回饋">消費回饋</option><option value="活動獎勵">活動獎勵</option><option value="新手獎勵">新手獎勵</option><option value="other">其他 (請手動輸入)</option></select><input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;"></div>
+            <div class="form-group"><label for="exp-input">經驗值點數:</label><input type="number" id="exp-input" placeholder="請輸入要新增的經驗值" min="1"></div>
+            <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認新增</button>
+            <button id="rescan-btn" class="action-btn btn-cancel" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px;">重新掃描</button>
+            <div id="scan-status-container" style="margin-top: 15px; text-align: center;"></div>
+        </div>
+    </main>
+    
+<div id="booking-settings-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>管理可預約日 (可複選)</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div id="booking-datepicker-admin-container"></div>
+        <div class="form-actions">
+            <button type="button" id="open-month-btn" class="action-btn" style="background-color: var(--info-color); float: left;">開啟本月所有日期</button>
+            <button type="button" class="action-btn btn-cancel">取消</button>
+            <button type="button" id="save-booking-settings-btn" class="action-btn btn-save">儲存變更</button>
+        </div>
+    </div>
+</div>
+
+<div id="user-details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="user-details-title">顧客資料</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="user-details-content">
+                </div>
+        </div>
+    </div>
+    <div id="edit-user-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-user-title">編輯使用者</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-level-input">等級</label>
+                    <input type="number" id="edit-level-input" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-exp-input">經驗值</label>
+                    <input type="number" id="edit-exp-input" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-class-select">職業</label>
+                    <select id="edit-class-select"></select>
+                    <input type="text" id="edit-class-other-input" placeholder="請輸入自訂職業" style="display: none; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-perk-select">職業內容 (福利)</label>
+                    <select id="edit-perk-select"></select>
+                    <input type="text" id="edit-perk-other-input" placeholder="請輸入自訂福利" style="display: none; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-tag-select">標籤</label>
+                    <select id="edit-tag-select">
+                        <option value="">無</option>
+                        <option value="會員">會員</option>
+                        <option value="員工">員工</option>
+                        <option value="黑名單">黑名單</option>
+                        <option value="other">其他 (自訂)</option>
+                    </select>
+                    <input type="text" id="edit-tag-other-input" placeholder="請輸入自訂標籤" style="display: none; margin-top: 10px;">
+                </div>
+<div class="form-group">
+    <label for="edit-notes-textarea">備註</label>
+    <textarea id="edit-notes-textarea" rows="4" placeholder="記錄客人的特殊事項..."></textarea>
+</div>                
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-news-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modal-news-title">新增情報</h3><button class="modal-close">&times;</button></div>
+            <form id="edit-news-form">
+                <input type="hidden" id="edit-news-id">
+                <div class="form-group"><label for="edit-news-title">標題</label><input type="text" id="edit-news-title" required></div>
+                <div class="form-group"><label for="edit-news-category">分類</label><input type="text" id="edit-news-category" placeholder="例如：促銷活動" required></div>
+                <div class="form-group"><label for="edit-news-date">發布日期</label><input type="text" id="edit-news-date" required></div>
+                <div class="form-group"><label for="edit-news-image">圖片網址</label><input type="url" id="edit-news-image" placeholder="https://..."></div>
+                <div class="form-group"><label for="edit-news-content">詳細內文 (選填)</label><textarea id="edit-news-content" rows="8"></textarea></div>
+                <div class="form-group"><label style="display: flex; align-items: center;"><input type="checkbox" id="edit-news-published" checked style="width: auto; margin-right: 10px;">立即發布</label></div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存</button>
+                    <button type="button" id="delete-news-btn" class="action-btn" style="display: none; background-color: #dc3545;">刪除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="create-rental-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>建立租借紀錄</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="rental-modal-status" style="text-align: center; color: var(--primary-color); min-height: 20px; margin-bottom: 15px;"></div>
+            <form id="create-rental-form">
+                <input type="hidden" id="rental-game-id">
+                <div class="form-group">
+                    <label>租借品項 (可多選)</label>
+                    <div id="rental-games-container">
+                        <input type="text" id="rental-game-search" placeholder="輸入遊戲名稱搜尋...">
+                    </div>
+                    <ul id="game-search-results" style="display: none;"></ul>
+                </div>
+                <div class="form-group">
+                    <label for="rental-user-search">搜尋租借會員 (LINE 名稱或 ID)</label>
+                    <input type="text" id="rental-user-search" placeholder="請至少輸入 2 個字元...">
+                    <select id="rental-user-select" style="margin-top: 10px; display: none;"></select>
+                </div>
+                <div class="form-group">
+                    <label for="rental-contact-name">租借人姓名</label>
+                    <input type="text" id="rental-contact-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="rental-contact-phone">聯絡電話</label>
+                    <input type="tel" id="rental-contact-phone" required maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label for="rental-due-date">歸還日期</label>
+                    <input type="text" id="rental-due-date" required>
+                </div>
+                <div class="form-group" style="display:none;">
+                    <label for="rental-deposit">押金</label>
+                    <input type="number" id="rental-deposit" value="0">
+                </div>
+                <div class="form-group" style="display:none;">
+                    <label for="rental-late-fee">每日逾期費用</label>
+                    <input type="number" id="rental-late-fee" value="50">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">確認租借</button>
+                </div>
+            </form>
+        </div>
+    </div>
+ 
+       <div id="cancel-booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>取消預約並發送通知</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <p>您正準備取消 <strong id="cancel-booking-info"></strong> 的預約。</p>
+            <div class="message-sender">
+                <div class="form-group">
+                    <label for="cancel-message-draft-select">選擇通知訊息草稿 (選填)</label>
+                    <select id="cancel-message-draft-select"><option value="">-- 不發送通知或手動輸入 --</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="cancel-direct-message-content">訊息內容</label>
+                    <textarea id="cancel-direct-message-content" rows="4" placeholder="若留空，則只取消預約，不發送通知。"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button id="confirm-cancel-booking-btn" class="action-btn btn-save">確認取消</button>
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <div id="edit-game-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="modal-game-title">編輯遊戲</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-game-form">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-game-id">
+                    <div class="edit-game-grid">
+                        
+                        <div>
+                            <div class="form-group">
+                                <label for="edit-game-name">遊戲名稱</label>
+                                <input type="text" id="edit-game-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-game-id-display">遊戲 ID (不可修改)</label>
+                                <input type="text" id="edit-game-id-display" readonly style="background: #e9ecef;">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-game-tags">標籤 (以逗號分隔)</label>
+                                <input type="text" id="edit-game-tags">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-game-image">主要圖片網址</label>
+                                <input type="url" id="edit-game-image" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-game-image-2">圖片網址 2 (選填)</label>
+                                <input type="url" id="edit-game-image-2" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-game-image-3">圖片網址 3 (選填)</label>
+                                <input type="url" id="edit-game-image-3" placeholder="https://...">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="sub-grid-3">
+                                <div class="form-group"><label for="edit-min-players">最少人數</label><input type="number" id="edit-min-players" min="1"></div>
+                                <div class="form-group"><label for="edit-max-players">最多人數</label><input type="number" id="edit-max-players" min="1"></div>
+                                <div class="form-group"><label for="edit-difficulty">難度</label><select id="edit-difficulty"><option>簡單</option><option>普通</option><option>困難</option><option>專家</option></select></div>
+                            </div>
+                            <div class="sub-grid">
+                                <div class="form-group"><label for="edit-total-stock">總庫存</label><input type="number" id="edit-total-stock" min="0"></div>
+                                <div class="form-group"><label for="edit-for-rent-stock">可租借庫存</label><input type="number" id="edit-for-rent-stock" min="0"></div>
+                            </div>
+                            <div class="sub-grid">
+                                <div class="form-group"><label for="edit-sale-price">售價</label><input type="number" id="edit-sale-price" min="0"></div>
+                                <div class="form-group"><label for="edit-rent-price">租金</label><input type="number" id="edit-rent-price" min="0"></div>
+                            </div>
+                             <div class="sub-grid">
+                                <div class="form-group"><label for="edit-deposit">押金</label><input type="number" id="edit-deposit" min="0"></div>
+                                <div class="form-group"><label for="edit-late-fee">每日逾期費</label><input type="number" id="edit-late-fee" min="0"></div>
+                            </div>
+                            <div class="form-group"><label style="display: flex; align-items: center; margin-top: 10px;"><input type="checkbox" id="edit-is-visible" style="width: auto; margin-right: 10px;">是否上架 (顯示於 LIFF)</label></div>
+                        </div>
+
+                        <div class="form-group grid-span-2">
+                            <label for="edit-game-desc">遊戲介紹</label>
+                            <textarea id="edit-game-desc" rows="4"></textarea>
+                        </div>
+                        <div class="form-group grid-span-2">
+                            <label for="edit-supplementary-info">補充說明 (配件、注意事項等)</label>
+                            <textarea id="edit-supplementary-info" rows="4"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存變更</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="edit-draft-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-draft-title">編輯訊息草稿</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-draft-form">
+                <input type="hidden" id="edit-draft-id">
+                <div class="form-group">
+                    <label for="edit-draft-title">草稿標題</label>
+                    <input type="text" id="edit-draft-title" required placeholder="方便您辨識的標題，不會傳送給顧客">
+                </div>
+                <div class="form-group">
+                    <label for="edit-draft-content">訊息內容</label>
+                    <textarea id="edit-draft-content" rows="6" required placeholder="這是將會傳送給顧客的實際內容"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存草稿</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<div id="edit-rental-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-rental-title">管理租借紀錄</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="edit-rental-form">
+            <input type="hidden" id="edit-rental-id">
+            <div class="form-group">
+                <label>系統計算逾期總額</label>
+                <input type="text" id="calculated-late-fee-display" readonly style="background: #e9ecef; color: var(--danger-color); font-weight: bold;">
+            </div>
+            <div class="form-group">
+                <label for="edit-rental-due-date">修改應還日期 (延期)</label>
+                <input type="text" id="edit-rental-due-date">
+            </div>
+            <div class="form-group">
+                <label for="edit-rental-override-fee">手動覆寫逾期金額 (選填)</label>
+                <input type="number" id="edit-rental-override-fee" min="0" placeholder="留空則由系統自動計算">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="action-btn btn-cancel">取消</button>
+                <button type="submit" class="action-btn btn-save">儲存變更</button>
+            </div>
+        </form>
+        <div class="message-sender" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+            <h4>發送 LINE 訊息</h4>
+            <div class="form-group">
+                <label for="rental-message-draft-select">選擇訊息草稿</label>
+                <select id="rental-message-draft-select"><option value="">-- 手動輸入或選擇草稿 --</option></select>
+            </div>
+            <div class="form-group">
+                <label for="rental-direct-message-content">訊息內容</label>
+                <textarea id="rental-direct-message-content" rows="4"></textarea>
+            </div>
+            <div class="form-actions">
+                <button id="rental-send-direct-message-btn" class="action-btn btn-save">確認發送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="/admin-login.js"></script>
+</body>
+</html>

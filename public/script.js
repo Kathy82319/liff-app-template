@@ -6,13 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     const myLiffId = "2008032417-3yJQGaO6";
     let userProfile = null;
-    let gameData = {}; // 用於快取使用者遊戲資料
+    let gameData = {};
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
 
-    const TOTAL_TABLES = 4;
-    const PEOPLE_PER_TABLE = 4;
+    // 【改造】將業務邏輯的常數改為從設定檔讀取
+    const TOTAL_TABLES = 4; // 這個未來也可以放入 config
+    const PEOPLE_PER_TABLE = 4; // 這個未來也可以放入 config
     const AVAILABLE_TIME_SLOTS = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
 
     let myRentals = [];
@@ -23,8 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let bookingData = {};
     let bookingHistoryStack = [];
     let dailyAvailability = { limit: TOTAL_TABLES, booked: 0, available: TOTAL_TABLES };
-    let disabledDatesByAdmin = [];
-    let enabledDatesByAdmin = []; // 【改造】變數名修正，更清晰
+    let enabledDatesByAdmin = [];
 
     // =================================================================
     // 【改造】新增：設定檔應用函式 (Template Engine)
@@ -34,8 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const { FEATURES } = CONFIG;
 
         // 控制主導覽列 (Tab Bar) 的顯示/隱藏
-        document.querySelector('.tab-button[data-target="page-games"]').style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
-        document.querySelector('.tab-button[data-target="page-booking"]').style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+        // 【修正】修正此處的語法錯誤
+        const gamesTabButton = document.querySelector('.tab-button[data-target="page-games"]');
+        if(gamesTabButton) gamesTabButton.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+
+        const bookingTabButton = document.querySelector('.tab-button[data-target="page-booking"]');
+        if(bookingTabButton) bookingTabButton.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
 
         // --- 任務 3: 實現術語通用化 ---
         const { TERMS } = CONFIG;
@@ -44,7 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.title = TERMS.BUSINESS_NAME;
 
         // 2. 更新主導覽列 (Tab Bar) 的文字
-        //    使用 querySelector 來安全地尋找元素，即使功能關閉找不到元素也不會報錯
         const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
         if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
 
@@ -52,14 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
 
         const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
-        if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`; // 這裡可以進一步客製化
+        if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
 
-        // 3. 更新 page-templates 內的靜態標題文字 (textContent 更安全)
-        //    使用 ?. 可選串聯語法，即使元素不存在也不會報錯
+        // 3. 更新 page-templates 內的靜態標題文字
         pageTemplates.querySelector('#page-profile .page-main-title')?.textContent = TERMS.MEMBER_PROFILE_TITLE;
         pageTemplates.querySelector('#page-games #keyword-search')?.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
         pageTemplates.querySelector('#page-booking .page-main-title')?.textContent = TERMS.BOOKING_PAGE_TITLE;
     }
+
 
     // =================================================================
     // 頁面切換邏輯
@@ -245,66 +248,73 @@ function renderNews(filterCategory = 'ALL') {
         }
     }
 
-    // =================================================================
-    // LIFF 初始化 (更新版)
-    // =================================================================
-    function handleInitialRouting() {
-        const hash = window.location.hash;
-        const pageId = hash ? hash.substring(1) : 'page-home';
-        const templateExists = document.getElementById(pageId);
-        showPage(templateExists ? pageId : 'page-home');
+// =================================================================
+// LIFF 初始化 (更新版)
+// =================================================================
+
+// 【步驟 1: 新增這個函式】
+// 這個函式專門用來決定 LIFF 載入後要顯示哪個頁面
+function handleInitialRouting() {
+    const hash = window.location.hash; // 獲取網址中 # 後面的部分
+
+    // 如果 hash 存在且對應到某個頁面 (例如 #page-profile)
+    // 我們就把 # 拿掉，得到 page-profile
+    const pageId = hash ? hash.substring(1) : 'page-home';
+
+    // 檢查這個 pageId 是否真的存在於我們的 HTML 樣板中
+    const templateExists = document.getElementById(pageId);
+
+    if (templateExists) {
+        showPage(pageId); // 如果存在，就顯示對應頁面
+    } else {
+        showPage('page-home'); // 如果不存在或沒有 hash，就顯示首頁
     }
+}
 
-    async function initializeLiff() {
-        try {
-            await liff.init({ liffId: myLiffId });
+// 【步驟 2: 修改這個函式】
+// 使用 async/await 讓程式碼更清晰
+async function initializeLiff() {
+    try {
+        await liff.init({ liffId: myLiffId });
 
-            if (!liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-
-            userProfile = await liff.getProfile();
-            
-            // 【改造】在 LIFF 初始化成功後，立刻應用設定檔
-            applyConfiguration();
-
-            handleInitialRouting();
-
-        } catch (err) {
-            console.error("LIFF 初始化或 Profile 獲取失敗", err);
-            // 【改造】即使 LIFF 失敗，也嘗試應用設定檔，讓非 LIFF 環境也能看到正確文字
-            applyConfiguration();
-            showPage('page-home');
+        if (!liff.isLoggedIn()) {
+            liff.login();
+            return; // 登入後會重新導向，後面的程式碼不會執行
         }
-    }
 
+        // 成功登入後，先取得使用者資料
+        userProfile = await liff.getProfile();
+
+        // 【最關鍵的修改！】
+        // 初始化和登入都完成後，才呼叫路由函式去判斷要顯示哪個頁面
+        handleInitialRouting();
+
+    } catch (err) {
+        console.error("LIFF 初始化或 Profile 獲取失敗", err);
+        // 即使失敗，也顯示首頁，避免畫面空白
+        showPage('page-home');
+    }
+}
     // =================================================================
-    // 個人資料頁 (page-profile)
+    // 個人資料頁
     // =================================================================
     async function initializeProfilePage() {
         if (!userProfile) return;
 
-        // 【改造】使用術語更新靜態文字
         document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
         document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}<br>紀錄`;
         document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}<br>紀錄`;
-        
-        // 【改造】根據功能開關，決定是否顯示會員系統、預約、租借相關按鈕
         document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
         document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
 
-
         const profilePicture = document.getElementById('profile-picture');
         if (userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
-
         const qrcodeElement = document.getElementById('qrcode');
-        if(qrcodeElement) {
+        if (qrcodeElement) {
             qrcodeElement.innerHTML = '';
             new QRCode(qrcodeElement, { text: userProfile.userId, width: 150, height: 150 });
         }
-        
         document.getElementById('edit-profile-btn').addEventListener('click', () => showPage('page-edit-profile'));
 
         try {
@@ -315,46 +325,236 @@ function renderNews(filterCategory = 'ALL') {
             document.getElementById('display-name').textContent = '資料載入失敗';
         }
     }
-    
-    // 【改造】這是一個重要函式，它將會員資料動態填入介面
+
+    // 【需求 2.2 修正】增加 forceRefresh 參數
+    async function fetchGameData(forceRefresh = false) { 
+        if (!forceRefresh && gameData && gameData.user_id) return gameData;
+        try {
+            const response = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
+            });
+            if (!response.ok) throw new Error('無法取得會員遊戲資料');
+            gameData = await response.json();
+            
+            // updateProfileDisplay(gameData); // 這行可以移除，因為 initializeProfilePage 會呼叫
+            return gameData;
+        } catch (error) {
+            console.error('呼叫會員 API 失敗:', error);
+            document.getElementById('display-name').textContent = userProfile.displayName;
+            return null;
+        }
+    }
+
+// public/script.js
+
     function updateProfileDisplay(data) {
         if (!data) return;
-
-        // 填充基本資料
         document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
 
-        // 根據開關決定是否顯示會員系統相關資訊
-        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            // 找到所有需要顯示/隱藏的元素
-            const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-            const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-            const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-            const perkP = document.getElementById('user-perk-line');
+        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+        const perkP = document.getElementById('user-perk-line');
 
+        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
             if (classP) classP.style.display = 'block';
             if (levelP) levelP.style.display = 'block';
             if (expP) expP.style.display = 'block';
-
-            // 填充會員系統文字 (使用術語)
-            classP.innerHTML = `<strong>等級：</strong><span id="user-class">${data.class || "無"}</span>`;
-            levelP.innerHTML = `<strong>階級：</strong><span id="user-level">${data.level}</span>`;
-            expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp}</span>`;
+            
+            if(classP) classP.innerHTML = `<strong>職業：</strong><span id="user-class">${data.class || "無"}</span>`;
+            if(levelP) levelP.innerHTML = `<strong>等級：</strong><span id="user-level">${data.level}</span>`;
+            if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
 
             if (perkP && data.perk && data.class !== '無') {
-                perkP.innerHTML = `<strong>專屬福利：</strong><span id="user-perk">${data.perk}</span>`;
+                perkP.innerHTML = `<strong>職業福利：</strong><span id="user-perk">${data.perk}</span>`;
                 perkP.style.display = 'block';
             } else if (perkP) {
                 perkP.style.display = 'none';
             }
         } else {
-            // 如果會員系統關閉，隱藏所有相關欄位
-            document.querySelector('.profile-stats p:nth-of-type(1)').style.display = 'none';
-            document.querySelector('.profile-stats p:nth-of-type(2)').style.display = 'none';
-            document.querySelector('.profile-stats p:nth-of-type(3)').style.display = 'none';
-            document.getElementById('user-perk-line').style.display = 'none';
+            if (classP) classP.style.display = 'none';
+            if (levelP) levelP.style.display = 'none';
+            if (expP) expP.style.display = 'none';
+            if (perkP) perkP.style.display = 'none';
         }
     }
 
+// REPLACE THIS FUNCTION
+async function initializeMyBookingsPage() {
+    if (!userProfile) return;
+
+    const currentContainer = document.getElementById('my-bookings-container');
+    const pastContainer = document.getElementById('past-bookings-container');
+    const toggleBtn = document.getElementById('toggle-past-bookings-btn');
+
+    if (!currentContainer || !pastContainer || !toggleBtn) return;
+
+    currentContainer.innerHTML = '<p>正在查詢您的預約紀錄...</p>';
+
+    // 渲染函式，用於顯示預約列表
+    const renderBookings = (bookings, container, isPast = false) => {
+        if (bookings.length === 0) {
+            container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
+            return;
+        }
+        container.innerHTML = bookings.map(booking => `
+            <div class="booking-info-card">
+                <p class="booking-date-time">${booking.booking_date} - ${booking.time_slot}</p>
+                <p><strong>預約姓名：</strong> ${booking.contact_name}</p>
+                <p><strong>預約人數：</strong> ${booking.num_of_people} 人</p>
+                <p><strong>狀態：</strong> <span class="booking-status-${booking.status}">${booking.status_text}</span></p>
+            </div>
+        `).join('');
+    };
+
+    try {
+        // 預設載入目前的預約
+        const currentResponse = await fetch(`/api/my-bookings?userId=${userProfile.userId}&filter=current`);
+        if (!currentResponse.ok) throw new Error('查詢預約失敗');
+        const currentBookings = await currentResponse.json();
+        renderBookings(currentBookings, currentContainer);
+
+        // 綁定按鈕事件
+        toggleBtn.addEventListener('click', async () => {
+            const isHidden = pastContainer.style.display === 'none';
+            if (isHidden) {
+                pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
+                pastContainer.style.display = 'block';
+                toggleBtn.textContent = '隱藏過往紀錄';
+
+                try {
+                    const pastResponse = await fetch(`/api/my-bookings?userId=${userProfile.userId}&filter=past`);
+                    if (!pastResponse.ok) throw new Error('查詢過往預約失敗');
+                    const pastBookings = await pastResponse.json();
+                    renderBookings(pastBookings, pastContainer, true);
+                } catch (error) {
+                    pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+                }
+            } else {
+                pastContainer.style.display = 'none';
+                toggleBtn.textContent = '查看過往紀錄';
+            }
+        });
+
+    } catch (error) {
+        currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+    }
+}
+
+    async function initializeMyExpHistoryPage() {
+        if (!userProfile) return;
+        const container = document.getElementById('my-exp-history-container');
+        if (!container) return;
+        container.innerHTML = '<p>正在查詢您的經驗紀錄...</p>';
+        try {
+            const response = await fetch(`/api/my-exp-history?userId=${userProfile.userId}`);
+            if (!response.ok) throw new Error('查詢紀錄失敗');
+            const records = await response.json();
+            if (records.length === 0) {
+                container.innerHTML = '<p>您目前沒有任何經驗值紀錄。</p>';
+                return;
+            }
+            container.innerHTML = records.map(record => {
+                const date = new Date(record.created_at).toLocaleDateString('sv'); 
+                const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
+                const expSign = record.exp_added > 0 ? '+' : '';
+                return `
+                    <div class="exp-record-card">
+                        <div class="exp-record-date">${date}</div>
+                        <div class="exp-record-reason">${record.reason}</div>
+                        <div class="exp-record-value ${expClass}">${expSign}${record.exp_added}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color: red;">無法載入經驗紀錄。</p>`;
+        }
+    }
+
+// public/script.js
+
+// REPLACE THIS FUNCTION
+async function initializeRentalHistoryPage() {
+    if (!userProfile) return;
+
+    const currentContainer = document.getElementById('rental-history-container');
+    const pastContainer = document.getElementById('past-rentals-container');
+    const toggleBtn = document.getElementById('toggle-past-rentals-btn');
+
+    if (!currentContainer || !pastContainer || !toggleBtn) return;
+
+    currentContainer.innerHTML = '<p>正在查詢您目前的租借...</p>';
+
+    // 渲染函式，用於顯示租借列表
+    const renderRentals = (rentals, container, isPast = false) => {
+        if (rentals.length === 0) {
+            container.innerHTML = `<p>${isPast ? '沒有過往的租借紀錄。' : '您目前沒有租借中的遊戲。'}</p>`;
+            return;
+        }
+
+        container.innerHTML = rentals.map(rental => {
+            let statusHTML = '';
+            if (rental.status === 'returned') {
+                statusHTML = `<div class="rental-status returned">已於 ${rental.return_date || ''} 歸還</div>`;
+            } else if (typeof rental.overdue_days === 'number' && rental.overdue_days > 0) {
+                statusHTML = `
+                    <div class="rental-status overdue-text">
+                        <strong>已逾期 ${rental.overdue_days} 天</strong><br>
+                        累積逾期金額 ${rental.calculated_late_fee} 元
+                    </div>`;
+            } else {
+                statusHTML = `<div class="rental-status rented">租借中</div>`;
+            }
+
+            return `
+                <div class="rental-card">
+                    <img src="${rental.game_image_url || 'placeholder.jpg'}" class="rental-game-image">
+                    <div class="rental-info">
+                        <h3 class="rental-game-title">${rental.game_name}</h3>
+                        <p>租借日期：${rental.rental_date}</p>
+                        <p>應還日期：${rental.due_date}</p>
+                        ${statusHTML}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    try {
+        // 預設載入目前的租借
+        const currentResponse = await fetch(`/api/my-rental-history?userId=${userProfile.userId}&filter=current`);
+        if (!currentResponse.ok) throw new Error('查詢租借紀錄失敗');
+        const currentRentals = await currentResponse.json();
+        renderRentals(currentRentals, currentContainer);
+
+        // 綁定按鈕事件
+        toggleBtn.addEventListener('click', async () => {
+            const isHidden = pastContainer.style.display === 'none';
+            if (isHidden) {
+                pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
+                pastContainer.style.display = 'block';
+                toggleBtn.textContent = '隱藏過往紀錄';
+
+                try {
+                    const pastResponse = await fetch(`/api/my-rental-history?userId=${userProfile.userId}&filter=past`);
+                    if (!pastResponse.ok) throw new Error('查詢過往租借失敗');
+                    const pastRentals = await pastResponse.json();
+                    renderRentals(pastRentals, pastContainer, true);
+                } catch (error) {
+                    pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+                }
+            } else {
+                pastContainer.style.display = 'none';
+                toggleBtn.textContent = '查看過往紀錄';
+            }
+        });
+
+    } catch (error) {
+        currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+    }
+}
     // =================================================================
     // 編輯個人資料頁
     // =================================================================

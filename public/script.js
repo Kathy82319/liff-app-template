@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let bookingHistoryStack = [];
     let dailyAvailability = { limit: TOTAL_TABLES, booked: 0, available: TOTAL_TABLES };
     let enabledDatesByAdmin = [];
-
+ 
     // =================================================================
     // 【改造】新增：設定檔應用函式 (Template Engine)
     // =================================================================

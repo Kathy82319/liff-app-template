@@ -29,7 +29,7 @@ async function addRowToSheet(env, sheetName, rowData) {
 
     const accessToken = await getAccessToken(env);
     const simpleAuth = { getRequestHeaders: () => ({ 'Authorization': `Bearer ${accessToken}` }) };
-    
+     
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
     await doc.loadInfo();
     

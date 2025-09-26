@@ -108,9 +108,9 @@ export async function onRequest(context) {
     const db = env.DB;
 
     try {
-        // 處理 GET 請求 (給前端 LIFF 和後台 CRM 使用)
         if (request.method === 'GET') {
-            const stmt = db.prepare('SELECT * FROM BoardGames ORDER BY display_order ASC');
+            // 【修正】將 BoardGames 改為 Products
+            const stmt = db.prepare('SELECT * FROM Products ORDER BY display_order ASC');
             const { results } = await stmt.all();
             return new Response(JSON.stringify(results || []), {
                 status: 200,
@@ -128,10 +128,9 @@ export async function onRequest(context) {
         }
 
         return new Response('Invalid request method.', { status: 405 });
-
     } catch (error) {
-        console.error(`Error in get-boardgames API (Method: ${request.method}):`, error);
-        return new Response(JSON.stringify({ error: '獲取桌遊列表失敗。', details: error.message }), {
+        console.error(`Error in get-products API:`, error);
+        return new Response(JSON.stringify({ error: '獲取產品列表失敗。', details: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });

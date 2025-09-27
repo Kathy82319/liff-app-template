@@ -1,3 +1,5 @@
+// public/script.js - v1.5 Final Corrected Version
+
 const CONFIG = window.APP_CONFIG;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,20 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
-
-    const TOTAL_TABLES = 4;
-    const PEOPLE_PER_TABLE = 4;
-    const AVAILABLE_TIME_SLOTS = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
-
-    let myRentals = [];
     let allGames = [];
     let allNews = [];
     let pageHistory = ['page-home'];
-    let activeFilters = { keyword: '', tag: null };
-    let bookingData = {};
-    let bookingHistoryStack = [];
-    let dailyAvailability = { limit: TOTAL_TABLES, booked: 0, available: TOTAL_TABLES };
-    let enabledDatesByAdmin = [];
 
     // =================================================================
     // 設定檔應用函式 (Template Engine)
@@ -31,13 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyConfiguration() {
         try {
             if (typeof CONFIG === 'undefined' || !CONFIG) {
-                console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
-                alert("系統設定檔載入失敗，頁面功能可能不完整。");
-                return;
+                console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！"); return;
             }
-
             const { FEATURES, TERMS } = CONFIG;
-
             const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
             const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
             const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
@@ -47,17 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
             if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
-            
-            if (profileTab) {
-                profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
-            }
-
+            if (profileTab) profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
             if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-            if (homeTab) homeTab.style.display = 'block';
-            if (infoTab) infoTab.style.display = 'block';
 
             document.title = TERMS.BUSINESS_NAME;
-            
             const businessNameHeader = document.getElementById('business-name-header');
             if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
 
@@ -68,27 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
 
             if (pageTemplates) {
-                const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
-                if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
-                
-                const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
-                if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
-                
-                const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title');
-                if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE;
-                
-                const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
-                if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
-                
-                const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
-                if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
-
-                const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
-                if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
+                pageTemplates.querySelector('#page-home .page-main-title').textContent = TERMS.NEWS_PAGE_TITLE;
+                pageTemplates.querySelector('#page-games .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE;
+                pageTemplates.querySelector('#page-checkout .page-main-title').textContent = TERMS.CHECKOUT_PAGE_TITLE;
+                pageTemplates.querySelector('#page-profile .page-main-title').textContent = TERMS.MEMBER_PROFILE_TITLE;
+                pageTemplates.querySelector('#page-booking .page-main-title').textContent = TERMS.BOOKING_PAGE_TITLE;
+                pageTemplates.querySelector('#page-games #keyword-search').setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
             }
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);
-            alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
         }
     }
     // =================================================================
@@ -106,7 +74,7 @@ const pageInitializers = {
     'page-edit-profile': initializeEditProfilePage, //更改
 };
 
-function showPage(pageId, isBackAction = false) {
+    function showPage(pageId, isBackAction = false) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
@@ -117,37 +85,25 @@ function showPage(pageId, isBackAction = false) {
                     pageHistory.push(pageId);
                 }
             }
-            
-            // 執行對應的頁面初始化函式
-            const pageInitializers = {
-                'page-home': initializeHomePage,
-                'page-games': initializeGamesPage,
-                'page-profile': initializeProfilePage,
-                'page-my-bookings': initializeMyBookingsPage,
-                'page-my-exp-history': initializeMyExpHistoryPage,
-                'page-rental-history': initializeRentalHistoryPage,
-                'page-info': initializeInfoPage,
-            };
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId]();
             }
-
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.target === pageHistory[0]);
             });
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
         }
+    }
 
-
-function goBackPage() {
+    function goBackPage() {
         if (pageHistory.length > 1) {
             pageHistory.pop();
             showPage(pageHistory[pageHistory.length - 1], true);
         } else {
             liff.closeWindow();
         }
-
+    }
     window.addEventListener('popstate', (event) => {
         if (pageHistory.length > 1) {
             pageHistory.pop();
@@ -275,30 +231,23 @@ function goBackPage() {
     // 輔助函式 (需新增)
     // =================================================================
     async function togglePastView(type, containerId, button) {
-        /*
-        從這段開始複製
-        */
         const pastContainer = document.getElementById(containerId);
         if (!pastContainer || !button) return;
-
         const isHidden = pastContainer.style.display === 'none';
         if (isHidden) {
             pastContainer.innerHTML = '<p>查詢中...</p>';
             pastContainer.style.display = 'block';
             button.textContent = '隱藏過往紀錄';
-
             try {
                 const apiPath = type === 'bookings' ? '/my-bookings' : '/my-rental-history';
                 const response = await fetch(`${apiPath}?userId=${userProfile.userId}&filter=past`);
                 if (!response.ok) throw new Error(`查詢過往${type}失敗`);
                 const data = await response.json();
-
                 if (type === 'bookings') {
                     renderBookings(data, pastContainer, true);
                 } else {
                     renderRentals(data, pastContainer, true);
                 }
-
             } catch (error) {
                 pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
             }
@@ -306,16 +255,11 @@ function goBackPage() {
             pastContainer.style.display = 'none';
             button.textContent = type === 'bookings' ? '查看過往紀錄' : '查看已歸還紀錄';
         }
-        /*
-        到這裡結束
-        */
-    }    
-
+    }
     // =================================================================
-    // 各頁面初始化函式 - 資料渲染輔助 (需新增)
+    // 輔助函式 (資料渲染、API 請求等)
     // =================================================================
     function renderBookings(bookings, container, isPast = false) {
-
         if (!container) return;
         if (bookings.length === 0) {
             container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
@@ -329,11 +273,9 @@ function goBackPage() {
                 <p><strong>狀態:</strong> ${b.status_text}</p>
             </div>
         `).join('');
-
     }
 
     function renderRentals(rentals, container, isPast = false) {
-
         if (!container) return;
         if (rentals.length === 0) {
             container.innerHTML = `<p>${isPast ? '沒有已歸還的紀錄。' : `您目前沒有租借中的${CONFIG.TERMS.PRODUCT_NAME}。`}</p>`;
@@ -359,8 +301,7 @@ function goBackPage() {
                 </div>
             `;
         }).join('');
-
-    }    
+    }
 
     // =================================================================
     // 首頁 (最新情報)
@@ -455,7 +396,6 @@ function goBackPage() {
     // LIFF 初始化 & 啟動
     // =================================================================
     async function initializeLiff() {
-
         try {
             await liff.init({ liffId: myLiffId });
             if (!liff.isLoggedIn()) {
@@ -464,12 +404,12 @@ function goBackPage() {
             }
             userProfile = await liff.getProfile();
             applyConfiguration();
-            setupGlobalEventListeners(); // (新增) 啟動全域事件監聽
+            setupGlobalEventListeners();
             showPage('page-home');
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
             applyConfiguration();
-            setupGlobalEventListeners(); // (新增) 即使LIFF失敗也啟動，確保返回按鈕等基礎功能可用
+            setupGlobalEventListeners();
             showPage('page-home');
         }
     }
@@ -509,7 +449,7 @@ async function initializeProfilePage() {
         }
 }
 
-    async function fetchGameData(forceRefresh = false) { 
+    async function fetchGameData(forceRefresh = false) {
         if (!forceRefresh && gameData.user_id) return gameData;
         try {
             const response = await fetch('/user', {
@@ -526,11 +466,10 @@ async function initializeProfilePage() {
         }
     }
 
-function updateProfileDisplay(data) {
+    function updateProfileDisplay(data) {
         if (!data) return;
         const displayNameEl = document.getElementById('display-name');
         if(displayNameEl) displayNameEl.textContent = data.nickname || userProfile.displayName;
-        
         const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
         const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
         const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
@@ -558,11 +497,58 @@ function updateProfileDisplay(data) {
             if (expP) expP.style.display = 'none';
             if (perkP) perkP.style.display = 'none';
         }
-}
-    
-   // 各頁面初始化函式 - 我的預約 (需新增/實作)
-    async function initializeMyBookingsPage() {
+    }
 
+    // =================================================================
+    // 各頁面初始化函式
+    // =================================================================
+    async function initializeHomePage() {
+        const container = document.getElementById('news-list-container');
+        if (!container) return;
+        container.innerHTML = `<p>載入中...</p>`;
+        try {
+            const response = await fetch('/get-news');
+            if (!response.ok) throw new Error(`無法獲取${CONFIG.TERMS.NEWS_PAGE_TITLE}`);
+            allNews = await response.json();
+            if (allNews.length === 0) {
+                container.innerHTML = `<p>目前沒有${CONFIG.TERMS.NEWS_PAGE_TITLE}。</p>`;
+            } else {
+                container.innerHTML = allNews.map(news => `<div class="news-card" data-news-id="${news.id}"><div class="news-card-header"><span class="news-card-category">${news.category}</span><span class="news-card-date">${news.published_date}</span></div><h3 class="news-card-title">${news.title}</h3><p class="news-card-snippet">${news.content ? news.content.substring(0, 50) + '...' : ''}</p></div>`).join('');
+            }
+        } catch (error) {
+            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
+        }
+    }
+
+    async function initializeGamesPage() {
+        // (此函式內容暫時留空，因為產品頁的邏輯較複雜，我們之後再回來完成)
+    }
+
+    async function initializeProfilePage() {
+        if (!userProfile) return;
+        document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
+        document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
+        document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
+        document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
+        document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+        document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
+        const profilePicture = document.getElementById('profile-picture');
+        if (profilePicture && userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
+        const qrcodeElement = document.getElementById('qrcode');
+        if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+            qrcodeElement.innerHTML = '';
+            new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
+        }
+        try {
+            const userData = await fetchGameData(true);
+            updateProfileDisplay(userData);
+        } catch (error) {
+            const displayNameEl = document.getElementById('display-name');
+            if(displayNameEl) displayNameEl.textContent = '資料載入失敗';
+        }
+    }
+
+    async function initializeMyBookingsPage() {
         if (!userProfile) return;
         const container = document.getElementById('my-bookings-container');
         if (!container) return;
@@ -575,10 +561,8 @@ function updateProfileDisplay(data) {
         } catch (error) {
             container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
         }
-
     }
 
-    // 各頁面初始化函式 - 我的積分 (需新增/實作)
     async function initializeMyExpHistoryPage() {
         if (!userProfile) return;
         const container = document.getElementById('my-exp-history-container');
@@ -590,29 +574,15 @@ function updateProfileDisplay(data) {
             const records = await response.json();
             if (records.length === 0) {
                 container.innerHTML = `<p>您目前沒有任何${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
-                return;
+            } else {
+                container.innerHTML = records.map(r => `<div class="exp-record-card" style="display: flex; justify-content: space-between;"><span>${new Date(r.created_at).toLocaleDateString()}</span><span>${r.reason}</span><span style="font-weight: bold; color: ${r.exp_added > 0 ? 'var(--color-accent)' : 'var(--color-danger)'};">${r.exp_added > 0 ? '+' : ''}${r.exp_added}</span></div>`).join('');
             }
-            container.innerHTML = records.map(r => {
-                const date = new Date(r.created_at).toLocaleDateString();
-                const expSign = r.exp_added > 0 ? '+' : '';
-                return `
-                <div class="exp-record-card" style="display: flex; justify-content: space-between;">
-                    <span>${date}</span>
-                    <span>${r.reason}</span>
-                    <span style="font-weight: bold; color: ${r.exp_added > 0 ? 'var(--color-accent)' : 'var(--color-danger)'};">${expSign}${r.exp_added}</span>
-                </div>`;
-            }).join('');
         } catch (error) {
             container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
         }
     }
 
-
-    // 各頁面初始化函式 - 我的租借 (需新增/實作)    
     async function initializeRentalHistoryPage() {
-        /*
-        從這段開始複製
-        */
         if (!userProfile) return;
         const container = document.getElementById('rental-history-container');
         if (!container) return;
@@ -625,13 +595,8 @@ function updateProfileDisplay(data) {
         } catch (error) {
             container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
         }
-        /*
-        到這裡結束
-        */
     }
 
-
-    // 各頁面初始化函式 - 店家資訊 (需更改)
     async function initializeInfoPage() {
         const container = document.getElementById('store-info-container');
         if (!container) return;
@@ -640,27 +605,12 @@ function updateProfileDisplay(data) {
             const response = await fetch('/get-store-info');
             if (!response.ok) throw new Error('無法獲取店家資訊');
             const info = await response.json();
-            container.innerHTML = `
-                <div class="info-section">
-                    <h2>地址</h2>
-                    <p>${info.address}</p>
-                </div>
-                <div class="info-section">
-                    <h2>電話</h2>
-                    <p>${info.phone}</p>
-                </div>
-                <div class="info-section">
-                    <h2>營業時間</h2>
-                    <p style="white-space: pre-wrap;">${info.opening_hours}</p>
-                </div>
-                 <div class="info-section">
-                    <h2>店家介紹</h2>
-                    <p style="white-space: pre-wrap;">${info.description}</p>
-                </div>`;
+            container.innerHTML = `<div class="info-section"><h2>地址</h2><p>${info.address}</p></div><div class="info-section"><h2>電話</h2><p>${info.phone}</p></div><div class="info-section"><h2>營業時間</h2><p style="white-space: pre-wrap;">${info.opening_hours}</p></div><div class="info-section"><h2>店家介紹</h2><p style="white-space: pre-wrap;">${info.description}</p></div>`;
         } catch (error) {
             container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
     }
+
 
     // =================================================================
     // 編輯個人資料頁
@@ -1241,6 +1191,5 @@ async function initializeEditProfilePage() {
         }
     });
 
-    // 啟動 LIFF
     initializeLiff();
 });

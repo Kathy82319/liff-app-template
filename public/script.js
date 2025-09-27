@@ -958,12 +958,11 @@ async function handleBookingConfirmation(event) {
 
     // 從表單獲取所有資料
     bookingData.timeSlot = document.getElementById('time-slot-select').value;
-    bookingData.item = document.getElementById('booking-item').value; // 取得項目
+    bookingData.item = document.getElementById('booking-item').value;
     bookingData.people = document.getElementById('booking-people').value;
     bookingData.name = document.getElementById('contact-name').value;
     bookingData.phone = document.getElementById('contact-phone').value;
 
-    // 驗證
     if (!bookingData.date || !bookingData.timeSlot || !bookingData.name || !bookingData.phone) {
         alert('日期、時段、姓名與電話為必填！');
         return;
@@ -973,18 +972,18 @@ async function handleBookingConfirmation(event) {
         confirmBtn.dataset.isSubmitting = 'true';
         confirmBtn.disabled = true;
         confirmBtn.textContent = '處理中...';
-        
+
         const bookingPayload = {
             userId: userProfile.userId,
             bookingDate: bookingData.date,
             timeSlot: bookingData.timeSlot,
-            item: bookingData.item || '未指定', // 如果項目為空，給一個預設值
+            item: bookingData.item || '未指定',
             numOfPeople: bookingData.people,
             contactName: bookingData.name,
             contactPhone: bookingData.phone
         };
 
-        const createRes = await fetch('/bookings-create', {
+        const createRes = await fetch('/bookings-create', { // 注意：這個 create API 不在 /api/ 路徑下，是正確的
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookingPayload)
@@ -994,17 +993,16 @@ async function handleBookingConfirmation(event) {
             const errorResult = await createRes.json();
             throw new Error(errorResult.error || '建立預約時發生未知錯誤');
         }
-        
+
         const result = await createRes.json();
-        
-        // 發送 LINE 訊息 (非同步，不影響後續流程)
-        fetch('/send-message', {
+
+        // 【核心修改】將 fetch 的路徑指向 /api/send-message
+        fetch('/api/send-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
         });
 
-        // 顯示成功畫面
         appContent.innerHTML = `
             <div class="details-section" style="text-align: center;">
                 <h2 style="color: var(--color-accent);">✅ 預約成功！</h2>
@@ -1012,7 +1010,6 @@ async function handleBookingConfirmation(event) {
             </div>
         `;
 
-        // 3 秒後跳轉
         setTimeout(() => {
             showPage('page-my-bookings');
         }, 3000);

@@ -30,65 +30,71 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================
-    function applyConfiguration() {
-        try {
-            if (typeof CONFIG === 'undefined' || !CONFIG) {
-                console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
-                alert("系統設定檔載入失敗，頁面功能可能不完整。");
-                return;
-            }
-
-            const { FEATURES, TERMS } = CONFIG;
-
-            const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
-            const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
-            const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
-            const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
-            const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
-            const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
-
-            if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
-            if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
-            if (profileTab) profileTab.style.display = FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-            if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-            if (homeTab) homeTab.style.display = 'block';
-            if (infoTab) infoTab.style.display = 'block';
-
-            document.title = TERMS.BUSINESS_NAME;
-            
-            const businessNameHeader = document.getElementById('business-name-header');
-            if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
-
-            if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
-            if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
-            if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
-            if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
-            if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
-
-            if (pageTemplates) {
-                const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
-                if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
-                
-                const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
-                if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
-                
-                const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title');
-                if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE;
-                
-                const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
-                if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
-                
-                const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
-                if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
-
-                const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
-                if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-            }
-        } catch (e) {
-            console.error("套用設定檔時發生錯誤:", e);
-            alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
+function applyConfiguration() {
+    try {
+        if (typeof CONFIG === 'undefined' || !CONFIG) {
+            console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
+            alert("系統設定檔載入失敗，頁面功能可能不完整。");
+            return;
         }
+
+        const { FEATURES, TERMS } = CONFIG;
+
+        const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
+        const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
+        const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
+        const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
+        const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
+        const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
+
+        if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+        if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
+        
+        // 【修改重點】更新會員中心頁籤的顯示條件
+        // 只要會員、預約、租借任一系統開啟，就顯示此頁籤
+        if (profileTab) {
+            profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
+        }
+
+        if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+        if (homeTab) homeTab.style.display = 'block';
+        if (infoTab) infoTab.style.display = 'block';
+
+        document.title = TERMS.BUSINESS_NAME;
+        
+        const businessNameHeader = document.getElementById('business-name-header');
+        if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
+
+        if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
+        if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
+        if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
+        if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
+        if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
+
+        if (pageTemplates) {
+            const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
+            if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
+            
+            const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
+            if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
+            
+            const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title');
+            if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE;
+            
+            const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
+            if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
+            
+            const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
+            if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
+
+            const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
+            if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
+        }
+    } catch (e) {
+        console.error("套用設定檔時發生錯誤:", e);
+        alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
     }
+}
 
 
     // =================================================================

@@ -29,7 +29,7 @@ window.APP_CONFIG = {
 
     // 是否啟用線上預約系統？
     // 適用於服務、課程、場地預約。
-    ENABLE_BOOKING_SYSTEM: true,
+    ENABLE_BOOKING_SYSTEM: false,
 
     // 是否啟用線上金流支付功能？(未來擴充)
     // 若為 true，在結帳或預約頁面會顯示「線上支付」按鈕。

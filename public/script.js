@@ -596,7 +596,7 @@ const pageInitializers = {
         } catch (error) {
             container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
-    }async function main() {
+    }
 
 
     // =================================================================

@@ -364,44 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function initializeHomePage() {
-        try {
-            const response = await fetch('/get-news');
-            if (!response.ok) throw new Error(`無法獲取${CONFIG.TERMS.NEWS_PAGE_TITLE}`);
-            allNews = await response.json();
-            setupNewsFilters();
-            renderNews();
-        } catch (error) {
-            console.error(error);
-        const container = document.getElementById('news-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
-        try {
-            const response = await fetch('/get-news');
-            if (!response.ok) throw new Error(`無法獲取${CONFIG.TERMS.NEWS_PAGE_TITLE}`);
-            allNews = await response.json();
-
-            if (allNews.length === 0) {
-                container.innerHTML = `<p>目前沒有${CONFIG.TERMS.NEWS_PAGE_TITLE}。</p>`;
-                return;
-            }
-            container.innerHTML = allNews.map(news => {
-                const snippet = news.content ? news.content.substring(0, 50) + '...' : '';
-                return `
-                <div class="news-card" data-news-id="${news.id}">
-                    <div class="news-card-header">
-                        <span class="news-card-category">${news.category}</span>
-                        <span class="news-card-date">${news.published_date}</span>
-                    </div>
-                    <h3 class="news-card-title">${news.title}</h3>
-                    <p class="news-card-snippet">${snippet}</p>
-                </div>`;
-            }).join('');
-        } catch (error) {
-            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
-        }
-    }
-
     // =================================================================
     // LIFF 初始化 & 啟動
     // =================================================================
@@ -850,58 +812,59 @@ async function initializeEditProfilePage() {
         });
     }
 
-    async function initializeGamesPage() {
-        try {
-            if (allGames.length === 0) {
-                const res = await fetch('/get-products');
-                if (!res.ok) throw new Error('API 請求失敗');
-                allGames = await res.json();
-            }
-            renderGames();
-            populateFilters();
-            document.getElementById('keyword-search').addEventListener('input', e => { 
-                activeFilters.keyword = e.target.value; 
-                renderGames(); 
-            });
-            document.getElementById('clear-filters').addEventListener('click', () => {
-                activeFilters.keyword = '';
-                activeFilters.tag = null;
-                document.getElementById('keyword-search').value = '';
-                const currentActive = document.querySelector('#tag-filter-container .filter-tag-btn.active');
-                if (currentActive) currentActive.classList.remove('active');
-                renderGames();
-            });
-        } catch (error) {
-            console.error('初始化產品型錄失敗:', error);
-        const container = document.getElementById('game-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
-        try {
-            if (allGames.length === 0) {
-                const res = await fetch('/get-products');
-                if (!res.ok) throw new Error('API 請求失敗');
-                allGames = await res.json();
-            }
-            
-            // 渲染遊戲列表
-            const filteredGames = allGames.filter(g => g.is_visible === 1);
-            if (filteredGames.length === 0) {
-                container.innerHTML = `<p>目前沒有可顯示的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
-            } else {
-                container.innerHTML = filteredGames.map(game => `
-                    <div class="game-card" data-game-id="${game.game_id}">
-                        <img src="${game.image_url || ''}" alt="${game.name}" class="game-image">
-                        <div class="game-info">
-                            <h3 class="game-title">${game.name}</h3>
-                            <p class="game-description">${(game.description || '').substring(0, 40)}...</p> 
-                        </div>
-                    </div>
-                `).join('');
-            }
-        } catch (error) {
-            container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
-        }
-}
+async function initializeGamesPage() {
+        try {
+            if (allGames.length === 0) {
+                const res = await fetch('/get-products');
+                if (!res.ok) throw new Error('API 請求失敗');
+                allGames = await res.json();
+            }
+            renderGames();
+            populateFilters();
+            document.getElementById('keyword-search').addEventListener('input', e => { 
+                activeFilters.keyword = e.target.value; 
+                renderGames(); 
+            });
+            document.getElementById('clear-filters').addEventListener('click', () => {
+                activeFilters.keyword = '';
+                activeFilters.tag = null;
+                document.getElementById('keyword-search').value = '';
+                const currentActive = document.querySelector('#tag-filter-container .filter-tag-btn.active');
+                if (currentActive) currentActive.classList.remove('active');
+                renderGames();
+            });
+        } catch (error) {
+            console.error('初始化產品型錄失敗:', error);
+            const container = document.getElementById('game-list-container');
+            if (!container) return;
+            container.innerHTML = `<p>載入中...</p>`;
+            try {
+                if (allGames.length === 0) {
+                    const res = await fetch('/get-products');
+                    if (!res.ok) throw new Error('API 請求失敗');
+                    allGames = await res.json();
+                }
+                
+                // 渲染遊戲列表
+                const filteredGames = allGames.filter(g => g.is_visible === 1);
+                if (filteredGames.length === 0) {
+                    container.innerHTML = `<p>目前沒有可顯示的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
+                } else {
+                    container.innerHTML = filteredGames.map(game => `
+                        <div class="game-card" data-game-id="${game.game_id}">
+                            <img src="${game.image_url || ''}" alt="${game.name}" class="game-image">
+                            <div class="game-info">
+                                <h3 class="game-title">${game.name}</h3>
+                                <p class="game-description">${(game.description || '').substring(0, 40)}...</p> 
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
+            }
+        }
+    }
 
     // =================================================================
     // 場地預約頁
@@ -941,7 +904,6 @@ async function initializeEditProfilePage() {
         return false;
     }
 
-// public/script.js
     async function initializeBookingPage() {
         bookingHistoryStack = [];
         showBookingStep('step-preference');

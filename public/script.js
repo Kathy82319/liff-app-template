@@ -216,9 +216,47 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- 歷史紀錄頁的切換按鈕 ---
             else if (targetId === 'toggle-past-bookings-btn') togglePastView('bookings', 'past-bookings-container', target);
             else if (targetId === 'toggle-past-rentals-btn') togglePastView('rentals', 'past-rentals-container', target);
+            else if (target.matches('.cancel-booking-btn')) {
+    const bookingId = target.dataset.bookingId;
+    if (!bookingId) return;
+
+    if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+        handleCancelBooking(bookingId);
+    }
+}
         });
     }
+// public/script.js (新增的函式)
 
+async function handleCancelBooking(bookingId) {
+    const card = document.getElementById(`booking-card-${bookingId}`);
+    const button = card.querySelector('.cancel-booking-btn');
+
+    try {
+        button.disabled = true;
+        button.textContent = '處理中...';
+
+        const response = await fetch('/api/cancel-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId: Number(bookingId), userId: userProfile.userId })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || '取消失敗，請稍後再試');
+        }
+
+        alert('預約已成功取消！');
+        // 重新載入預約列表
+        initializeMyBookingsPage();
+
+    } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+        button.textContent = '取消預約';
+    }
+}
     // =================================================================
     // 輔助函式
     // =================================================================
@@ -249,6 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+// public/script.js -> renderBookings function (修改後)
+
 function renderBookings(bookings, container, isPast = false) {
     if (!container) return;
     if (bookings.length === 0) {
@@ -256,16 +296,21 @@ function renderBookings(bookings, container, isPast = false) {
         return;
     }
     container.innerHTML = bookings.map(b => {
-        // 【新增】根據 item 是否有值來決定是否顯示該行
         const itemHTML = b.item ? `<p><strong>項目:</strong> ${b.item}</p>` : '';
 
+        // 【新增】取消按鈕的邏輯
+        const cancelButtonHTML = (!isPast && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION)
+            ? `<button class="cta-button cancel-booking-btn" data-booking-id="${b.booking_id}" style="background-color: var(--color-danger); margin-top: 10px; padding: 8px;">取消預約</button>`
+            : '';
+
         return `
-            <div class="booking-info-card">
+            <div class="booking-info-card" id="booking-card-${b.booking_id}">
                 <p><strong>日期:</strong> ${b.booking_date}</p>
                 <p><strong>時段:</strong> ${b.time_slot}</p>
                 ${itemHTML} 
                 <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}</p>
                 <p><strong>狀態:</strong> ${b.status_text}</p>
+                ${cancelButtonHTML}
             </div>
         `;
     }).join('');

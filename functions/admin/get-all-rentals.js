@@ -17,13 +17,13 @@ export async function onRequest(context) {
       SELECT
         r.rental_id, r.user_id, r.rental_date, r.due_date, r.return_date, r.status,
         r.late_fee_override,
-        r.late_fee_per_day,  -- <--- 新增這一行，取得該筆租借設定的逾期費
+        r.late_fee_per_day,
         u.line_display_name, u.nickname,
         b.name as game_name
       FROM Rentals AS r
       LEFT JOIN Users AS u ON r.user_id = u.user_id
-      LEFT JOIN BoardGames AS b ON r.game_id = b.game_id
-    `;
+      LEFT JOIN Products AS b ON r.game_id = b.game_id
+    `; // 【核心修正】將 BoardGames 改為 Products
 
     const queryParams = [];
     if (statusFilter && statusFilter !== 'overdue' && statusFilter !== 'due_today') {

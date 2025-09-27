@@ -67,30 +67,34 @@ export async function onRequest(context) {
       });
     }
 
-    // 2. 觸發背景任務，將變動同步到 Google Sheet
-    const dataToSync = {
+     const dataToSync = {
         total_stock: total_stock,
         is_visible: is_visible,
         rental_type: rental_type
     };
-    context.waitUntil(
-        updateRowInSheet(
-            context.env, 
-            'BoardGames',       // 您的工作表名稱
-            'game_id',          // 用來匹配的欄位
-            gameId,             // 要匹配的值
-            dataToSync          // 要更新的資料
-        ).catch(err => console.error("背景同步桌遊資訊失敗:", err))
-    );
 
-    return new Response(JSON.stringify({ success: true, message: '成功更新桌遊資訊！' }), {
+    // 【核心修正 2】使用環境變數來獲取工作表名稱
+    const sheetName = context.env.PRODUCTS_SHEET_NAME;
+    if (sheetName) {
+        context.waitUntil(
+            updateRowInSheet(
+                context.env,
+                sheetName,
+                'game_id',
+                gameId,
+                dataToSync
+            ).catch(err => console.error("背景同步產品資訊失敗:", err))
+        );
+    }
+
+    return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in update-boardgame API:', error);
-    return new Response(JSON.stringify({ error: '更新桌遊資訊失敗。' }), {
+    return new Response(JSON.stringify({ error: '更新產品資訊失敗。' }), {
       status: 500,
     });
   }

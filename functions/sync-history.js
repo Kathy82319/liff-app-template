@@ -1,8 +1,9 @@
-// functions/api/sync-history.js
+// functions/sync-history.js
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
 async function runSync(env) {
+    // ... (Google Sheets 連線邏輯不變)
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL,
       GOOGLE_PRIVATE_KEY,
@@ -15,7 +16,7 @@ async function runSync(env) {
         throw new Error('缺少 EXP_HISTORY_SHEET_NAME 環境變數。');
     }
     
-    const { results } = await DB.prepare('SELECT * FROM ExpHistory ORDER BY created_at DESC').all();
+     const { results } = await DB.prepare('SELECT * FROM Purchasehistory ORDER BY created_at DESC').all();
 
     if (!results || results.length === 0) {
         return { success: true, message: '資料庫中沒有歷史紀錄可同步。' };

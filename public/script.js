@@ -94,24 +94,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
-    function showPage(pageId, isBackAction = false) {
+const pageInitializers = {
+    'page-home': initializeHomePage,
+    'page-games': initializeGamesPage,
+    'page-profile': initializeProfilePage,
+    'page-my-bookings': initializeMyBookingsPage,
+    'page-my-exp-history': initializeMyExpHistoryPage,
+    'page-rental-history': initializeRentalHistoryPage,
+    'page-booking': initializeBookingPage, //更改
+    'page-info': initializeInfoPage,
+    'page-edit-profile': initializeEditProfilePage, //更改
+};
+
+function showPage(pageId, isBackAction = false) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
-            
-            const state = { page: pageId };
-            const url = `#${pageId}`;
-
             if (!isBackAction) {
                 if (['page-home', 'page-games', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId)) {
                     pageHistory = [pageId];
-                    history.replaceState(state, '', url);
                 } else {
                     pageHistory.push(pageId);
-                    history.pushState(state, '', url);
                 }
             }
             
+            // 執行對應的頁面初始化函式
             const pageInitializers = {
                 'page-home': initializeHomePage,
                 'page-games': initializeGamesPage,
@@ -119,11 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'page-my-bookings': initializeMyBookingsPage,
                 'page-my-exp-history': initializeMyExpHistoryPage,
                 'page-rental-history': initializeRentalHistoryPage,
-                'page-booking': initializeBookingPage,
                 'page-info': initializeInfoPage,
-                'page-edit-profile': initializeEditProfilePage,
             };
-
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId]();
             }
@@ -131,19 +135,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.target === pageHistory[0]);
             });
-
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
         }
-    }
 
-    function goBackPage() {
+
+function goBackPage() {
         if (pageHistory.length > 1) {
-            history.back();
+            pageHistory.pop();
+            showPage(pageHistory[pageHistory.length - 1], true);
         } else {
             liff.closeWindow();
         }
-    }
 
     window.addEventListener('popstate', (event) => {
         if (pageHistory.length > 1) {
@@ -226,6 +229,87 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // =================================================================
+    // 全域事件監聽 (需新增)
+    // =================================================================
+    function setupGlobalEventListeners() {
+        /*
+        從這段開始複製
+        */
+        appContent.addEventListener('click', (event) => {
+            const target = event.target;
+            const targetId = target.id;
+
+            // --- 通用按鈕 ---
+            if (target.matches('.details-back-button')) {
+                goBackPage();
+                return;
+            }
+
+            // --- 會員中心內的導覽按鈕 ---
+            if (targetId === 'my-bookings-btn') {
+                showPage('page-my-bookings');
+            } else if (targetId === 'my-exp-history-btn') {
+                showPage('page-my-exp-history');
+            } else if (targetId === 'rental-history-btn') {
+                showPage('page-rental-history');
+            } else if (targetId === 'edit-profile-btn') {
+                // 未來編輯個人資料頁面的入口
+                console.log('TODO: 前往編輯個人資料頁');
+            }
+
+            // --- 歷史紀錄頁的切換按鈕 ---
+            else if (targetId === 'toggle-past-bookings-btn') {
+                togglePastView('bookings', 'past-bookings-container', target);
+            } else if (targetId === 'toggle-past-rentals-btn') {
+                togglePastView('rentals', 'past-rentals-container', target);
+            }
+        });
+        /*
+        到這裡結束
+        */
+    }
+
+    // =================================================================
+    // 輔助函式 (需新增)
+    // =================================================================
+    async function togglePastView(type, containerId, button) {
+        /*
+        從這段開始複製
+        */
+        const pastContainer = document.getElementById(containerId);
+        if (!pastContainer || !button) return;
+
+        const isHidden = pastContainer.style.display === 'none';
+        if (isHidden) {
+            pastContainer.innerHTML = '<p>查詢中...</p>';
+            pastContainer.style.display = 'block';
+            button.textContent = '隱藏過往紀錄';
+
+            try {
+                const apiPath = type === 'bookings' ? '/my-bookings' : '/my-rental-history';
+                const response = await fetch(`${apiPath}?userId=${userProfile.userId}&filter=past`);
+                if (!response.ok) throw new Error(`查詢過往${type}失敗`);
+                const data = await response.json();
+
+                if (type === 'bookings') {
+                    renderBookings(data, pastContainer, true);
+                } else {
+                    renderRentals(data, pastContainer, true);
+                }
+
+            } catch (error) {
+                pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+            }
+        } else {
+            pastContainer.style.display = 'none';
+            button.textContent = type === 'bookings' ? '查看過往紀錄' : '查看已歸還紀錄';
+        }
+        /*
+        到這裡結束
+        */
+    }    
     // =================================================================
     // 【新功能】我的預約紀錄
     // =================================================================

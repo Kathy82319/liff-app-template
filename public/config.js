@@ -49,7 +49,7 @@ window.APP_CONFIG = {
 // public/config.js -> TERMS object
   TERMS: {
     // 店家或品牌的名稱
-    BUSINESS_NAME: "範例商店",
+    BUSINESS_NAME: "OO商店",
 
     // 系統中對「最新消息」頁面的稱呼
     NEWS_PAGE_TITLE: "最新情報",

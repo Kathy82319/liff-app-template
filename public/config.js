@@ -20,7 +20,7 @@ window.APP_CONFIG = {
   FEATURES: {
     // 是否啟用會員積分/等級系統？
     // 若為 false，將隱藏所有等級、積分相關介面，以及後台的掃碼加點功能。
-    ENABLE_MEMBERSHIP_SYSTEM: true,
+    ENABLE_MEMBERSHIP_SYSTEM: false,
 
     // 是否啟用產品/服務的「租借」功能？
     // 這通常適用於實體商品、器材、場地等。

@@ -338,34 +338,38 @@ document.addEventListener('DOMContentLoaded', () => {
             showPage('page-home');
         }
     }
-    async function initializeProfilePage() {
-        if (!userProfile) return;
+async function initializeProfilePage() {
+    if (!userProfile) return;
 
-        document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
-        document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-        document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
-
-        const profilePicture = document.getElementById('profile-picture');
-        if (userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
-        
-        const qrcodeElement = document.getElementById('qrcode');
-        if (qrcodeElement) {
-            qrcodeElement.innerHTML = '';
-            new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
-        }
-        document.getElementById('edit-profile-btn').addEventListener('click', () => showPage('page-edit-profile'));
-
-        try {
-            const userData = await fetchGameData(true);
-            updateProfileDisplay(userData);
-        } catch (error) {
-            console.error("無法更新個人資料畫面:", error);
-            document.getElementById('display-name').textContent = '資料載入失敗';
-        }
+    // --- 這部分的按鈕設定不變 ---
+    document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
+    document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
+    document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
+    document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
+    document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+    document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
+    // --- 按鈕設定結束 ---
+    const profilePicture = document.getElementById('profile-picture');
+    if (userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
+    
+    const qrcodeElement = document.getElementById('qrcode');
+    
+    // 【修改重點】只在會員系統啟用時，才去產生 QR Code
+    if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+        qrcodeElement.innerHTML = ''; // 先清空
+        new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
     }
+    
+    document.getElementById('edit-profile-btn').addEventListener('click', () => showPage('page-edit-profile'));
+
+    try {
+        const userData = await fetchGameData(true);
+        updateProfileDisplay(userData);
+    } catch (error) {
+        console.error("無法更新個人資料畫面:", error);
+        document.getElementById('display-name').textContent = '資料載入失敗';
+    }
+}
 
     async function fetchGameData(forceRefresh = false) { 
         if (!forceRefresh && gameData && gameData.user_id) return gameData;
@@ -385,37 +389,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateProfileDisplay(data) {
-        if (!data) return;
-        document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
+function updateProfileDisplay(data) {
+    if (!data) return;
+    document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
 
-        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-        const perkP = document.getElementById('user-perk-line');
+    // --- 抓取所有需要控制的區塊 ---
+    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+    const perkP = document.getElementById('user-perk-line');
+    const qrcodeContainer = document.getElementById('qrcode-container'); // 【新增】抓取 QR Code 的容器
 
-        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            if (classP) classP.style.display = 'block';
-            if (levelP) levelP.style.display = 'block';
-            if (expP) expP.style.display = 'block';
-            
-            if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span id="user-class">${data.class || "無"}</span>`;
-            if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span id="user-level">${data.level}</span>`;
-            if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
+    // --- 【修改重點】根據開關，統一控制所有相關區塊的顯示/隱藏 ---
+    if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+        // 如果啟用，則顯示所有會員相關區塊
+        if (qrcodeContainer) qrcodeContainer.style.display = 'flex';
+        if (classP) classP.style.display = 'block';
+        if (levelP) levelP.style.display = 'block';
+        if (expP) expP.style.display = 'block';
+        
+        // 填充文字內容 (這部分不變)
+        if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span id="user-class">${data.class || "無"}</span>`;
+        if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span id="user-level">${data.level}</span>`;
+        if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
 
-            if (perkP && data.perk && data.class !== '無') {
-                perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span id="user-perk">${data.perk}</span>`;
-                perkP.style.display = 'block';
-            } else if (perkP) {
-                perkP.style.display = 'none';
-            }
-        } else {
-            if (classP) classP.style.display = 'none';
-            if (levelP) levelP.style.display = 'none';
-            if (expP) expP.style.display = 'none';
-            if (perkP) perkP.style.display = 'none';
+        if (perkP && data.perk && data.class !== '無') {
+            perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span id="user-perk">${data.perk}</span>`;
+            perkP.style.display = 'block';
+        } else if (perkP) {
+            perkP.style.display = 'none';
         }
+    } else {
+        // 如果停用，則隱藏所有會員相關區塊
+        if (qrcodeContainer) qrcodeContainer.style.display = 'none';
+        if (classP) classP.style.display = 'none';
+        if (levelP) levelP.style.display = 'none';
+        if (expP) expP.style.display = 'none';
+        if (perkP) perkP.style.display = 'none';
     }
+}
     
     // ... (其他函式 initializeMyBookingsPage, initializeMyExpHistoryPage, initializeRentalHistoryPage, initializeEditProfilePage 等保持不變) ...
 

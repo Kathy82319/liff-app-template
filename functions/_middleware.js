@@ -12,7 +12,7 @@ function parseCookie(cookieString) {
     }
     return cookies;
 }
-
+ 
 export const onRequest = async (context) => {
   const { request, next, env } = context;
   const url = new URL(request.url);

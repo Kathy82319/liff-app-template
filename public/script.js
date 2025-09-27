@@ -1041,7 +1041,7 @@ async function initializeEditProfilePage() {
             if(nameInput) nameInput.value = userData.real_name || '';
             if(phoneInput) phoneInput.value = userData.phone || '';
         }
-    }
+    
 
     async function fetchAndRenderSlots(date) {
         const slotsPlaceholder = document.getElementById('slots-placeholder');

@@ -1,20 +1,39 @@
 // public/script.js - v1.5 Final Corrected Version
-
 const CONFIG = window.APP_CONFIG;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // =================================================================
-    // 核心DOM元素與全域變數
-    // =================================================================
+    
+    // --- 核心變數 ---
     const myLiffId = "2008032417-3yJQGaO6";
     let userProfile = null;
     let gameData = {};
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
+
+    // --- 狀態變數 ---
     let allGames = [];
     let allNews = [];
     let pageHistory = ['page-home'];
+    let activeFilters = { keyword: '', tag: null };
+    let bookingData = {};
+    let bookingHistoryStack = [];
+    let dailyAvailability = { limit: 4, booked: 0, available: 4 };
+    let enabledDatesByAdmin = [];
+
+    // --- 頁面初始化函式映射 ---
+    const pageInitializers = {
+        'page-home': initializeHomePage,
+        'page-games': initializeGamesPage,
+        'page-profile': initializeProfilePage,
+        'page-my-bookings': initializeMyBookingsPage,
+        'page-my-exp-history': initializeMyExpHistoryPage,
+        'page-rental-history': initializeRentalHistoryPage,
+        'page-booking': initializeBookingPage,
+        'page-info': initializeInfoPage,
+        'page-edit-profile': initializeEditProfilePage,
+    };
+
 
     // =================================================================
     // 設定檔應用函式 (Template Engine)
@@ -25,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！"); return;
             }
             const { FEATURES, TERMS } = CONFIG;
+            
             const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
             const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
             const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
@@ -59,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("套用設定檔時發生錯誤:", e);
         }
     }
+
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
@@ -391,6 +412,7 @@ const pageInitializers = {
         } catch (error) {
             container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
+    }
 
     // =================================================================
     // LIFF 初始化 & 啟動
@@ -574,7 +596,7 @@ const pageInitializers = {
         } catch (error) {
             container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
-    }
+    }async function main() {
 
 
     // =================================================================

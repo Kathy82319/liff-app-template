@@ -83,18 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
-const pageInitializers = {
-    'page-home': initializeHomePage,
-    'page-games': initializeGamesPage,
-    'page-profile': initializeProfilePage,
-    'page-my-bookings': initializeMyBookingsPage,
-    'page-my-exp-history': initializeMyExpHistoryPage,
-    'page-rental-history': initializeRentalHistoryPage,
-    'page-booking': initializeBookingPage, //更改
-    'page-info': initializeInfoPage,
-    'page-edit-profile': initializeEditProfilePage, //更改
-};
-
     function showPage(pageId, isBackAction = false) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {

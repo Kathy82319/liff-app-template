@@ -1,5 +1,3 @@
-// public/script.js
-
 const CONFIG = window.APP_CONFIG;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,73 +28,69 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================
-function applyConfiguration() {
-    try {
-        if (typeof CONFIG === 'undefined' || !CONFIG) {
-            console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
-            alert("系統設定檔載入失敗，頁面功能可能不完整。");
-            return;
+    function applyConfiguration() {
+        try {
+            if (typeof CONFIG === 'undefined' || !CONFIG) {
+                console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
+                alert("系統設定檔載入失敗，頁面功能可能不完整。");
+                return;
+            }
+
+            const { FEATURES, TERMS } = CONFIG;
+
+            const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
+            const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
+            const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
+            const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
+            const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
+            const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
+
+            if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+            if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
+            
+            if (profileTab) {
+                profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
+            }
+
+            if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+            if (homeTab) homeTab.style.display = 'block';
+            if (infoTab) infoTab.style.display = 'block';
+
+            document.title = TERMS.BUSINESS_NAME;
+            
+            const businessNameHeader = document.getElementById('business-name-header');
+            if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
+
+            if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
+            if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
+            if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
+            if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
+            if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
+
+            if (pageTemplates) {
+                const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
+                if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
+                
+                const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
+                if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
+                
+                const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title');
+                if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE;
+                
+                const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
+                if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
+                
+                const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
+                if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
+
+                const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
+                if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
+            }
+        } catch (e) {
+            console.error("套用設定檔時發生錯誤:", e);
+            alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
         }
-
-        const { FEATURES, TERMS } = CONFIG;
-
-        const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
-        const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
-        const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
-        const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
-        const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
-        const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
-
-        if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
-        if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
-        
-        // 【修改重點】更新會員中心頁籤的顯示條件
-        // 只要會員、預約、租借任一系統開啟，就顯示此頁籤
-        if (profileTab) {
-            profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
-        }
-
-        if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        if (homeTab) homeTab.style.display = 'block';
-        if (infoTab) infoTab.style.display = 'block';
-
-        document.title = TERMS.BUSINESS_NAME;
-        
-        const businessNameHeader = document.getElementById('business-name-header');
-        if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
-
-        if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
-        if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
-        if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
-        if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
-        if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
-
-        if (pageTemplates) {
-            const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
-            if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
-            
-            const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
-            if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
-            
-            const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title');
-            if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE;
-            
-            const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
-            if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
-            
-            const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
-            if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
-
-            const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
-            if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-        }
-    } catch (e) {
-        console.error("套用設定檔時發生錯誤:", e);
-        alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
     }
-}
-
-
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
@@ -232,7 +226,142 @@ function applyConfiguration() {
             }
         }
     });
+    // =================================================================
+    // 【新功能】我的預約紀錄
+    // =================================================================
+    async function initializeMyBookingsPage() {
+        if (!userProfile) return;
 
+        const currentContainer = document.getElementById('my-bookings-container');
+        const pastContainer = document.getElementById('past-bookings-container');
+        const toggleBtn = document.getElementById('toggle-past-bookings-btn');
+
+        if (!currentContainer || !pastContainer || !toggleBtn) return;
+
+        currentContainer.innerHTML = '<p>正在查詢您的預約紀錄...</p>';
+
+        const renderBookings = (bookings, container, isPast = false) => {
+            if (bookings.length === 0) {
+                container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
+                return;
+            }
+            container.innerHTML = bookings.map(booking => `
+                <div class="booking-info-card">
+                    <p><strong>日期:</strong> ${booking.booking_date}</p>
+                    <p><strong>時段:</strong> ${booking.time_slot}</p>
+                    <p><strong>人數:</strong> ${booking.num_of_people} 人</p>
+                    <p><strong>狀態:</strong> <span class="booking-status-${booking.status}">${booking.status_text}</span></p>
+                </div>
+            `).join('');
+        };
+
+        try {
+            const currentResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=current`);
+            if (!currentResponse.ok) throw new Error('查詢預約失敗');
+            const currentBookings = await currentResponse.json();
+            renderBookings(currentBookings, currentContainer);
+
+            toggleBtn.addEventListener('click', async () => {
+                const isHidden = pastContainer.style.display === 'none';
+                if (isHidden) {
+                    pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
+                    pastContainer.style.display = 'block';
+                    toggleBtn.textContent = '隱藏過往紀錄';
+
+                    try {
+                        const pastResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=past`);
+                        if (!pastResponse.ok) throw new Error('查詢過往預約失敗');
+                        const pastBookings = await pastResponse.json();
+                        renderBookings(pastBookings, pastContainer, true);
+                    } catch (error) {
+                        pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+                    }
+                } else {
+                    pastContainer.style.display = 'none';
+                    toggleBtn.textContent = '查看過往紀錄';
+                }
+            });
+
+        } catch (error) {
+            currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+        }
+    }
+
+    // =================================================================
+    // 【新功能】我的租借紀錄
+    // =================================================================
+    async function initializeRentalHistoryPage() {
+        if (!userProfile) return;
+
+        const currentContainer = document.getElementById('rental-history-container');
+        const pastContainer = document.getElementById('past-rentals-container');
+        const toggleBtn = document.getElementById('toggle-past-rentals-btn');
+
+        if (!currentContainer || !pastContainer || !toggleBtn) return;
+
+        currentContainer.innerHTML = '<p>正在查詢您目前的租借...</p>';
+
+        const renderRentals = (rentals, container, isPast = false) => {
+            if (rentals.length === 0) {
+                container.innerHTML = `<p>${isPast ? '沒有已歸還的紀錄。' : `您目前沒有租借中的${CONFIG.TERMS.PRODUCT_NAME}。`}</p>`;
+                return;
+            }
+
+            container.innerHTML = rentals.map(rental => {
+                let statusHTML = '';
+                if (rental.status === 'returned') {
+                    statusHTML = `<div class="rental-status returned">已於 ${rental.return_date || ''} 歸還</div>`;
+                } else if (rental.overdue_days > 0) {
+                    statusHTML = `<div class="rental-status overdue">已逾期 ${rental.overdue_days} 天</div>`;
+                } else {
+                    statusHTML = `<div class="rental-status rented">租借中</div>`;
+                }
+
+                return `
+                    <div class="rental-card">
+                        <img src="${rental.game_image_url || ''}" class="rental-game-image">
+                        <div class="rental-info">
+                            <h3 class="rental-game-title">${rental.game_name}</h3>
+                            <p>租借日期：${rental.rental_date}</p>
+                            <p>應還日期：${rental.due_date}</p>
+                            ${statusHTML}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        try {
+            const currentResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=current`);
+            if (!currentResponse.ok) throw new Error('查詢租借紀錄失敗');
+            const currentRentals = await currentResponse.json();
+            renderRentals(currentRentals, currentContainer);
+
+            toggleBtn.addEventListener('click', async () => {
+                const isHidden = pastContainer.style.display === 'none';
+                if (isHidden) {
+                    pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
+                    pastContainer.style.display = 'block';
+                    toggleBtn.textContent = '隱藏已歸還紀錄';
+                    try {
+                        const pastResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=past`);
+                        if (!pastResponse.ok) throw new Error('查詢過往租借失敗');
+                        const pastRentals = await pastResponse.json();
+                        renderRentals(pastRentals, pastContainer, true);
+                    } catch (error) {
+                        pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+                    }
+                } else {
+                    pastContainer.style.display = 'none';
+                    toggleBtn.textContent = '查看已歸還紀錄';
+                }
+            });
+
+        } catch (error) {
+            currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+        }
+    }
+    
     // =================================================================
     // 首頁 (最新情報)
     // =================================================================

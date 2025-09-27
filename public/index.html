@@ -17,6 +17,7 @@
     <main id="app-content" class="page"></main>
 
     <div id="page-templates" style="display: none;">
+    
         <div id="page-home">
             <div class="news-header">
                 <div class="news-header-decoration"></div>
@@ -25,6 +26,7 @@
             <div id="news-filter-container"><p>讀取中...</p></div>
             <div id="news-list-container"><p>正在載入最新情報...</p></div>
         </div>
+
         <div id="page-games">
             <h1 class="page-main-title">產品型錄</h1>
             <div id="filter-controls">
@@ -38,7 +40,62 @@
             </div>
             <div id="game-list-container"><p>正在載入資料...</p></div>
         </div>
+
+        <div id="page-profile">
+            <h1 class="page-main-title">會員中心</h1>
+            <div id="qrcode-container">
+                <div id="qrcode"></div>
+            </div>
+            <div class="profile-details-grid">
+                <div class="profile-avatar">
+                    <img id="profile-picture" src="https://via.placeholder.com/80" alt="Profile Picture">
+                </div>
+                <div class="profile-stats">
+                    <h2 id="display-name">讀取中...</h2>
+                    <p><strong>職業：</strong><span id="user-class">無</span></p>
+                    <p><strong>等級：</strong><span id="user-level">1</span></p>
+                    <p><strong>經驗值：</strong><span id="user-exp">0 / 10</span></p>
+                </div>
+            </div>
+            <div id="user-perk-line" class="perk-display" style="display: none;"></div>
+            <div class="profile-actions">
+                <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
+                <button class="cta-button" id="my-exp-history-btn">積分紀錄</button>
+                <button class="cta-button" id="rental-history-btn">租借紀錄</button>
+                <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
+            </div>
         </div>
+
+        <div id="page-booking">
+             <h1 class="page-main-title">線上預約</h1>
+             <div id="booking-wizard-container">
+                </div>
+             <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px;">查看我的預約</button>
+        </div>
+
+        <div id="page-info">
+            <h1 class="page-main-title">店家資訊</h1>
+            <div id="store-info-container" class="details-section">
+                <div class="info-section">
+                    <h2>地址</h2>
+                    <p id="store-address">讀取中...</p>
+                </div>
+                <div class="info-section">
+                    <h2>電話</h2>
+                    <p id="store-phone">讀取中...</p>
+                </div>
+                <div class="info-section">
+                    <h2>營業時間</h2>
+                    <p id="store-hours" style="white-space: pre-wrap;">讀取中...</p>
+                </div>
+                 <div class="info-section">
+                    <h2>店家介紹</h2>
+                    <p id="store-description">讀取中...</p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
 
     <nav id="tab-bar">
         <button class="tab-button active" data-target="page-home">最新<br>情報</button>

@@ -249,22 +249,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderBookings(bookings, container, isPast = false) {
-        if (!container) return;
-        if (bookings.length === 0) {
-            container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
-            return;
-        }
-        container.innerHTML = bookings.map(b => `
+function renderBookings(bookings, container, isPast = false) {
+    if (!container) return;
+    if (bookings.length === 0) {
+        container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
+        return;
+    }
+    container.innerHTML = bookings.map(b => {
+        // 【新增】根據 item 是否有值來決定是否顯示該行
+        const itemHTML = b.item ? `<p><strong>項目:</strong> ${b.item}</p>` : '';
+
+        return `
             <div class="booking-info-card">
                 <p><strong>日期:</strong> ${b.booking_date}</p>
                 <p><strong>時段:</strong> ${b.time_slot}</p>
+                ${itemHTML} 
                 <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}</p>
                 <p><strong>狀態:</strong> ${b.status_text}</p>
             </div>
-        `).join('');
-    }
-
+        `;
+    }).join('');
+}
     function renderRentals(rentals, container, isPast = false) {
         if (!container) return;
         if (rentals.length === 0) {
@@ -821,10 +826,16 @@ async function initializeBookingPage() {
         const phoneInput = document.getElementById('contact-phone');
         if (nameInput) nameInput.value = userData.real_name || userData.nickname || '';
         if (phoneInput) phoneInput.value = userData.phone || '';
+            }
+    
+    // 【新增】根據 config 設定顯示/隱藏「預約項目」欄位
+    const bookingItemFormGroup = document.getElementById('booking-item')?.closest('.form-group');
+    if (bookingItemFormGroup) {
+        bookingItemFormGroup.style.display = CONFIG.FEATURES.ENABLE_BOOKING_ITEM_FIELD ? 'block' : 'none';
     }
 }
 
-// public/script.js
+
 
 function renderTimeSlots(selectElement) {
     if (!selectElement) return;

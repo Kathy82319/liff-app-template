@@ -77,31 +77,24 @@ export async function onRequest(context) {
     if (context.request.method !== 'POST') {
       return new Response('Invalid request method.', { status: 405 });
     }
-    const { userId, bookingDate, timeSlot, numOfPeople, contactName, contactPhone } = await context.request.json();
+    // 【修改點 1】在變數中接收 'item'
+    const { userId, bookingDate, timeSlot, numOfPeople, contactName, contactPhone, item } = await context.request.json();
+    
+    // 【修改點 2】更新驗證
     if (!userId || !bookingDate || !timeSlot || !numOfPeople || numOfPeople <= 0 || !contactName || !contactPhone) {
       return new Response(JSON.stringify({ error: '所有預約欄位皆為必填。' }), { status: 400 });
     }
 
-    const PEOPLE_PER_TABLE = 4;
-    const tablesNeeded = Math.ceil(numOfPeople / PEOPLE_PER_TABLE);
-
     const db = context.env.DB;
-    // const dailyLimit = await getDailyBookingLimit(context.env, bookingDate); // 若您有每日上限功能，請取消註解此行
-
-    const checkStmt = db.prepare("SELECT SUM(tables_occupied) as total_tables_booked FROM Bookings WHERE booking_date = ? AND status = 'confirmed'");
-    const currentBooking = await checkStmt.bind(bookingDate).first();
-    const tablesAlreadyBooked = currentBooking.total_tables_booked || 0;
-
-    // if ((tablesAlreadyBooked + tablesNeeded) > dailyLimit) { // 若您有每日上限功能，請取消註解此區塊
-    //   return new Response(JSON.stringify({ error: `抱歉，${bookingDate} 當日剩餘桌數不足以容納您的預約。` }), { status: 409 });
-    // }
-
+    
+    // 【修改點 3】更新 INSERT 指令，加入 item 欄位
     const insertStmt = db.prepare(
-      'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, tables_occupied) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, item) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    await insertStmt.bind(userId, contactName, contactPhone, bookingDate, timeSlot, numOfPeople, tablesNeeded).run();
+    // 【修改點 4】在 bind 中傳入 item 的值
+    await insertStmt.bind(userId, contactName, contactPhone, bookingDate, timeSlot, numOfPeople, item || null).run();
 
-    // 背景同步至 Google Sheet
+    // 背景同步至 Google Sheet 的邏輯保持不變
     const newBooking = await context.env.DB.prepare('SELECT * FROM Bookings ORDER BY booking_id DESC LIMIT 1').first();
     if (newBooking) {
         context.waitUntil(
@@ -109,7 +102,8 @@ export async function onRequest(context) {
             .catch(err => console.error("背景同步新增預約失敗:", err))
         );
     }
-
+    
+    // LINE 通知訊息保持不變
     const message = `您已成功預約${bookingDate} ${timeSlot}，此訊息僅為通知，若有問題請聯絡店家。`;
 
     return new Response(JSON.stringify({ 
@@ -117,6 +111,7 @@ export async function onRequest(context) {
         message: '預約成功！', 
         confirmationMessage: message 
     }), { status: 201 });
+
   } catch (error) {
     console.error('Error in bookings-create API:', error);
     return new Response(JSON.stringify({ error: '建立預約失敗。', details: error.message }), { status: 500 });

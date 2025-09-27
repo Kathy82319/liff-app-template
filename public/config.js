@@ -28,7 +28,7 @@ window.APP_CONFIG = {
 
     // --- 【新增】 ---
     // 控制預約時是否顯示「預約項目」輸入框
-    ENABLE_BOOKING_ITEM_FIELD: true,
+    ENABLE_BOOKING_ITEM_FIELD: false,
 
     // --- 【新增】 ---
     // 控制顧客是否可以在「我的預約」中看到「取消預約」按鈕

@@ -55,8 +55,12 @@ window.APP_CONFIG = {
     NEWS_PAGE_TITLE: "最新情報",
 
     // 系統中對「產品」或「服務」的總稱。
-    PRODUCT_NAME: "產品",
+    PRODUCT_NAME: "產品or服務",
     PRODUCT_CATALOG_TITLE: "產品型錄",
+    PRODUCT_PLAYER_COUNT_UNIT: "人",    // e.g., 人 / 位
+    PRODUCT_DIFFICULTY_LABEL: "難易度控制(?)",   // e.g., 難度 / 複雜度
+    PRODUCT_SALE_PRICE_LABEL: "參考售價???元",
+    PRODUCT_RENTAL_PRICE_LABEL: "租借費用",
 
     // 【新增這一行】系統中對「結帳」頁面的稱呼
     CHECKOUT_PAGE_TITLE: "購物結帳",

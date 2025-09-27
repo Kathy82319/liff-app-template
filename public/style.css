@@ -1,35 +1,27 @@
 /* =================================================================
-   主題：冒險者公會 (Adventurer's Guild)
-   風格：溫暖、黃昏、復古、暗金
+   通用商業化模板 - 午夜藍主題 v1.0
    ================================================================= */
 
-/* --- 1. 字體導入與全域變數定義 --- */
-@import url('https://fonts.googleapis.com/css2?family=Cwtex+Fangsong&display=swap');
-
+/* --- 1. 全域變數與基礎設定 --- */
 :root {
     /* 色彩配置 */
-    --color-background-start: #f4ead8; /* 背景漸層 - 亮部 (溫暖羊皮紙色) */
-    --color-background-end: #d7c8a8;   /* 背景漸層 - 暗部 (陳舊羊皮紙色) */
-    --color-text-primary: #4a3728;      /* 主要文字 (深烘焙咖啡色) */
-    --color-text-secondary: #6b4f3a;    /* 次要文字 (拿鐵色) */
-    --color-frame-gold: #b8860b;       /* 邊框與重點 (暗金色) */
-    --color-frame-gold-light: #daa520; /* 亮金色 (用於漸層或滑鼠懸停) */
-    --color-card-background: rgba(249, 245, 235, 0.8); /* 卡片背景 (半透明米色) */
-    --color-shadow: rgba(74, 55, 40, 0.2); /* 陰影 (暖棕色調) */
-    --color-cta-background: #8c6a4d;   /* 主要按鈕背景 (舊木頭色) */
-    --color-cta-hover: #6b4f3a;         /* 主要按鈕滑鼠懸停 */
-    --color-danger: #a94442;           /* 警告色 */
+    --color-bg: #0a192f;               /* 背景 - 深邃海軍藍 */
+    --color-card-bg: #112240;          /* 卡片背景 - 略亮的藍 */
+    --color-header-bg: rgba(17, 34, 64, 0.85); /* 頁首/導覽列背景 - 半透明 */
+    --color-primary: #58a6ff;          /* 主要顏色 - 亮藍色 (用於標題、邊框) */
+    --color-accent: #64ffda;           /* 強調色 - 青色 (用於按鈕、活動狀態) */
+    --color-text-primary: #ccd6f6;     /* 主要文字 - 淡藍灰色 */
+    --color-text-secondary: #8892b0;   /* 次要文字 - 石板灰色 */
+    --color-danger: #ff5858;           /* 警告色 */
 
     /* 字體設定 */
-    --font-primary: 'cwTeXFangSong', serif;
-    --font-ui: 'Helvetica Neue', 'Arial', sans-serif; /* 用於UI元素，確保清晰 */
-    
+    --font-primary: 'Helvetica Neue', 'Arial', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+
     /* 圓角與陰影 */
-    --border-radius: 8px;
-    --box-shadow: 0 4px 15px var(--color-shadow);
+    --border-radius: 6px;
+    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* --- 2. 基礎與通用樣式 --- */
 html {
     box-sizing: border-box;
 }
@@ -40,178 +32,130 @@ html {
 
 body {
     margin: 0;
-    padding-top: 55px; /* 新增頂部內距 */
-    padding-bottom: 80px; /* 避免內容被下方導航列遮擋 (此行應已存在) */
     font-family: var(--font-primary);
+    background-color: var(--color-bg);
     color: var(--color-text-primary);
-    
-    /* 核心：使用放射漸層營造黃昏的層次感 */
-    background-color: var(--color-background-start);
-    background-image: radial-gradient(circle at top, var(--color-background-start), var(--color-background-end));
-    
-    background-size: cover;
-    background-attachment: fixed;
+    padding-top: 55px;  /* 為固定頂部 Header 預留空間 */
+    padding-bottom: 70px; /* 為固定底部 TabBar 預留空間 */
 }
 
 #app-content {
-    padding: 10px 15px;
+    padding: 15px;
 }
 
-/* 標題樣式 */
-h1, h2, h3 {
+/* --- 2. 核心佈局 (Header, Main, TabBar) --- */
+#app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 12px 15px;
+    background-color: var(--color-header-bg);
+    border-bottom: 1px solid var(--color-primary);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+#business-name-header {
+    margin: 0;
+    text-align: center;
+    font-size: 1.2rem;
     color: var(--color-text-primary);
-    margin-bottom: 20px;
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.6rem; }
-h3 { font-size: 1.2rem; border-bottom-width: 1px; }
-
-p {
-    line-height: 1.8;
-    color: var(--color-text-secondary);
-}
-
-/* --- 3. 主要導覽列 (Tab Bar) --- */
 #tab-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
+    height: 65px;
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    height: 65px;
-    background-color: rgba(243, 234, 203, 0.85); /* 半透明的亞麻色 */
-    backdrop-filter: blur(10px); /* 毛玻璃效果 */
-    border-top: 2px solid var(--color-frame-gold);
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+    background-color: var(--color-header-bg);
+    border-top: 1px solid var(--color-primary);
+    backdrop-filter: blur(10px);
+    z-index: 100;
 }
 
 .tab-button {
-    font-family: var(--font-primary);
-    font-size: 1rem;
-    color: var(--color-text-secondary);
+    flex-grow: 1;
+    padding: 8px 5px;
     background: none;
     border: none;
-    padding: 10px;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    flex-grow: 1;
-    text-align: center;
+    transition: color 0.3s, transform 0.3s;
+    line-height: 1.4;
 }
 
 .tab-button.active {
-    color: var(--color-frame-gold);
-    font-weight: bold;
+    color: var(--color-accent);
     transform: scale(1.1);
 }
 
-/* --- 4. 通用元件：按鈕 (Buttons) --- */
+/* --- 3. 通用元件 (標題, 按鈕, 卡片, 表單) --- */
+.page-main-title {
+    font-size: 1.8rem;
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+    text-align: center;
+}
 
-/* 主要操作按鈕 (Call to Action) */
 .cta-button {
     display: block;
     width: 100%;
     padding: 12px 20px;
-    font-family: var(--font-primary);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: bold;
-    color: white;
-    background-color: var(--color-cta-background);
-    border: 2px solid var(--color-frame-gold);
+    color: #000;
+    background-color: var(--color-accent);
+    border: none;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s;
 }
-
 .cta-button:hover {
-    background-color: var(--color-cta-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--color-shadow);
+    background-color: white;
 }
 
-/* 返回按鈕 */
-.details-back-button, .back-button {
-    font-family: var(--font-primary);
-    font-size: 1rem;
-    color: var(--color-text-secondary);
-    background-color: transparent;
-    border: 1px solid var(--color-frame-gold);
-    border-radius: 20px;
+.details-back-button {
     padding: 8px 16px;
-    margin-bottom: 20px;
+    background: transparent;
+    border: 1px solid var(--color-secondary);
+    color: var(--color-secondary);
+    border-radius: 20px;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
 
-.details-back-button:hover, .back-button:hover {
-    background-color: var(--color-frame-gold);
-    color: white;
-}
-
-/* --- 5. 通用元件：卡片 (Cards) --- */
-.news-card, .game-card, .details-section, .booking-info-card, .exp-record-card, .rental-card, .summary-card {
-    background-color: var(--color-card-background);
-    border: 1px solid var(--color-frame-gold);
+/* 通用卡片/區塊樣式 */
+.news-card, .game-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
     padding: 15px;
     margin-bottom: 20px;
-    box-shadow: var(--box-shadow);
-    backdrop-filter: blur(5px);
 }
 
-/* --- 6. 通用元件：表單 (Forms) --- */
-.input-group {
-    margin-bottom: 20px;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 1.1rem;
-    color: var(--color-text-primary);
-}
-
-input[type="text"], input[type="search"], input[type="tel"], input[type="email"], input[type="number"], select, textarea {
+input, select, textarea {
     width: 100%;
-    padding: 12px;
-    font-family: var(--font-primary);
+    padding: 10px;
     font-size: 1rem;
-    color: var(--color-text-primary);
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid var(--color-frame-gold);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
+    color: var(--color-text-primary);
 }
-
 input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--color-frame-gold-light);
-    box-shadow: 0 0 8px var(--color-frame-gold-light);
+    border-color: var(--color-primary);
 }
 
-input[readonly] {
-    background-color: rgba(200, 200, 200, 0.3);
-    cursor: not-allowed;
-}
+/* --- 4. 各頁面專屬樣式 --- */
 
-.form-status {
-    text-align: center;
-    margin-top: 15px;
-    font-weight: bold;
-}
-
-/* --- 7. 各頁面專屬樣式 --- */
-
-/* A. 首頁 (page-home) */
-.news-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
+/* A. 首頁 (最新情報) */
 #news-filter-container {
     display: flex;
     justify-content: center;
@@ -219,580 +163,132 @@ input[readonly] {
     gap: 10px;
     margin-bottom: 20px;
 }
-
-.news-filter-btn { /* 動態生成 */
-    font-family: var(--font-primary);
-    padding: 8px 16px;
-    border: 1px solid var(--color-frame-gold);
+.news-filter-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--color-secondary);
     background: transparent;
     color: var(--color-text-secondary);
-    border-radius: 20px;
+    border-radius: 16px;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
-
 .news-filter-btn.active {
-    background-color: var(--color-frame-gold);
-    color: white;
-}
-
-/* 最新情報卡片 (由 script.js 生成) */
-.news-card {
-    padding: 0;
-    overflow: hidden; /* 確保圖片圓角生效 */
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg);
 }
 .news-card-header {
     display: flex;
     justify-content: space-between;
-    padding: 10px 15px;
-    background-color: rgba(184, 134, 11, 0.1); /* 暗金色透明背景 */
+    margin-bottom: 10px;
 }
 .news-card-category {
     font-weight: bold;
-    color: var(--color-frame-gold);
+    color: var(--color-accent);
 }
 .news-card-date {
     font-size: 0.9rem;
     color: var(--color-text-secondary);
 }
-.news-card-content {
-    padding: 15px;
-}
 .news-card-title {
+    font-size: 1.2rem;
     margin: 0 0 10px 0;
-    border: none;
-    padding: 0;
-}
-.news-card-image-container {
-    width: 100%;
-    max-height: 200px;
-    overflow: hidden;
-    margin-bottom: 15px;
 }
 .news-card-image {
     width: 100%;
-    height: auto;
-    object-fit: cover;
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
 }
 
-/* B. 桌遊圖鑑 (page-games & page-game-details) */
-/* B. 桌遊圖鑑 (page-games & page-game-details) */
+/* B. 產品型錄 */
 #filter-controls {
     display: flex;
     flex-direction: column;
     gap: 15px;
     margin-bottom: 20px;
 }
-
-/* 【修正】將所有篩選按鈕（標籤、收合、清除）都放在一個會自動換行的容器中 */
 #tag-filter-container {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    align-items: center; /* 讓按鈕垂直置中對齊 */
 }
-
-/* 【修正】為所有標籤按鈕定義一個統一的樣式 */
-.filter-tag-btn {
-    font-family: var(--font-primary);
+.filter-tag-btn { /* for games page */
     padding: 6px 14px;
-    border: 1px solid var(--color-frame-gold);
+    border: 1px solid var(--color-secondary);
     background: transparent;
     color: var(--color-text-secondary);
     border-radius: 16px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    flex-shrink: 0; /* 防止按鈕被壓縮 */
 }
-
-/* 【修正】將主要和次要標籤容器改為只佔用內容寬度，以便換行 */
-#primary-tags, #secondary-tags {
-    display: contents; /* 讓裡面的按鈕直接繼承 #tag-filter-container 的 flex 排版 */
-}
-
 .filter-tag-btn.active {
-    background: var(--color-frame-gold);
-    color: white;
+    background-color: var(--color-primary);
+    color: var(--color-bg);
+    border-color: var(--color-primary);
 }
-
-#more-tags-btn, #clear-filters {
-    font-family: var(--font-primary);
-    padding: 6px 14px;
-    border: 1px solid var(--color-frame-gold);
-    background: transparent;
-    color: var(--color-text-secondary);
-    border-radius: 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-left: auto; /* 【新增】讓這兩個按鈕自動推到最右邊 */
-}
-
 #clear-filters {
     background-color: var(--color-danger);
     color: white;
-    border-color: var(--color-danger);
-    margin-left: 8px; /* 與前一個按鈕的間距 */
 }
-
-/* 【問題1 修正】遊戲卡片列表改為兩欄式 Grid */
 #game-list-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
+.game-card { padding: 10px; }
+.game-image { width: 100%; height: 120px; object-fit: cover; border-radius: var(--border-radius); }
+.game-title { margin: 10px 0 5px 0; font-size: 1rem; }
+.game-description { font-size: 0.8rem; color: var(--color-text-secondary); height: 3.2em; overflow: hidden; }
+.game-tag { display: inline-block; background-color: var(--color-bg); color: var(--color-accent); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin: 5px 5px 0 0; }
 
-/* 遊戲卡片 (由 script.js 生成) */
-.game-card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px;
-}
-.game-image {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-frame-gold);
-}
-.game-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 160px; /* 【新增】設定最小高度，確保卡片排版穩定 */
-}
-.game-title {
-    margin: 0 0 8px 0;
-    padding: 0;
-    border: none;
-    font-size: 1.1rem;
-    white-space: normal;
-    word-break: break-all;
-}
-/* 【新增】簡介的樣式 */
-.game-description {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin: 0 0 8px 0;
-}
-.game-details {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-.game-tags {
-    /* 【修正】移除 margin-top: auto，讓標籤自然排列 */
-    padding-top: 8px;
-    border-top: 1px dashed rgba(184, 134, 11, 0.3); /* 加上分隔線增加層次感 */
-    flex-wrap: wrap;
-    line-height: 1.6;
-}
-.game-tag {
-    display: inline-block;
-    background-color: rgba(184, 134, 11, 0.2);
-    color: var(--color-frame-gold);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.75rem;
-    margin-right: 5px;
-    margin-bottom: 5px;
-}
-
-/* C. 冒險者資料 (page-profile) */
-#qrcode-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 20px 0;
-}
-#qrcode {
-    padding: 15px;
-    background: white;
-    border: 2px solid var(--color-frame-gold);
-    border-radius: var(--border-radius);
-}
-.profile-details-grid {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 15px;
-    background: var(--color-card-background);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-frame-gold);
-}
-.profile-avatar img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    border: 3px solid var(--color-frame-gold);
-}
-.profile-stats h2 { margin: 0 0 8px 0; border: none; padding: 0; font-size: 1.8rem; }
+/* C. 會員中心 */
+#qrcode-container { display: flex; justify-content: center; margin: 20px 0; }
+#qrcode { padding: 10px; background: white; border-radius: var(--border-radius); }
+.profile-details-grid { display: flex; align-items: center; gap: 15px; }
+.profile-avatar img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--color-accent); }
+.profile-stats h2 { margin: 0 0 8px 0; font-size: 1.5rem; }
 .profile-stats p { margin: 4px 0; }
-.perk-display {
-    text-align: center;
-    padding: 12px;
-    margin-top: 20px;
-    background-color: rgba(218, 165, 32, 0.15); /* 金色透明背景 */
-    border: 1px dashed var(--color-frame-gold);
-    border-radius: var(--border-radius);
-}
-.profile-actions {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-.profile-actions .cta-button {
-    font-size: 1rem;
-    padding: 15px 5px; /* 增加垂直 padding */
-}
+.perk-display { text-align: center; padding: 12px; margin-top: 20px; border: 1px dashed var(--color-accent); border-radius: var(--border-radius); background-color: rgba(100, 255, 218, 0.1); }
+.profile-actions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-/* D. 預約/經驗/租借歷史頁 */
-/* 樣式已由通用 .card, h1, .details-back-button 覆蓋 */
-
-/* E. 場地預約 (page-booking) */
-#booking-wizard-container .booking-step { display: none; }
-#booking-wizard-container .booking-step.active { display: block; }
-.booking-header { text-align: center; }
-.booking-subtitle { margin-top: -20px; }
-.preference-btn {
-    width: 100%;
-    padding: 20px;
-    margin-bottom: 15px;
-    background: var(--color-card-background);
-    border: 1px solid var(--color-frame-gold);
-    border-radius: var(--border-radius);
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-.preference-btn:hover {
-    transform: scale(1.02);
-    border-color: var(--color-frame-gold-light);
-}
-.preference-btn h3 { border: none; padding: 0; margin: 0 0 10px 0; }
-.discount-highlight, .booking-notice {
-    text-align: center;
-    padding: 10px;
-    margin-top: 20px;
-    border-radius: var(--border-radius);
-}
-.discount-highlight {
-    background-color: rgba(218, 165, 32, 0.15);
-    border: 1px dashed var(--color-frame-gold);
-}
-.booking-notice {
-    background-color: rgba(74, 55, 40, 0.05);
-}
-
-/* 日期選擇器 Flatpickr 樣式覆蓋 */
+/* D. 線上預約 */
+/* Flatpickr 日曆樣式覆蓋 */
 .flatpickr-calendar {
-    background: var(--color-card-background) !important;
+    background: var(--color-card-bg) !important;
+    border: 1px solid var(--color-primary) !important;
     border-radius: var(--border-radius) !important;
-    border: 1px solid var(--color-frame-gold) !important;
-    box-shadow: var(--box-shadow) !important;
 }
-#booking-datepicker-container {
-    display: flex;
-    justify-content: center;
+.flatpickr-month, .flatpickr-weekday, .numInputWrapper, .flatpickr-day {
+    color: var(--color-text-primary) !important;
 }
 .flatpickr-day.selected {
-    background: var(--color-frame-gold) !important;
-    border-color: var(--color-frame-gold) !important;
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-bg) !important;
 }
 .flatpickr-day:hover {
-    background: rgba(184, 134, 11, 0.2) !important;
+    background: rgba(88, 166, 255, 0.3) !important;
 }
-.flatpickr-weekday, .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
-    color: var(--color-text-primary) !important;
-    font-family: var(--font-primary) !important;
-}
-span.arrowUp:after { border-bottom-color: var(--color-text-primary) !important; }
-span.arrowDown:after { border-top-color: var(--color-text-primary) !important; }
 
 #booking-slots-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 10px;
-    margin-top: 15px;
+    margin-top: 20px;
 }
-
-.slot-button { /* 動態生成 */
+.slot-button {
     padding: 12px 5px;
-    font-family: var(--font-primary);
-    border: 1px solid var(--color-frame-gold);
+    border: 1px solid var(--color-secondary);
     background: transparent;
     color: var(--color-text-secondary);
     border-radius: var(--border-radius);
     cursor: pointer;
-    transition: all 0.3s ease;
 }
 .slot-button:hover:not(:disabled) {
-    background: var(--color-frame-gold);
-    color: white;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg);
 }
 .slot-button:disabled {
-    background: rgba(0,0,0,0.1);
-    border-color: rgba(0,0,0,0.1);
+    background: rgba(0,0,0,0.2);
     cursor: not-allowed;
-}
-#contact-summary {
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-.summary-card p {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px dashed var(--color-frame-gold);
-}
-.summary-card p span:last-child {
-    font-weight: bold;
-}
-
-/* F. 店家資訊 (page-info) */
-.info-section {
-    margin-bottom: 25px;
-}
-.info-section h2 {
     border: none;
-    padding: 0;
-    margin-bottom: 10px;
-}
-#store-hours {
-    white-space: pre-wrap;
-    font-family: var(--font-primary);
-}
-
-/* =================================================================
-   追加樣式 v5 (最終修正版)
-   ================================================================= */
-
-/* --- 1. 統一頁面主標題樣式 --- */
-.page-main-title {
-    text-align: center;
-    font-size: 2.2rem; 
-    font-weight: 600;
-    color: var(--color-text-primary);
-    border-bottom: 2px solid var(--color-frame-gold);
-    margin-top: 10px;
-    margin-bottom: 25px;
-    padding-bottom: 10px;
-}
-
-
-/* --- 2. 導覽列文字排版優化 --- */
-#tab-bar {
-    height: 70px;
-}
-.tab-button {
-    line-height: 1.4;
-    font-size: 0.9rem;
-    padding: 5px;
-}
-
-/* --- 3. 冒險者資料頁面全版面優化 --- */
-#page-templates > #page-profile {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 50px - 10px); 
-    padding: 8px 15px;
-    box-sizing: border-box;
-}
-#page-profile > h1 {
-    flex-shrink: 0;
-}
-#page-profile #qrcode-container {
-    flex-grow: 1; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: 100px;
-    margin: 5px 0;
-}
-#page-profile #qrcode {
-    padding: 8px;
-}
-.profile-details-grid {
-    flex-shrink: 0;
-    margin-top: 5px;
-    margin-bottom: 8px;
-}
-
-#page-profile .profile-actions {
-    flex-shrink: 0;
-    margin-top: 8px;
-    gap: 8px;
-}
-.profile-actions .cta-button {
-    font-size: 0.9rem;
-    padding: 8px 5px;
-    line-height: 1.3;
-}
-
-/* =================================================================
-   追加樣式 - 需求修改
-   ================================================================= */
-/* --- 遊戲詳情頁 (page-game-details) --- */
-
-/* 圖片展示區 */
-.details-gallery {
-    margin-bottom: 15px;
-}
-.details-image-main {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 3; /* 維持比例 */
-    object-fit: cover;
-    border-radius: var(--border-radius);
-    border: 2px solid var(--color-frame-gold);
-    margin-bottom: 10px;
-}
-.details-image-thumbnails {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-}
-.details-image-thumbnail {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border-radius: calc(var(--border-radius) / 2);
-    border: 1px solid var(--color-text-secondary);
-    cursor: pointer;
-    opacity: 0.7;
-    transition: all 0.3s ease;
-}
-.details-image-thumbnail:hover, .details-image-thumbnail.active {
-    opacity: 1;
-    border: 2px solid var(--color-frame-gold);
-}
-
-
-/* 核心資訊網格 */
-.core-info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    text-align: center;
-    padding: 10px;
-}
-.core-info-grid .info-item {
-    display: flex;
-    flex-direction: column;
-}
-.core-info-grid .info-item span {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-}
-.core-info-grid .info-item strong {
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: var(--color-text-primary);
-}
-
-/* 遊戲詳情頁的標籤容器 */
-#game-tags-container {
-    padding: 10px;
-    text-align: center;
-}
-
-/* 遊戲詳情頁價格 */
-.price-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-    text-align: center;
-    justify-content: flex-start; /* 【** 新增這一行 **】 */
-}
-.price-item p {
-    margin: 4px 0;
-}
-.price-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--color-text-primary);
-}
-.price-tag { /* 取代原本的 .stock-info */
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-}
-
-/* public/style.css */
-
-/* --- 修正：租借紀錄頁面排版 --- */
-.rental-card {
-    display: flex;
-    align-items: center; /* 讓圖片和文字垂直置中對齊 */
-    gap: 15px;
-}
-
-.rental-game-image {
-    width: 80px;      /* 設定固定寬度 */
-    height: 80px;     /* 設定固定高度 */
-    flex-shrink: 0;   /* 防止圖片被壓縮 */
-    object-fit: cover;/* 確保圖片等比例填滿空間不變形 */
-    border-radius: var(--border-radius);
-}
-
-.rental-info {
-    flex-grow: 1; /* 讓文字區域佔滿剩餘空間 */
-}
-
-.rental-info h3, .rental-info p {
-    margin: 5px 0; /* 調整文字間的垂直距離 */
-}
-
-/* ---【新增】冒險者檔案編輯頁 - 偏好遊戲類型標籤 --- */
-.tag-selection-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.preference-tag-btn {
-    font-family: var(--font-primary);
-    padding: 8px 16px;
-    border: 1px solid var(--color-frame-gold);
-    background: transparent;
-    color: var(--color-text-secondary);
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.preference-tag-btn.active {
-    background-color: var(--color-frame-gold);
-    color: white;
-    font-weight: bold;
-}
-
-/* --- 【新增】頂部 Header 樣式 --- */
-#app-header {
-    position: fixed; /* 固定在頂部 */
-    top: 0;
-    left: 0;
-    width: 100%;
-    background-color: rgba(243, 234, 203, 0.85); /* 參考導覽列的半透明亞麻色 */
-    padding: 10px 15px;
-    text-align: center;
-    border-bottom: 2px solid var(--color-frame-gold);
-    z-index: 10;
-    backdrop-filter: blur(10px); /* 毛玻璃效果 */
-}
-
-#business-name-header {
-    margin: 0;
-    font-size: 1.2rem;
-    color: var(--color-text-primary);
-    font-weight: bold;
 }

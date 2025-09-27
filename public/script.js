@@ -488,9 +488,6 @@ const pageInitializers = {
         }
     }
 
-    async function initializeGamesPage() {
-        // (此函式內容暫時留空，因為產品頁的邏輯較複雜，我們之後再回來完成)
-    }
 
     async function initializeProfilePage() {
         if (!userProfile) return;

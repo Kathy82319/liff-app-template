@@ -64,6 +64,9 @@ window.APP_CONFIG = {
     // 系統中對「會員」或「使用者」的稱呼。
     MEMBER_NAME: "會員",
     MEMBER_PROFILE_TITLE: "會員中心",
+    MEMBER_CLASS_LABEL: "會員方案",       // e.g., 職業 / 會員方案 / 角色
+    MEMBER_LEVEL_LABEL: "消費等級",       // e.g., 等級 / Rank
+    MEMBER_PERK_LABEL: "特殊優惠",    // e.g., 職業福利 / 方案優惠
 
     // 與會員積分/點數系統相關的術語
     POINTS_NAME: "積分",

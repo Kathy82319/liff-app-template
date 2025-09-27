@@ -381,39 +381,41 @@ async function initializeLiff() {
         }
     }
 
-// public/script.js
 
-    function updateProfileDisplay(data) {
-        if (!data) return;
-        document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
 
-        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-        const perkP = document.getElementById('user-perk-line');
+function updateProfileDisplay(data) {
+    if (!data) return;
+    document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
 
-        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            if (classP) classP.style.display = 'block';
-            if (levelP) levelP.style.display = 'block';
-            if (expP) expP.style.display = 'block';
-            
-            if(classP) classP.innerHTML = `<strong>職業：</strong><span id="user-class">${data.class || "無"}</span>`;
-            if(levelP) levelP.innerHTML = `<strong>等級：</strong><span id="user-level">${data.level}</span>`;
-            if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
+    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+    const perkP = document.getElementById('user-perk-line');
 
-            if (perkP && data.perk && data.class !== '無') {
-                perkP.innerHTML = `<strong>職業福利：</strong><span id="user-perk">${data.perk}</span>`;
-                perkP.style.display = 'block';
-            } else if (perkP) {
-                perkP.style.display = 'none';
-            }
-        } else {
-            if (classP) classP.style.display = 'none';
-            if (levelP) levelP.style.display = 'none';
-            if (expP) expP.style.display = 'none';
-            if (perkP) perkP.style.display = 'none';
+    if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+        if (classP) classP.style.display = 'block';
+        if (levelP) levelP.style.display = 'block';
+        if (expP) expP.style.display = 'block';
+        
+        // 【修改】使用 CONFIG.TERMS 動態載入標籤文字
+        if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span id="user-class">${data.class || "無"}</span>`;
+        if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span id="user-level">${data.level}</span>`;
+        if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
+
+        if (perkP && data.perk && data.class !== '無') {
+            // 【修改】使用 CONFIG.TERMS 動態載入標籤文字
+            perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span id="user-perk">${data.perk}</span>`;
+            perkP.style.display = 'block';
+        } else if (perkP) {
+            perkP.style.display = 'none';
         }
+    } else {
+        if (classP) classP.style.display = 'none';
+        if (levelP) levelP.style.display = 'none';
+        if (expP) expP.style.display = 'none';
+        if (perkP) perkP.style.display = 'none';
     }
+}
 
 // REPLACE THIS FUNCTION
 async function initializeMyBookingsPage() {

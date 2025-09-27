@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // =================================================================
 function applyConfiguration() {
     try {
-        // --- 檢查點：確保 CONFIG 物件存在 ---
         if (typeof CONFIG === 'undefined' || !CONFIG) {
             console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！請確保 config.js 已正確載入。");
             alert("系統設定檔載入失敗，頁面功能可能不完整。");
@@ -44,39 +43,32 @@ function applyConfiguration() {
         const { FEATURES, TERMS } = CONFIG;
 
         // --- 階段 1.1: 動態顯示/隱藏底部頁籤 ---
-        // 抓取所有頁籤按鈕
         const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
         const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
         const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
         const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
         const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
 
-        // 根據 FEATURES 設定決定是否顯示
-        if (gamesTab) {
-            // 注意：我們暫時將「產品型錄」的顯示與「購物車」功能開關掛鉤。
-            // 未來可以新增更精確的開關，例如 ENABLE_PRODUCT_CATALOG。
-            gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
-        }
-        if (profileTab) {
-            profileTab.style.display = FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-        }
-        if (bookingTab) {
-            bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        }
-        // 首頁和店家資訊通常是必備的，所以我們預設顯示它們
+        if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+        if (profileTab) profileTab.style.display = FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
+        if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         if (homeTab) homeTab.style.display = 'block';
         if (infoTab) infoTab.style.display = 'block';
-
 
         // --- 階段 1.2: 動態替換介面文字 (TERMS) ---
         document.title = TERMS.BUSINESS_NAME;
 
+        // 【新】更新所有頁籤按鈕的文字
+        if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
         if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
         if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
         if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
-        
-        // 【關鍵修正】改用 if 判斷式取代 ?. 可選串連語法
+
+        // 【新】更新所有頁面內的標題文字
         if (pageTemplates) {
+            const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
+            if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
+
             const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
             if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
 

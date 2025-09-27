@@ -48,7 +48,10 @@ window.APP_CONFIG = {
   // =================================================================
   TERMS: {
     // 店家或品牌的名稱
-    BUSINESS_NAME: "範例商店",
+    BUSINESS_NAME: "OO商店",
+
+    // 【新增這一行】系統中對「最新消息」頁面的稱呼
+    NEWS_PAGE_TITLE: "最新情報",
 
     // 系統中對「產品」或「服務」的總稱。
     // 範例：商品 / 課程 / 器材 / 場地 / 桌遊
@@ -61,7 +64,7 @@ window.APP_CONFIG = {
     MEMBER_PROFILE_TITLE: "會員中心", // LIFF 中顯示會員資料的頁籤/頁面標題
 
     // 與會員積分/點數系統相關的術語 (如果 ENABLE_MEMBERSHIP_SYSTEM 為 true)
-    POINTS_NAME: "積分", // 範例：積分 / 點數 / 經驗值
+    POINTS_NAME: "點數", // 範例：積分 / 點數 / 經驗值
 
     // 與預約系統相關的術語 (如果 ENABLE_BOOKING_SYSTEM 為 true)
     BOOKING_NAME: "預約",
@@ -70,6 +73,7 @@ window.APP_CONFIG = {
     // 與租借系統相關的術語 (如果 ENABLE_RENTAL_SYSTEM 為 true)
     RENTAL_NAME: "租借",
   },
+
 
   // =================================================================
   // 3. 業務邏輯 (LOGIC)

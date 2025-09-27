@@ -1574,8 +1574,9 @@ async function openCreateRentalModal(gameId) {
     document.getElementById('rental-deposit').value = game ? (game.deposit || 0) : 0;
     document.getElementById('rental-late-fee').value = game ? (game.late_fee_per_day || 50) : 50;
 
+    const rentalDays = CONFIG.LOGIC.RENTAL_DEFAULT_DAYS || 3; // 如果沒設定，預設為 3 天
     const today = new Date();
-    today.setDate(today.getDate() + 3);
+    today.setDate(today.getDate() + rentalDays);
     document.getElementById('rental-due-date').value = today.toISOString().split('T')[0];
 
     if(createRentalModal) createRentalModal.style.display = 'flex';

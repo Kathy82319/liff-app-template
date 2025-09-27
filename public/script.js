@@ -777,86 +777,69 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    async function initializeBookingPage() {
-        bookingHistoryStack = [];
-        showBookingStep('step-preference');
-        document.getElementById('view-my-bookings-btn').addEventListener('click', () => {
-            showPage('page-my-bookings');
-        });
-        try {
-            const response = await fetch('/bookings-check?month-init=true');
-            const data = await response.json();
-            enabledDatesByAdmin = data.enabledDates || []; 
-        } catch (error) {
-            console.error("獲取可預約日期失敗:", error);
-            enabledDatesByAdmin = [];
-        }
-        const wizardContainer = document.getElementById('booking-wizard-container');
-        if (wizardContainer) {
-            wizardContainer.addEventListener('click', async (e) => {
-             if (e.target.matches('.back-button')) {
-                goBackBookingStep();
-            } else if (e.target.closest('.preference-btn')) {
-                showBookingStep('step-date-and-slots');
-            } else if (e.target.matches('#to-summary-btn')) {
-                const peopleInput = document.getElementById('booking-people');
-                const nameInput = document.getElementById('contact-name');
-                const phoneInput = document.getElementById('contact-phone');
-                bookingData.people = Number(peopleInput.value);
-                bookingData.name = nameInput.value.trim();
-                bookingData.phone = phoneInput.value.trim();
-                if (!bookingData.people || !bookingData.name || bookingData.phone.length < 10) {
-                    alert('請確實填寫所有資訊，並確認手機號碼為10碼！');
-                    return;
-                }
-                const tablesNeeded = Math.ceil(bookingData.people / PEOPLE_PER_TABLE);
-                if (tablesNeeded > dailyAvailability.available) {
-                    alert(`抱歉，座位不足！您需要 ${tablesNeeded} 桌，但當日僅剩 ${dailyAvailability.available} 桌可預約。`);
-                    return;
-                }
-                renderSummary();
-                showBookingStep('step-summary');
-            } else if (e.target.matches('#confirm-booking-btn')) {
-                await handleBookingConfirmation(e.target);
+// public/script.js
+
+async function initializeBookingPage() {
+    // 獲取頁面上的元素
+    const datepickerContainer = document.getElementById('booking-datepicker-container');
+    const timeSlotContainer = document.getElementById('booking-time-slot-container');
+    const detailsForm = document.getElementById('booking-details-form');
+    const timeSlotSelect = document.getElementById('time-slot-select');
+
+    // 綁定按鈕事件
+    document.getElementById('view-my-bookings-btn').addEventListener('click', () => showPage('page-my-bookings'));
+    document.getElementById('confirm-booking-btn').addEventListener('click', handleBookingConfirmation);
+
+    // 初始化日期選擇器
+    flatpickr(datepickerContainer, {
+        inline: true,
+        minDate: "today",
+        dateFormat: "Y-m-d",
+        locale: "zh_tw",
+        onChange: (selectedDates, dateStr) => {
+            bookingData.date = dateStr;
+            renderTimeSlots(timeSlotSelect); // 傳入 select 元素
+            if (timeSlotContainer) timeSlotContainer.style.display = 'block'; // 顯示時段下拉選單
+        },
+    });
+
+    // 當時段被選擇後，顯示下方的詳細資訊表單
+    if (timeSlotSelect) {
+        timeSlotSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                if (detailsForm) detailsForm.style.display = 'block';
+            } else {
+                if (detailsForm) detailsForm.style.display = 'none';
             }
         });
     }
-        const datepickerContainer = appContent.querySelector("#booking-datepicker-container");
-        if (datepickerContainer) {
-            flatpickr(datepickerContainer, {
-                inline: true,
-                minDate: "today",
-                dateFormat: "Y-m-d",
-                locale: "zh_tw",
-                enable: enabledDatesByAdmin,
-                onChange: (selectedDates, dateStr) => {
-                    bookingData.date = dateStr;
-                    fetchAndRenderSlots(dateStr);
-                },
-                onClick: (selectedDates, dateStr, instance) => {
-                    setTimeout(() => {
-                        const clickedElement = instance.selectedDateElem;
-                        if (clickedElement && clickedElement.classList.contains('flatpickr-disabled')) {
-                            const slotsPlaceholder = document.getElementById('slots-placeholder');
-                            const slotsContainer = document.getElementById('booking-slots-container');
-                            if (slotsPlaceholder && slotsContainer) {
-                                slotsPlaceholder.textContent = '此日期未開放預約';
-                                slotsPlaceholder.style.display = 'block';
-                                slotsContainer.innerHTML = '';
-                            }
-                        }
-                    }, 10);
-                }
-            });
-        }
-        const userData = await fetchGameData();
-        if (userData) {
-            const nameInput = document.getElementById('contact-name');
-            const phoneInput = document.getElementById('contact-phone');
-            if(nameInput) nameInput.value = userData.real_name || '';
-            if(phoneInput) phoneInput.value = userData.phone || '';
-        }
+
+    // 帶入已有的使用者資料
+    const userData = await fetchGameData();
+    if (userData) {
+        const nameInput = document.getElementById('contact-name');
+        const phoneInput = document.getElementById('contact-phone');
+        if (nameInput) nameInput.value = userData.real_name || userData.nickname || '';
+        if (phoneInput) phoneInput.value = userData.phone || '';
     }
+}
+
+// public/script.js
+
+function renderTimeSlots(selectElement) {
+    if (!selectElement) return;
+
+    selectElement.innerHTML = '<option value="">-- 請選擇 --</option>'; // 清空並加入預設選項
+
+    // 產生 8:00 到 18:00 的時間選項
+    for (let hour = 8; hour <= 18; hour++) {
+        const timeString = `${hour.toString().padStart(2, '0')}:00`;
+        const option = document.createElement('option');
+        option.value = timeString;
+        option.textContent = timeString;
+        selectElement.appendChild(option);
+    }
+}
 
     async function fetchAndRenderSlots(date) {
         const slotsPlaceholder = document.getElementById('slots-placeholder');
@@ -911,49 +894,80 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    async function handleBookingConfirmation(confirmBtn) {
-        if (confirmBtn.dataset.isSubmitting === 'true') return;
-        try {
-            confirmBtn.dataset.isSubmitting = 'true';
-            confirmBtn.disabled = true;
-            confirmBtn.textContent = '處理中...';
-            const bookingPayload = {
-                userId: userProfile.userId,
-                bookingDate: bookingData.date,
-                timeSlot: bookingData.timeSlot,
-                numOfPeople: bookingData.people,
-                contactName: bookingData.name,
-                contactPhone: bookingData.phone
-            };
-            const createRes = await fetch('/bookings-create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bookingPayload)
-            });
-            if (!createRes.ok) {
-                const errorResult = await createRes.json();
-                throw new Error(errorResult.error || '建立預約時發生未知錯誤');
-            }
-            const result = await createRes.json();
-            await fetch('/send-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
-            });
-            document.getElementById('booking-result-content').innerHTML = `
-                <h2 class="success">✅ 預約成功！</h2>
-                <p>已將預約確認訊息發送至您的 LINE，我們到時見！</p>
-                <button id="booking-done-btn" class="cta-button">返回預約首頁</button>`;
-            showBookingStep('step-result');
-            document.getElementById('booking-done-btn').addEventListener('click', () => showPage('page-booking'));
-        } catch (error) {
-            alert(`預約失敗：${error.message}`);
-        } finally {
-            confirmBtn.dataset.isSubmitting = 'false';
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = '確認送出';
-        }
+// public/script.js
+
+async function handleBookingConfirmation(event) {
+    const confirmBtn = event.target;
+    if (confirmBtn.dataset.isSubmitting === 'true') return;
+
+    // 從表單獲取所有資料
+    bookingData.timeSlot = document.getElementById('time-slot-select').value;
+    bookingData.item = document.getElementById('booking-item').value; // 取得項目
+    bookingData.people = document.getElementById('booking-people').value;
+    bookingData.name = document.getElementById('contact-name').value;
+    bookingData.phone = document.getElementById('contact-phone').value;
+
+    // 驗證
+    if (!bookingData.date || !bookingData.timeSlot || !bookingData.name || !bookingData.phone) {
+        alert('日期、時段、姓名與電話為必填！');
+        return;
     }
+
+    try {
+        confirmBtn.dataset.isSubmitting = 'true';
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '處理中...';
+        
+        const bookingPayload = {
+            userId: userProfile.userId,
+            bookingDate: bookingData.date,
+            timeSlot: bookingData.timeSlot,
+            item: bookingData.item || '未指定', // 如果項目為空，給一個預設值
+            numOfPeople: bookingData.people,
+            contactName: bookingData.name,
+            contactPhone: bookingData.phone
+        };
+
+        const createRes = await fetch('/bookings-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bookingPayload)
+        });
+
+        if (!createRes.ok) {
+            const errorResult = await createRes.json();
+            throw new Error(errorResult.error || '建立預約時發生未知錯誤');
+        }
+        
+        const result = await createRes.json();
+        
+        // 發送 LINE 訊息 (非同步，不影響後續流程)
+        fetch('/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
+        });
+
+        // 顯示成功畫面
+        appContent.innerHTML = `
+            <div class="details-section" style="text-align: center;">
+                <h2 style="color: var(--color-accent);">✅ 預約成功！</h2>
+                <p>3 秒後將自動跳轉至您的預約列表...</p>
+            </div>
+        `;
+
+        // 3 秒後跳轉
+        setTimeout(() => {
+            showPage('page-my-bookings');
+        }, 3000);
+
+    } catch (error) {
+        alert(`預約失敗：${error.message}`);
+        confirmBtn.dataset.isSubmitting = 'false';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '確認預約';
+    }
+}
 
     // =================================================================
     // Tab Bar 主導航

@@ -110,9 +110,13 @@ export async function onRequest(context) {
         );
     }
 
-    const message = `🎉 預約成功！\n\n` + `姓名：${contactName}\n電話：${contactPhone}\n` + `日期：${bookingDate}\n時段：${timeSlot}\n` + `人數：${numOfPeople} 人 (預計 ${tablesNeeded} 桌)\n\n` + `感謝您的預約，我們到時見！`;
+    const message = `您已成功預約${bookingDate} ${timeSlot}，此訊息僅為通知，若有問題請聯絡店家。`;
 
-    return new Response(JSON.stringify({ success: true, message: '預約成功！', confirmationMessage: message }), { status: 201 });
+    return new Response(JSON.stringify({ 
+        success: true, 
+        message: '預約成功！', 
+        confirmationMessage: message 
+    }), { status: 201 });
   } catch (error) {
     console.error('Error in bookings-create API:', error);
     return new Response(JSON.stringify({ error: '建立預約失敗。', details: error.message }), { status: 500 });

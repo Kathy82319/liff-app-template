@@ -114,12 +114,46 @@
             <p>這是一個為未來金流功能預留的介面，之後有空再建置。</p>
         </div>
     </div>
-        <div id="page-booking">
-             <h1 class="page-main-title">線上預約</h1>
-             <div id="booking-wizard-container">
-                </div>
-             <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px;">查看我的預約</button>
+<div id="page-booking">
+    <h1 class="page-main-title">線上預約</h1>
+
+    <div class="details-section" style="margin-bottom: 20px; background-color: rgba(88, 166, 255, 0.1);">
+        <p style="margin: 0; text-align: center; color: var(--color-text-secondary);">
+            可供店家選擇是否可連續選擇多日、時段，並供店家關閉預約時段。
+        </p>
+    </div>
+
+    <div class="details-section">
+        <div id="booking-datepicker-container"></div>
+        <div id="booking-time-slot-container" style="margin-top: 20px; display: none;">
+            <label for="time-slot-select" style="display: block; margin-bottom: 10px;">請選擇時段：</label>
+            <select id="time-slot-select"></select>
         </div>
+    </div>
+
+    <div id="booking-details-form" class="details-section" style="display: none;">
+        <h3>請填寫預約資訊</h3>
+        <div class="form-group">
+            <label for="booking-item">預約項目</label>
+            <input type="text" id="booking-item" placeholder="請輸入預約的服務或項目">
+        </div>
+        <div class="form-group">
+            <label for="booking-people">人數</label>
+            <input type="number" id="booking-people" value="1" min="1">
+        </div>
+        <div class="form-group">
+            <label for="contact-name">預約姓名</label>
+            <input type="text" id="contact-name" placeholder="請輸入您的姓名">
+        </div>
+        <div class="form-group">
+            <label for="contact-phone">聯絡電話</label>
+            <input type="tel" id="contact-phone" placeholder="請輸入您的電話">
+        </div>
+        <button id="confirm-booking-btn" class="cta-button">確認預約</button>
+    </div>
+
+    <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px; background-color: var(--color-secondary);">查看我的預約</button>
+</div>
 
         <div id="page-info">
             <h1 class="page-main-title">店家資訊</h1>

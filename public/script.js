@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
+    const CONFIG = window.APP_CONFIG;
 
     // 【改造】將業務邏輯的常數改為從設定檔讀取
     const TOTAL_TABLES = 4; // 這個未來也可以放入 config

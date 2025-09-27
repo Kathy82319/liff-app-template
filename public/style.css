@@ -40,8 +40,8 @@ html {
 
 body {
     margin: 0;
-    padding: 0;
-    padding-bottom: 80px; /* 避免內容被下方導航列遮擋 */
+    padding-top: 55px; /* 新增頂部內距 */
+    padding-bottom: 80px; /* 避免內容被下方導航列遮擋 (此行應已存在) */
     font-family: var(--font-primary);
     color: var(--color-text-primary);
     
@@ -773,5 +773,26 @@ span.arrowDown:after { border-top-color: var(--color-text-primary) !important; }
 .preference-tag-btn.active {
     background-color: var(--color-frame-gold);
     color: white;
+    font-weight: bold;
+}
+
+/* --- 【新增】頂部 Header 樣式 --- */
+#app-header {
+    position: fixed; /* 固定在頂部 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(243, 234, 203, 0.85); /* 參考導覽列的半透明亞麻色 */
+    padding: 10px 15px;
+    text-align: center;
+    border-bottom: 2px solid var(--color-frame-gold);
+    z-index: 10;
+    backdrop-filter: blur(10px); /* 毛玻璃效果 */
+}
+
+#business-name-header {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--color-text-primary);
     font-weight: bold;
 }

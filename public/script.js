@@ -27,11 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let dailyAvailability = { limit: TOTAL_TABLES, booked: 0, available: TOTAL_TABLES };
     let enabledDatesByAdmin = [];
 
-// public/script.js
 
 // =================================================================
 // 【改造】新增：設定檔應用函式 (Template Engine)
 // =================================================================
+// public/script.js
+
 function applyConfiguration() {
     try {
         if (typeof CONFIG === 'undefined' || !CONFIG) {
@@ -42,14 +43,17 @@ function applyConfiguration() {
 
         const { FEATURES, TERMS } = CONFIG;
 
-        // --- 階段 1.1: 動態顯示/隱藏底部頁籤 ---
+        // --- 階段 1.1 & 1.3: 動態顯示/隱藏介面元素 ---
         const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
         const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
+        const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]'); // 新增
         const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
         const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
         const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
 
+        // 控制頁籤按鈕的顯示
         if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+        if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none'; // 新增
         if (profileTab) profileTab.style.display = FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
         if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         if (homeTab) homeTab.style.display = 'block';
@@ -57,36 +61,43 @@ function applyConfiguration() {
 
         // --- 階段 1.2: 動態替換介面文字 (TERMS) ---
         document.title = TERMS.BUSINESS_NAME;
+        
+        // 【新】控制頂部 Header 的文字
+        const businessNameHeader = document.getElementById('business-name-header');
+        if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
 
-        // 【新】更新所有頁籤按鈕的文字
+        // 更新所有頁籤按鈕的文字
         if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
         if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
+        if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`; // 新增
         if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
         if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
 
-        // 【新】更新所有頁面內的標題文字
+        // 更新所有頁面內的標題文字
         if (pageTemplates) {
             const homeTitle = pageTemplates.querySelector('#page-home .page-main-title');
             if (homeTitle) homeTitle.textContent = TERMS.NEWS_PAGE_TITLE;
-
-            const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
-            if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
-
+            
             const gamesTitle = pageTemplates.querySelector('#page-games .page-main-title');
             if (gamesTitle) gamesTitle.textContent = TERMS.PRODUCT_CATALOG_TITLE;
+            
+            const checkoutTitle = pageTemplates.querySelector('#page-checkout .page-main-title'); // 新增
+            if (checkoutTitle) checkoutTitle.textContent = TERMS.CHECKOUT_PAGE_TITLE; // 新增
+            
+            const profileTitle = pageTemplates.querySelector('#page-profile .page-main-title');
+            if (profileTitle) profileTitle.textContent = TERMS.MEMBER_PROFILE_TITLE;
+            
+            const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
+            if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
 
             const keywordSearch = pageTemplates.querySelector('#page-games #keyword-search');
             if (keywordSearch) keywordSearch.setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-
-            const bookingTitle = pageTemplates.querySelector('#page-booking .page-main-title');
-            if (bookingTitle) bookingTitle.textContent = TERMS.BOOKING_PAGE_TITLE;
         }
     } catch (e) {
         console.error("套用設定檔時發生錯誤:", e);
         alert("注意：套用設定檔時發生錯誤，頁面可能顯示不完整。請檢查 config.js 檔案是否存在且格式正確。");
     }
 }
-
     // =================================================================
     // 頁面切換邏輯
     // =================================================================

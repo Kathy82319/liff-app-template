@@ -29,14 +29,14 @@ window.APP_CONFIG = {
 
     // 是否啟用線上預約系統？
     // 適用於服務、課程、場地預約。
-    ENABLE_BOOKING_SYSTEM: false,
+    ENABLE_BOOKING_SYSTEM: true,
 
     // 是否啟用線上金流支付功能？(未來擴充)
     // 若為 true，在結帳或預約頁面會顯示「線上支付」按鈕。
-    ENABLE_PAYMENT_GATEWAY: false,
+    ENABLE_PAYMENT_GATEWAY: true,
 
     // 是否啟用購物車與線上訂單功能？(未來擴充)
-    ENABLE_SHOPPING_CART: false,
+    ENABLE_SHOPPING_CART: true,
     
     // 是否啟用簡易分析儀表板？
     ENABLE_ANALYTICS_SYSTEM: true,
@@ -46,34 +46,35 @@ window.APP_CONFIG = {
   // 2. 商業術語 (TERMS)
   // 定義整個應用程式中顯示的客製化文字。
   // =================================================================
+// public/config.js -> TERMS object
   TERMS: {
     // 店家或品牌的名稱
-    BUSINESS_NAME: "OO商店",
+    BUSINESS_NAME: "範例商店",
 
-    // 【新增這一行】系統中對「最新消息」頁面的稱呼
+    // 系統中對「最新消息」頁面的稱呼
     NEWS_PAGE_TITLE: "最新情報",
 
     // 系統中對「產品」或「服務」的總稱。
-    // 範例：商品 / 課程 / 器材 / 場地 / 桌遊
     PRODUCT_NAME: "產品",
-    PRODUCT_CATALOG_TITLE: "產品型錄", // LIFF 中顯示產品列表的頁籤/頁面標題
+    PRODUCT_CATALOG_TITLE: "產品型錄",
+
+    // 【新增這一行】系統中對「結帳」頁面的稱呼
+    CHECKOUT_PAGE_TITLE: "購物結帳",
 
     // 系統中對「會員」或「使用者」的稱呼。
-    // 範例：會員 / 顧客 / 學員 / 冒險者
     MEMBER_NAME: "會員",
-    MEMBER_PROFILE_TITLE: "會員中心", // LIFF 中顯示會員資料的頁籤/頁面標題
+    MEMBER_PROFILE_TITLE: "會員中心",
 
-    // 與會員積分/點數系統相關的術語 (如果 ENABLE_MEMBERSHIP_SYSTEM 為 true)
-    POINTS_NAME: "點數", // 範例：積分 / 點數 / 經驗值
+    // 與會員積分/點數系統相關的術語
+    POINTS_NAME: "積分",
 
-    // 與預約系統相關的術語 (如果 ENABLE_BOOKING_SYSTEM 為 true)
+    // 與預約系統相關的術語
     BOOKING_NAME: "預約",
-    BOOKING_PAGE_TITLE: "線上預約", // LIFF 中預約頁面的標題
+    BOOKING_PAGE_TITLE: "線上預約",
 
-    // 與租借系統相關的術語 (如果 ENABLE_RENTAL_SYSTEM 為 true)
+    // 與租借系統相關的術語
     RENTAL_NAME: "租借",
   },
-
 
   // =================================================================
   // 3. 業務邏輯 (LOGIC)

@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header id="app-header">
+        <h1 id="business-name-header"></h1>
+    </header>
 
     <main id="app-content" class="page"></main>
 
@@ -68,20 +71,27 @@
                 </div>
                 <div class="profile-stats">
                     <h2 id="display-name">讀取中...</h2>
-                    <p><strong>職業：</strong><span id="user-class">無</span></p>
-                    <p><strong>等級：</strong><span id="user-level">1</span></p>
-                    <p><strong>經驗值：</strong><span id="user-exp">0 / 10</span></p>
+                    <p><strong>會員等級：</strong><span id="user-class">無</span></p>
+                    <p><strong>待擴充欄位：</strong><span id="user-level">暫無內容</span></p>
+                    <p><strong>待擴充欄位：</strong><span id="user-exp">暫無內容</span></p>
                 </div>
             </div>
             <div id="user-perk-line" class="perk-display" style="display: none;"></div>
             <div class="profile-actions">
                 <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
-                <button class="cta-button" id="my-exp-history-btn">積分紀錄</button>
-                <button class="cta-button" id="rental-history-btn">租借紀錄</button>
+                <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
+                <button class="cta-button" id="rental-history-btn">點數紀錄</button>
                 <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
             </div>
         </div>
-
+    <div id="page-checkout">
+        <h1 class="page-main-title">購物車與結帳</h1>
+        <div class="details-section">
+            <p>這裡是購物車與結帳功能的展示頁面。</p>
+            <p>測試用的</p>
+            <p>這是一個為未來金流功能預留的介面，之後有空再建置。</p>
+        </div>
+    </div>
         <div id="page-booking">
              <h1 class="page-main-title">線上預約</h1>
              <div id="booking-wizard-container">
@@ -113,13 +123,14 @@
         
     </div>
 
-    <nav id="tab-bar">
-        <button class="tab-button active" data-target="page-home">最新<br>情報</button>
-        <button class="tab-button" data-target="page-games">產品<br>型錄</button>
-        <button class="tab-button" data-target="page-profile">會員<br>中心</button>
-        <button class="tab-button" data-target="page-booking">線上<br>預約</button>
-        <button class="tab-button" data-target="page-info">店家<br>資訊</button>
-    </nav>
+<nav id="tab-bar">
+    <button class="tab-button active" data-target="page-home">最新<br>情報</button>
+    <button class="tab-button" data-target="page-games">產品<br>型錄</button>
+    <button class="tab-button" data-target="page-checkout">購物<br>結帳</button>
+    <button class="tab-button" data-target="page-profile">會員<br>中心</button>
+    <button class="tab-button" data-target="page-booking">線上<br>預約</button>
+    <button class="tab-button" data-target="page-info">店家<br>資訊</button>
+</nav>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>

@@ -15,24 +15,26 @@ window.APP_CONFIG = {
   // =================================================================
   // 1. 功能開關 (FEATURES)
   // 控制核心功能的啟用與否。true 為啟用，false 為停用。
-  // 前後端都會讀取這些開關，動態調整介面與 API 功能。
   // =================================================================
   FEATURES: {
     // 是否啟用會員積分/等級系統？
-    // 若為 false，將隱藏所有等級、積分相關介面，以及後台的掃碼加點功能。
     ENABLE_MEMBERSHIP_SYSTEM: false,
 
     // 是否啟用產品/服務的「租借」功能？
-    // 這通常適用於實體商品、器材、場地等。
-    // 若為 false，將隱藏租借相關的所有介面與邏輯。
     ENABLE_RENTAL_SYSTEM: true,
 
     // 是否啟用線上預約系統？
-    // 適用於服務、課程、場地預約。
     ENABLE_BOOKING_SYSTEM: true,
 
+    // --- 【新增】 ---
+    // 控制預約時是否顯示「預約項目」輸入框
+    ENABLE_BOOKING_ITEM_FIELD: true,
+
+    // --- 【新增】 ---
+    // 控制顧客是否可以在「我的預約」中看到「取消預約」按鈕
+    ENABLE_CUSTOMER_CANCELLATION: true,
+
     // 是否啟用線上金流支付功能？(未來擴充)
-    // 若為 true，在結帳或預約頁面會顯示「線上支付」按鈕。
     ENABLE_PAYMENT_GATEWAY: true,
 
     // 是否啟用購物車與線上訂單功能？(未來擴充)
@@ -46,7 +48,6 @@ window.APP_CONFIG = {
   // 2. 商業術語 (TERMS)
   // 定義整個應用程式中顯示的客製化文字。
   // =================================================================
-// public/config.js -> TERMS object
   TERMS: {
     // 店家或品牌的名稱
     BUSINESS_NAME: "OO商店",
@@ -57,20 +58,20 @@ window.APP_CONFIG = {
     // 系統中對「產品」或「服務」的總稱。
     PRODUCT_NAME: "產品or服務",
     PRODUCT_CATALOG_TITLE: "產品型錄",
-    PRODUCT_PLAYER_COUNT_UNIT: "人",    // e.g., 人 / 位
-    PRODUCT_DIFFICULTY_LABEL: "難易度控制(?)",   // e.g., 難度 / 複雜度
+    PRODUCT_PLAYER_COUNT_UNIT: "人",
+    PRODUCT_DIFFICULTY_LABEL: "難易度控制(?)",
     PRODUCT_SALE_PRICE_LABEL: "參考售價???元",
     PRODUCT_RENTAL_PRICE_LABEL: "租借費用",
 
-    // 【新增這一行】系統中對「結帳」頁面的稱呼
+    // 系統中對「結帳」頁面的稱呼
     CHECKOUT_PAGE_TITLE: "購物結帳",
 
     // 系統中對「會員」或「使用者」的稱呼。
     MEMBER_NAME: "會員",
     MEMBER_PROFILE_TITLE: "會員中心",
-    MEMBER_CLASS_LABEL: "會員方案",       // e.g., 職業 / 會員方案 / 角色
-    MEMBER_LEVEL_LABEL: "消費等級",       // e.g., 等級 / Rank
-    MEMBER_PERK_LABEL: "特殊優惠",    // e.g., 職業福利 / 方案優惠
+    MEMBER_CLASS_LABEL: "會員方案",
+    MEMBER_LEVEL_LABEL: "消費等級",
+    MEMBER_PERK_LABEL: "特殊優惠",
 
     // 與會員積分/點數系統相關的術語
     POINTS_NAME: "積分",
@@ -88,14 +89,17 @@ window.APP_CONFIG = {
   // 存放可配置的業務規則與數值。
   // =================================================================
   LOGIC: {
-    // 預設的租借天數 (如果 ENABLE_RENTAL_SYSTEM 為 true)
+    // 預設的租借天數
     RENTAL_DEFAULT_DAYS: 3,
 
-    // 預約時段的間隔（分鐘） (如果 ENABLE_BOOKING_SYSTEM 為 true)
+    // 預約時段的間隔（分鐘）
     BOOKING_SLOT_MINUTES: 60,
 
-    // 會員等級定義 (如果 ENABLE_MEMBERSHIP_SYSTEM 為 true)
-    // 格式: { level: 等級名稱, threshold: 升級所需積分 }
+    // --- 【新增】 ---
+    // 顧客最晚需要提前幾天預約
+    BOOKING_CUTOFF_DAYS: 1,
+
+    // 會員等級定義
     MEMBERSHIP_LEVELS: [
       { level: 1, name: "入門", threshold: 0 },
       { level: 2, name: "常客", threshold: 1000 },

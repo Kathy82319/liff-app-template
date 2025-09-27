@@ -415,39 +415,7 @@ const pageInitializers = {
     }
 
 
-async function initializeProfilePage() {
-    if (!userProfile) return;
 
-    // --- 這部分的按鈕設定不變 ---
-        document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
-        document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-        document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
-
-        // 載入使用者頭像
-        const profilePicture = document.getElementById('profile-picture');
-        if (profilePicture && userProfile.pictureUrl) {
-            profilePicture.src = userProfile.pictureUrl;
-        }
-        
-        // 根據會員系統開關決定是否產生 QR Code
-        const qrcodeElement = document.getElementById('qrcode');
-        if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            qrcodeElement.innerHTML = '';
-            new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
-        }
-        
-        // 獲取並顯示使用者詳細資料
-        try {
-            const userData = await fetchGameData(true); // 強制刷新
-            updateProfileDisplay(userData);
-        } catch (error) {
-            const displayNameEl = document.getElementById('display-name');
-            if(displayNameEl) displayNameEl.textContent = '資料載入失敗';
-        }
-}
 
     async function fetchGameData(forceRefresh = false) {
         if (!forceRefresh && gameData.user_id) return gameData;

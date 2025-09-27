@@ -1,5 +1,7 @@
 // functions/api/my-bookings.js
 
+// functions/my-bookings.js (修改後)
+
 export async function onRequest(context) {
   try {
     const url = new URL(context.request.url);
@@ -15,15 +17,20 @@ export async function onRequest(context) {
 
     const db = context.env.DB;
     
-    // ** 核心修正：調整篩選邏輯 **
-    // 'current'：僅顯示未來或今天，且狀態為 'confirmed' 的預約
-    // 'past'：顯示過去日期的所有預約，以及未來或今天但狀態已是 'checked-in' 或 'cancelled' 的預約
     const condition = filter === 'current' 
       ? "booking_date >= date('now', 'localtime') AND status = 'confirmed'" 
       : "booking_date < date('now', 'localtime') OR status IN ('checked-in', 'cancelled')";
     
+    // 【核心修改】將 SELECT * 改為明確列出所有欄位，並包含新的 item 欄位
     const stmt = db.prepare(
-      `SELECT *, 
+      `SELECT 
+        booking_id,
+        user_id,
+        booking_date,
+        time_slot,
+        num_of_people,
+        item,
+        status,
         CASE 
           WHEN status = 'confirmed' THEN '預約成功'
           WHEN status = 'checked-in' THEN '已報到'

@@ -310,142 +310,58 @@ function goBackPage() {
         到這裡結束
         */
     }    
+
     // =================================================================
-    // 【新功能】我的預約紀錄
+    // 各頁面初始化函式 - 資料渲染輔助 (需新增)
     // =================================================================
-    async function initializeMyBookingsPage() {
-        if (!userProfile) return;
+    function renderBookings(bookings, container, isPast = false) {
 
-        const currentContainer = document.getElementById('my-bookings-container');
-        const pastContainer = document.getElementById('past-bookings-container');
-        const toggleBtn = document.getElementById('toggle-past-bookings-btn');
-
-        if (!currentContainer || !pastContainer || !toggleBtn) return;
-
-        currentContainer.innerHTML = '<p>正在查詢您的預約紀錄...</p>';
-
-        const renderBookings = (bookings, container, isPast = false) => {
-            if (bookings.length === 0) {
-                container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
-                return;
-            }
-            container.innerHTML = bookings.map(booking => `
-                <div class="booking-info-card">
-                    <p><strong>日期:</strong> ${booking.booking_date}</p>
-                    <p><strong>時段:</strong> ${booking.time_slot}</p>
-                    <p><strong>人數:</strong> ${booking.num_of_people} 人</p>
-                    <p><strong>狀態:</strong> <span class="booking-status-${booking.status}">${booking.status_text}</span></p>
-                </div>
-            `).join('');
-        };
-
-        try {
-            const currentResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=current`);
-            if (!currentResponse.ok) throw new Error('查詢預約失敗');
-            const currentBookings = await currentResponse.json();
-            renderBookings(currentBookings, currentContainer);
-
-            toggleBtn.addEventListener('click', async () => {
-                const isHidden = pastContainer.style.display === 'none';
-                if (isHidden) {
-                    pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
-                    pastContainer.style.display = 'block';
-                    toggleBtn.textContent = '隱藏過往紀錄';
-
-                    try {
-                        const pastResponse = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=past`);
-                        if (!pastResponse.ok) throw new Error('查詢過往預約失敗');
-                        const pastBookings = await pastResponse.json();
-                        renderBookings(pastBookings, pastContainer, true);
-                    } catch (error) {
-                        pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
-                    }
-                } else {
-                    pastContainer.style.display = 'none';
-                    toggleBtn.textContent = '查看過往紀錄';
-                }
-            });
-
-        } catch (error) {
-            currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
+        if (!container) return;
+        if (bookings.length === 0) {
+            container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
+            return;
         }
+        container.innerHTML = bookings.map(b => `
+            <div class="booking-info-card">
+                <p><strong>日期:</strong> ${b.booking_date}</p>
+                <p><strong>時段:</strong> ${b.time_slot}</p>
+                <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}</p>
+                <p><strong>狀態:</strong> ${b.status_text}</p>
+            </div>
+        `).join('');
+
     }
 
-    // =================================================================
-    // 【新功能】我的租借紀錄
-    // =================================================================
-    async function initializeRentalHistoryPage() {
-        if (!userProfile) return;
+    function renderRentals(rentals, container, isPast = false) {
 
-        const currentContainer = document.getElementById('rental-history-container');
-        const pastContainer = document.getElementById('past-rentals-container');
-        const toggleBtn = document.getElementById('toggle-past-rentals-btn');
-
-        if (!currentContainer || !pastContainer || !toggleBtn) return;
-
-        currentContainer.innerHTML = '<p>正在查詢您目前的租借...</p>';
-
-        const renderRentals = (rentals, container, isPast = false) => {
-            if (rentals.length === 0) {
-                container.innerHTML = `<p>${isPast ? '沒有已歸還的紀錄。' : `您目前沒有租借中的${CONFIG.TERMS.PRODUCT_NAME}。`}</p>`;
-                return;
+        if (!container) return;
+        if (rentals.length === 0) {
+            container.innerHTML = `<p>${isPast ? '沒有已歸還的紀錄。' : `您目前沒有租借中的${CONFIG.TERMS.PRODUCT_NAME}。`}</p>`;
+            return;
+        }
+        container.innerHTML = rentals.map(r => {
+            let statusHTML = '';
+            if (r.status === 'returned') {
+                statusHTML = `<div>已於 ${r.return_date || ''} 歸還</div>`;
+            } else if (r.overdue_days > 0) {
+                statusHTML = `<div style="color: var(--color-danger);">已逾期 ${r.overdue_days} 天</div>`;
+            } else {
+                statusHTML = `<div>租借中</div>`;
             }
-
-            container.innerHTML = rentals.map(rental => {
-                let statusHTML = '';
-                if (rental.status === 'returned') {
-                    statusHTML = `<div class="rental-status returned">已於 ${rental.return_date || ''} 歸還</div>`;
-                } else if (rental.overdue_days > 0) {
-                    statusHTML = `<div class="rental-status overdue">已逾期 ${rental.overdue_days} 天</div>`;
-                } else {
-                    statusHTML = `<div class="rental-status rented">租借中</div>`;
-                }
-
-                return `
-                    <div class="rental-card">
-                        <img src="${rental.game_image_url || ''}" class="rental-game-image">
-                        <div class="rental-info">
-                            <h3 class="rental-game-title">${rental.game_name}</h3>
-                            <p>租借日期：${rental.rental_date}</p>
-                            <p>應還日期：${rental.due_date}</p>
-                            ${statusHTML}
-                        </div>
+            return `
+                <div class="rental-card" style="display: flex; gap: 15px; align-items: center;">
+                    <img src="${r.game_image_url || ''}" style="width: 60px; height: 60px; border-radius: var(--border-radius); object-fit: cover;">
+                    <div class="rental-info" style="flex-grow: 1;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 1rem;">${r.game_name}</h3>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--color-text-secondary);">應還日期：${r.due_date}</p>
+                        ${statusHTML}
                     </div>
-                `;
-            }).join('');
-        };
+                </div>
+            `;
+        }).join('');
 
-        try {
-            const currentResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=current`);
-            if (!currentResponse.ok) throw new Error('查詢租借紀錄失敗');
-            const currentRentals = await currentResponse.json();
-            renderRentals(currentRentals, currentContainer);
+    }    
 
-            toggleBtn.addEventListener('click', async () => {
-                const isHidden = pastContainer.style.display === 'none';
-                if (isHidden) {
-                    pastContainer.innerHTML = '<p>正在查詢過往紀錄...</p>';
-                    pastContainer.style.display = 'block';
-                    toggleBtn.textContent = '隱藏已歸還紀錄';
-                    try {
-                        const pastResponse = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=past`);
-                        if (!pastResponse.ok) throw new Error('查詢過往租借失敗');
-                        const pastRentals = await pastResponse.json();
-                        renderRentals(pastRentals, pastContainer, true);
-                    } catch (error) {
-                        pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
-                    }
-                } else {
-                    pastContainer.style.display = 'none';
-                    toggleBtn.textContent = '查看已歸還紀錄';
-                }
-            });
-
-        } catch (error) {
-            currentContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
-        }
-    }
-    
     // =================================================================
     // 首頁 (最新情報)
     // =================================================================
@@ -507,163 +423,243 @@ function goBackPage() {
             renderNews();
         } catch (error) {
             console.error(error);
-            const container = document.getElementById('news-list-container');
-            if(container) container.innerHTML = `<p style="color:red;">${error.message}</p>`;
-        }
-    }
-    
-    function renderNewsDetails(newsItem) {
-        document.getElementById('news-details-title').textContent = newsItem.title;
-        document.getElementById('news-details-category').textContent = newsItem.category;
-        document.getElementById('news-details-date').textContent = newsItem.published_date;
-        
-        const contentEl = document.getElementById('news-details-content');
-        contentEl.innerHTML = newsItem.content 
-            ? newsItem.content.replace(/\n/g, '<br>') 
-            : `<p style="color: ${'var(--color-text-secondary)'};">此消息沒有提供詳細內容。</p>`;
+        const container = document.getElementById('news-list-container');
+        if (!container) return;
+        container.innerHTML = `<p>載入中...</p>`;
+        try {
+            const response = await fetch('/get-news');
+            if (!response.ok) throw new Error(`無法獲取${CONFIG.TERMS.NEWS_PAGE_TITLE}`);
+            allNews = await response.json();
 
-        const imageEl = document.getElementById('news-details-image');
-        if (newsItem.image_url) {
-            imageEl.src = newsItem.image_url;
-            imageEl.alt = newsItem.title;
-            imageEl.style.display = 'block';
-        } else {
-            imageEl.style.display = 'none';
+            if (allNews.length === 0) {
+                container.innerHTML = `<p>目前沒有${CONFIG.TERMS.NEWS_PAGE_TITLE}。</p>`;
+                return;
+            }
+            container.innerHTML = allNews.map(news => {
+                const snippet = news.content ? news.content.substring(0, 50) + '...' : '';
+                return `
+                <div class="news-card" data-news-id="${news.id}">
+                    <div class="news-card-header">
+                        <span class="news-card-category">${news.category}</span>
+                        <span class="news-card-date">${news.published_date}</span>
+                    </div>
+                    <h3 class="news-card-title">${news.title}</h3>
+                    <p class="news-card-snippet">${snippet}</p>
+                </div>`;
+            }).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
-    }
 
     // =================================================================
-    // LIFF 初始化
+    // LIFF 初始化 & 啟動
     // =================================================================
     async function initializeLiff() {
+
         try {
             await liff.init({ liffId: myLiffId });
-
             if (!liff.isLoggedIn()) {
                 liff.login();
                 return;
             }
             userProfile = await liff.getProfile();
-            
-            // LIFF 初始化成功後，立即套用設定檔
             applyConfiguration();
-            
-            const pageId = window.location.hash ? window.location.hash.substring(1) : 'page-home';
-            showPage(pageId);
-
+            setupGlobalEventListeners(); // (新增) 啟動全域事件監聽
+            showPage('page-home');
         } catch (err) {
-            console.error("LIFF 初始化或 Profile 獲取失敗", err);
-            applyConfiguration(); // 即使 LIFF 失敗，也嘗試套用設定檔
+            console.error("LIFF 初始化失敗", err);
+            applyConfiguration();
+            setupGlobalEventListeners(); // (新增) 即使LIFF失敗也啟動，確保返回按鈕等基礎功能可用
             showPage('page-home');
         }
     }
+
+
 async function initializeProfilePage() {
     if (!userProfile) return;
 
     // --- 這部分的按鈕設定不變 ---
-    document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
-    document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
-    document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
-    document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-    document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-    document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
-    // --- 按鈕設定結束 ---
-    const profilePicture = document.getElementById('profile-picture');
-    if (userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
-    
-    const qrcodeElement = document.getElementById('qrcode');
-    
-    // 【修改重點】只在會員系統啟用時，才去產生 QR Code
-    if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-        qrcodeElement.innerHTML = ''; // 先清空
-        new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
-    }
-    
-    document.getElementById('edit-profile-btn').addEventListener('click', () => showPage('page-edit-profile'));
+        document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
+        document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
+        document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
+        document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
+        document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+        document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
 
-    try {
-        const userData = await fetchGameData(true);
-        updateProfileDisplay(userData);
-    } catch (error) {
-        console.error("無法更新個人資料畫面:", error);
-        document.getElementById('display-name').textContent = '資料載入失敗';
-    }
+        // 載入使用者頭像
+        const profilePicture = document.getElementById('profile-picture');
+        if (profilePicture && userProfile.pictureUrl) {
+            profilePicture.src = userProfile.pictureUrl;
+        }
+        
+        // 根據會員系統開關決定是否產生 QR Code
+        const qrcodeElement = document.getElementById('qrcode');
+        if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+            qrcodeElement.innerHTML = '';
+            new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
+        }
+        
+        // 獲取並顯示使用者詳細資料
+        try {
+            const userData = await fetchGameData(true); // 強制刷新
+            updateProfileDisplay(userData);
+        } catch (error) {
+            const displayNameEl = document.getElementById('display-name');
+            if(displayNameEl) displayNameEl.textContent = '資料載入失敗';
+        }
 }
 
     async function fetchGameData(forceRefresh = false) { 
-        if (!forceRefresh && gameData && gameData.user_id) return gameData;
+        if (!forceRefresh && gameData.user_id) return gameData;
         try {
             const response = await fetch('/user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
             });
-            if (!response.ok) throw new Error('無法取得會員遊戲資料');
+            if (!response.ok) throw new Error('無法取得會員資料');
             gameData = await response.json();
             return gameData;
         } catch (error) {
-            console.error('呼叫會員 API 失敗:', error);
-            document.getElementById('display-name').textContent = userProfile.displayName;
+            console.error('會員API失敗:', error);
             return null;
         }
     }
 
 function updateProfileDisplay(data) {
-    if (!data) return;
-    document.getElementById('display-name').textContent = data.nickname || userProfile.displayName;
-
-    // --- 抓取所有需要控制的區塊 ---
-    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-    const perkP = document.getElementById('user-perk-line');
-    const qrcodeContainer = document.getElementById('qrcode-container'); // 【新增】抓取 QR Code 的容器
-
-    // --- 【修改重點】根據開關，統一控制所有相關區塊的顯示/隱藏 ---
-    if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-        // 如果啟用，則顯示所有會員相關區塊
-        if (qrcodeContainer) qrcodeContainer.style.display = 'flex';
-        if (classP) classP.style.display = 'block';
-        if (levelP) levelP.style.display = 'block';
-        if (expP) expP.style.display = 'block';
+        if (!data) return;
+        const displayNameEl = document.getElementById('display-name');
+        if(displayNameEl) displayNameEl.textContent = data.nickname || userProfile.displayName;
         
-        // 填充文字內容 (這部分不變)
-        if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span id="user-class">${data.class || "無"}</span>`;
-        if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span id="user-level">${data.level}</span>`;
-        if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span id="user-exp">${data.current_exp} / 10</span>`;
+        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+        const perkP = document.getElementById('user-perk-line');
+        const qrcodeContainer = document.getElementById('qrcode-container');
 
-        if (perkP && data.perk && data.class !== '無') {
-            perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span id="user-perk">${data.perk}</span>`;
-            perkP.style.display = 'block';
-        } else if (perkP) {
-            perkP.style.display = 'none';
+        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
+            if (qrcodeContainer) qrcodeContainer.style.display = 'flex';
+            if (classP) classP.style.display = 'block';
+            if (levelP) levelP.style.display = 'block';
+            if (expP) expP.style.display = 'block';
+            if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span>${data.class || "無"}</span>`;
+            if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span>${data.level}</span>`;
+            if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span>${data.current_exp} / 10</span>`;
+            if (perkP && data.perk && data.class !== '無') {
+                perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span>${data.perk}</span>`;
+                perkP.style.display = 'block';
+            } else if (perkP) {
+                perkP.style.display = 'none';
+            }
+        } else {
+            if (qrcodeContainer) qrcodeContainer.style.display = 'none';
+            if (classP) classP.style.display = 'none';
+            if (levelP) levelP.style.display = 'none';
+            if (expP) expP.style.display = 'none';
+            if (perkP) perkP.style.display = 'none';
         }
-    } else {
-        // 如果停用，則隱藏所有會員相關區塊
-        if (qrcodeContainer) qrcodeContainer.style.display = 'none';
-        if (classP) classP.style.display = 'none';
-        if (levelP) levelP.style.display = 'none';
-        if (expP) expP.style.display = 'none';
-        if (perkP) perkP.style.display = 'none';
-    }
 }
     
-    // ... (其他函式 initializeMyBookingsPage, initializeMyExpHistoryPage, initializeRentalHistoryPage, initializeEditProfilePage 等保持不變) ...
-
+   // 各頁面初始化函式 - 我的預約 (需新增/實作)
     async function initializeMyBookingsPage() {
-        // This function will be filled in later
+
+        if (!userProfile) return;
+        const container = document.getElementById('my-bookings-container');
+        if (!container) return;
+        container.innerHTML = '<p>查詢中...</p>';
+        try {
+            const response = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=current`);
+            if (!response.ok) throw new Error('查詢預約失敗');
+            const bookings = await response.json();
+            renderBookings(bookings, container, false);
+        } catch (error) {
+            container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
+        }
+
     }
 
+    // 各頁面初始化函式 - 我的積分 (需新增/實作)
     async function initializeMyExpHistoryPage() {
-        // This function will be filled in later
+        if (!userProfile) return;
+        const container = document.getElementById('my-exp-history-container');
+        if (!container) return;
+        container.innerHTML = `<p>查詢中...</p>`;
+        try {
+            const response = await fetch(`/my-purchase-history?userId=${userProfile.userId}`);
+            if (!response.ok) throw new Error('查詢紀錄失敗');
+            const records = await response.json();
+            if (records.length === 0) {
+                container.innerHTML = `<p>您目前沒有任何${CONFIG.TERMS.POINTS_NAME}紀錄。</p>`;
+                return;
+            }
+            container.innerHTML = records.map(r => {
+                const date = new Date(r.created_at).toLocaleDateString();
+                const expSign = r.exp_added > 0 ? '+' : '';
+                return `
+                <div class="exp-record-card" style="display: flex; justify-content: space-between;">
+                    <span>${date}</span>
+                    <span>${r.reason}</span>
+                    <span style="font-weight: bold; color: ${r.exp_added > 0 ? 'var(--color-accent)' : 'var(--color-danger)'};">${expSign}${r.exp_added}</span>
+                </div>`;
+            }).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
+        }
     }
 
+
+    // 各頁面初始化函式 - 我的租借 (需新增/實作)    
     async function initializeRentalHistoryPage() {
-        // This function will be filled in later
+        /*
+        從這段開始複製
+        */
+        if (!userProfile) return;
+        const container = document.getElementById('rental-history-container');
+        if (!container) return;
+        container.innerHTML = '<p>查詢中...</p>';
+        try {
+            const response = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=current`);
+            if (!response.ok) throw new Error('查詢租借紀錄失敗');
+            const rentals = await response.json();
+            renderRentals(rentals, container, false);
+        } catch (error) {
+            container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
+        }
+        /*
+        到這裡結束
+        */
     }
 
-    async function initializeEditProfilePage() {
-        // This function will be filled in later
+
+    // 各頁面初始化函式 - 店家資訊 (需更改)
+    async function initializeInfoPage() {
+        const container = document.getElementById('store-info-container');
+        if (!container) return;
+        container.innerHTML = `<p>載入中...</p>`;
+        try {
+            const response = await fetch('/get-store-info');
+            if (!response.ok) throw new Error('無法獲取店家資訊');
+            const info = await response.json();
+            container.innerHTML = `
+                <div class="info-section">
+                    <h2>地址</h2>
+                    <p>${info.address}</p>
+                </div>
+                <div class="info-section">
+                    <h2>電話</h2>
+                    <p>${info.phone}</p>
+                </div>
+                <div class="info-section">
+                    <h2>營業時間</h2>
+                    <p style="white-space: pre-wrap;">${info.opening_hours}</p>
+                </div>
+                 <div class="info-section">
+                    <h2>店家介紹</h2>
+                    <p style="white-space: pre-wrap;">${info.description}</p>
+                </div>`;
+        } catch (error) {
+            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
+        }
     }
 
     // =================================================================
@@ -952,11 +948,35 @@ async function initializeEditProfilePage() {
             });
         } catch (error) {
             console.error('初始化產品型錄失敗:', error);
-            const container = document.getElementById('game-list-container');
-            if (container) container.innerHTML = `<p style="color: red;">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
+        const container = document.getElementById('game-list-container');
+        if (!container) return;
+        container.innerHTML = `<p>載入中...</p>`;
+        try {
+            if (allGames.length === 0) {
+                const res = await fetch('/get-products');
+                if (!res.ok) throw new Error('API 請求失敗');
+                allGames = await res.json();
+            }
+            
+            // 渲染遊戲列表
+            const filteredGames = allGames.filter(g => g.is_visible === 1);
+            if (filteredGames.length === 0) {
+                container.innerHTML = `<p>目前沒有可顯示的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
+            } else {
+                container.innerHTML = filteredGames.map(game => `
+                    <div class="game-card" data-game-id="${game.game_id}">
+                        <img src="${game.image_url || ''}" alt="${game.name}" class="game-image">
+                        <div class="game-info">
+                            <h3 class="game-title">${game.name}</h3>
+                            <p class="game-description">${(game.description || '').substring(0, 40)}...</p> 
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
         }
-    }
-
+}
 
     // =================================================================
     // 場地預約頁
@@ -1212,48 +1232,12 @@ async function initializeEditProfilePage() {
     }
 
     // =================================================================
-    // 店家資訊頁
-    // =================================================================
-    async function initializeInfoPage() {
-        try {
-            const response = await fetch('/get-store-info');
-            if (!response.ok) throw new Error('無法獲取店家資訊');
-            const info = await response.json();
-            
-            const container = document.getElementById('store-info-container');
-            if(container){
-                container.innerHTML = `
-                    <div class="info-section">
-                        <h2>地址</h2>
-                        <p>${info.address}</p>
-                    </div>
-                    <div class="info-section">
-                        <h2>電話</h2>
-                        <p>${info.phone}</p>
-                    </div>
-                    <div class="info-section">
-                        <h2>營業時間</h2>
-                        <p style="white-space: pre-wrap;">${info.opening_hours}</p>
-                    </div>
-                     <div class="info-section">
-                        <h2>店家介紹</h2>
-                        <p>${info.description}</p>
-                    </div>
-                `;
-            }
-        } catch (error) {
-             const container = document.getElementById('store-info-container');
-             if(container) container.innerHTML = `<p style="color:red;">${error.message}</p>`;
-        }
-    }
-    // =================================================================
     // Tab Bar 主導航
     // =================================================================
     tabBar.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
         if (button) {
-            const targetPageId = button.dataset.target;
-            showPage(targetPageId);
+            showPage(button.dataset.target);
         }
     });
 

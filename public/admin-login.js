@@ -2655,10 +2655,7 @@ async function fetchAllExpHistory() {
         });
     }
  
-
-
-    await initialize();
-        showPage('dashboard'); 
+    showPage('dashboard'); 
     }
 });
  

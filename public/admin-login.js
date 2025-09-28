@@ -2655,24 +2655,9 @@ async function fetchAllExpHistory() {
         });
     }
  
-    // ---- 初始化 ----
-// ---- 初始化 ----
-async function initialize() {
-    try {
-        // 【核心修正】將 '/get-class-perks' 改為 '/api/get-class-perks'
-        const response = await fetch('api/get-class-perks');
-        if (!response.ok) throw new Error('無法獲取職業設定');
-        classPerks = await response.json();
-    } catch (error) {
-        console.error('初始化職業設定失敗:', error);
-        alert(`警告：無法從 Google Sheet 獲取職業設定。`);
-    }
-}
 
-    // 【修改點 6】使用 await 等待 initialize() 完成所有非同步任務
     await initialize();
-    // 【修改點 7】在所有東西都準備好之後，最後才呼叫 showPage('dashboard')
-    showPage('dashboard'); 
+        showPage('dashboard'); 
     }
 });
  

@@ -359,13 +359,14 @@
 </div>
 
 <div id="page-bookings" class="page">
-    <div class="page-header">
-        <h2>訂位管理</h2>
-        <div>
-            <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
-            <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
-        </div>
+<div class="page-header">
+    <h2>訂位管理</h2>
+    <div>
+        <button id="create-booking-btn" class="action-btn btn-save" style="margin-right: 10px;">手動建立預約</button>
+        <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
+        <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
     </div>
+</div>
     <div class="filter-bar">
         <div id="booking-status-filter" class="filter-group">
             <button class="active" data-filter="today">今日預約</button>
@@ -764,7 +765,56 @@
         </div>
     </div>
 </div>
-
+<div id="create-booking-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>手動建立預約</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="create-booking-form">
+            <div class="form-group">
+                <label for="booking-user-search">搜尋預約會員 (姓名/暱稱/ID)</label>
+                <input type="text" id="booking-user-search" placeholder="輸入關鍵字搜尋...">
+                <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
+            </div>
+            <hr style="border-color: var(--border-color); margin: 20px 0;">
+            <div class="sub-grid">
+                <div class="form-group">
+                    <label for="booking-date-input">預約日期</label>
+                    <input type="text" id="booking-date-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="booking-slot-select">預約時段</label>
+                    <select id="booking-slot-select" required></select>
+                </div>
+            </div>
+            <div class="sub-grid">
+                <div class="form-group">
+                    <label for="booking-name-input">聯絡姓名</label>
+                    <input type="text" id="booking-name-input" required>
+                </div>
+                 <div class="form-group">
+                    <label for="booking-phone-input">聯絡電話</label>
+                    <input type="tel" id="booking-phone-input" required>
+                </div>
+            </div>
+             <div class="sub-grid">
+                <div class="form-group">
+                    <label for="booking-people-input">人數</label>
+                    <input type="number" id="booking-people-input" value="1" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="booking-item-input">預約項目 (選填)</label>
+                    <input type="text" id="booking-item-input">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="action-btn btn-cancel">取消</button>
+                <button type="submit" class="action-btn btn-save">確認建立</button>
+            </div>
+        </form>
+    </div>
+</div>
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>

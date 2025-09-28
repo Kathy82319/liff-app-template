@@ -758,7 +758,7 @@ function renderUserDetails(data) {
     contentContainer.innerHTML = '';
 
     const creationDate = new Date(profile.created_at).toLocaleDateString();
-    const avatarSrc = `/admin/get-avatar?userId=${profile.user_id}`;
+    const avatarSrc = `api/admin/get-avatar?userId=${profile.user_id}`;
 
     const grid = document.createElement('div');
     grid.className = 'details-grid';
@@ -1028,7 +1028,7 @@ function renderUserDetails(data) {
             };
 
             const isUpdating = !!currentEditingDraftId;
-            const url = '/admin/message-drafts';
+            const url = 'api/admin/message-drafts';
             const method = isUpdating ? 'PUT' : 'POST';
 
             try {
@@ -1463,7 +1463,7 @@ async function applyRentalFiltersAndRender() {
         if(activeFilter) status = activeFilter.dataset.filter;
     }
 
-    let url = '/admin/get-all-rentals';
+    let url = 'api/admin/get-all-rentals';
     if (status !== 'all') {
         url += `?status=${status}`;
     }
@@ -2131,13 +2131,13 @@ async function fetchAllBookings(status = 'all_upcoming') { // 預設獲取所有
 
             const promises = [];
             datesToAdd.forEach(date => {
-                promises.push(fetch('/admin/booking-settings', {
+                promises.push(fetch('api/admin/booking-settings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ date, action: 'add' })
                 }));
             });
             datesToRemove.forEach(date => {
-                promises.push(fetch('/admin/booking-settings', {
+                promises.push(fetch('api/admin/booking-settings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ date, action: 'remove' })
                 }));
@@ -2585,7 +2585,7 @@ async function fetchAllExpHistory() {
                 content: document.getElementById('edit-news-content').value,
                 is_published: document.getElementById('edit-news-published').checked
             };
-            const url = currentEditingNewsId ? '/admin/update-news' : '/admin/create-news';
+            const url = currentEditingNewsId ? 'api/admin/update-news' : 'api/admin/create-news';
             try {
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },

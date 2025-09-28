@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // --- 產品卡片點擊 ---
-            const gameCard = target.closest('.game-card');
+            const gameCard = target.closest('.product-card');
             if (gameCard && gameCard.dataset.gameId) {
                 const gameId = gameCard.dataset.gameId;
                 const gameItem = allProducts.find(g => g.game_id == gameId);
@@ -209,7 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- 會員中心內的導覽按鈕 ---
             if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
-            else if (targetId === 'rental-history-btn') showPage('page-rental-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');
 
             // --- 歷史紀錄頁的切換按鈕 ---
@@ -692,7 +691,7 @@ function renderBookings(bookings, container, isPast = false) {
             return;
         }
         container.innerHTML = filteredGames.map(game => `
-            <div class="game-card" data-game-id="${game.game_id}">
+            <div class="product-card" data-game-id="${game.game_id}">
                 <img src="${game.image_url || ''}" alt="${game.name}" class="game-image">
                 <div class="game-info">
                     <h3 class="game-title">${game.name}</h3>

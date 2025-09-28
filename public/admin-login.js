@@ -77,22 +77,12 @@ if (resetDemoDataBtn) {
     const userDetailsModal = document.getElementById('user-details-modal'); 
     
     // 庫存管理
-    const gameListTbody = document.getElementById('game-list-tbody');
-    const gameSearchInput = document.getElementById('game-search-input');
-    const editGameModal = document.getElementById('edit-game-modal');
-    const editGameForm = document.getElementById('edit-game-form');
-    const syncGamesBtn = document.getElementById('sync-games-btn');
-    
-    // 租借管理
-    const rentalListTbody = document.getElementById('rental-list-tbody');
-    const rentalStatusFilter = document.getElementById('rental-status-filter');
-    const rentalSearchInput = document.getElementById('rental-search-input');
-    const createRentalModal = document.getElementById('create-rental-modal');
-    const createRentalForm = document.getElementById('create-rental-form');
-    const editRentalModal = document.getElementById('edit-rental-modal');
-    const editRentalForm = document.getElementById('edit-rental-form');
-    const sortDueDateBtn = document.getElementById('sort-due-date');
-    
+    const productListTbody = document.getElementById('game-list-tbody');
+    const productSearchInput = document.getElementById('game-search-input');
+    const editProductModal = document.getElementById('edit-game-modal');
+    const editProductForm = document.getElementById('edit-game-form');
+    const syncProductsBtn = document.getElementById('sync-games-btn');
+
     // 訂位管理
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const manageBookingDatesBtn = document.getElementById('manage-booking-dates-btn');
@@ -146,7 +136,7 @@ if (resetDemoDataBtn) {
 
 
     // --- 全域狀態變數 ---
-    let allUsers = [], allGames = [], allBookings = [], allNews = [], allExpHistory = [], allRentals = [], allDrafts = [];
+    let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allRentals = [], allDrafts = [];
     let classPerks = {};
     let currentCalendarDate = new Date();
     let html5QrCode = null;
@@ -332,13 +322,12 @@ function updateCalendar() {
         const pageLoader = {
             'dashboard': fetchDashboardStats,
             'users': fetchAllUsers,
-            'inventory': fetchAllGames,
+            'inventory': fetchAllProducts,
             'bookings': () => fetchAllBookings('today'),
             'exp-history': fetchAllExpHistory,
             'scan': startScanner,
             'news': fetchAllNews,
             'store-info': fetchStoreInfo,
-            'rentals': fetchAllRentals,
             'drafts': fetchAllDrafts
         };
         
@@ -1167,13 +1156,13 @@ function renderUserDetails(data) {
 // =================================================================
 // 庫存管理模組
 // =================================================================
-function applyGameFiltersAndRender() {
-    if (!allGames) return;
+function applyProductFiltersAndRender() {
+    if (!allProducts) return;
 
-    const searchTerm = gameSearchInput.value.toLowerCase().trim();
+    const searchTerm = productSearchInput.value.toLowerCase().trim();
     let filteredGames = searchTerm
-        ? allGames.filter(game => (game.name || '').toLowerCase().includes(searchTerm))
-        : [...allGames];
+        ? allProducts.filter(game => (game.name || '').toLowerCase().includes(searchTerm))
+        : [...allProducts];
 
     const stockFilterEl = document.querySelector('#inventory-stock-filter .active');
     if (stockFilterEl) {
@@ -1195,15 +1184,15 @@ function applyGameFiltersAndRender() {
         }
     }
     
-    renderGameList(filteredGames);
+    renderProductList(filteredGames);
 }
 
-    // 【安全修正】重寫 renderGameList
-    function renderGameList(games) {
-        if (!gameListTbody) return;
-        gameListTbody.innerHTML = '';
+    // 【安全修正】重寫 renderProductList
+    function renderProductList(games) {
+        if (!productListTbody) return;
+        productListTbody.innerHTML = '';
         games.forEach(game => {
-            const row = gameListTbody.insertRow();
+            const row = productListTbody.insertRow();
             row.className = 'draggable-row';
             row.dataset.gameId = game.game_id;
             
@@ -1283,7 +1272,7 @@ function applyGameFiltersAndRender() {
         });
     }
 
-async function fetchAllGames() {
+async function fetchAllProducts() {
     try {
         // 【核心修正】將 API 路徑從 get-boardgames 改為 get-products
         const response = await fetch('api/get-products');
@@ -1291,28 +1280,28 @@ async function fetchAllGames() {
             const errorText = await response.text();
             throw new Error(`從資料庫獲取產品列表失敗: ${errorText}`);
         }
-        allGames = await response.json();
-        applyGameFiltersAndRender();
-        initializeGameDragAndDrop();
+        allProducts = await response.json();
+        applyProductFiltersAndRender();
+        initializeProductDragAndDrop();
     } catch (error) { 
         console.error('獲取產品列表失敗:', error);
-        if(gameListTbody) gameListTbody.innerHTML = `<tr><td colspan="7" style="color: red;">讀取資料失敗，請檢查 API 紀錄。</td></tr>`;
+        if(productListTbody) productListTbody.innerHTML = `<tr><td colspan="7" style="color: red;">讀取資料失敗，請檢查 API 紀錄。</td></tr>`;
     }
 }
 
-function initializeGameDragAndDrop() {
+function initializeProductDragAndDrop() {
     if (sortableGames) {
         sortableGames.destroy();
     }
-    if (gameListTbody) {
-        sortableGames = new Sortable(gameListTbody, {
+    if (productListTbody) {
+        sortableGames = new Sortable(productListTbody, {
             animation: 150,
             handle: '.drag-handle',
             onEnd: async (evt) => {
-                const orderedIds = Array.from(gameListTbody.children).map(row => row.dataset.gameId);
+                const orderedIds = Array.from(productListTbody.children).map(row => row.dataset.gameId);
                 
-                allGames.sort((a, b) => orderedIds.indexOf(a.game_id) - orderedIds.indexOf(b.game_id));
-                applyGameFiltersAndRender();
+                allProducts.sort((a, b) => orderedIds.indexOf(a.game_id) - orderedIds.indexOf(b.game_id));
+                applyProductFiltersAndRender();
 
                 try {
                     const response = await fetch('api/admin/update-boardgame-order', {
@@ -1323,18 +1312,18 @@ function initializeGameDragAndDrop() {
                     if (!response.ok) {
                         throw new Error('儲存順序失敗，請刷新頁面重試。');
                     }
-                    await fetchAllGames(); 
+                    await fetchAllProducts(); 
                 } catch (error) {
                     alert(error.message);
-                    await fetchAllGames(); 
+                    await fetchAllProducts(); 
                 }
             }
         });
     }
 }
 
-if (gameSearchInput) {
-    gameSearchInput.addEventListener('input', applyGameFiltersAndRender);
+if (productSearchInput) {
+    productSearchInput.addEventListener('input', applyProductFiltersAndRender);
 }
     
 const inventoryStockFilter = document.getElementById('inventory-stock-filter');
@@ -1343,7 +1332,7 @@ if (inventoryStockFilter) {
         if (e.target.tagName === 'BUTTON') {
             inventoryStockFilter.querySelector('.active')?.classList.remove('active');
             e.target.classList.add('active');
-            applyGameFiltersAndRender();
+            applyProductFiltersAndRender();
         }
     });
 }
@@ -1354,18 +1343,18 @@ if (inventoryVisibilityFilter) {
         if (e.target.tagName === 'BUTTON') {
             inventoryVisibilityFilter.querySelector('.active')?.classList.remove('active');
             e.target.classList.add('active');
-            applyGameFiltersAndRender();
+            applyProductFiltersAndRender();
         }
     });
 }
 
-if (syncGamesBtn) {
-    syncGamesBtn.addEventListener('click', async () => {
+if (syncProductsBtn) {
+    syncProductsBtn.addEventListener('click', async () => {
         if (!confirm('確定要從 Google Sheet 同步所有產品資料到資料庫嗎？\n\n這將會用 Sheet 上的資料覆蓋現有資料。')) return;
 
         try {
-            syncGamesBtn.textContent = '同步中...';
-            syncGamesBtn.disabled = true;
+            syncProductsBtn.textContent = '同步中...';
+            syncProductsBtn.disabled = true;
             // 【核心修正】POST 請求的路徑也要修改
             const response = await fetch('api/get-products', { method: 'POST' });
             const result = await response.json();
@@ -1373,36 +1362,22 @@ if (syncGamesBtn) {
                 throw new Error(result.details || '同步失敗');
             }
             alert(result.message || '同步成功！');
-            await fetchAllGames();
+            await fetchAllProducts();
         } catch (error) {
             alert(`錯誤：${error.message}`);
         } finally {
-            syncGamesBtn.textContent = '同步至資料庫';
-            syncGamesBtn.disabled = false;
+            syncProductsBtn.textContent = '同步至資料庫';
+            syncProductsBtn.disabled = false;
         }
     });
 }
 
 
-if (gameListTbody) {
-    gameListTbody.addEventListener('click', (e) => {
-        const target = e.target;
-        const gameId = target.dataset.gameid; 
-        if (!gameId) return;
-
-        if (target.classList.contains('btn-edit-game')) {
-            openEditGameModal(gameId);
-        } else if (target.classList.contains('btn-rent')) {
-            openCreateRentalModal(gameId);
-        }
-    });
-}
-
-function openEditGameModal(gameId) {
-    const game = allGames.find(g => g.game_id == gameId);
+function openEditProductModal(gameId) {
+    const game = allProducts.find(g => g.game_id == gameId);
     if (!game) return alert('找不到遊戲資料');
 
-    if(editGameForm) editGameForm.reset();
+    if(editProductForm) editProductForm.reset();
     document.getElementById('modal-game-title').textContent = `編輯：${game.name}`;
     
     document.getElementById('edit-game-id').value = game.game_id;
@@ -1425,15 +1400,15 @@ function openEditGameModal(gameId) {
     document.getElementById('edit-is-visible').checked = game.is_visible === 1;
     document.getElementById('edit-supplementary-info').value = game.supplementary_info || '';
     
-    if(editGameModal) editGameModal.style.display = 'flex';
+    if(editProductModal) editProductModal.style.display = 'flex';
 }
 
-if(editGameModal) {
-    editGameModal.querySelector('.modal-close').addEventListener('click', () => editGameModal.style.display = 'none');
-    editGameModal.querySelector('.btn-cancel').addEventListener('click', () => editGameModal.style.display = 'none');
+if(editProductModal) {
+    editProductModal.querySelector('.modal-close').addEventListener('click', () => editProductModal.style.display = 'none');
+    editProductModal.querySelector('.btn-cancel').addEventListener('click', () => editProductModal.style.display = 'none');
 
-    if(editGameForm) {
-        editGameForm.addEventListener('submit', async (e) => {
+    if(editProductForm) {
+        editProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const updatedData = {
@@ -1467,19 +1442,19 @@ if(editGameModal) {
                 if (!response.ok) throw new Error(result.error || '更新失敗');
                 
                 // 【** 關鍵修正：更新前端的資料狀態 **】
-                const gameIndex = allGames.findIndex(g => g.game_id === updatedData.gameId);
+                const gameIndex = allProducts.findIndex(g => g.game_id === updatedData.gameId);
                 if (gameIndex !== -1) {
-                    // 將回傳的更新資料合併到現有的 allGames 陣列中
+                    // 將回傳的更新資料合併到現有的 allProducts 陣列中
                     // 注意 is_visible 需要從布林值轉回 1 或 0
-                    allGames[gameIndex] = { 
-                        ...allGames[gameIndex], 
+                    allProducts[gameIndex] = { 
+                        ...allProducts[gameIndex], 
                         ...updatedData,
                         is_visible: updatedData.is_visible ? 1 : 0
                     };
                 }
                 
-                applyGameFiltersAndRender();
-                editGameModal.style.display = 'none';
+                applyProductFiltersAndRender();
+                editProductModal.style.display = 'none';
                 alert('更新成功！');
             } catch (error) {
                 alert(`錯誤：${error.message}`);
@@ -1487,522 +1462,6 @@ if(editGameModal) {
         });
     }
 }
-
-
-// =================================================================
-// 桌遊租借模組
-// =================================================================
-async function applyRentalFiltersAndRender() {
-    if (!rentalSearchInput) return;
-    const keyword = rentalSearchInput.value.toLowerCase().trim();
-    let status = 'all';
-    if (rentalStatusFilter) {
-        const activeFilter = rentalStatusFilter.querySelector('.active');
-        if(activeFilter) status = activeFilter.dataset.filter;
-    }
-
-    let url = 'api/admin/get-all-rentals';
-    if (status !== 'all') {
-        url += `?status=${status}`;
-    }
-    
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('無法獲取租借列表');
-        allRentals = await response.json();
-
-        // 在前端進行關鍵字篩選
-        const filteredRentals = !keyword ? allRentals : allRentals.filter(rental => 
-                                 (rental.game_name || '').toLowerCase().includes(keyword) ||
-                                 (rental.nickname || rental.line_display_name || '').toLowerCase().includes(keyword)
-                             );
-        
-        sortRentals(); // 在渲染前先進行排序
-        renderRentalList(filteredRentals);
-
-    } catch (error) { 
-        console.error('獲取租借列表失敗:', error); 
-    }
-}
-
-function sortRentals() {
-    allRentals.sort((a, b) => {
-        const dateA = new Date(a.due_date);
-        const dateB = new Date(b.due_date);
-        if (dueDateSortOrder === 'asc') {
-            return dateA - dateB;
-        } else {
-            return dateB - dateA;
-        }
-    });
-    // 更新排序按鈕的視覺狀態
-    if(sortDueDateBtn) {
-        sortDueDateBtn.classList.remove('asc', 'desc');
-        sortDueDateBtn.classList.add(dueDateSortOrder);
-    }
-}
-
-function renderRentalList(rentals) {
-        if (!rentalListTbody) return;
-        rentalListTbody.innerHTML = '';
-        rentals.forEach(rental => {
-            const row = rentalListTbody.insertRow();
-            const userName = rental.nickname || rental.line_display_name || '未知用戶';
-            
-            const cellStatus = row.insertCell();
-            const cellGame = row.insertCell();
-            const cellUser = row.insertCell();
-            const cellDue = row.insertCell();
-            const cellReturn = row.insertCell();
-            const cellActions = row.insertCell();
-
-            // 狀態欄 (包含安全的 HTML)
-            let statusBadgeHTML = '';
-            switch(rental.derived_status) {
-                case 'overdue':
-                    statusBadgeHTML = '<span style="background-color: var(--danger-color); color: #fff; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">逾期未歸還</span>';
-                    break;
-                case 'rented':
-                    statusBadgeHTML = '<span style="background-color: #ffc107; color: #000; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">租借中</span>';
-                    break;
-                case 'returned':
-                    statusBadgeHTML = '<span style="background-color: #28a745; color: #fff; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">已歸還</span>';
-                    break;
-                default:
-                    const span = document.createElement('span');
-                    span.textContent = rental.status;
-                    statusBadgeHTML = span.outerHTML;
-            }
-            cellStatus.innerHTML = statusBadgeHTML; // 此處是安全的，因為 HTML 內容由我們控制
-
-            // 其他欄
-            cellGame.textContent = rental.game_name;
-            cellUser.textContent = userName;
-            cellDue.textContent = rental.due_date;
-            cellReturn.textContent = rental.return_date || '--';
-
-            // 操作欄
-            cellActions.className = 'actions-cell';
-            const actionContainer = document.createElement('div');
-            actionContainer.style.cssText = 'display: flex; gap: 5px; justify-content: center;';
-            const manageBtn = document.createElement('button');
-            manageBtn.className = 'action-btn btn-edit-rental';
-            manageBtn.dataset.rentalid = rental.rental_id;
-            manageBtn.style.backgroundColor = '#007bff';
-            manageBtn.textContent = '管理';
-            const returnBtn = document.createElement('button');
-            returnBtn.className = 'action-btn btn-return';
-            returnBtn.dataset.rentalid = rental.rental_id;
-            returnBtn.style.backgroundColor = '#17a2b8';
-            returnBtn.disabled = (rental.status === 'returned');
-            returnBtn.textContent = '歸還';
-            actionContainer.appendChild(manageBtn);
-            actionContainer.appendChild(returnBtn);
-            cellActions.appendChild(actionContainer);
-        });
-    }
-
-function fetchAllRentals() {
-    applyRentalFiltersAndRender();
-}
-
-if (rentalStatusFilter) {
-    rentalStatusFilter.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON') {
-            rentalStatusFilter.querySelector('.active')?.classList.remove('active');
-            e.target.classList.add('active');
-            applyRentalFiltersAndRender();
-        }
-    });
-}
-
-if(rentalSearchInput) {
-    rentalSearchInput.addEventListener('input', applyRentalFiltersAndRender);
-}
-
-if (sortDueDateBtn) {
-    sortDueDateBtn.addEventListener('click', () => {
-        dueDateSortOrder = dueDateSortOrder === 'asc' ? 'desc' : 'asc';
-        const keyword = rentalSearchInput.value.toLowerCase().trim();
-        const filteredRentals = !keyword ? allRentals : allRentals.filter(rental => 
-            (rental.game_name || '').toLowerCase().includes(keyword) ||
-            (rental.nickname || rental.line_display_name || '').toLowerCase().includes(keyword)
-        );
-        sortRentals();
-        renderRentalList(filteredRentals); 
-    });
-}
-
-if (rentalListTbody) {
-    rentalListTbody.addEventListener('click', async (e) => {
-        const target = e.target;
-        const rentalId = target.dataset.rentalid;
-        if (!rentalId) return;
-
-        if (target.classList.contains('btn-edit-rental')) {
-            openEditRentalModal(rentalId);
-            return;
-        }
-
-        if (target.classList.contains('btn-return')) {
-            const rental = allRentals.find(r => r.rental_id == rentalId);
-            if (!rental) return;
-
-            if (confirm(`確定要將《${rental.game_name}》標記為已歸還嗎？`)) {
-                try {
-                    const response = await fetch('api/admin/update-rental-status', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            rentalId: Number(rentalId),
-                            status: 'returned'
-                        })
-                    });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || '歸還失敗');
-                    alert('歸還成功！');
-
-                    await applyRentalFiltersAndRender();
-                    if (allGames.length > 0) await fetchAllGames();
-
-                } catch (error) {
-                    alert(`錯誤：${error.message}`);
-                }
-            }
-        }
-    });
-}
-
-function openEditRentalModal(rentalId) {
-    const rental = allRentals.find(r => r.rental_id == rentalId);
-    if (!rental) return alert('找不到該筆租借紀錄');
-
-    document.getElementById('edit-rental-id').value = rental.rental_id;
-    document.getElementById('modal-rental-title').textContent = `管理租借：${rental.game_name}`;
-    
-    const autoCalculatedFee = rental.overdue_days > 0 ? rental.overdue_days * (rental.late_fee_per_day || 50) : 0;
-    document.getElementById('calculated-late-fee-display').value = `$ ${autoCalculatedFee}`;
-
-    document.getElementById('edit-rental-due-date').value = rental.due_date;
-    
-    document.getElementById('edit-rental-override-fee').value = rental.late_fee_override ?? '';
-
-    flatpickr("#edit-rental-due-date", { dateFormat: "Y-m-d" });
-
-    if(rental && rental.user_id) {
-        loadAndBindRentalMessageDrafts(rental.user_id);
-    }
-
-    editRentalModal.style.display = 'flex';
-}
-
-async function loadAndBindRentalMessageDrafts(userId) {
-    const select = document.getElementById('rental-message-draft-select');
-    const content = document.getElementById('rental-direct-message-content');
-    const sendBtn = document.getElementById('rental-send-direct-message-btn');
-    if (!select || !content || !sendBtn) return;
-
-    await fetchAllDrafts(); 
-    select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
-    allDrafts.forEach(draft => {
-        const option = document.createElement('option');
-        option.value = draft.content;
-        option.textContent = draft.title;
-        select.appendChild(option);
-    });
-
-    select.onchange = () => { 
-        content.value = select.value;
-    };
-    
-    const newSendBtn = sendBtn.cloneNode(true);
-    sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
-    
-    newSendBtn.onclick = async () => {
-        const message = content.value.trim();
-        if (!message) { alert('訊息內容不可為空！'); return; }
-        if (!confirm(`確定要發送以下訊息給該顧客嗎？\n\n${message}`)) return;
-        
-        newSendBtn.textContent = '傳送中...';
-        newSendBtn.disabled = true;
-        try {
-            const response = await fetch('api/send-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, message })
-            });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || '傳送失敗');
-            }
-            alert('訊息傳送成功！');
-            content.value = '';
-            select.value = '';
-        } catch (error) {
-            alert(`傳送失敗：${error.message}`);
-        } finally {
-            newSendBtn.textContent = '確認發送';
-            newSendBtn.disabled = false;
-        }
-    };
-}
-
-if (editRentalForm) {
-    editRentalForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const rentalId = document.getElementById('edit-rental-id').value;
-        const updatedData = {
-            rentalId: Number(rentalId),
-            dueDate: document.getElementById('edit-rental-due-date').value,
-            lateFeeOverride: document.getElementById('edit-rental-override-fee').value
-        };
-
-        try {
-            const response = await fetch('api/admin/update-rental-details', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedData)
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || '更新失敗');
-
-            alert('更新成功！');
-            editRentalModal.style.display = 'none';
-            await applyRentalFiltersAndRender();
-
-        } catch (error) {
-            alert(`錯誤： ${error.message}`);
-        }
-    });
-}
-
-async function openCreateRentalModal(gameId) {
-    const statusDiv = document.getElementById('rental-modal-status');
-    if(statusDiv) statusDiv.textContent = ''; 
-
-    if (allUsers.length === 0) {
-        if(statusDiv) statusDiv.textContent = '正在載入會員列表，請稍候...';
-        try {
-            await fetchAllUsers();
-            if(statusDiv) statusDiv.textContent = '會員列表載入完成！';
-            setTimeout(() => { if(statusDiv) statusDiv.textContent = ''; }, 2000);
-        } catch (error) {
-            alert('會員列表載入失敗，無法建立租借紀錄。');
-            if(statusDiv) statusDiv.textContent = '';
-            return;
-        }
-    }
-
-    if (createRentalForm) createRentalForm.reset();
-    selectedRentalUser = null;
-    selectedRentalGames = []; 
-
-    const game = allGames.find(g => g.game_id == gameId);
-    if (game) {
-        selectedRentalGames.push(game); 
-    }
-    
-    updateSelectedGamesDisplay();
-
-    const userSelect = document.getElementById('rental-user-select');
-    if(userSelect) userSelect.style.display = 'none';
-
-    // 【修改處】自動帶入預設金額
-    document.getElementById('rental-rent-price').value = game ? (game.rent_price || 0) : 0;
-    document.getElementById('rental-deposit').value = game ? (game.deposit || 0) : 0;
-    document.getElementById('rental-late-fee').value = game ? (game.late_fee_per_day || 50) : 50;
-
-    const rentalDays = CONFIG.LOGIC.RENTAL_DEFAULT_DAYS || 3; // 如果沒設定，預設為 3 天
-    const today = new Date();
-    today.setDate(today.getDate() + rentalDays);
-    document.getElementById('rental-due-date').value = today.toISOString().split('T')[0];
-
-    if(createRentalModal) createRentalModal.style.display = 'flex';
-}
-    
-function updateSelectedGamesDisplay() {
-    const container = document.getElementById('rental-games-container');
-    const searchInput = document.getElementById('rental-game-search');
-    if(!container || !searchInput) return;
-
-    [...container.children].forEach(child => {
-        if (child.id !== 'rental-game-search') {
-            container.removeChild(child);
-        }
-    });
-
-    selectedRentalGames.forEach(game => {
-        const chip = document.createElement('span');
-        chip.className = 'game-tag-chip';
-        chip.textContent = game.name;
-        
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button'; 
-        removeBtn.className = 'remove-game-tag';
-        removeBtn.textContent = '×';
-        removeBtn.onclick = () => {
-            selectedRentalGames = selectedRentalGames.filter(g => g.game_id !== game.game_id);
-            updateSelectedGamesDisplay();
-        };
-        
-        chip.appendChild(removeBtn);
-        container.insertBefore(chip, searchInput); 
-    });
-}
-
-if(createRentalModal) {
-    const rentalUserSearch = document.getElementById('rental-user-search');
-    const rentalUserSelect = document.getElementById('rental-user-select');
-    const gameSearchInput = document.getElementById('rental-game-search');
-    const gameSearchResults = document.getElementById('game-search-results');
-
-    createRentalModal.querySelector('.modal-close').addEventListener('click', () => createRentalModal.style.display = 'none');
-    createRentalModal.querySelector('.btn-cancel').addEventListener('click', () => createRentalModal.style.display = 'none');
-    
-    if (rentalUserSearch) {
-        rentalUserSearch.addEventListener('input', () => {
-            const searchTerm = rentalUserSearch.value.toLowerCase().trim();
-            if (searchTerm.length < 2) {
-                if(rentalUserSelect) rentalUserSelect.style.display = 'none';
-                return;
-            }
-            // ** 需求 2 修改：增加 real_name 到搜尋條件 **
-            const filteredUsers = allUsers.filter(user => 
-                (user.line_display_name || '').toLowerCase().includes(searchTerm) ||
-                (user.nickname || '').toLowerCase().includes(searchTerm) ||
-                (user.user_id || '').toLowerCase().includes(searchTerm) ||
-                (user.real_name || '').toLowerCase().includes(searchTerm) // 新增此行
-            );
-            
-            if(rentalUserSelect) {
-                rentalUserSelect.innerHTML = '<option value="">-- 請選擇會員 --</option>';
-                filteredUsers.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.user_id;
-                    const displayName = user.nickname || user.line_display_name;
-                    // 在選項中也顯示真實姓名，方便辨識
-                    const realNameDisplay = user.real_name ? ` [${user.real_name}]` : '';
-                    option.textContent = `${displayName}${realNameDisplay} (${user.user_id.substring(0, 10)}...)`;
-                    rentalUserSelect.appendChild(option);
-                });
-                rentalUserSelect.style.display = 'block';
-            }
-        });
-    }
-    
-    if (rentalUserSelect) {
-        rentalUserSelect.addEventListener('change', () => {
-            selectedRentalUser = allUsers.find(u => u.user_id === rentalUserSelect.value);
-            if (selectedRentalUser) {
-                const nameInput = document.getElementById('rental-contact-name');
-                const phoneInput = document.getElementById('rental-contact-phone');
-                if(nameInput) nameInput.value = selectedRentalUser.nickname || selectedRentalUser.line_display_name || '';
-                if(phoneInput) phoneInput.value = selectedRentalUser.phone || '';
-            }
-        });
-    }
-
-    if(gameSearchInput && gameSearchResults) {
-        gameSearchInput.addEventListener('input', () => {
-            const searchTerm = gameSearchInput.value.toLowerCase().trim();
-            if (searchTerm.length < 1) {
-                gameSearchResults.style.display = 'none';
-                return;
-            }
-            
-            const filteredGames = allGames.filter(game => 
-                game.name.toLowerCase().includes(searchTerm) &&
-                !selectedRentalGames.some(sg => sg.game_id === game.game_id)
-            );
-
-            gameSearchResults.innerHTML = '';
-            if (filteredGames.length > 0) {
-                filteredGames.slice(0, 5).forEach(game => {
-                    const li = document.createElement('li');
-                    li.textContent = `${game.name} (庫存: ${game.for_rent_stock})`;
-                    li.onclick = () => {
-                        selectedRentalGames.push(game);
-                        updateSelectedGamesDisplay();
-                        gameSearchInput.value = '';
-                        gameSearchResults.style.display = 'none';
-                    };
-                    gameSearchResults.appendChild(li);
-                });
-                gameSearchResults.style.display = 'block';
-            } else {
-                gameSearchResults.style.display = 'none';
-            }
-        });
-    }
-
-if (createRentalForm) {
-    createRentalForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!selectedRentalUser) {
-            alert('請務必搜尋並選擇一位租借會員！');
-            return;
-        }
-        if (selectedRentalGames.length === 0) {
-            alert('請至少選擇一個租借品項！');
-            return;
-        }
-
-        // 【修改處】讀取表單上的客製化金額
-        const rentalData = {
-            userId: selectedRentalUser.user_id,
-            gameIds: selectedRentalGames.map(g => g.game_id),
-            dueDate: document.getElementById('rental-due-date').value,
-            name: document.getElementById('rental-contact-name').value,
-            phone: document.getElementById('rental-contact-phone').value,
-            rentPrice: document.getElementById('rental-rent-price').value,
-            deposit: document.getElementById('rental-deposit').value,
-            lateFeePerDay: document.getElementById('rental-late-fee').value
-        };
-
-        if (!rentalData.name || !rentalData.phone) {
-            alert('租借人姓名與電話為必填欄位！');
-            return;
-        }
-
-            const gameNames = selectedRentalGames.map(g => g.name).join('\n- ');
-            const confirmationMessage = `請確認租借資訊：\n\n` +
-                `會員：${selectedRentalUser.nickname || selectedRentalUser.line_display_name}\n` +
-                `遊戲：\n- ${gameNames}\n` +
-                `租借人：${rentalData.name}\n` +
-                `電話：${rentalData.phone}\n` +
-                `歸還日：${rentalData.dueDate}`;
-
-            if (!confirm(confirmationMessage)) return;
-            
-            try {
-                const response = await fetch('api/admin/create-rental', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(rentalData)
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '建立失敗');
-                alert('租借成功！');
-                createRentalModal.style.display = 'none';
-                
-                rentalData.gameIds.forEach(gameId => {
-                    const rentedGame = allGames.find(g => g.game_id === gameId);
-                    if(rentedGame) {
-                        rentedGame.for_rent_stock = Number(rentedGame.for_rent_stock) - 1;
-                    }
-                });
-                applyGameFiltersAndRender();
-                
-                await fetchAllRentals();
-                showPage('rentals');
-            } catch (error) {
-                alert(`錯誤：${error.message}`);
-            }
-        });
-    }
-}
-    
-flatpickr("#rental-due-date", { dateFormat: "Y-m-d", minDate: "today" });
 
 
     // =================================================================

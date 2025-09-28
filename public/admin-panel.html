@@ -245,11 +245,10 @@
         <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
-            <a href="#inventory">庫存管理</a>
-            <a href="#rentals">桌遊租借</a>
+            <a href="#inventory">產品/服務管理</a>
             <a href="#bookings">訂位管理</a>
             <a href="#exp-history">經驗紀錄</a>
-            <a href="#news">情報管理</a>
+            <a href="#news">資訊管理</a>
             <a href="#drafts">訊息草稿</a>
             <a href="#store-info">店家資訊</a>
             <a href="#scan">掃碼加點</a>
@@ -265,16 +264,7 @@
                     <h3>今日預約總人數</h3>
                     <p id="stat-today-guests" class="stat-value">讀取中...</p>
                 </div>
-                <div class="stat-card" data-target="rentals-rented">
-                    <h3>未歸還遊戲總數</h3>
-                    <p id="stat-outstanding-rentals" class="stat-value">讀取中...</p>
-                </div>
-                <div class="stat-card" data-target="rentals-due-today">
-                    <h3>今日到期遊戲</h3>
-                    <p id="stat-due-today" class="stat-value">讀取中...</p>
-                    <p class="stat-subtext">筆租借紀錄</p>
-                </div>
-                <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #fff5f5;">
+               <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #fff5f5;">
                       <h4 style="color: var(--danger-color); margin-top: 0;">危險操作區</h4>
                       <p>此按鈕將會清空所有預約、租借、消費紀錄等展示資料，讓系統恢復初始狀態。此操作無法復原。</p>
                       <button id="reset-demo-data-btn" class="action-btn" style="background-color: var(--danger-color);">清空所有展示資料</button>
@@ -290,7 +280,7 @@
             <input type="text" id="user-search-input" placeholder="依 LINE 名稱或暱稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
             <table>
                 <thead>
-                    <tr><th>LINE 名稱 / 暱稱</th><th>等級</th><th>經驗值</th><th>職業</th><th>標籤</th><th>操作</th></tr>
+                    <tr><th>LINE 名稱 / 暱稱</th><th>會員等級</th><th>優惠回饋</th><th>點數：</th><th>標籤</th><th>操作</th></tr>
                 </thead>
                 <tbody id="user-list-tbody"></tbody>
             </table>
@@ -298,7 +288,7 @@
 
 <div id="page-inventory" class="page">
             <div class="page-header">
-                <h2>庫存管理</h2>
+                <h2>產品/服務管理</h2>
                 <button id="sync-games-btn" class="action-btn" style="background-color: #28a745;">同步至資料庫</button>
             </div>
             <div class="filter-bar">
@@ -318,10 +308,10 @@
                 <thead>
                     <tr>
                         <th style="width: 50px;">順序</th>
-                        <th>遊戲 (ID / 標籤)</th>
+                        <th>產品/服務 (ID / 分類)</th>
                         <th>總庫存</th>
-                        <th>租借庫存</th>
-                        <th>售價 / 租金</th>
+                        <th>顯示庫存</th>
+                        <th>售價 / 折扣價</th>
                         <th>上架</th>
                         <th>操作</th>
                     </tr>
@@ -330,89 +320,6 @@
             </table>
         </div>
 
-        <div id="page-rentals" class="page">
-            <div class="page-header">
-                <h2>桌遊租借總表</h2>
-                <button id="full-sync-rentals-btn" class="action-btn" style="background-color: #17a2b8;">手動完整同步至 Sheet</button>
-            </div>
-            <div class="filter-bar">
-                <input type="text" id="rental-search-input" placeholder="依遊戲或會員名稱搜尋..." style="flex-grow: 1; padding: 8px;">
-                <div id="rental-status-filter" class="filter-group">
-                    <button class="active" data-filter="all">全部顯示</button>
-                    <button data-filter="rented">租借中</button>
-                    <button data-filter="overdue" style="color: var(--danger-color); font-weight: bold;">逾期未歸還</button>
-                    <button data-filter="due_today">今日到期</button>
-                    <button data-filter="returned">已歸還</button>
-                </div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>狀態</th>
-                        <th>遊戲名稱</th>
-                        <th>租借人</th>
-                        <th id="sort-due-date" class="sortable">應還日期</th>
-                        <th>實際歸還日期</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="rental-list-tbody"></tbody>
-            </table>
-        </div>
-
-<div id="create-rental-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>建立租借紀錄</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <div id="rental-modal-status" style="text-align: center; color: var(--primary-color); min-height: 20px; margin-bottom: 15px;"></div>
-<form id="create-rental-form">
-    <div class="form-group">
-        <label for="rental-user-search">搜尋租借會員 (姓名/暱稱/ID)</label>
-        <input type="text" id="rental-user-search" placeholder="請至少輸入 2 個字元...">
-        <select id="rental-user-select" style="margin-top: 10px; display: none;"></select>
-    </div>
-    <div class="form-group">
-        <label>租借品項 (可多選)</label>
-        <div id="rental-games-container">
-            <input type="text" id="rental-game-search" placeholder="輸入遊戲名稱搜尋...">
-        </div>
-        <ul id="game-search-results" style="display: none;"></ul>
-    </div>
-    <div class="form-group">
-        <label for="rental-contact-name">租借人姓名</label>
-        <input type="text" id="rental-contact-name" required>
-    </div>
-    <div class="form-group">
-        <label for="rental-contact-phone">聯絡電話</label>
-        <input type="tel" id="rental-contact-phone" required maxlength="10">
-    </div>
-    <div class="form-group">
-        <label for="rental-due-date">歸還日期</label>
-        <input type="text" id="rental-due-date" required>
-    </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-        <div class="form-group">
-            <label for="rental-rent-price">租金</label>
-            <input type="number" id="rental-rent-price" value="0" min="0">
-        </div>
-        <div class="form-group">
-            <label for="rental-deposit">押金</label>
-            <input type="number" id="rental-deposit" value="0" min="0">
-        </div>
-        <div class="form-group">
-            <label for="rental-late-fee">每日逾期費</label>
-            <input type="number" id="rental-late-fee" value="50" min="0">
-        </div>
-    </div>
-    <div class="form-actions">
-        <button type="button" class="action-btn btn-cancel">取消</button>
-        <button type="submit" class="action-btn btn-save">確認租借</button>
-    </div>
-</form>
-    </div>
-</div>
 
 <div id="page-bookings" class="page">
     <div class="page-header">
@@ -460,7 +367,7 @@
 </div>
         <div id="page-exp-history" class="page">
             <div class="page-header">
-                <h2>經驗紀錄查詢</h2>
+                <h2>點數紀錄查詢</h2>
             </div>
             <div class="filter-bar">
                 <input type="search" id="exp-user-filter-input" placeholder="依使用者名稱或 LINE ID 搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
@@ -471,7 +378,7 @@
                         <th>使用者</th>
                         <th>日期</th>
                         <th>原因</th>
-                        <th>經驗值</th>
+                        <th>點數</th>
                     </tr>
                 </thead>
                 <tbody id="exp-history-tbody"></tbody>
@@ -525,8 +432,8 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group"><label for="reason-select">點數名稱 (原因):</label><select id="reason-select"><option value="消費回饋">消費回饋</option><option value="活動獎勵">活動獎勵</option><option value="新手獎勵">新手獎勵</option><option value="other">其他 (請手動輸入)</option></select><input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;"></div>
-            <div class="form-group"><label for="exp-input">經驗值點數:</label><input type="number" id="exp-input" placeholder="請輸入要新增的經驗值" min="1"></div>
+            <div class="form-group"><label for="reason-select">點數名稱 (原因):</label><select id="reason-select"><option value="消費回饋">消費回饋</option><option value="活動獎勵">活動獎勵</option><option value="會員優惠">會員優惠</option><option value="other">其他 (請手動輸入)</option></select><input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;"></div>
+            <div class="form-group"><label for="exp-input">經驗值點數:</label><input type="number" id="exp-input" placeholder="請輸入要新增的點數" min="1"></div>
             <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認新增</button>
             <button id="rescan-btn" class="action-btn btn-cancel" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px;">重新掃描</button>
             <div id="scan-status-container" style="margin-top: 15px; text-align: center;"></div>
@@ -577,12 +484,12 @@
                 <div class="form-group">
                     <label for="edit-class-select">職業</label>
                     <select id="edit-class-select"></select>
-                    <input type="text" id="edit-class-other-input" placeholder="請輸入自訂職業" style="display: none; margin-top: 10px;">
+                    <input type="text" id="edit-class-other-input" placeholder="請輸入會員等級" style="display: none; margin-top: 10px;">
                 </div>
                 <div class="form-group">
                     <label for="edit-perk-select">職業內容 (福利)</label>
                     <select id="edit-perk-select"></select>
-                    <input type="text" id="edit-perk-other-input" placeholder="請輸入自訂福利" style="display: none; margin-top: 10px;">
+                    <input type="text" id="edit-perk-other-input" placeholder="請輸入自訂優惠" style="display: none; margin-top: 10px;">
                 </div>
                 <div class="form-group">
                     <label for="edit-tag-select">標籤</label>
@@ -639,7 +546,7 @@
                 <div class="form-group">
                     <label>租借品項 (可多選)</label>
                     <div id="rental-games-container">
-                        <input type="text" id="rental-game-search" placeholder="輸入遊戲名稱搜尋...">
+                        <input type="text" id="rental-game-search" placeholder="依產品/服務名稱搜尋...">
                     </div>
                     <ul id="game-search-results" style="display: none;"></ul>
                 </div>
@@ -800,47 +707,7 @@
         </div>
     </div>
 
-<div id="edit-rental-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modal-rental-title">管理租借紀錄</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <form id="edit-rental-form">
-            <input type="hidden" id="edit-rental-id">
-            <div class="form-group">
-                <label>系統計算逾期總額</label>
-                <input type="text" id="calculated-late-fee-display" readonly style="background: #e9ecef; color: var(--danger-color); font-weight: bold;">
-            </div>
-            <div class="form-group">
-                <label for="edit-rental-due-date">修改應還日期 (延期)</label>
-                <input type="text" id="edit-rental-due-date">
-            </div>
-            <div class="form-group">
-                <label for="edit-rental-override-fee">手動覆寫逾期金額 (選填)</label>
-                <input type="number" id="edit-rental-override-fee" min="0" placeholder="留空則由系統自動計算">
-            </div>
-            <div class="form-actions">
-                <button type="button" class="action-btn btn-cancel">取消</button>
-                <button type="submit" class="action-btn btn-save">儲存變更</button>
-            </div>
-        </form>
-        <div class="message-sender" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-            <h4>發送 LINE 訊息</h4>
-            <div class="form-group">
-                <label for="rental-message-draft-select">選擇訊息草稿</label>
-                <select id="rental-message-draft-select"><option value="">-- 手動輸入或選擇草稿 --</option></select>
-            </div>
-            <div class="form-group">
-                <label for="rental-direct-message-content">訊息內容</label>
-                <textarea id="rental-direct-message-content" rows="4"></textarea>
-            </div>
-            <div class="form-actions">
-                <button id="rental-send-direct-message-btn" class="action-btn btn-save">確認發送</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 <div id="create-booking-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">

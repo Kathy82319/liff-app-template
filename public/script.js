@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabBar = document.getElementById('tab-bar');
 
     // --- 狀態變數 ---
-    let allGames = [];
+    let allProducts = [];
     let allNews = [];
     let pageHistory = ['page-home'];
     let activeFilters = { keyword: '', tag: null };
@@ -27,11 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 頁面初始化函式映射 ---
     const pageInitializers = {
         'page-home': initializeHomePage,
-        'page-games': initializeGamesPage,
+        'page-games': initializeProductsPage,
         'page-profile': initializeProfilePage,
         'page-my-bookings': initializeMyBookingsPage,
         'page-my-exp-history': initializeMyExpHistoryPage,
-        'page-rental-history': initializeRentalHistoryPage,
         'page-booking': initializeBookingPage,
         'page-info': initializeInfoPage,
         'page-edit-profile': initializeEditProfilePage,
@@ -167,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const gameCard = target.closest('.game-card');
             if (gameCard && gameCard.dataset.gameId) {
                 const gameId = gameCard.dataset.gameId;
-                const gameItem = allGames.find(g => g.game_id == gameId);
+                const gameItem = allProducts.find(g => g.game_id == gameId);
                 if (gameItem) {
                     appContent.innerHTML = `
                         <div id="page-game-details">
@@ -315,33 +314,6 @@ function renderBookings(bookings, container, isPast = false) {
         `;
     }).join('');
 }
-    function renderRentals(rentals, container, isPast = false) {
-        if (!container) return;
-        if (rentals.length === 0) {
-            container.innerHTML = `<p>${isPast ? '沒有已歸還的紀錄。' : `您目前沒有租借中的${CONFIG.TERMS.PRODUCT_NAME}。`}</p>`;
-            return;
-        }
-        container.innerHTML = rentals.map(r => {
-            let statusHTML = '';
-            if (r.status === 'returned') {
-                statusHTML = `<div>已於 ${r.return_date || ''} 歸還</div>`;
-            } else if (r.overdue_days > 0) {
-                statusHTML = `<div style="color: var(--color-danger);">已逾期 ${r.overdue_days} 天</div>`;
-            } else {
-                statusHTML = `<div>租借中</div>`;
-            }
-            return `
-                <div class="rental-card" style="display: flex; gap: 15px; align-items: center;">
-                    <img src="${r.game_image_url || ''}" style="width: 60px; height: 60px; border-radius: var(--border-radius); object-fit: cover;">
-                    <div class="rental-info" style="flex-grow: 1;">
-                        <h3 style="margin: 0 0 5px 0; font-size: 1rem;">${r.game_name}</h3>
-                        <p style="margin: 0; font-size: 0.9rem; color: var(--color-text-secondary);">應還日期：${r.due_date}</p>
-                        ${statusHTML}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
 
     // =================================================================
     // LIFF 初始化 & 啟動
@@ -548,21 +520,6 @@ function renderBookings(bookings, container, isPast = false) {
         }
     }
 
-    async function initializeRentalHistoryPage() {
-        if (!userProfile) return;
-        const container = document.getElementById('rental-history-container');
-        if (!container) return;
-        container.innerHTML = '<p>查詢中...</p>';
-        try {
-            const response = await fetch(`/my-rental-history?userId=${userProfile.userId}&filter=current`);
-            if (!response.ok) throw new Error('查詢租借紀錄失敗');
-            const rentals = await response.json();
-            renderRentals(rentals, container, false);
-        } catch (error) {
-            container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
-        }
-    }
-
     async function initializeInfoPage() {
         const container = document.getElementById('store-info-container');
         if (!container) return;
@@ -578,11 +535,11 @@ function renderBookings(bookings, container, isPast = false) {
     }
 
     async function initializeEditProfilePage() {
-        if (allGames.length === 0) {
+        if (allProducts.length === 0) {
             try {
                 const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('無法獲取遊戲資料');
-                allGames = await res.json();
+                allProducts = await res.json();
             } catch (error) {
                 console.error('獲取遊戲標籤失敗:', error);
             }
@@ -599,7 +556,7 @@ function renderBookings(bookings, container, isPast = false) {
         const otherContainer = document.getElementById('preferred-games-other-container');
         const otherInput = document.getElementById('preferred-games-other-input');
         if (gamesContainer && otherContainer && otherInput) {
-            const allStandardTags = [...new Set(allGames.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
+            const allStandardTags = [...new Set(allProducts.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
             const userTags = new Set((userData.preferred_games || '').split(',').map(tag => tag.trim()).filter(Boolean));
             const userCustomTags = [...userTags].filter(tag => !allStandardTags.includes(tag));
             gamesContainer.innerHTML = allStandardTags.map(tag => {
@@ -723,10 +680,10 @@ function renderBookings(bookings, container, isPast = false) {
         priceContent.innerHTML = priceHTML || `<p>價格資訊請洽店內</p>`;
     }
 
-    function renderGames() {
+    function renderProducts() {
         const container = document.getElementById('game-list-container');
         if(!container) return;
-        let filteredGames = allGames.filter(g => g.is_visible === 1);
+        let filteredGames = allProducts.filter(g => g.is_visible === 1);
         const keyword = activeFilters.keyword.toLowerCase().trim();
         if (keyword) { filteredGames = filteredGames.filter(g => g.name.toLowerCase().includes(keyword)); }
         if (activeFilters.tag) { filteredGames = filteredGames.filter(g => (g.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); }
@@ -752,7 +709,7 @@ function renderBookings(bookings, container, isPast = false) {
     function populateFilters() {
         const filterContainer = document.getElementById('tag-filter-container');
         if(!filterContainer) return;
-        const allTags = [...new Set(allGames.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
+        const allTags = [...new Set(allProducts.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
         filterContainer.innerHTML = allTags.map(tag => `<button class="filter-tag-btn" data-tag="${tag}">${tag}</button>`).join('');
         filterContainer.querySelectorAll('.filter-tag-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -764,26 +721,26 @@ function renderBookings(bookings, container, isPast = false) {
                     activeFilters.tag = btn.dataset.tag;
                     btn.classList.add('active');
                 }
-                renderGames();
+                renderProducts();
             });
         });
     }
 
-    async function initializeGamesPage() {
+    async function initializeProductsPage() {
         const container = document.getElementById('game-list-container');
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`;
         try {
-            if (allGames.length === 0) {
+            if (allProducts.length === 0) {
                 const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('API 請求失敗');
-                allGames = await res.json();
+                allProducts = await res.json();
             }
             populateFilters();
-            renderGames();
+            renderProducts();
             document.getElementById('keyword-search').addEventListener('input', e => { 
                 activeFilters.keyword = e.target.value; 
-                renderGames(); 
+                renderProducts(); 
             });
             document.getElementById('clear-filters').addEventListener('click', () => {
                 activeFilters.keyword = '';
@@ -791,7 +748,7 @@ function renderBookings(bookings, container, isPast = false) {
                 document.getElementById('keyword-search').value = '';
                 const currentActive = document.querySelector('#tag-filter-container .filter-tag-btn.active');
                 if (currentActive) currentActive.classList.remove('active');
-                renderGames();
+                renderProducts();
             });
         } catch (error) {
             console.error('初始化產品型錄失敗:', error);

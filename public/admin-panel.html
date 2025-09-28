@@ -8,6 +8,58 @@
     <title>店務管理系統</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
     <style>
+/* public/admin-panel.html -> 貼在 </style> 前 */
+
+/* --- 行事曆樣式 --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+}
+.calendar-header h3 { margin: 0; font-size: 1.2rem; }
+.calendar-header button { background: none; border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+
+#calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border-color);
+    background-color: white;
+}
+.calendar-day, .calendar-weekday {
+    border-right: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+    padding: 8px;
+}
+.calendar-day:nth-child(7n) { border-right: none; }
+.calendar-weekday {
+    font-weight: bold;
+    text-align: center;
+    background-color: var(--light-gray);
+}
+.calendar-day {
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+}
+.day-number { font-weight: bold; }
+.day-other-month .day-number { color: #ccc; }
+.calendar-booking {
+    font-size: 0.75rem;
+    padding: 3px 5px;
+    margin-top: 5px;
+    border-radius: 4px;
+    background-color: var(--info-color);
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}       
+
             /* 【新增這一段】響應式 CRM 樣式 */
     @media (max-width: 768px) {
         .details-grid {
@@ -183,58 +235,9 @@
             padding-top: 20px; /* 增加上方間距 */
             border-top: 1px solid var(--border-color); /* 加上分隔線 */
         }
-/* public/admin-panel.html -> 貼在 </style> 前 */
-
-/* --- 行事曆樣式 --- */
-.calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    background-color: white;
-    border-radius: 8px 8px 0 0;
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-}
-.calendar-header h3 { margin: 0; font-size: 1.2rem; }
-.calendar-header button { background: none; border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
-
-#calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border: 1px solid var(--border-color);
-    background-color: white;
-}
-.calendar-day, .calendar-weekday {
-    border-right: 1px solid var(--border-color);
-    border-top: 1px solid var(--border-color);
-    padding: 8px;
-}
-.calendar-day:nth-child(7n) { border-right: none; }
-.calendar-weekday {
-    font-weight: bold;
-    text-align: center;
-    background-color: var(--light-gray);
-}
-.calendar-day {
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-}
-.day-number { font-weight: bold; }
-.day-other-month .day-number { color: #ccc; }
-.calendar-booking {
-    font-size: 0.75rem;
-    padding: 3px 5px;
-    margin-top: 5px;
-    border-radius: 4px;
-    background-color: var(--info-color);
-    color: white;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}        
+ 
     </style>
+
 </head>
 <body>
 

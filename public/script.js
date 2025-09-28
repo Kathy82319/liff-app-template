@@ -423,7 +423,7 @@ function renderBookings(bookings, container, isPast = false) {
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`;
         try {
-            const response = await fetch('/get-news');
+            const response = await fetch('api/get-news');
             if (!response.ok) throw new Error(`無法獲取${CONFIG.TERMS.NEWS_PAGE_TITLE}`);
             allNews = await response.json();
             
@@ -520,7 +520,7 @@ function renderBookings(bookings, container, isPast = false) {
         if (!container) return;
         container.innerHTML = '<p>查詢中...</p>';
         try {
-            const response = await fetch(`/my-bookings?userId=${userProfile.userId}&filter=current`);
+            const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=current`);
             if (!response.ok) throw new Error('查詢預約失敗');
             const bookings = await response.json();
             renderBookings(bookings, container, false);
@@ -535,7 +535,7 @@ function renderBookings(bookings, container, isPast = false) {
         if (!container) return;
         container.innerHTML = `<p>查詢中...</p>`;
         try {
-            const response = await fetch(`/my-purchase-history?userId=${userProfile.userId}`);
+            const response = await fetch(`api/my-purchase-history?userId=${userProfile.userId}`);
             if (!response.ok) throw new Error('查詢紀錄失敗');
             const records = await response.json();
             if (records.length === 0) {
@@ -904,7 +904,7 @@ function renderTimeSlots(selectElement) {
         slotsContainer.innerHTML = '';
         slotsPlaceholder.style.display = 'block';
         try {
-            const response = await fetch(`/bookings-check?date=${date}`);
+            const response = await fetch(`api/bookings-check?date=${date}`);
             if (!response.ok) throw new Error('查詢失敗');
             dailyAvailability = await response.json();
             if (dailyAvailability.available <= 0) {

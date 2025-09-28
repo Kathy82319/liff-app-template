@@ -580,7 +580,7 @@ function renderBookings(bookings, container, isPast = false) {
     async function initializeEditProfilePage() {
         if (allGames.length === 0) {
             try {
-                const res = await fetch('/get-products');
+                const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('無法獲取遊戲資料');
                 allGames = await res.json();
             } catch (error) {
@@ -775,7 +775,7 @@ function renderBookings(bookings, container, isPast = false) {
         container.innerHTML = `<p>載入中...</p>`;
         try {
             if (allGames.length === 0) {
-                const res = await fetch('/get-products');
+                const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('API 請求失敗');
                 allGames = await res.json();
             }

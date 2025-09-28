@@ -34,4 +34,4 @@ export async function onRequest(context) {
       status: 500,
     });
   }
-} 
+}  

@@ -299,7 +299,7 @@ async function initializeAdminPanel() {
         // (此函式邏輯不變)
         if (allUsers.length > 0) return;
         try {
-            const response = await fetch('/get-users');
+            const response = await fetch('/api/get-users');
             if (!response.ok) throw new Error('無法獲取使用者列表');
             allUsers = await response.json();
             renderUserList(allUsers);
@@ -312,7 +312,7 @@ async function initializeAdminPanel() {
             try {
                 syncD1ToSheetBtn.textContent = '同步中...';
                 syncD1ToSheetBtn.disabled = true;
-                const response = await fetch('/sync-d1-to-sheet', { method: 'POST' });
+                const response = await fetch('/api/sync-d1-to-sheet', { method: 'POST' });
                 const result = await response.json();
                 if (!response.ok) { throw new Error(result.details || '同步失敗'); }
                 alert(result.message || '同步成功！');
@@ -468,7 +468,7 @@ async function initializeAdminPanel() {
                 notes: document.getElementById('edit-notes-textarea').value
             };
             try {
-                const response = await fetch('/update-user-details', {
+                const response = await fetch('/api/update-user-details', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
                 });
@@ -905,7 +905,7 @@ function renderUserDetails(data) {
             sendBtn.textContent = '傳送中...';
             sendBtn.disabled = true;
             try {
-                const response = await fetch('/send-message', {
+                const response = await fetch('/api/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, message })
@@ -1048,7 +1048,7 @@ function applyGameFiltersAndRender() {
 async function fetchAllGames() {
     try {
         // 【核心修正】將 API 路徑從 get-boardgames 改為 get-products
-        const response = await fetch('/get-products');
+        const response = await fetch('/api/get-products');
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`從資料庫獲取產品列表失敗: ${errorText}`);
@@ -1129,7 +1129,7 @@ if (syncGamesBtn) {
             syncGamesBtn.textContent = '同步中...';
             syncGamesBtn.disabled = true;
             // 【核心修正】POST 請求的路徑也要修改
-            const response = await fetch('/get-products', { method: 'POST' });
+            const response = await fetch('/api/get-products', { method: 'POST' });
             const result = await response.json();
             if (!response.ok) {
                 throw new Error(result.details || '同步失敗');
@@ -1488,7 +1488,7 @@ async function loadAndBindRentalMessageDrafts(userId) {
         newSendBtn.textContent = '傳送中...';
         newSendBtn.disabled = true;
         try {
-            const response = await fetch('/send-message', {
+            const response = await fetch('/api/send-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, message })
@@ -2010,7 +2010,7 @@ if(bookingListTbody){
             if (!booking) return;
             if (confirm(confirmMsg)) {
                  try {
-                    const response = await fetch('/update-booking-status', {
+                    const response = await fetch('/api/update-booking-status', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ bookingId: Number(id), status: newStatus })
                     });
@@ -2076,7 +2076,7 @@ async function openCancelBookingModal(booking) {
             newConfirmBtn.disabled = true;
 
             if (shouldSendMessage) {
-                const msgResponse = await fetch('/send-message', {
+                const msgResponse = await fetch('/api/send-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: booking.user_id, message: message })
@@ -2084,7 +2084,7 @@ async function openCancelBookingModal(booking) {
                  if (!msgResponse.ok) console.error("發送 LINE 通知失敗");
             }
 
-            const statusResponse = await fetch('/update-booking-status', {
+            const statusResponse = await fetch('/api/update-booking-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bookingId: Number(booking.booking_id), status: 'cancelled' })
@@ -2184,7 +2184,7 @@ if(cancelBookingModal) {
                     scanStatusMessage.className = '';
                 }
                 submitExpBtn.disabled = true;
-                const response = await fetch('/add-exp', {
+                const response = await fetch('/api/add-exp', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, expValue, reason }),
                 });
@@ -2412,7 +2412,7 @@ async function fetchAllExpHistory() {
     // =================================================================
     async function fetchStoreInfo() {
         try {
-            const response = await fetch('/get-store-info');
+            const response = await fetch('/api/get-store-info');
             if (!response.ok) throw new Error('無法載入店家資訊');
             const info = await response.json();
             document.getElementById('info-address').value = info.address;
@@ -2446,7 +2446,7 @@ async function fetchAllExpHistory() {
     // ---- 初始化 ----
     async function initialize() {
         try {
-            const response = await fetch('/get-class-perks');
+            const response = await fetch('/api/get-class-perks');
             if (!response.ok) throw new Error('無法獲取職業設定');
             classPerks = await response.json();
         } catch (error) {

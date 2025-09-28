@@ -106,6 +106,44 @@
                 <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
             </div>
         </div>
+<div id="page-edit-profile">
+    <h1 class="page-main-title">編輯個人資料</h1>
+    <div class="details-section">
+        <form id="edit-profile-form">
+            <div class="form-group">
+                <label for="edit-profile-name">LINE 名稱 (不可修改)</label>
+                <input type="text" id="edit-profile-name" readonly style="background-color: #333; color: #888;">
+            </div>
+            <div class="form-group">
+                <label for="edit-profile-nickname">您的暱稱</label>
+                <input type="text" id="edit-profile-nickname" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-profile-real-name">真實姓名 (選填)</label>
+                <input type="text" id="edit-profile-real-name">
+            </div>
+            <div class="form-group">
+                <label for="edit-profile-phone">聯絡電話</label>
+                <input type="tel" id="edit-profile-phone" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-profile-email">電子信箱 (選填)</label>
+                <input type="email" id="edit-profile-email">
+            </div>
+            <div class="form-group">
+                <label>偏好的遊戲類型 (選填)</label>
+                <div id="preferred-games-container" class="tag-selection-container"></div>
+                <div id="preferred-games-other-container" style="display: none; margin-top: 10px;">
+                    <input type="text" id="preferred-games-other-input" placeholder="請輸入其他類型，以逗號分隔">
+                </div>
+            </div>
+            <p id="edit-profile-form-status" style="text-align: center; min-height: 1.2em;"></p>
+            <button type="submit" class="cta-button">儲存變更</button>
+        </form>
+    </div>
+    <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+</div>
+
     <div id="page-checkout">
         <h1 class="page-main-title">購物車與結帳</h1>
         <div class="details-section">

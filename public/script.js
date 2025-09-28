@@ -269,7 +269,7 @@ async function handleCancelBooking(bookingId) {
             pastContainer.style.display = 'block';
             button.textContent = '隱藏過往紀錄';
             try {
-                const apiPath = type === 'bookings' ? '/my-bookings' : '/my-rental-history';
+                const apiPath = type === 'bookings' ? '/api/my-bookings' : '/api/my-rental-history';
                 const response = await fetch(`${apiPath}?userId=${userProfile.userId}&filter=past`);
                 if (!response.ok) throw new Error(`查詢過往${type}失敗`);
                 const data = await response.json();
@@ -368,7 +368,7 @@ function renderBookings(bookings, container, isPast = false) {
     async function fetchGameData(forceRefresh = false) {
         if (!forceRefresh && gameData.user_id) return gameData;
         try {
-            const response = await fetch('/user', {
+            const response = await fetch('/api/user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
@@ -568,7 +568,7 @@ function renderBookings(bookings, container, isPast = false) {
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`;
         try {
-            const response = await fetch('/get-store-info');
+            const response = await fetch('/api/get-store-info');
             if (!response.ok) throw new Error('無法獲取店家資訊');
             const info = await response.json();
             container.innerHTML = `<div class="info-section"><h2>地址</h2><p>${info.address}</p></div><div class="info-section"><h2>電話</h2><p>${info.phone}</p></div><div class="info-section"><h2>營業時間</h2><p style="white-space: pre-wrap;">${info.opening_hours}</p></div><div class="info-section"><h2>店家介紹</h2><p style="white-space: pre-wrap;">${info.description}</p></div>`;
@@ -664,7 +664,7 @@ function renderBookings(bookings, container, isPast = false) {
                 pictureUrl: userProfile.pictureUrl || ''
             };
             try {
-                const response = await fetch('/update-user-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+                const response = await fetch('/api/update-user-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || '儲存失敗');
                 gameData = {};
@@ -983,7 +983,7 @@ async function handleBookingConfirmation(event) {
             contactPhone: bookingData.phone
         };
 
-        const createRes = await fetch('/bookings-create', { // 注意：這個 create API 不在 /api/ 路徑下，是正確的
+        const createRes = await fetch('/api/bookings-create', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookingPayload)
@@ -996,7 +996,7 @@ async function handleBookingConfirmation(event) {
 
         const result = await createRes.json();
 
-        // 【核心修改】將 fetch 的路徑指向 /api/send-message
+
         fetch('/api/send-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

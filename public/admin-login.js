@@ -2442,7 +2442,7 @@ async function fetchAllExpHistory() {
             } catch (error) { alert(`錯誤：${error.message}`); }
         });
     }
-
+ 
     // ---- 初始化 ----
     async function initialize() {
         try {

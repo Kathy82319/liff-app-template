@@ -851,17 +851,17 @@ async function initializeBookingPage() {
     const minDate = new Date();
     minDate.setDate(minDate.getDate() + cutoffDays);
     // --- 【核心修改結束】 ---
-
+    
     // 初始化日期選擇器
     flatpickr(datepickerContainer, {
         inline: true,
-        minDate: minDate, // 【核心修改】應用計算出來的最小日期
+        minDate: minDate,
         dateFormat: "Y-m-d",
         locale: "zh_tw",
         onChange: (selectedDates, dateStr) => {
             bookingData.date = dateStr;
-            renderTimeSlots(timeSlotSelect);
-            if (timeSlotContainer) timeSlotContainer.style.display = 'block';
+            renderTimeSlots(timeSlotSelect); // 傳入 select 元素
+            if (timeSlotContainer) timeSlotContainer.style.display = 'block'; // 顯示時段下拉選單
         },
     });
 
@@ -883,8 +883,7 @@ async function initializeBookingPage() {
         const phoneInput = document.getElementById('contact-phone');
         if (nameInput) nameInput.value = userData.real_name || userData.nickname || '';
         if (phoneInput) phoneInput.value = userData.phone || '';
-    }
-}
+            }
     
     // 【新增】根據 config 設定顯示/隱藏「預約項目」欄位
     const bookingItemFormGroup = document.getElementById('booking-item')?.closest('.form-group');

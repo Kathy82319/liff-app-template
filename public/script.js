@@ -885,13 +885,6 @@ async function initializeBookingPage() {
         if (phoneInput) phoneInput.value = userData.phone || '';
             }
     
-    // 【新增】根據 config 設定顯示/隱藏「預約項目」欄位
-    const bookingItemFormGroup = document.getElementById('booking-item')?.closest('.form-group');
-    if (bookingItemFormGroup) {
-        bookingItemFormGroup.style.display = CONFIG.FEATURES.ENABLE_BOOKING_ITEM_FIELD ? 'block' : 'none';
-    }
-}
-
 
 
 function renderTimeSlots(selectElement) {

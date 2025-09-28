@@ -183,6 +183,57 @@
             padding-top: 20px; /* 增加上方間距 */
             border-top: 1px solid var(--border-color); /* 加上分隔線 */
         }
+/* public/admin-panel.html -> 貼在 </style> 前 */
+
+/* --- 行事曆樣式 --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+}
+.calendar-header h3 { margin: 0; font-size: 1.2rem; }
+.calendar-header button { background: none; border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+
+#calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border-color);
+    background-color: white;
+}
+.calendar-day, .calendar-weekday {
+    border-right: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+    padding: 8px;
+}
+.calendar-day:nth-child(7n) { border-right: none; }
+.calendar-weekday {
+    font-weight: bold;
+    text-align: center;
+    background-color: var(--light-gray);
+}
+.calendar-day {
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+}
+.day-number { font-weight: bold; }
+.day-other-month .day-number { color: #ccc; }
+.calendar-booking {
+    font-size: 0.75rem;
+    padding: 3px 5px;
+    margin-top: 5px;
+    border-radius: 4px;
+    background-color: var(--info-color);
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}        
     </style>
 </head>
 <body>
@@ -359,22 +410,42 @@
 </div>
 
 <div id="page-bookings" class="page">
-<div class="page-header">
-    <h2>訂位管理</h2>
-    <div>
-        <button id="create-booking-btn" class="action-btn btn-save" style="margin-right: 10px;">手動建立預約</button>
-        <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
-        <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
-    </div>
-</div>
-    <div class="filter-bar">
-        <div id="booking-status-filter" class="filter-group">
-            <button class="active" data-filter="today">今日預約</button>
-            <button data-filter="confirmed">未來預約</button>
-            <button data-filter="checked-in">已報到</button>
-            <button data-filter="cancelled">已取消</button>
+    <div class="page-header">
+        <h2>訂位管理</h2>
+        <div>
+            <button id="switch-to-calendar-view-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">切換至行事曆</button>
+            <button id="create-booking-btn" class="action-btn btn-save" style="margin-right: 10px;">手動建立預約</button>
+            <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
+            <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
         </div>
     </div>
+
+    <div id="calendar-view-container" style="display: none;">
+        <div class="calendar-header">
+            <button id="calendar-prev-month-btn">&lt;</button>
+            <h3 id="calendar-month-year"></h3>
+            <button id="calendar-next-month-btn">&gt;</button>
+        </div>
+        <div id="calendar-grid"></div>
+    </div>
+
+    <div id="list-view-container">
+        <div class="filter-bar">
+            <div id="booking-status-filter" class="filter-group">
+                <button class="active" data-filter="today">今日預約</button>
+                <button data-filter="confirmed">未來預約</button>
+                <button data-filter="checked-in">已報到</button>
+                <button data-filter="cancelled">已取消</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>時間</th><th>客戶</th><th>人數</th><th>狀態</th><th>操作</th></tr>
+            </thead>
+            <tbody id="booking-list-tbody"></tbody>
+        </table>
+    </div>
+</div>
     <table>
         <thead>
             <tr><th>時間</th><th>客戶</th><th>人數</th><th>狀態</th><th>操作</th></tr>

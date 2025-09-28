@@ -2,19 +2,19 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
-getAccessTokenasync function getAccessToken(env) {
+async function getAccessToken(env) {
     const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY } = env;
     if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) throw new Error('缺少 Google 服務帳號的環境變數。');
     
     const formattedPrivateKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
     const privateKey = await jose.importPKCS8(formattedPrivateKey, 'RS256');
 
-    // 【核心修正】將 .readonly 移除，申請完整的 spreadsheets 讀寫權限
     const jwt = await new jose.SignJWT({ scope: 'https://www.googleapis.com/auth/spreadsheets' })
       .setProtectedHeader({ alg: 'RS256', typ: 'JWT' }).setIssuer(GOOGLE_SERVICE_ACCOUNT_EMAIL)
       .setAudience('https://oauth2.googleapis.com/token').setSubject(GOOGLE_SERVICE_ACCOUNT_EMAIL)
       .setIssuedAt().setExpirationTime('1h').sign(privateKey);
     
+    // ** START: 關鍵修正 - 手動建立請求 Body **
     const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
     const body = `grant_type=${encodeURIComponent(grantType)}&assertion=${encodeURIComponent(jwt)}`;
 
@@ -23,7 +23,8 @@ getAccessTokenasync function getAccessToken(env) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body,
     });
-    
+    // ** END: 關鍵修正 **
+
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok) throw new Error(`從 Google 取得 access token 失敗: ${tokenData.error_description || tokenData.error}`);
     return tokenData.access_token;

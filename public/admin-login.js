@@ -2656,6 +2656,7 @@ async function fetchAllExpHistory() {
     }
  
 
+
     await initialize();
         showPage('dashboard'); 
     }

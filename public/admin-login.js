@@ -22,7 +22,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 async function initializeAdminPanel() {
-    
+
+
+//清空資料庫的
+const resetDemoDataBtn = document.getElementById('reset-demo-data-btn');
+if (resetDemoDataBtn) {
+    resetDemoDataBtn.addEventListener('click', async () => {
+        if (!confirm('【警告】您真的確定要清空所有展示資料嗎？\n\n此操作將會刪除所有預約、租借和消費紀錄，且無法復原！')) {
+            return;
+        }
+
+        try {
+            resetDemoDataBtn.textContent = '正在清空中...';
+            resetDemoDataBtn.disabled = true;
+
+            const response = await fetch('/api/admin/reset-demo-data', {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || '清空失敗');
+            }
+
+            alert('展示資料已成功清空！');
+            // 重新載入儀表板和相關頁面的數據
+            fetchDashboardStats(); 
+            allBookings = [];
+            allRentals = [];
+            allExpHistory = [];
+
+        } catch (error) {
+            alert(`錯誤：${error.message}`);
+        } finally {
+            resetDemoDataBtn.textContent = '清空所有展示資料';
+            resetDemoDataBtn.disabled = false;
+        }
+    });
+}    
+
     // --- 【模組名稱：全域變數與 DOM 宣告】 ---
     const mainNav = document.querySelector('.nav-tabs');
     const pages = document.querySelectorAll('.page');

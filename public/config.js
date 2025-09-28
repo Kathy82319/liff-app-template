@@ -97,7 +97,7 @@ window.APP_CONFIG = {
 
     // --- 【新增】 ---
     // 顧客最晚需要提前幾天預約
-    BOOKING_CUTOFF_DAYS: 1,
+    BOOKING_CUTOFF_DAYS: 3,
 
     // 會員等級定義
     MEMBERSHIP_LEVELS: [

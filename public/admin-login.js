@@ -2656,17 +2656,18 @@ async function fetchAllExpHistory() {
     }
  
     // ---- 初始化 ----
-    async function initialize() {
-        try {
-            const response = await fetch('/api/get-class-perks');
-            if (!response.ok) throw new Error('無法獲取職業設定');
-            classPerks = await response.json();
-        } catch (error) {
-            console.error('初始化職業設定失敗:', error);
-            alert(`警告：無法從 Google Sheet 獲取職業設定。`);
-        }
-        // 【修改點 5】我們不再在這裡呼叫 showPage
+// ---- 初始化 ----
+async function initialize() {
+    try {
+        // 【核心修正】將 '/get-class-perks' 改為 '/api/get-class-perks'
+        const response = await fetch('/api/get-class-perks');
+        if (!response.ok) throw new Error('無法獲取職業設定');
+        classPerks = await response.json();
+    } catch (error) {
+        console.error('初始化職業設定失敗:', error);
+        alert(`警告：無法從 Google Sheet 獲取職業設定。`);
     }
+}
 
     // 【修改點 6】使用 await 等待 initialize() 完成所有非同步任務
     await initialize();

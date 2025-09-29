@@ -21,7 +21,6 @@ async function initializeAdminPanel() {
     const productListTbody = document.getElementById('product-list-tbody')
     const productSearchInput = document.getElementById('game-search-input');
     const editProductModal = document.getElementById('edit-product-modal');
-    const editProductModal = document.getElementById('edit-game-modal');
     const editProductForm = document.getElementById('edit-product-form');
     const syncProductsBtn = document.getElementById('sync-games-btn');
     const bookingListTbody = document.getElementById('booking-list-tbody');

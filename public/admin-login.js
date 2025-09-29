@@ -78,27 +78,33 @@ async function initializeAdminPanel() {
     let allSettings = [];
     let currentSelectedUserForPoints = null;
 
-    // --- 頁面切換邏輯 (更新) ---
+    // --- 頁面切換邏輯 ---
     function showPage(pageId) {
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
         }
         pages.forEach(page => page.classList.remove('active'));
-        // 舊的 'scan' 頁面現在由 'points' 頁面取代
         const targetPageId = pageId === 'scan' ? 'points' : pageId;
-        document.getElementById(`page-${targetPageId}`)?.classList.add('active');
+        const targetPage = document.getElementById(`page-${targetPageId}`);
+        if (targetPage) {
+            targetPage.classList.add('active');
+        }
 
         document.querySelectorAll('.nav-tabs a').forEach(link => {
             const linkTarget = link.getAttribute('href').substring(1);
-            link.classList.remove('active');
-            if (linkTarget === pageId) {
-                link.classList.add('active');
-            }
+            link.classList.toggle('active', linkTarget === pageId);
         });
 
         const pageLoader = {
-            // ...
-            'points': initializePointsPage, // 取代 'scan'
+            'dashboard': fetchDashboardStats,
+            'users': fetchAllUsers,
+            'inventory': fetchAllProducts,
+            'bookings': () => fetchAllBookings('today'),
+            'exp-history': fetchAllExpHistory,
+            'news': fetchAllNews,
+            'drafts': fetchAllDrafts,
+            'store-info': fetchStoreInfo,
+            'points': initializePointsPage,
             'settings': fetchAndRenderSettings
         };
         pageLoader[targetPageId]?.();
@@ -1225,7 +1231,7 @@ async function initializeAdminPanel() {
         });
     }
     
-// =================================================================
+    // =================================================================
     // 系統設定模組 (System Settings)
     // =================================================================
     async function fetchAndRenderSettings() {
@@ -1269,7 +1275,7 @@ async function initializeAdminPanel() {
             const header = document.createElement('div');
             header.className = 'setting-group-header';
             header.innerHTML = `<h4>${group.title}</h4>`;
-
+            
             const body = document.createElement('div');
             body.className = 'setting-group-body';
             
@@ -1285,7 +1291,6 @@ async function initializeAdminPanel() {
                     formGroup = createGenericInput(setting);
                 }
                 
-                // 條件顯示邏輯
                 if (setting.key.startsWith('TERMS_') || setting.key.startsWith('LOGIC_')) {
                     const featureKey = findRelatedFeatureKey(setting.key);
                     if (featureKey) {
@@ -1304,7 +1309,6 @@ async function initializeAdminPanel() {
             settingsContainer.appendChild(groupDiv);
         }
         
-        // 首次載入時展開第一個群組
         const firstGroupBody = settingsContainer.querySelector('.setting-group-body');
         if (firstGroupBody) {
             firstGroupBody.classList.add('visible');
@@ -1314,9 +1318,7 @@ async function initializeAdminPanel() {
     function createToggleSwitch(setting) {
         const formGroup = document.createElement('div');
         formGroup.className = 'form-group';
-        formGroup.style.display = 'flex';
-        formGroup.style.alignItems = 'center';
-        formGroup.style.justifyContent = 'space-between';
+        formGroup.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
         
         const label = document.createElement('label');
         label.htmlFor = setting.key;
@@ -1333,10 +1335,8 @@ async function initializeAdminPanel() {
         const slider = document.createElement('span');
         slider.className = 'slider';
 
-        switchLabel.appendChild(input);
-        switchLabel.appendChild(slider);
-        formGroup.appendChild(label);
-        formGroup.appendChild(switchLabel);
+        switchLabel.append(input, slider);
+        formGroup.append(label, switchLabel);
         
         input.addEventListener('change', (e) => {
             const isEnabled = e.target.checked;
@@ -1355,34 +1355,25 @@ async function initializeAdminPanel() {
         const label = document.createElement('label');
         label.htmlFor = setting.key;
         label.textContent = setting.description || setting.key;
-        formGroup.appendChild(label);
-
+        
         let inputElement;
-        switch (setting.type) {
-            case 'json':
-                inputElement = document.createElement('textarea');
-                inputElement.rows = 4;
-                try {
-                    // 格式化 JSON，使其在顯示時更易讀
-                    inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
-                } catch (e) {
-                    inputElement.value = setting.value; // 如果解析失敗，則顯示原始字串
-                }
-                break;
-            case 'number':
-                inputElement = document.createElement('input');
-                inputElement.type = 'number';
+        if (setting.type === 'json') {
+            inputElement = document.createElement('textarea');
+            inputElement.rows = 4;
+            try {
+                inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
+            } catch (e) {
                 inputElement.value = setting.value;
-                break;
-            default: // 'string'
-                inputElement = document.createElement('input');
-                inputElement.type = 'text';
-                inputElement.value = setting.value;
+            }
+        } else {
+            inputElement = document.createElement('input');
+            inputElement.type = setting.type === 'number' ? 'number' : 'text';
+            inputElement.value = setting.value;
         }
         
         inputElement.id = setting.key;
         inputElement.name = setting.key;
-        formGroup.appendChild(inputElement);
+        formGroup.append(label, inputElement);
         return formGroup;
     }
 
@@ -1827,40 +1818,47 @@ async function initializeAdminPanel() {
         });
     }
 
-    if (submitExpBtn) {
-    submitExpBtn?.addEventListener('click', async () => {
-        if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
-            alert('錯誤：尚未選取顧客！'); return;
-        }
-        const userId = currentSelectedUserForPoints.id;
-        const expValue = Number(expInput.value);
-        let reason = reasonSelect.value;
-        if (reason === 'other') reason = customReasonInput.value.trim();
-        if (!expValue || expValue <= 0 || !reason) {
-            pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
-            pointsStatusMessage.style.color = 'var(--danger-color)';
-            return;
-        }
-        pointsStatusMessage.textContent = '正在處理中...';
-        submitExpBtn.disabled = true;
-        try {
-            const response = await fetch('/api/add-points', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, expValue, reason }),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || '未知錯誤');
-            pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
-            pointsStatusMessage.style.color = 'var(--success-color)';
-            expInput.value = '';
-        } catch (error) {
-            pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
-            pointsStatusMessage.style.color = 'var(--danger-color)';
-        } finally {
-            submitExpBtn.disabled = false;
-        }
-    });
+if (submitExpBtn) {
+        submitExpBtn.addEventListener('click', async () => {
+            if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
+                alert('錯誤：尚未選取顧客！');
+                return;
+            }
+            const userId = currentSelectedUserForPoints.id;
+            const expValue = Number(expInput.value);
+            let reason = reasonSelect.value;
+            if (reason === 'other') {
+                reason = customReasonInput.value.trim();
+            }
+            if (!expValue || expValue <= 0 || !reason) {
+                pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
+                pointsStatusMessage.style.color = 'var(--danger-color)';
+                return;
+            }
+            pointsStatusMessage.textContent = '正在處理中...';
+            submitExpBtn.disabled = true;
+            try {
+                const response = await fetch('/api/add-points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, expValue, reason }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || '未知錯誤');
+                pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
+                pointsStatusMessage.style.color = 'var(--success-color)';
+                expInput.value = '';
+                // 清空自訂原因輸入框並還原下拉選單
+                customReasonInput.value = '';
+                reasonSelect.value = '消費回饋';
+            } catch (error) {
+                pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
+                pointsStatusMessage.style.color = 'var(--danger-color)';
+            } finally {
+                submitExpBtn.disabled = false;
+            }
+        });
+    }
 
 
  

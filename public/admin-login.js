@@ -821,13 +821,13 @@ async function initializeAdminPanel() {
             }
         } catch (error) { 
             console.error('獲取預約列表失敗:', error); 
-            const bookingListTbody = document.getElementById('booking-list-tbody');
+
             if(bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">讀取預約失敗</td></tr>';
         }
     }
 
     function renderBookingList(bookings) {
-        const bookingListTbody = document.getElementById('booking-list-tbody');
+
         if (!bookingListTbody) return;
         
         // 列表篩選邏輯
@@ -934,7 +934,7 @@ async function initializeAdminPanel() {
         });
     }
 
-    const bookingListTbody = document.getElementById('booking-list-tbody');
+
     if (bookingListTbody) {
         bookingListTbody.addEventListener('click', async (event) => {
             const target = event.target;

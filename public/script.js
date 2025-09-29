@@ -679,31 +679,51 @@ function renderBookings(bookings, container, isPast = false) {
         priceContent.innerHTML = priceHTML || `<p>價格資訊請洽店內</p>`;
     }
 
-    function renderProducts() {
-        const container = document.getElementById('game-list-container');
-        if(!container) return;
-        let filteredGames = allProducts.filter(g => g.is_visible === 1);
-        const keyword = activeFilters.keyword.toLowerCase().trim();
-        if (keyword) { filteredGames = filteredGames.filter(g => g.name.toLowerCase().includes(keyword)); }
-        if (activeFilters.tag) { filteredGames = filteredGames.filter(g => (g.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); }
-        if (filteredGames.length === 0) {
-            container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
-            return;
+// public/script.js -> 替換 renderProducts 函式
+function renderProducts() {
+    const container = document.getElementById('game-list-container');
+    if(!container) return;
+    
+    let filteredProducts = allProducts.filter(p => p.is_visible === 1);
+    const keyword = activeFilters.keyword.toLowerCase().trim();
+    if (keyword) { 
+        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(keyword)); 
+    }
+    if (activeFilters.tag) { 
+        filteredProducts = filteredProducts.filter(p => (p.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); 
+    }
+
+    if (filteredProducts.length === 0) {
+        container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
+        return;
+    }
+
+    container.innerHTML = filteredProducts.map(product => {
+        let priceDisplay = '';
+        if (product.price_type === 'simple') {
+            priceDisplay = `$${product.price}`;
+        } else if (product.price_type === 'multiple') {
+            priceDisplay = '多重價格';
         }
-        container.innerHTML = filteredGames.map(game => `
-            <div class="product-card" data-game-id="${game.game_id}">
-                <img src="${game.image_url || ''}" alt="${game.name}" class="game-image">
+
+        const images = JSON.parse(product.images || '[]');
+        const imageUrl = images.length > 0 ? images[0] : 'https://via.placeholder.com/150';
+
+        return `
+            <div class="game-card" data-product-id="${product.product_id}">
+                <img src="${imageUrl}" alt="${product.name}" class="game-image">
                 <div class="game-info">
-                    <h3 class="game-title">${game.name}</h3>
-                    <p class="game-description">${(game.description || '').substring(0, 40)}...</p> 
-                    <div class="game-details">
-                        <span>👥 ${game.min_players}-${game.max_players} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}</span>
-                        <span>⭐ ${CONFIG.TERMS.PRODUCT_DIFFICULTY_LABEL}: ${game.difficulty}</span>
+                    <h3 class="game-title">${product.name}</h3>
+                    <p class="game-description">${(product.description || '').substring(0, 40)}...</p> 
+                    <div class="game-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                        <span style="font-size: 0.8rem; background-color: var(--color-bg); padding: 2px 8px; border-radius: 10px;">${product.category || '未分類'}</span>
+                        <span style="font-size: 1rem; font-weight: bold; color: var(--color-primary);">${priceDisplay}</span>
                     </div>
                 </div>
             </div>
-        `).join('');
-    }
+        `;
+    }).join('');
+}
 
     function populateFilters() {
         const filterContainer = document.getElementById('tag-filter-container');

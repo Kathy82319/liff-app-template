@@ -11,7 +11,6 @@ export async function onRequest(context) {
         // 我們將會清空交易性質的資料表，但保留 Users 和 Products 等基礎資料
         const tablesToClear = [
             'Bookings',
-            'Rentals',
             'Purchasehistory'
         ];
 

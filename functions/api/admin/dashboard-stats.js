@@ -1,5 +1,4 @@
-// functions/api/admin/dashboard-stats.js
-
+// functions/api/admin/dashboard-stats.js (修正後)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'GET') {
@@ -14,24 +13,8 @@ export async function onRequest(context) {
       "SELECT SUM(num_of_people) as total_people FROM Bookings WHERE booking_date = ? AND status IN ('confirmed', 'checked-in')"
     );
     const todayBookings = await bookingsStmt.bind(today).first();
-
-    // 2. 查詢目前未歸還的桌遊總數
-    const rentalsStmt = db.prepare(
-      "SELECT COUNT(*) as outstanding_rentals FROM Rentals WHERE status = 'rented'"
-    );
-    const outstandingRentals = await rentalsStmt.first();
-    
-    // 3. 查詢今日到期的租借數量
-    const dueTodayStmt = db.prepare(
-        "SELECT COUNT(*) as due_today_count FROM Rentals WHERE due_date = ? AND status = 'rented'"
-    );
-    const dueTodayRentals = await dueTodayStmt.bind(today).first();
-
-
     const stats = {
       today_total_guests: todayBookings.total_people || 0,
-      outstanding_rentals_count: outstandingRentals.outstanding_rentals || 0,
-      due_today_rentals_count: dueTodayRentals.due_today_count || 0,
     };
 
     return new Response(JSON.stringify(stats), {

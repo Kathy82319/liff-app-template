@@ -40,6 +40,7 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
 }
 // --- Google Sheets 工具函式結束 ---
 
+// functions/api/admin/update-product-details.js (修正後)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -47,89 +48,46 @@ export async function onRequest(context) {
     }
     
     const body = await context.request.json();
-    
-    // --- 【新增的驗證區塊】 ---
-    const errors = [];
-    if (!body.gameId) errors.push('缺少遊戲 ID。');
-    if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0 || body.name.length > 100) {
-        errors.push('遊戲名稱為必填，且長度不可超過 100 字。');
-    }
-
-    const numberFields = {
-        min_players: { min: 1, max: 100 }, max_players: { min: 1, max: 100 },
-        total_stock: { min: 0, max: 999 }, for_rent_stock: { min: 0, max: 999 },
-        sale_price: { min: 0, max: 99999 }, rent_price: { min: 0, max: 99999 },
-        deposit: { min: 0, max: 99999 }, late_fee_per_day: { min: 0, max: 9999 }
-    };
-
-    for (const field in numberFields) {
-        const value = Number(body[field]);
-        const limits = numberFields[field];
-        if (isNaN(value) || !Number.isInteger(value) || value < limits.min || value > limits.max) {
-            errors.push(`欄位 ${field} 必須是 ${limits.min} 到 ${limits.max} 之間的整數。`);
-        }
-    }
-    
-    if (Number(body.for_rent_stock) > Number(body.total_stock)) {
-        errors.push('可租借庫存不能大於總庫存。');
-    }
-    
-    const allowedDifficulties = ['簡單', '普通', '困難', '專家'];
-    if (!allowedDifficulties.includes(body.difficulty)) {
-        errors.push('無效的難度設定。');
-    }
-
-    if (errors.length > 0) {
-        return new Response(JSON.stringify({ error: errors.join(' ') }), { status: 400 });
-    }
-    // --- 【驗證區塊結束】 ---
+    const { productId, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
+    if (!productId || !name) {
+        return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
+    }
+
     const db = context.env.DB;
     
-        const stmt = db.prepare(
-          `UPDATE Products SET
-             name = ?, description = ?, image_url = ?, image_url_2 = ?, image_url_3 = ?, tags = ?,
-             min_players = ?, max_players = ?, difficulty = ?,
-             total_stock = ?, for_rent_stock = ?, for_sale_stock = ?,
-             sale_price = ?, rent_price = ?, deposit = ?, late_fee_per_day = ?,
-             is_visible = ?, supplementary_info = ?
-           WHERE game_id = ?`
-        );
-        const for_sale_stock = (Number(body.total_stock) || 0) - (Number(body.for_rent_stock) || 0);
+    const stmt = db.prepare(
+      `UPDATE Products SET
+         name = ?, description = ?, category = ?, tags = ?, images = ?, is_visible = ?,
+         inventory_management_type = ?, stock_quantity = ?, stock_status = ?,
+         price_type = ?, price = ?, price_options = ?,
+         spec_1_name = ?, spec_1_value = ?, spec_2_name = ?, spec_2_value = ?,
+         spec_3_name = ?, spec_3_value = ?, spec_4_name = ?, spec_4_value = ?,
+         spec_5_name = ?, spec_5_value = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE product_id = ?`
+    );
 
-        const result = await stmt.bind(
-            body.name, body.description || '', body.image_url || '', body.image_url_2 || '', body.image_url_3 || '', body.tags || '',
-            Number(body.min_players), Number(body.max_players), body.difficulty,
-            Number(body.total_stock), Number(body.for_rent_stock), for_sale_stock,
-            Number(body.sale_price), Number(body.rent_price),
-            Number(body.deposit), Number(body.late_fee_per_day),
-            body.is_visible ? 1 : 0, body.supplementary_info || '',
-            body.gameId
-        ).run();
+    const result = await stmt.bind(
+        name, description, category, tags, images, is_visible ? 1 : 0,
+        inventory_management_type, stock_quantity, stock_status,
+        price_type, price, price_options,
+        spec_1_name, spec_1_value, spec_2_name, spec_2_value,
+        spec_3_name, spec_3_value, spec_4_name, spec_4_value,
+        spec_5_name, spec_5_value,
+        productId
+    ).run();
 
     if (result.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: `找不到遊戲 ID: ${body.gameId}，無法更新。` }), { status: 404 });
-    }
-
-    const { gameId: id, ...dataToSync } = body; 
-    dataToSync.is_visible = dataToSync.is_visible ? 'TRUE' : 'FALSE';
-    dataToSync.for_sale_stock = for_sale_stock;
-
-    const sheetName = context.env.PRODUCTS_SHEET_NAME;
-    if (sheetName) {
-        context.waitUntil(
-            updateRowInSheet(context.env, sheetName, 'game_id', body.gameId, dataToSync)
-            .catch(err => console.error(`[背景同步失敗] 更新 game_id ${body.gameId} 時發生錯誤:`, err))
-        );
+      return new Response(JSON.stringify({ error: `找不到產品 ID: ${productId}，無法更新。` }), { status: 404 });
     }
     
-    return new Response(JSON.stringify({ success: true, message: '成功更新桌遊詳細資訊！' }), {
+    return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in update-boardgame-details API:', error);
-    return new Response(JSON.stringify({ error: '更新桌遊資訊失敗。', details: error.message }), { status: 500 });
+    console.error('Error in update-product-details API:', error);
+    return new Response(JSON.stringify({ error: '更新產品資訊失敗。', details: error.message }), { status: 500 });
   }
 }

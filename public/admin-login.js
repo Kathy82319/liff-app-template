@@ -870,6 +870,78 @@ async function initializeAdminPanel() {
         });
     }
 
+// =================================================================
+    // 預約管理模組 (Booking Management)
+    // =================================================================
+    let bookingDatepicker = null;
+    let enabledDates = [];
+
+    async function fetchAllBookings(status = 'all_upcoming') {
+        try {
+            const response = await fetch(`/api/get-bookings?status=${status}`);
+            if (!response.ok) throw new Error('無法獲取預約列表');
+            allBookings = await response.json();
+
+            // 根據當前顯示的視圖（列表或日曆）來渲染
+            if (document.getElementById('list-view-container').style.display !== 'none') {
+                renderBookingList(allBookings);
+            }
+            if (document.getElementById('calendar-view-container').style.display !== 'none') {
+                updateCalendar();
+            }
+        } catch (error) { 
+            console.error('獲取預約列表失敗:', error); 
+            const bookingListTbody = document.getElementById('booking-list-tbody');
+            if(bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">讀取預約失敗</td></tr>';
+        }
+    }
+
+    function renderBookingList(bookings) {
+        const bookingListTbody = document.getElementById('booking-list-tbody');
+        if (!bookingListTbody) return;
+        
+        // 列表篩選邏輯
+        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+        let filteredList = bookings;
+        if (activeFilter === 'today') {
+            const today = new Date().toISOString().split('T')[0];
+            filteredList = bookings.filter(b => b.booking_date === today && b.status !== 'cancelled');
+        } else if (activeFilter !== 'all_upcoming') {
+             filteredList = bookings.filter(b => b.status === activeFilter);
+        }
+
+        bookingListTbody.innerHTML = '';
+        if (filteredList.length === 0) {
+            bookingListTbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">找不到符合條件的預約。</td></tr>';
+            return;
+        }
+
+        filteredList.forEach(booking => {
+            const row = bookingListTbody.insertRow();
+            let statusText = '未知';
+            if (booking.status === 'confirmed') statusText = '預約成功';
+            if (booking.status === 'checked-in') statusText = '已報到';
+            if (booking.status === 'cancelled') statusText = '已取消';
+
+            row.innerHTML = `
+                <td class="compound-cell">
+                    <div class="main-info">${booking.booking_date}</div>
+                    <div class="sub-info">${booking.time_slot}</div>
+                </td>
+                <td class="compound-cell">
+                    <div class="main-info">${booking.contact_name}</div>
+                    <div class="sub-info">${booking.contact_phone}</div>
+                </td>
+                <td>${booking.num_of_people}</td>
+                <td>${statusText}</td>
+                <td class="actions-cell">
+                    <button class="action-btn btn-check-in" data-booking-id="${booking.booking_id}" style="background-color: var(--success-color);" ${booking.status !== 'confirmed' ? 'disabled' : ''}>報到</button>
+                    <button class="action-btn btn-cancel-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--danger-color);" ${booking.status === 'cancelled' ? 'disabled' : ''}>取消</button>
+                </td>
+            `;
+        });
+    }
+
     function updateCalendar() {
         if (!calendarGrid || !calendarMonthYear) return;
         const year = currentCalendarDate.getFullYear();
@@ -888,7 +960,6 @@ async function initializeAdminPanel() {
             calendarGrid.innerHTML += `<div class="calendar-day day-other-month"></div>`;
         }
 
-        // 【括號修正】將 calendarMonthYear.textContent 移到迴圈外
         for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr);
@@ -897,7 +968,7 @@ async function initializeAdminPanel() {
             let bookingsHTML = bookingsForDay.map(b => {
                 const actionsHTML = `
                     <div class="actions">
-                        <button class="action-btn btn-check-in" data-booking-id="${b.booking_id}" style="background:var(--success-color);" ${b.status !== 'confirmed' ? 'disabled' : ''}>✓</button>
+                        <button class="action-btn btn-check-in" data-booking-id="${b.booking_id}" style="background:var(--success-color);" ${b.status !== 'confirmed' || isPast ? 'disabled' : ''}>✓</button>
                         <button class="action-btn btn-cancel-booking" data-booking-id="${b.booking_id}" style="background:var(--danger-color);" ${b.status === 'cancelled' ? 'disabled' : ''}>✗</button>
                     </div>`;
 
@@ -907,35 +978,12 @@ async function initializeAdminPanel() {
                         </div>`;
             }).join('');
             
-            calendarGrid.innerHTML += `<div class="calendar-day ${isPast ? 'is-past' : ''}">${day}</span>${bookingsHTML}</div>`;
-        }        
-        
-        calendarMonthYear.textContent = `${year} 年 ${month + 1} 月`;
-        calendarGrid.innerHTML = '';
-        ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
-            calendarGrid.innerHTML += `<div class="calendar-weekday">${day}</div>`;
-        });
-
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
-        const startingDayOfWeek = firstDayOfMonth.getDay();
-
-        for (let i = 0; i < startingDayOfWeek; i++) {
-            calendarGrid.innerHTML += `<div class="calendar-day day-other-month"></div>`;
-        }
-
-        for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr && b.status !== 'cancelled');
-            let bookingsHTML = bookingsForDay.map(b => `<div class="calendar-booking">${b.time_slot} ${b.contact_name}</div>`).join('');
-            calendarGrid.innerHTML += `
-                <div class="calendar-day" data-date="${dateStr}">
-                    <span class="day-number">${day}</span>
-                    ${bookingsHTML}
-                </div>
-            `;
+            calendarGrid.innerHTML += `<div class="calendar-day ${isPast ? 'is-past' : ''}"><span class="day-number">${day}</span>${bookingsHTML}</div>`;
         }
     }
+    
+    // --- 事件監聽器 ---
+
     if (calendarGrid) {
         calendarGrid.addEventListener('click', async (e) => {
             const button = e.target.closest('button.action-btn');
@@ -943,38 +991,33 @@ async function initializeAdminPanel() {
             
             const bookingId = button.dataset.bookingId;
             if(!bookingId) return;
+            const booking = allBookings.find(b => b.booking_id == bookingId);
+            if(!booking) return;
 
             if (button.classList.contains('btn-check-in')) {
-                // ... (報到邏輯與列表視圖相同)
+                if (confirm(`確定要將 ${booking.booking_date} ${booking.contact_name} 的預約標示為「已報到」嗎？`)) {
+                    await updateBookingStatus(Number(bookingId), 'checked-in');
+                }
             } else if (button.classList.contains('btn-cancel-booking')) {
-                const booking = allBookings.find(b => b.booking_id == bookingId);
                 openCancelBookingModal(booking);
             }
         });
     }
+
+    const bookingListTbody = document.getElementById('booking-list-tbody');
     if (bookingListTbody) {
         bookingListTbody.addEventListener('click', async (event) => {
             const target = event.target;
-            const bookingId = target.dataset.bookingid;
-            if (!bookingId) return;
+            if (!target.classList.contains('action-btn')) return;
 
+            const bookingId = target.closest('td').querySelector('.action-btn').dataset.bookingid;
+            if (!bookingId) return;
             const booking = allBookings.find(b => b.booking_id == bookingId);
             if (!booking) return;
 
             if (target.classList.contains('btn-check-in')) {
                 if (confirm(`確定要將 ${booking.booking_date} ${booking.contact_name} 的預約標示為「已報到」嗎？`)) {
-                    try {
-                        const response = await fetch('/api/update-booking-status', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ bookingId: Number(bookingId), status: 'checked-in' })
-                        });
-                        if (!response.ok) throw new Error('報到失敗');
-                        alert('報到成功！');
-                        await fetchAllBookings(document.querySelector('#booking-status-filter .active').dataset.filter);
-                    } catch (error) {
-                        alert(`錯誤：${error.message}`);
-                    }
+                    await updateBookingStatus(Number(bookingId), 'checked-in');
                 }
             } else if (target.classList.contains('btn-cancel-booking')) {
                 openCancelBookingModal(booking);
@@ -982,56 +1025,22 @@ async function initializeAdminPanel() {
         });
     }
 
-    if(document.getElementById('booking-status-filter')) {
-        document.getElementById('booking-status-filter').addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                document.querySelector('#booking-status-filter .active')?.classList.remove('active');
-                e.target.classList.add('active');
-                const filter = e.target.dataset.filter;
-                fetchAllBookings(filter);
-            }
-        });
-    }
-
-    if (switchToCalendarViewBtn) {
-        switchToCalendarViewBtn.addEventListener('click', () => {
-            const isCalendarVisible = calendarViewContainer.style.display !== 'none';
-            if (isCalendarVisible) {
-                calendarViewContainer.style.display = 'none';
-                listViewContainer.style.display = 'block';
-                switchToCalendarViewBtn.textContent = '切換至行事曆';
-            } else {
-                calendarViewContainer.style.display = 'block';
-                listViewContainer.style.display = 'none';
-                switchToCalendarViewBtn.textContent = '切換回列表';
-                fetchAllBookings('all_upcoming');
-            }
-        });
-    }
-
-    if (calendarPrevMonthBtn) calendarPrevMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); fetchAllBookings('all_upcoming'); });
-    if (calendarNextMonthBtn) calendarNextMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); fetchAllBookings('all_upcoming'); });
-    
-    if (createBookingBtn) {
-        createBookingBtn.addEventListener('click', openCreateBookingModal);
+    async function updateBookingStatus(bookingId, status) {
+        try {
+            const response = await fetch('/api/update-booking-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId, status })
+            });
+            if (!response.ok) throw new Error(`將狀態更新為 ${status} 失敗`);
+            alert('狀態更新成功！');
+            const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'all_upcoming';
+            await fetchAllBookings(activeFilter); // 重新載入數據
+        } catch (error) {
+            alert(`錯誤：${error.message}`);
+        }
     }
     
-    if (createBookingModal) {
-        createBookingModal.querySelector('.modal-close').addEventListener('click', () => createBookingModal.style.display = 'none');
-        createBookingModal.querySelector('.btn-cancel').addEventListener('click', () => createBookingModal.style.display = 'none');
-        document.getElementById('booking-user-search').addEventListener('input', (e) => handleAdminUserSearch(e.target.value.toLowerCase().trim()));
-        document.getElementById('booking-user-select').addEventListener('change', (e) => {
-            const selectedUser = allUsers.find(user => user.user_id === e.target.value);
-            if (selectedUser) {
-                document.getElementById('booking-name-input').value = selectedUser.nickname || selectedUser.line_display_name;
-                document.getElementById('booking-phone-input').value = selectedUser.phone || '';
-            }
-        });
-    }
-
-    if (createBookingForm) {
-        createBookingForm.addEventListener('submit', handleCreateBookingSubmit);
-    }
 
     async function initializeBookingSettings() {
         try {
@@ -1303,7 +1312,7 @@ async function initializeAdminPanel() {
         }
     }
 
-function renderSettingsForm(settings) {
+firstDayOfMonth
         if (!settingsContainer) return;
         settingsContainer.innerHTML = ''; 
 

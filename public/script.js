@@ -187,18 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const productCard = target.closest('.product-card');
-            if (productCard && productCard.dataset.productId) {
-                const productId = productCard.dataset.productId;
-                const productItem = allProducts.find(p => p.product_id == productId);
-                if (productItem) {
-                    pageHistory.push('page-product-details');
-                    appContent.innerHTML = pageTemplates.querySelector('#page-product-details').innerHTML;
-                    renderProductDetails(productItem);
-                }
-                return;
-            }
-
             if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');

@@ -1225,106 +1225,91 @@ async function initializeAdminPanel() {
         });
     }
     
-async function fetchAndRenderSettings() {
-    if (!settingsContainer) return;
-    try {
-        settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
-        const response = await fetch('/api/admin/get-settings');
-        if (!response.ok) throw new Error('無法獲取設定列表');
-        allSettings = await response.json();
-        renderSettingsForm(allSettings); // 現在這個函式存在了
-    } catch (error) {
-        console.error('獲取設定失敗:', error);
-        settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
-    }
-}
-
-async function fetchAndRenderSettings() {
-    if (!settingsContainer) return;
-    try {
-        settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
-        const response = await fetch('/api/admin/get-settings');
-        if (!response.ok) throw new Error('無法獲取設定列表');
-        allSettings = await response.json();
-        renderSettingsForm(allSettings); // 現在這個函式存在了
-    } catch (error) {
-        console.error('獲取設定失敗:', error);
-        settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
-    }
-}
-
-// 【**補上的關鍵函式**】
-function renderSettingsForm(settings) {
-    if (!settingsContainer) return;
-    settingsContainer.innerHTML = '';
-
-    const groupedSettings = {
-        FEATURES: { title: '功能開關', items: [] },
-        TERMS: { title: '商業術語', items: [] },
-        LOGIC: { title: '業務邏輯', items: [] }
-    };
-
-    settings.forEach(setting => {
-        const groupKey = setting.key.split('_')[0];
-        if (groupedSettings[groupKey]) {
-            groupedSettings[groupKey].items.push(setting);
+// =================================================================
+    // 系統設定模組 (System Settings)
+    // =================================================================
+    async function fetchAndRenderSettings() {
+        if (!settingsContainer) return;
+        try {
+            settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
+            const response = await fetch('/api/admin/get-settings');
+            if (!response.ok) throw new Error('無法獲取設定列表');
+            allSettings = await response.json();
+            renderSettingsForm(allSettings);
+        } catch (error) {
+            console.error('獲取設定失敗:', error);
+            settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
         }
-    });
+    }
 
-    for (const groupName in groupedSettings) {
-        const group = groupedSettings[groupName];
-        if (group.items.length === 0) continue;
+    function renderSettingsForm(settings) {
+        if (!settingsContainer) return;
+        settingsContainer.innerHTML = '';
 
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'setting-group';
+        const groupedSettings = {
+            FEATURES: { title: '功能開關', items: [] },
+            TERMS: { title: '商業術語', items: [] },
+            LOGIC: { title: '業務邏輯', items: [] }
+        };
 
-        const header = document.createElement('div');
-        header.className = 'setting-group-header';
-        header.innerHTML = `<h4>${group.title}</h4>`;
-        header.addEventListener('click', () => {
-            body.classList.toggle('visible');
-            header.classList.toggle('active');
+        settings.forEach(setting => {
+            const groupKey = setting.key.split('_')[0];
+            if (groupedSettings[groupKey]) {
+                groupedSettings[groupKey].items.push(setting);
+            }
         });
 
+        for (const groupName in groupedSettings) {
+            const group = groupedSettings[groupName];
+            if (group.items.length === 0) continue;
 
-        const body = document.createElement('div');
-        body.className = 'setting-group-body';
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'setting-group';
 
-        group.items.forEach(setting => {
-            let formGroup;
-            if (setting.type === 'boolean') {
-                formGroup = createToggleSwitch(setting);
-            } else {
-                formGroup = createGenericInput(setting);
-            }
+            const header = document.createElement('div');
+            header.className = 'setting-group-header';
+            header.innerHTML = `<h4>${group.title}</h4>`;
 
-            // 條件顯示邏輯
-            if (setting.key.startsWith('TERMS_') || setting.key.startsWith('LOGIC_')) {
-                const featureKey = findRelatedFeatureKey(setting.key);
-                if (featureKey) {
-                    formGroup.dataset.dependency = featureKey;
-                    const featureSetting = settings.find(s => s.key === featureKey);
-                    if (featureSetting && featureSetting.value !== 'true') {
-                        formGroup.style.display = 'none';
+            const body = document.createElement('div');
+            body.className = 'setting-group-body';
+            
+            header.addEventListener('click', () => {
+                body.classList.toggle('visible');
+            });
+
+            group.items.forEach(setting => {
+                let formGroup;
+                if (setting.type === 'boolean') {
+                    formGroup = createToggleSwitch(setting);
+                } else {
+                    formGroup = createGenericInput(setting);
+                }
+                
+                // 條件顯示邏輯
+                if (setting.key.startsWith('TERMS_') || setting.key.startsWith('LOGIC_')) {
+                    const featureKey = findRelatedFeatureKey(setting.key);
+                    if (featureKey) {
+                        formGroup.dataset.dependency = featureKey;
+                        const featureSetting = settings.find(s => s.key === featureKey);
+                        if (featureSetting && featureSetting.value !== 'true') {
+                            formGroup.style.display = 'none';
+                        }
                     }
                 }
-            }
-            body.appendChild(formGroup);
-        });
-
-        groupDiv.appendChild(header);
-        groupDiv.appendChild(body);
-        settingsContainer.appendChild(groupDiv);
+                body.appendChild(formGroup);
+            });
+            
+            groupDiv.appendChild(header);
+            groupDiv.appendChild(body);
+            settingsContainer.appendChild(groupDiv);
+        }
+        
+        // 首次載入時展開第一個群組
+        const firstGroupBody = settingsContainer.querySelector('.setting-group-body');
+        if (firstGroupBody) {
+            firstGroupBody.classList.add('visible');
+        }
     }
-
-    // 首次載入時展開第一個群組
-    const firstGroup = settingsContainer.querySelector('.setting-group');
-    if (firstGroup) {
-        firstGroup.querySelector('.setting-group-header').classList.add('active');
-        firstGroup.querySelector('.setting-group-body').classList.add('visible');
-    }
-}
-
     
     function createToggleSwitch(setting) {
         const formGroup = document.createElement('div');
@@ -1406,7 +1391,6 @@ function renderSettingsForm(settings) {
         if (key.includes('MEMBERSHIP') || key.includes('POINTS')) return 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM';
         return null;
     }
-
 
     // =================================================================
     // 資訊管理模組 (News Management)

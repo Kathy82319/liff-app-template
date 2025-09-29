@@ -335,14 +335,6 @@ async function initializeAdminPanel() {
         document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
 
-        const priceTypeSelect = document.getElementById('edit-product-price-type');
-        const simplePriceGroup = document.getElementById('simple-price-group');
-        const multiplePriceGroup = document.getElementById('multiple-price-group');
-
-        priceTypeSelect.value = product.price_type || 'simple';
-        simplePriceGroup.style.display = (priceTypeSelect.value === 'simple') ? 'block' : 'none';
-        multiplePriceGroup.style.display = (priceTypeSelect.value === 'multiple') ? 'block' : 'none';
-        document.getElementById('edit-product-price').value = product.price || 0;
         const images = JSON.parse(product.images || '[]');
         for(let i=1; i<=5; i++){
             document.getElementById(`edit-product-image-${i}`).value = images[i-1] || '';

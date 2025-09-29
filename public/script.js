@@ -7,8 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
-
-    // 【修正】將 CONFIG 宣告在頂層，以便整個模組共用
+    
     let CONFIG; 
     
     // --- 狀態變數 ---
@@ -36,26 +35,35 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // =================================================================
-    // 【新增】非同步主函式 (程式啟動點)
+    // 非同步主函式 (程式啟動點)
     // =================================================================
     async function main() {
         try {
-            // 步驟 1: 動態獲取 App 設定
             const response = await fetch('/api/get-app-config');
             if (!response.ok) {
-                throw new Error('無法從伺服器獲取應用程式設定檔。');
+                // 如果 API 回應 404 或 500 等錯誤，response.ok 會是 false
+                const errorText = await response.text();
+                // 嘗試解析錯誤內容，如果失敗就顯示原始文字
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.error || `伺服器錯誤 ${response.status}`);
+                } catch (e) {
+                    throw new Error(`無法從伺服器獲取設定檔，回應內容非預期格式。狀態碼: ${response.status}`);
+                }
             }
-            // 將獲取到的設定賦值給頂層的 CONFIG 變數
-            CONFIG = await response.json();
+            const configData = await response.json();
+            if(!configData || !configData.FEATURES){
+                 throw new Error('獲取到的設定檔格式不正確。');
+            }
+            CONFIG = configData;
 
-            // 步驟 2: 繼續執行原有的 LIFF 初始化流程
             await initializeLiff();
 
         } catch (error) {
             console.error("初始化失敗:", error);
             if (appContent) {
                 appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                    <h2>系統啟動失敗</h2><p>${error.message}</p><p>請稍後再試或聯繫管理員。</p>
+                    <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常後，再試一次。</p>
                 </div>`;
             }
         }
@@ -65,9 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 設定檔應用函式 (Template Engine)
     // =================================================================
     function applyConfiguration() {
-        CONFIG = window.APP_CONFIG; 
         try {
-            // 【修正】直接檢查頂層 CONFIG 變數
+            // 【錯誤修正】移除 CONFIG = window.APP_CONFIG; 這一行
             if (typeof CONFIG === 'undefined' || !CONFIG) {
                 console.error("嚴重錯誤：CONFIG 設定檔不存在！"); return;
             }
@@ -290,18 +297,16 @@ function renderBookings(bookings, container, isPast = false) {
             await liff.init({ liffId: myLiffId });
             if (!liff.isLoggedIn()) {
                 liff.login();
-                return; // login() 會重新導向，後續程式碼不會執行
+                return;
             }
             userProfile = await liff.getProfile();
             
-            // 【重要】在拿到 userProfile 後才套用設定和顯示頁面
             applyConfiguration(); 
             setupGlobalEventListeners();
             showPage('page-home');
 
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            // 即使 LIFF 失敗，我們依然可以嘗試顯示基本內容 (例如在電腦上預覽)
             applyConfiguration();
             setupGlobalEventListeners();
             showPage('page-home');
@@ -1000,7 +1005,6 @@ async function handleBookingConfirmation(event) {
             }
         });
     }
-
     // --- 啟動點 ---
     main();
 });

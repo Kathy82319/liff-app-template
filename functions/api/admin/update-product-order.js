@@ -16,9 +16,8 @@ export async function onRequest(context) {
 
     const operations = orderedGameIds.map((gameId, index) => {
       const newOrder = index + 1;
-      // 【核心修正】將 BoardGames 改為 Products
-      return db.prepare('UPDATE Products SET display_order = ? WHERE game_id = ?')
-               .bind(newOrder, gameId);
+      return db.prepare('UPDATE Products SET display_order = ? WHERE product_id = ?')
+         .bind(newOrder, gameId);
     });
 
     await db.batch(operations);

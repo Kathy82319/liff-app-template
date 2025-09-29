@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 頁面初始化函式映射 ---
     const pageInitializers = {
         'page-home': initializeHomePage,
-        'page-games': initializeProductsPage,
+        'page-products': initializeProductsPage,
         'page-profile': initializeProfilePage,
         'page-my-bookings': initializeMyBookingsPage,
         'page-my-exp-history': initializeMyExpHistoryPage,
@@ -664,7 +664,7 @@ function renderProductDetails(product) {
 
 // public/script.js -> 替換 renderProducts 函式
 function renderProducts() {
-    const container = document.getElementById('game-list-container');
+    const container = document.getElementById('product-list-container')
     if(!container) return;
     
     let filteredProducts = allProducts.filter(p => p.is_visible === 1);
@@ -996,14 +996,19 @@ async function handleBookingConfirmation(event) {
     // =================================================================
     // Tab Bar 主導航
     // =================================================================
-    if (tabBar) {
-        tabBar.addEventListener('click', (event) => {
-            const button = event.target.closest('.tab-button');
-            if (button) {
-                showPage(button.dataset.target);
+if (tabBar) {
+    tabBar.addEventListener('click', (event) => {
+        const button = event.target.closest('.tab-button');
+        if (button) {
+            // 將 data-target 從 page-games 改為 page-products
+            if (button.dataset.target === 'page-games') {
+                 showPage('page-products');
+            } else {
+                 showPage(button.dataset.target);
             }
-        });
-    }
+        }
+    });
+}
     // --- 啟動點 ---
     main();
 });

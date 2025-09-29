@@ -292,19 +292,19 @@
             </div>
         </div>
 
-        <div id="page-users" class="page">
-            <div class="page-header">
-                <h2>顧客總表</h2>
-                <button id="sync-d1-to-sheet-btn" class="action-btn" style="background-color: var(--success-color);">同步至 Google Sheet</button>
+            <div id="page-users" class="page">
+                <div class="page-header">
+                    <h2>顧客總表</h2>
+                    <button id="sync-d1-to-sheet-btn" class="action-btn" style="background-color: var(--success-color);">同步至 Google Sheet</button>
+                </div>
+                <input type="text" id="user-search-input" placeholder="依 LINE 名稱或暱稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
+                <table>
+                    <thead>
+                        <tr><th>LINE 名稱 / 暱稱</th><th>會員方案</th><th>會員等級 / 點數</th><th>方案優惠</th><th>標籤</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="user-list-tbody"></tbody>
+                </table>
             </div>
-            <input type="text" id="user-search-input" placeholder="依 LINE 名稱或暱稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
-            <table>
-                <thead>
-                    <tr><th>LINE 名稱 / 暱稱</th><th>會員等級</th><th>優惠回饋</th><th>點數：</th><th>標籤</th><th>操作</th></tr>
-                </thead>
-                <tbody id="user-list-tbody"></tbody>
-            </table>
-        </div>
 
 <div id="page-inventory" class="page">
             <div class="page-header">
@@ -485,54 +485,57 @@
                 </div>
         </div>
     </div>
-    <div id="edit-user-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-user-title">編輯使用者</h3>
-                <button class="modal-close">&times;</button>
+
+    
+        <div id="edit-user-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-user-title">編輯使用者</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <form id="edit-user-form">
+                    <input type="hidden" id="edit-user-id">
+                    <div class="form-group">
+                        <label for="edit-level-input">等級</label>
+                        <input type="number" id="edit-level-input" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-exp-input">經驗值</label>
+                        <input type="number" id="edit-exp-input" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-class-select">會員方案</label>
+                        <select id="edit-class-select"></select>
+                        <input type="text" id="edit-class-other-input" placeholder="請輸入自訂方案名稱" style="display: none; margin-top: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-perk-input">方案優惠</label>
+                        <input type="text" id="edit-perk-input" placeholder="選擇方案後將自動帶入">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-tag-select">標籤</label>
+                        <select id="edit-tag-select">
+                            <option value="">無</option>
+                            <option value="會員">會員</option>
+                            <option value="員工">員工</option>
+                            <option value="黑名單">黑名單</option>
+                            <option value="other">其他 (自訂)</option>
+                        </select>
+                        <input type="text" id="edit-tag-other-input" placeholder="請輸入自訂標籤" style="display: none; margin-top: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-notes-textarea">備註</label>
+                        <textarea id="edit-notes-textarea" rows="4" placeholder="記錄客人的特殊事項..."></textarea>
+                    </div>                
+                    <div class="form-actions">
+                        <button type="button" class="action-btn btn-cancel">取消</button>
+                        <button type="submit" class="action-btn btn-save">儲存</button>
+                    </div>
+                </form>
             </div>
-            <form id="edit-user-form">
-                <input type="hidden" id="edit-user-id">
-                <div class="form-group">
-                    <label for="edit-level-input">等級</label>
-                    <input type="number" id="edit-level-input" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label for="edit-exp-input">經驗值</label>
-                    <input type="number" id="edit-exp-input" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="edit-class-select">職業</label>
-                    <select id="edit-class-select"></select>
-                    <input type="text" id="edit-class-other-input" placeholder="請輸入會員等級" style="display: none; margin-top: 10px;">
-                </div>
-                <div class="form-group">
-                    <label for="edit-perk-select">職業內容 (福利)</label>
-                    <select id="edit-perk-select"></select>
-                    <input type="text" id="edit-perk-other-input" placeholder="請輸入自訂優惠" style="display: none; margin-top: 10px;">
-                </div>
-                <div class="form-group">
-                    <label for="edit-tag-select">標籤</label>
-                    <select id="edit-tag-select">
-                        <option value="">無</option>
-                        <option value="會員">會員</option>
-                        <option value="員工">員工</option>
-                        <option value="黑名單">黑名單</option>
-                        <option value="other">其他 (自訂)</option>
-                    </select>
-                    <input type="text" id="edit-tag-other-input" placeholder="請輸入自訂標籤" style="display: none; margin-top: 10px;">
-                </div>
-<div class="form-group">
-    <label for="edit-notes-textarea">備註</label>
-    <textarea id="edit-notes-textarea" rows="4" placeholder="記錄客人的特殊事項..."></textarea>
-</div>                
-                <div class="form-actions">
-                    <button type="button" class="action-btn btn-cancel">取消</button>
-                    <button type="submit" class="action-btn btn-save">儲存</button>
-                </div>
-            </form>
         </div>
-    </div>
+    
+
 
     <div id="edit-news-modal" class="modal-overlay">
         <div class="modal-content">

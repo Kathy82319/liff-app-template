@@ -401,22 +401,24 @@ async function initializeAdminPanel() {
     // =================================================================
     async function fetchAllUsers() {
         try {
+            // 先獲取設定，因為後續的 openEditUserModal 會用到
+            if (allSettings.length === 0) {
+                const settingsResponse = await fetch('/api/admin/get-settings');
+                if (!settingsResponse.ok) throw new Error('無法預先獲取系統設定');
+                allSettings = await settingsResponse.json();
+            }
+            
             const usersResponse = await fetch('/api/get-users');
             if (!usersResponse.ok) throw new Error('無法獲取使用者列表');
             allUsers = await usersResponse.json();
-
-            const perksResponse = await fetch('/api/get-class-perks');
-            if (perksResponse.ok) {
-                classPerks = await perksResponse.json();
-            } else {
-                console.warn('無法獲取職業福利設定，編輯功能將受限。');
-            }
+            
             renderUserList(allUsers);
         } catch (error) {
             console.error('獲取使用者列表失敗:', error);
             if(userListTbody) userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取使用者資料失敗</td></tr>`;
         }
     }
+
 
     function renderUserList(users) {
         if (!userListTbody) return;
@@ -483,44 +485,43 @@ async function initializeAdminPanel() {
         document.getElementById('edit-exp-input').value = user.current_exp;
         document.getElementById('edit-notes-textarea').value = user.notes || '';
 
+        // --- 【核心修改】從系統設定動態產生下拉選單 ---
         const classSelect = document.getElementById('edit-class-select');
         const otherClassInput = document.getElementById('edit-class-other-input');
-        const perkSelect = document.getElementById('edit-perk-select');
-        const otherPerkInput = document.getElementById('edit-perk-other-input');
-        const tagSelect = document.getElementById('edit-tag-select');
-        const otherTagInput = document.getElementById('edit-tag-other-input');
-
-        classSelect.innerHTML = '<option value="">無</option>';
-        perkSelect.innerHTML = '<option value="">無</option>';
-        const standardPerks = new Set();
-
-        for (const className in classPerks) {
-            classSelect.add(new Option(className, className));
-            if(classPerks[className]) standardPerks.add(classPerks[className]);
+        const perkInput = document.getElementById('edit-perk-input');
+        
+        classSelect.innerHTML = '<option value="">無方案</option>';
+        let membershipPlans = [];
+        const plansSetting = allSettings.find(s => s.key === 'LOGIC_MEMBERSHIP_PLANS');
+        
+        if (plansSetting && plansSetting.value) {
+            try {
+                membershipPlans = JSON.parse(plansSetting.value);
+                membershipPlans.forEach(plan => {
+                    classSelect.add(new Option(plan.planName, plan.planName));
+                });
+            } catch(e) {
+                console.error("解析會員方案設定失敗:", e);
+            }
         }
-        standardPerks.forEach(perk => perkSelect.add(new Option(perk, perk)));
-
         classSelect.add(new Option('其他 (自訂)', 'other'));
-        perkSelect.add(new Option('其他 (自訂)', 'other'));
-
-        if (classPerks[user.class]) {
+        
+        // 設定預設值
+        const foundPlan = membershipPlans.find(p => p.planName === user.class);
+        if (foundPlan) {
             classSelect.value = user.class;
+            perkInput.value = foundPlan.perk;
             otherClassInput.style.display = 'none';
         } else {
             classSelect.value = 'other';
             otherClassInput.style.display = 'block';
             otherClassInput.value = user.class || '';
-        }
-
-        if (standardPerks.has(user.perk)) {
-            perkSelect.value = user.perk;
-            otherPerkInput.style.display = 'none';
-        } else {
-            perkSelect.value = 'other';
-            otherPerkInput.style.display = 'block';
-            otherPerkInput.value = user.perk || '';
+            perkInput.value = user.perk || '';
         }
         
+        // --- 標籤部分維持不變 ---
+        const tagSelect = document.getElementById('edit-tag-select');
+        const otherTagInput = document.getElementById('edit-tag-other-input');
         const standardTags = ["", "會員", "員工", "黑名單"];
         if (user.tag && !standardTags.includes(user.tag)) {
             tagSelect.value = 'other';
@@ -538,12 +539,29 @@ async function initializeAdminPanel() {
         editUserModal.querySelector('.modal-close').addEventListener('click', () => editUserModal.style.display = 'none');
         editUserModal.querySelector('.btn-cancel').addEventListener('click', () => editUserModal.style.display = 'none');
 
-        document.getElementById('edit-class-select')?.addEventListener('change', (e) => {
-            document.getElementById('edit-class-other-input').style.display = (e.target.value === 'other') ? 'block' : 'none';
+        // 【修改】監聽會員方案的 select 元素
+        const classSelect = document.getElementById('edit-class-select');
+        const otherClassInput = document.getElementById('edit-class-other-input');
+        const perkInput = document.getElementById('edit-perk-input');
+        
+        classSelect?.addEventListener('change', (e) => {
+            const selectedValue = e.target.value;
+            otherClassInput.style.display = (selectedValue === 'other') ? 'block' : 'none';
+            
+            if (selectedValue === 'other') {
+                 perkInput.value = ''; // 自訂時清空優惠
+            } else if (selectedValue === '') {
+                 perkInput.value = ''; // '無方案' 也清空
+            } else {
+                const plansSetting = allSettings.find(s => s.key === 'LOGIC_MEMBERSHIP_PLANS');
+                if (plansSetting) {
+                    const membershipPlans = JSON.parse(plansSetting.value);
+                    const foundPlan = membershipPlans.find(p => p.planName === selectedValue);
+                    perkInput.value = foundPlan ? foundPlan.perk : '';
+                }
+            }
         });
-        document.getElementById('edit-perk-select')?.addEventListener('change', (e) => {
-            document.getElementById('edit-perk-other-input').style.display = (e.target.value === 'other') ? 'block' : 'none';
-        });
+        
         document.getElementById('edit-tag-select')?.addEventListener('change', (e) => {
             document.getElementById('edit-tag-other-input').style.display = (e.target.value === 'other') ? 'block' : 'none';
         });
@@ -553,10 +571,12 @@ async function initializeAdminPanel() {
         editUserForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userId = document.getElementById('edit-user-id').value;
+            
             let newClass = document.getElementById('edit-class-select').value;
             if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
-            let newPerk = document.getElementById('edit-perk-select').value;
-            if (newPerk === 'other') newPerk = document.getElementById('edit-perk-other-input').value.trim();
+            
+            let newPerk = document.getElementById('edit-perk-input').value.trim();
+            
             let newTag = document.getElementById('edit-tag-select').value;
             if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
 

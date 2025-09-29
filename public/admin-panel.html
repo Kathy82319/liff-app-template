@@ -606,82 +606,122 @@
         </div>
     </div> 
 
-    <div id="edit-game-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3 id="modal-game-title">編輯遊戲</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <form id="edit-game-form">
-                <div class="modal-body">
-                    <input type="hidden" id="edit-game-id">
-                    <div class="edit-game-grid">
+<div id="edit-game-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3 id="modal-product-title">編輯產品/服務</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="edit-product-form">
+            <div class="modal-body">
+                <input type="hidden" id="edit-product-id">
+                <div class="edit-game-grid">
+                    
+                    <div>
+                        <div class="form-group">
+                            <label for="edit-product-name">產品/服務名稱</label>
+                            <input type="text" id="edit-product-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-id-display">產品 ID (不可修改)</label>
+                            <input type="text" id="edit-product-id-display" readonly style="background: #e9ecef;">
+                        </div>
+                        <div class="sub-grid">
+                            <div class="form-group">
+                                <label for="edit-product-category">分類</label>
+                                <input type="text" id="edit-product-category" placeholder="例如: 課程, 餐飲, 服務">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-product-tags">標籤 (以逗號分隔)</label>
+                                <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-images">圖片網址 (JSON 格式)</label>
+                            <textarea id="edit-product-images" rows="3" placeholder='["網址一", "網址二"]'></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-description">詳細介紹</label>
+                            <textarea id="edit-product-description" rows="5"></textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="form-group">
+                            <label for="edit-product-inventory-type">庫存管理模式</label>
+                            <select id="edit-product-inventory-type">
+                                <option value="none">無庫存管理</option>
+                                <option value="quantity">依數量管理</option>
+                                <option value="status">依狀態管理</option>
+                            </select>
+                        </div>
+                        <div id="stock-quantity-group" class="form-group" style="display: none;">
+                            <label for="edit-product-stock-quantity">庫存數量</label>
+                            <input type="number" id="edit-product-stock-quantity" min="0">
+                        </div>
+                        <div id="stock-status-group" class="form-group" style="display: none;">
+                            <label for="edit-product-stock-status">庫存狀態</label>
+                            <input type="text" id="edit-product-stock-status" placeholder="例如: 可預約, 已售罄">
+                        </div>
                         
-                        <div>
-                            <div class="form-group">
-                                <label for="edit-game-name">遊戲名稱</label>
-                                <input type="text" id="edit-game-name" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-game-id-display">遊戲 ID (不可修改)</label>
-                                <input type="text" id="edit-game-id-display" readonly style="background: #e9ecef;">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-game-tags">標籤 (以逗號分隔)</label>
-                                <input type="text" id="edit-game-tags">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-game-image">主要圖片網址</label>
-                                <input type="url" id="edit-game-image" placeholder="https://...">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-game-image-2">圖片網址 2 (選填)</label>
-                                <input type="url" id="edit-game-image-2" placeholder="https://...">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-game-image-3">圖片網址 3 (選填)</label>
-                                <input type="url" id="edit-game-image-3" placeholder="https://...">
-                            </div>
+                        <div class="form-group">
+                            <label for="edit-product-price-type">定價模式</label>
+                            <select id="edit-product-price-type">
+                                <option value="simple">單一定價</option>
+                                <option value="multiple">多重選項定價</option>
+                            </select>
                         </div>
+                        <div id="simple-price-group" class="form-group">
+                            <label for="edit-product-price">價格</label>
+                            <input type="number" id="edit-product-price" min="0">
+                        </div>
+                        <div id="multiple-price-group" class="form-group" style="display: none;">
+                            <label for="edit-product-price-options">價格選項 (JSON 格式)</label>
+                            <textarea id="edit-product-price-options" rows="3" placeholder='[{"name":"選項A", "price":100}, {"name":"選項B", "price":200}]'></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; margin-top: 10px;">
+                                <input type="checkbox" id="edit-product-is-visible" style="width: auto; margin-right: 10px;">
+                                是否上架 (顯示於 LIFF)
+                            </label>
+                        </div>
+                    </div>
 
-                        <div>
-                            <div class="sub-grid-3">
-                                <div class="form-group"><label for="edit-min-players">最少人數</label><input type="number" id="edit-min-players" min="1"></div>
-                                <div class="form-group"><label for="edit-max-players">最多人數</label><input type="number" id="edit-max-players" min="1"></div>
-                                <div class="form-group"><label for="edit-difficulty">難度</label><select id="edit-difficulty"><option>簡單</option><option>普通</option><option>困難</option><option>專家</option></select></div>
-                            </div>
-                            <div class="sub-grid">
-                                <div class="form-group"><label for="edit-total-stock">總庫存</label><input type="number" id="edit-total-stock" min="0"></div>
-                                <div class="form-group"><label for="edit-for-rent-stock">可租借庫存</label><input type="number" id="edit-for-rent-stock" min="0"></div>
-                            </div>
-                            <div class="sub-grid">
-                                <div class="form-group"><label for="edit-sale-price">售價</label><input type="number" id="edit-sale-price" min="0"></div>
-                                <div class="form-group"><label for="edit-rent-price">租金</label><input type="number" id="edit-rent-price" min="0"></div>
-                            </div>
-                             <div class="sub-grid">
-                                <div class="form-group"><label for="edit-deposit">押金</label><input type="number" id="edit-deposit" min="0"></div>
-                                <div class="form-group"><label for="edit-late-fee">每日逾期費</label><input type="number" id="edit-late-fee" min="0"></div>
-                            </div>
-                            <div class="form-group"><label style="display: flex; align-items: center; margin-top: 10px;"><input type="checkbox" id="edit-is-visible" style="width: auto; margin-right: 10px;">是否上架 (顯示於 LIFF)</label></div>
+                    <div class="form-group grid-span-2">
+                        <hr>
+                        <label>彈性通用規格 (選填，最多5組)</label>
+                        <div class="sub-grid" style="margin-bottom: 10px;">
+                            <input type="text" id="edit-spec-1-name" placeholder="規格1名稱 (例: 課程時長)">
+                            <input type="text" id="edit-spec-1-value" placeholder="規格1內容 (例: 2小時)">
                         </div>
-
-                        <div class="form-group grid-span-2">
-                            <label for="edit-game-desc">遊戲介紹</label>
-                            <textarea id="edit-game-desc" rows="4"></textarea>
+                        <div class="sub-grid" style="margin-bottom: 10px;">
+                            <input type="text" id="edit-spec-2-name" placeholder="規格2名稱 (例: 適合對象)">
+                            <input type="text" id="edit-spec-2-value" placeholder="規格2內容 (例: 初學者)">
                         </div>
-                        <div class="form-group grid-span-2">
-                            <label for="edit-supplementary-info">補充說明 (配件、注意事項等)</label>
-                            <textarea id="edit-supplementary-info" rows="4"></textarea>
+                        <div class="sub-grid" style="margin-bottom: 10px;">
+                            <input type="text" id="edit-spec-3-name" placeholder="規格3名稱">
+                            <input type="text" id="edit-spec-3-value" placeholder="規格3內容">
+                        </div>
+                        <div class="sub-grid" style="margin-bottom: 10px;">
+                            <input type="text" id="edit-spec-4-name" placeholder="規格4名稱">
+                            <input type="text" id="edit-spec-4-value" placeholder="規格4內容">
+                        </div>
+                        <div class="sub-grid">
+                            <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
+                            <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
                         </div>
                     </div>
                 </div>
-                <div class="form-actions">
-                    <button type="button" class="action-btn btn-cancel">取消</button>
-                    <button type="submit" class="action-btn btn-save">儲存變更</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="action-btn btn-cancel">取消</button>
+                <button type="submit" class="action-btn btn-save">儲存變更</button>
+            </div>
+        </form>
     </div>
+</div>
+
     
     <div id="edit-draft-modal" class="modal-overlay">
         <div class="modal-content">

@@ -287,9 +287,126 @@ async function initializeAdminPanel() {
             }
         });
     }
-    
-// public/admin-login.js (完整通用化修正版) - PART 2 of 4
 
+//「通用化產品」的編輯功能    
+function openEditProductModal(productId) {
+        const product = allProducts.find(p => p.product_id === productId);
+        if (!product || !editProductModal || !editProductForm) return;
+
+        editProductForm.reset();
+        editProductModal.querySelector('#modal-product-title').textContent = `編輯產品：${product.name}`;
+        
+        // 填充基本資料
+        document.getElementById('edit-product-id').value = product.product_id;
+        document.getElementById('edit-product-id-display').value = product.product_id;
+        document.getElementById('edit-product-name').value = product.name;
+        document.getElementById('edit-product-description').value = product.description || '';
+        document.getElementById('edit-product-category').value = product.category || '';
+        document.getElementById('edit-product-tags').value = product.tags || '';
+        document.getElementById('edit-product-images').value = product.images || '[]';
+        document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
+
+        // 處理庫存邏輯
+        const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
+        const quantityGroup = document.getElementById('stock-quantity-group');
+        const statusGroup = document.getElementById('stock-status-group');
+        
+        inventoryTypeSelect.value = product.inventory_management_type || 'none';
+        if (inventoryTypeSelect.value === 'quantity') {
+            quantityGroup.style.display = 'block';
+            statusGroup.style.display = 'none';
+            document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
+        } else if (inventoryTypeSelect.value === 'status') {
+            quantityGroup.style.display = 'none';
+            statusGroup.style.display = 'block';
+            document.getElementById('edit-product-stock-status').value = product.stock_status || '';
+        } else {
+            quantityGroup.style.display = 'none';
+            statusGroup.style.display = 'none';
+        }
+
+        // 處理價格邏輯
+        const priceTypeSelect = document.getElementById('edit-product-price-type');
+        const simplePriceGroup = document.getElementById('simple-price-group');
+        const multiplePriceGroup = document.getElementById('multiple-price-group');
+
+        priceTypeSelect.value = product.price_type || 'simple';
+        if (priceTypeSelect.value === 'simple') {
+            simplePriceGroup.style.display = 'block';
+            multiplePriceGroup.style.display = 'none';
+            document.getElementById('edit-product-price').value = product.price || 0;
+        } else {
+            simplePriceGroup.style.display = 'none';
+            multiplePriceGroup.style.display = 'block';
+            document.getElementById('edit-product-price-options').value = product.price_options || '[]';
+        }
+
+        // 填充通用規格欄位
+        for (let i = 1; i <= 5; i++) {
+            document.getElementById(`edit-spec-${i}-name`).value = product[`spec_${i}_name`] || '';
+            document.getElementById(`edit-spec-${i}-value`).value = product[`spec_${i}_value`] || '';
+        }
+
+        editProductModal.style.display = 'flex';
+    }
+
+    if (editProductForm) {
+        editProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const productId = document.getElementById('edit-product-id').value;
+            
+            const updatedData = {
+                productId: productId,
+                name: document.getElementById('edit-product-name').value,
+                description: document.getElementById('edit-product-description').value,
+                category: document.getElementById('edit-product-category').value,
+                tags: document.getElementById('edit-product-tags').value,
+                images: document.getElementById('edit-product-images').value,
+                is_visible: document.getElementById('edit-product-is-visible').checked,
+                inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+                stock_quantity: document.getElementById('edit-product-stock-quantity').value,
+                stock_status: document.getElementById('edit-product-stock-status').value,
+                price_type: document.getElementById('edit-product-price-type').value,
+                price: document.getElementById('edit-product-price').value,
+                price_options: document.getElementById('edit-product-price-options').value,
+                spec_1_name: document.getElementById('edit-spec-1-name').value,
+                spec_1_value: document.getElementById('edit-spec-1-value').value,
+                spec_2_name: document.getElementById('edit-spec-2-name').value,
+                spec_2_value: document.getElementById('edit-spec-2-value').value,
+                spec_3_name: document.getElementById('edit-spec-3-name').value,
+                spec_3_value: document.getElementById('edit-spec-3-value').value,
+                spec_4_name: document.getElementById('edit-spec-4-name').value,
+                spec_4_value: document.getElementById('edit-spec-4-value').value,
+                spec_5_name: document.getElementById('edit-spec-5-name').value,
+                spec_5_value: document.getElementById('edit-spec-5-value').value
+            };
+
+            try {
+                const response = await fetch('/api/admin/update-product-details', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '更新失敗');
+                }
+                
+                // 更新前端的資料狀態
+                const productIndex = allProducts.findIndex(p => p.product_id === productId);
+                if (productIndex !== -1) {
+                    // 將表單資料同步回 allProducts 陣列
+                    allProducts[productIndex] = { ...allProducts[productIndex], ...updatedData, is_visible: updatedData.is_visible ? 1 : 0 };
+                }
+
+                renderProductList(allProducts);
+                editProductModal.style.display = 'none';
+                alert('更新成功！');
+            } catch (error) {
+                alert(`錯誤：${error.message}`);
+            }
+        });
+    }
     // =================================================================
     // 顧客管理模組 (User Management)
     // =================================================================

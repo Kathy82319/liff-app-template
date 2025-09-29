@@ -66,6 +66,7 @@ async function initializeAdminPanel() {
     let currentCalendarDate = new Date();
     let html5QrCode = null;
     let sortableProducts = null;
+    let allSettings = []; // 【新增】用來緩存設定
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {
@@ -88,7 +89,8 @@ async function initializeAdminPanel() {
             'scan': startScanner,
             'news': fetchAllNews,
             'store-info': fetchStoreInfo,
-            'drafts': fetchAllDrafts
+            'drafts': fetchAllDrafts,
+            'settings': fetchAndRenderSettings 
         };
         pageLoader[pageId]?.();
     }
@@ -305,6 +307,12 @@ function openEditProductModal(productId) {
         document.getElementById('edit-product-tags').value = product.tags || '';
         document.getElementById('edit-product-images').value = product.images || '[]';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
+
+        // --- DOM 元素宣告 (增加 settings 相關元素) ---
+        const mainNav = document.querySelector('.nav-tabs');
+        const pages = document.querySelectorAll('.page');
+        const settingsForm = document.getElementById('settings-form');
+        const settingsContainer = document.getElementById('settings-container');
 
         // 處理庫存邏輯
         const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
@@ -1389,6 +1397,134 @@ function openEditProductModal(productId) {
                 }
             } finally {
                 submitExpBtn.disabled = false;
+            }
+        });
+    }
+    // =================================================================
+    // 【新增】系統設定模組 (System Settings)
+    // =================================================================
+    async function fetchAndRenderSettings() {
+        if (!settingsContainer) return;
+        try {
+            settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
+            const response = await fetch('/api/admin/get-settings');
+            if (!response.ok) throw new Error('無法獲取設定列表');
+            allSettings = await response.json();
+            renderSettingsForm(allSettings);
+        } catch (error) {
+            console.error('獲取設定失敗:', error);
+            settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
+        }
+    }
+
+    function renderSettingsForm(settings) {
+        if (!settingsContainer) return;
+        settingsContainer.innerHTML = ''; // 清空容器
+
+        // 將設定分組
+        const groupedSettings = {
+            FEATURES: { title: '功能開關 (FEATURES)', items: [] },
+            TERMS: { title: '商業術語 (TERMS)', items: [] },
+            LOGIC: { title: '業務邏輯 (LOGIC)', items: [] }
+        };
+
+        settings.forEach(setting => {
+            const groupKey = setting.key.split('_')[0];
+            if (groupedSettings[groupKey]) {
+                groupedSettings[groupKey].items.push(setting);
+            }
+        });
+
+        // 遍歷分組並渲染
+        for (const groupName in groupedSettings) {
+            const group = groupedSettings[groupName];
+            if (group.items.length === 0) continue;
+
+            const groupTitle = document.createElement('h3');
+            groupTitle.textContent = group.title;
+            groupTitle.style.marginTop = '20px';
+            groupTitle.style.borderBottom = '1px solid var(--border-color)';
+            groupTitle.style.paddingBottom = '10px';
+            settingsContainer.appendChild(groupTitle);
+            
+            group.items.forEach(setting => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'form-group';
+
+                const label = document.createElement('label');
+                label.htmlFor = setting.key;
+                label.textContent = setting.description || setting.key;
+                formGroup.appendChild(label);
+
+                let inputElement;
+                switch (setting.type) {
+                    case 'boolean':
+                        inputElement = document.createElement('select');
+                        inputElement.innerHTML = `<option value="true">啟用</option><option value="false">停用</option>`;
+                        inputElement.value = setting.value;
+                        break;
+                    case 'json':
+                        inputElement = document.createElement('textarea');
+                        inputElement.rows = 4;
+                        inputElement.value = setting.value;
+                        break;
+                    case 'number':
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'number';
+                        inputElement.value = setting.value;
+                        break;
+                    default: // string
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'text';
+                        inputElement.value = setting.value;
+                }
+                
+                inputElement.id = setting.key;
+                inputElement.name = setting.key; // 關鍵：用於表單提交
+                formGroup.appendChild(inputElement);
+                settingsContainer.appendChild(formGroup);
+            });
+        }
+    }
+
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveButton = settingsForm.querySelector('button[type="submit"]');
+            const originalButtonText = saveButton.textContent;
+            
+            try {
+                saveButton.textContent = '儲存中...';
+                saveButton.disabled = true;
+
+                const updatedSettings = [];
+                const formElements = settingsForm.querySelectorAll('input, select, textarea');
+                
+                formElements.forEach(el => {
+                    updatedSettings.push({
+                        key: el.name,
+                        value: el.value
+                    });
+                });
+                
+                const response = await fetch('/api/admin/update-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedSettings)
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || '儲存設定時發生未知錯誤');
+                }
+                
+                alert('系統設定已成功儲存！');
+
+            } catch (error) {
+                alert(`錯誤: ${error.message}`);
+            } finally {
+                saveButton.textContent = originalButtonText;
+                saveButton.disabled = false;
             }
         });
     }

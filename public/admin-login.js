@@ -1469,13 +1469,183 @@ async function initializeAdminPanel() {
     }
 
     // =================================================================
-    // 訊息草稿模組 (Message Drafts)
+    // 訊息草稿模組
     // =================================================================
-    async function fetchAllDrafts() { /* ... 與您提供的版本相同 ... */ }
-    function renderDraftList(drafts) { /* ... 與您提供的版本相同 ... */ }
-    function openEditDraftModal(draft = null) { /* ... 與您提供的版本相同 ... */ }
-    async function loadAndBindMessageDrafts(userId) { /* ... 與您提供的版本相同 ... */ }
-    // ... Drafts event listeners ...
+    async function fetchAllDrafts() {
+        if (allDrafts.length > 0) {
+            renderDraftList(allDrafts);
+            return;
+        }
+        try {
+            const response = await fetch('api/admin/message-drafts');
+            if (!response.ok) throw new Error('無法獲取訊息草稿');
+            allDrafts = await response.json();
+            renderDraftList(allDrafts);
+        } catch (error) {
+            console.error('獲取訊息草稿失敗:', error);
+            if(draftListTbody) draftListTbody.innerHTML = '<tr><td colspan="3">讀取失敗</td></tr>';
+        }
+    }
+
+    function renderDraftList(drafts) {
+        if (!draftListTbody) return;
+        draftListTbody.innerHTML = '';
+        drafts.forEach(draft => {
+            const row = draftListTbody.insertRow();
+            const cellTitle = row.insertCell();
+            const cellContent = row.insertCell();
+            const cellActions = row.insertCell();
+            
+            cellTitle.textContent = draft.title;
+            cellContent.textContent = draft.content.substring(0, 50) + '...';
+            cellActions.className = 'actions-cell';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'action-btn btn-edit';
+            editBtn.dataset.draftid = draft.draft_id;
+            editBtn.textContent = '編輯';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn btn-delete-draft';
+            deleteBtn.dataset.draftid = draft.draft_id;
+            deleteBtn.style.backgroundColor = 'var(--danger-color)';
+            deleteBtn.textContent = '刪除';
+            
+            cellActions.appendChild(editBtn);
+            cellActions.appendChild(deleteBtn);
+        });
+    }
+
+    function openEditDraftModal(draft = null) {
+        if (!editDraftForm) return;
+        editDraftForm.reset();
+        currentEditingDraftId = draft ? draft.draft_id : null;
+        if (modalDraftTitle) modalDraftTitle.textContent = draft ? '編輯訊息草稿' : '新增訊息草稿';
+
+        if (draft) {
+            document.getElementById('edit-draft-id').value = draft.draft_id;
+            document.getElementById('edit-draft-title').value = draft.title;
+            document.getElementById('edit-draft-content').value = draft.content;
+        }
+        
+        if (editDraftModal) editDraftModal.style.display = 'flex';
+    }
+
+    if (addDraftBtn) {
+        addDraftBtn.addEventListener('click', () => openEditDraftModal());
+    }
+    if (editDraftModal) {
+        editDraftModal.querySelector('.modal-close').addEventListener('click', () => editDraftModal.style.display = 'none');
+        editDraftModal.querySelector('.btn-cancel').addEventListener('click', () => editDraftModal.style.display = 'none');
+    }
+
+    if (editDraftForm) {
+        editDraftForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const draftData = {
+                draft_id: currentEditingDraftId,
+                title: document.getElementById('edit-draft-title').value,
+                content: document.getElementById('edit-draft-content').value,
+            };
+
+            const isUpdating = !!currentEditingDraftId;
+            const url = 'api/admin/message-drafts';
+            const method = isUpdating ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(draftData)
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || '儲存失敗');
+                }
+                alert('草稿儲存成功！');
+                editDraftModal.style.display = 'none';
+                allDrafts = [];
+                await fetchAllDrafts();
+            } catch (error) {
+                alert(`錯誤： ${error.message}`);
+            }
+        });
+    }
+
+    if (draftListTbody) {
+        draftListTbody.addEventListener('click', async (e) => {
+            const target = e.target;
+            const draftId = target.dataset.draftid;
+            if (!draftId) return;
+
+            if (target.classList.contains('btn-edit')) {
+                const draft = allDrafts.find(d => d.draft_id == draftId);
+                openEditDraftModal(draft);
+            } else if (target.classList.contains('btn-delete-draft')) {
+                if (confirm('確定要刪除這則草稿嗎？')) {
+                    try {
+                        const response = await fetch('api/admin/message-drafts', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ draft_id: Number(draftId) })
+                        });
+                        if (!response.ok) throw new Error('刪除失敗');
+                        alert('刪除成功！');
+                        allDrafts = allDrafts.filter(d => d.draft_id != draftId);
+                        renderDraftList(allDrafts);
+                    } catch (error) {
+                        alert(`錯誤：${error.message}`);
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadAndBindMessageDrafts(userId) {
+        const select = document.getElementById('message-draft-select');
+        const content = document.getElementById('direct-message-content');
+        const sendBtn = document.getElementById('send-direct-message-btn');
+        if (!select || !content || !sendBtn) return;
+
+        await fetchAllDrafts();
+        select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
+        allDrafts.forEach(draft => {
+            const option = document.createElement('option');
+            option.value = draft.content;
+            option.textContent = draft.title;
+            select.appendChild(option);
+        });
+
+        select.onchange = () => { content.value = select.value; };
+
+        sendBtn.onclick = async () => {
+            const message = content.value.trim();
+            if (!message) { alert('訊息內容不可為空！'); return; }
+            if (!confirm(`確定要發送以下訊息給該顧客嗎？\n\n${message}`)) return;
+            
+            sendBtn.textContent = '傳送中...';
+            sendBtn.disabled = true;
+            try {
+                const response = await fetch('api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, message })
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '傳送失敗');
+                }
+                alert('訊息傳送成功！');
+                content.value = '';
+            } catch (error) {
+                alert(`傳送失敗：${error.message}`);
+            } finally {
+                sendBtn.textContent = '確認發送';
+                sendBtn.disabled = false;
+            }
+        };
+    }
+
 
     // =================================================================
     // 店家資訊模組 (Store Info)
@@ -1513,9 +1683,9 @@ async function initializeAdminPanel() {
     }
 
     // =================================================================
-    // 掃碼加點模組 (QR Scan for Points)
+    // 掃碼加點模組
     // =================================================================
-    function onScanSuccess(decodedText) {
+    function onScanSuccess(decodedText, decodedResult) {
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().then(() => {
                 if(qrReaderElement) qrReaderElement.style.display = 'none';
@@ -1560,7 +1730,9 @@ async function initializeAdminPanel() {
         });
     }
 
-    if (rescanBtn) rescanBtn.addEventListener('click', startScanner);
+    if (rescanBtn) {
+        rescanBtn.addEventListener('click', startScanner);
+    }
 
     if (submitExpBtn) {
         submitExpBtn.addEventListener('click', async () => {
@@ -1576,16 +1748,19 @@ async function initializeAdminPanel() {
                 return;
             }
             try {
-                if(scanStatusMessage) scanStatusMessage.textContent = '正在處理中...';
+                if(scanStatusMessage) {
+                    scanStatusMessage.textContent = '正在處理中...';
+                    scanStatusMessage.className = '';
+                }
                 submitExpBtn.disabled = true;
-                const response = await fetch('/api/add-points', {
+                const response = await fetch('api/add-exp', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, expValue, reason }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || '未知錯誤');
                 if(scanStatusMessage) {
-                    scanStatusMessage.textContent = `成功為 ${userId.substring(0, 10)}... 新增 ${expValue} 點！`;
+                    scanStatusMessage.textContent = `成功為 ${userId.substring(0, 10)}... 新增 ${expValue} 點經驗！`;
                     scanStatusMessage.className = 'success';
                 }
                 if(expInput) expInput.value = '';
@@ -1599,6 +1774,7 @@ async function initializeAdminPanel() {
             }
         });
     }
+
 
  
     // --- 初始化第一個頁面 ---

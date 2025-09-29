@@ -1239,6 +1239,20 @@ async function fetchAndRenderSettings() {
     }
 }
 
+async function fetchAndRenderSettings() {
+    if (!settingsContainer) return;
+    try {
+        settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
+        const response = await fetch('/api/admin/get-settings');
+        if (!response.ok) throw new Error('無法獲取設定列表');
+        allSettings = await response.json();
+        renderSettingsForm(allSettings); // 現在這個函式存在了
+    } catch (error) {
+        console.error('獲取設定失敗:', error);
+        settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
+    }
+}
+
 // 【**補上的關鍵函式**】
 function renderSettingsForm(settings) {
     if (!settingsContainer) return;
@@ -1310,6 +1324,7 @@ function renderSettingsForm(settings) {
         firstGroup.querySelector('.setting-group-body').classList.add('visible');
     }
 }
+
     
     function createToggleSwitch(setting) {
         const formGroup = document.createElement('div');

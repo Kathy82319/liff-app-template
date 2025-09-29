@@ -467,7 +467,6 @@ function renderBookings(bookings, container, isPast = false) {
         document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
         document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
         document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
         const profilePicture = document.getElementById('profile-picture');
         if (profilePicture && userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
         const qrcodeElement = document.getElementById('qrcode');

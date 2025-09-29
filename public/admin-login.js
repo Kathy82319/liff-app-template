@@ -19,7 +19,6 @@ async function initializeAdminPanel() {
     const syncD1ToSheetBtn = document.getElementById('sync-d1-to-sheet-btn');
     const userDetailsModal = document.getElementById('user-details-modal');
     const productListTbody = document.getElementById('product-list-tbody')
-    const productListTbody = document.getElementById('game-list-tbody');
     const productSearchInput = document.getElementById('game-search-input');
     const editProductModal = document.getElementById('edit-product-modal');
     const editProductModal = document.getElementById('edit-game-modal');

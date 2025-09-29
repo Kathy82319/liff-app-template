@@ -1,7 +1,34 @@
 // public/script.js - v1.5 Final Corrected Version
-const CONFIG = window.APP_CONFIG;
+document.addEventListener('DOMContentLoaded', async () => {
+    // --- 【新增】非同步主函式 ---
+    // 透過一個 async 函式來包裝整個初始化流程
+    // 確保我們能先拿到後台設定，再執行後續操作
+    async function main() {
+        try {
+            // 步驟 1: 動態獲取 App 設定
+            const response = await fetch('/api/get-app-config');
+            if (!response.ok) {
+                throw new Error('無法從伺服器獲取應用程式設定檔。');
+            }
+            // 將獲取到的設定賦值給全域變數，讓舊有程式碼能無痛銜接
+            window.APP_CONFIG = await response.json();
 
-document.addEventListener('DOMContentLoaded', () => {
+            // 步驟 2: 繼續執行原有的 LIFF 初始化流程
+            await initializeLiff();
+
+        } catch (error) {
+            console.error("初始化失敗:", error);
+            // 在嚴重錯誤時，於畫面上顯示錯誤訊息
+            const appContent = document.getElementById('app-content');
+            if (appContent) {
+                appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
+                    <h2>系統啟動失敗</h2>
+                    <p>${error.message}</p>
+                    <p>請稍後再試或聯繫管理員。</p>
+                </div>`;
+            }
+        }
+    }
     
     // --- 核心變數 ---
     const myLiffId = "2008032417-3yJQGaO6";
@@ -12,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabBar = document.getElementById('tab-bar');
 
     // --- 狀態變數 ---
+    let CONFIG; 
     let allProducts = [];
     let allNews = [];
     let pageHistory = ['page-home'];
@@ -41,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 設定檔應用函式 (Template Engine)
     // =================================================================
     function applyConfiguration() {
+        CONFIG = window.APP_CONFIG; 
         try {
             if (typeof CONFIG === 'undefined' || !CONFIG) {
                 console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！"); return;
@@ -325,11 +354,15 @@ function renderBookings(bookings, container, isPast = false) {
                 return;
             }
             userProfile = await liff.getProfile();
-            applyConfiguration();
+            
+            // 【重要】在拿到 userProfile 後才套用設定和顯示頁面
+            applyConfiguration(); 
             setupGlobalEventListeners();
             showPage('page-home');
+
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
+            // 即使 LIFF 失敗，我們依然可以嘗試顯示基本內容
             applyConfiguration();
             setupGlobalEventListeners();
             showPage('page-home');

@@ -354,11 +354,6 @@ async function initializeAdminPanel() {
             document.getElementById('stock-quantity-group').style.display = (e.target.value === 'quantity') ? 'block' : 'none';
             document.getElementById('stock-status-group').style.display = (e.target.value === 'status') ? 'block' : 'none';
         });
-
-        document.getElementById('edit-product-price-type').addEventListener('change', (e) => {
-            document.getElementById('simple-price-group').style.display = (e.target.value === 'simple') ? 'block' : 'none';
-            document.getElementById('multiple-price-group').style.display = (e.target.value === 'multiple') ? 'block' : 'none';
-        });
     }
 
     if (editProductForm) {

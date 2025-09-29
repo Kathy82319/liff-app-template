@@ -59,7 +59,15 @@ async function initializeAdminPanel() {
     const scanStatusMessage = document.querySelector('#scan-status-container');
     const settingsForm = document.getElementById('settings-form');
     const settingsContainer = document.getElementById('settings-container');
-    const pointsStatusMessage = document.getElementById('points-status-message');
+    const pointsPage = document.getElementById('page-points');
+    const userSearchInputPoints = document.getElementById('user-search-input-points');
+    const userSearchResults = document.getElementById('user-search-results');
+    const startScanBtn = document.getElementById('start-scan-btn');
+    const qrReaderPoints = document.getElementById('qr-reader');
+    const selectedUserDisplay = document.getElementById('selected-user-display');
+    const pointsEntryForm = document.getElementById('points-entry-form');
+    const pointsStatusMessage = document.getElementById('points-status-message');    
+
 
     // --- 全域狀態 ---
     let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allDrafts = [];
@@ -70,7 +78,7 @@ async function initializeAdminPanel() {
     let allSettings = [];
     let currentSelectedUserForPoints = null;
 
-    // --- 頁面切換邏輯 ---
+    // --- 頁面切換邏輯 (更新) ---
     function showPage(pageId) {
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
@@ -866,6 +874,24 @@ async function initializeAdminPanel() {
         if (!calendarGrid || !calendarMonthYear) return;
         const year = currentCalendarDate.getFullYear();
         const month = currentCalendarDate.getMonth();
+        calendarMonthYear.textContent = `${year} 年 ${month + 1} 月`;
+        calendarGrid.innerHTML = '';
+        ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
+            calendarGrid.innerHTML += `<div class="calendar-weekday">${day}</div>`;
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const startingDayOfWeek = firstDayOfMonth.getDay();
+
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            calendarGrid.innerHTML += `<div class="calendar-day day-other-month"></div>`;
+        }
+
+        // 【括號修正】將 calendarMonthYear.textContent 移到迴圈外
+        for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr);
             const isPast = new Date(dateStr) < new Date(new Date().toDateString());
             
             let bookingsHTML = bookingsForDay.map(b => {
@@ -875,7 +901,7 @@ async function initializeAdminPanel() {
                         <button class="action-btn btn-cancel-booking" data-booking-id="${b.booking_id}" style="background:var(--danger-color);" ${b.status === 'cancelled' ? 'disabled' : ''}>✗</button>
                     </div>`;
 
-                return `<div class="calendar-booking status-${b.status} ${isPast ? 'is-past' : ''}" data-booking-id="${b.booking_id}">
+                return `<div class="calendar-booking status-${b.status}" data-booking-id="${b.booking_id}">
                             ${b.time_slot} ${b.contact_name}
                             ${actionsHTML}
                         </div>`;
@@ -1778,7 +1804,7 @@ function renderSettingsForm(settings) {
     // 點數發放中心模組 (改造後)
     // =================================================================
     function initializePointsPage() {
-        if (!pointsPage) return;
+        if (!document.getElementById('page-points')) return;
         currentSelectedUserForPoints = null;
         userSearchInputPoints.value = '';
         userSearchResults.innerHTML = '';
@@ -1786,6 +1812,7 @@ function renderSettingsForm(settings) {
         selectedUserDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
         if(html5QrCode && html5QrCode.isScanning) html5QrCode.stop();
         qrReaderPoints.style.display = 'none';
+        pointsStatusMessage.textContent = '';
     }
 
     async function handleUserSearchForPoints(query) {
@@ -1859,47 +1886,39 @@ function renderSettingsForm(settings) {
     }
 
     if (submitExpBtn) {
-        submitExpBtn.addEventListener('click', async () => {
-            // 【重要修正】確保 userId 來自新的全域變數
-            if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
-                alert('錯誤：尚未選取顧客！');
-                return;
-            }
-            const userId = currentSelectedUserForPoints.id;
-
-            const expValue = Number(expInput.value);
-            let reason = reasonSelect.value;
-            if (reason === 'other') reason = customReasonInput.value.trim();
-
-            if (!expValue || expValue <= 0 || !reason) {
-                pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
-                pointsStatusMessage.style.color = 'var(--danger-color)';
-                return;
-            }
-            
-            pointsStatusMessage.textContent = '正在處理中...';
-            submitExpBtn.disabled = true;
-
-            try {
-                const response = await fetch('/api/add-points', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, expValue, reason }),
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '未知錯誤');
-
-                pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
-                pointsStatusMessage.style.color = 'var(--success-color)';
-                expInput.value = ''; // 清空輸入
-            } catch (error) {
-                pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
-                pointsStatusMessage.style.color = 'var(--danger-color)';
-            } finally {
-                submitExpBtn.disabled = false;
-            }
-        });
-    }
+    submitExpBtn?.addEventListener('click', async () => {
+        if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
+            alert('錯誤：尚未選取顧客！'); return;
+        }
+        const userId = currentSelectedUserForPoints.id;
+        const expValue = Number(expInput.value);
+        let reason = reasonSelect.value;
+        if (reason === 'other') reason = customReasonInput.value.trim();
+        if (!expValue || expValue <= 0 || !reason) {
+            pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
+            pointsStatusMessage.style.color = 'var(--danger-color)';
+            return;
+        }
+        pointsStatusMessage.textContent = '正在處理中...';
+        submitExpBtn.disabled = true;
+        try {
+            const response = await fetch('/api/add-points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, expValue, reason }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || '未知錯誤');
+            pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
+            pointsStatusMessage.style.color = 'var(--success-color)';
+            expInput.value = '';
+        } catch (error) {
+            pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
+            pointsStatusMessage.style.color = 'var(--danger-color)';
+        } finally {
+            submitExpBtn.disabled = false;
+        }
+    });
 
 
  

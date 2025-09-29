@@ -1,5 +1,3 @@
-// public/admin-login.js (完整通用化修正版) - PART 1 of 4
-
 document.addEventListener('DOMContentLoaded', async () => {
     // 直接顯示後台面板並初始化
     const adminPanel = document.getElementById('admin-panel');
@@ -20,10 +18,10 @@ async function initializeAdminPanel() {
     const editUserForm = document.getElementById('edit-user-form');
     const syncD1ToSheetBtn = document.getElementById('sync-d1-to-sheet-btn');
     const userDetailsModal = document.getElementById('user-details-modal');
-    const productListTbody = document.getElementById('game-list-tbody'); // HTML ID 沿用舊的
+    const productListTbody = document.getElementById('game-list-tbody');
     const productSearchInput = document.getElementById('game-search-input');
     const editProductModal = document.getElementById('edit-game-modal');
-    const editProductForm = document.getElementById('edit-game-form');
+    const editProductForm = document.getElementById('edit-product-form');
     const syncProductsBtn = document.getElementById('sync-games-btn');
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const manageBookingDatesBtn = document.getElementById('manage-booking-dates-btn');
@@ -59,6 +57,9 @@ async function initializeAdminPanel() {
     const submitExpBtn = document.getElementById('submit-exp-btn');
     const rescanBtn = document.getElementById('rescan-btn');
     const scanStatusMessage = document.querySelector('#scan-status-container');
+    // 【錯誤修正】在此處宣告 settingsForm 和 settingsContainer
+    const settingsForm = document.getElementById('settings-form');
+    const settingsContainer = document.getElementById('settings-container');
 
     // --- 全域狀態 ---
     let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allDrafts = [];
@@ -66,7 +67,7 @@ async function initializeAdminPanel() {
     let currentCalendarDate = new Date();
     let html5QrCode = null;
     let sortableProducts = null;
-    let allSettings = []; // 【新增】用來緩存設定
+    let allSettings = [];
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {
@@ -90,7 +91,7 @@ async function initializeAdminPanel() {
             'news': fetchAllNews,
             'store-info': fetchStoreInfo,
             'drafts': fetchAllDrafts,
-            'settings': fetchAndRenderSettings 
+            'settings': fetchAndRenderSettings
         };
         pageLoader[pageId]?.();
     }
@@ -239,17 +240,17 @@ async function initializeAdminPanel() {
                             body: JSON.stringify({ orderedGameIds: orderedIds })
                         });
                         if (!response.ok) throw new Error('儲存順序失敗');
-                        // No need to fetch, just re-render with new order
+                        
                         orderedIds.forEach((id, index) => {
                            const product = allProducts.find(p => p.product_id === id);
                            if(product) product.display_order = index + 1;
                         });
                         allProducts.sort((a, b) => a.display_order - b.display_order);
-                        renderProductList(allProducts);
+                        applyProductFiltersAndRender();
 
                     } catch (error) {
                         alert(error.message);
-                        await fetchAllProducts(); // Re-fetch on error to be safe
+                        await fetchAllProducts();
                     }
                 }
             });
@@ -270,7 +271,6 @@ async function initializeAdminPanel() {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.details || '同步失敗');
                 alert(result.message || '同步成功！');
-                allProducts = []; // Clear cache
                 await fetchAllProducts();
             } catch (error) {
                 alert(`錯誤：${error.message}`);
@@ -289,16 +289,14 @@ async function initializeAdminPanel() {
             }
         });
     }
-
-//「通用化產品」的編輯功能    
-function openEditProductModal(productId) {
+   
+    function openEditProductModal(productId) {
         const product = allProducts.find(p => p.product_id === productId);
         if (!product || !editProductModal || !editProductForm) return;
 
         editProductForm.reset();
         editProductModal.querySelector('#modal-product-title').textContent = `編輯產品：${product.name}`;
         
-        // 填充基本資料
         document.getElementById('edit-product-id').value = product.product_id;
         document.getElementById('edit-product-id-display').value = product.product_id;
         document.getElementById('edit-product-name').value = product.name;
@@ -308,48 +306,26 @@ function openEditProductModal(productId) {
         document.getElementById('edit-product-images').value = product.images || '[]';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
 
-        // --- DOM 元素宣告 (增加 settings 相關元素) ---
-        const mainNav = document.querySelector('.nav-tabs');
-        const pages = document.querySelectorAll('.page');
-        const settingsForm = document.getElementById('settings-form');
-        const settingsContainer = document.getElementById('settings-container');
-
-        // 處理庫存邏輯
         const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
         const quantityGroup = document.getElementById('stock-quantity-group');
         const statusGroup = document.getElementById('stock-status-group');
         
         inventoryTypeSelect.value = product.inventory_management_type || 'none';
-        if (inventoryTypeSelect.value === 'quantity') {
-            quantityGroup.style.display = 'block';
-            statusGroup.style.display = 'none';
-            document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
-        } else if (inventoryTypeSelect.value === 'status') {
-            quantityGroup.style.display = 'none';
-            statusGroup.style.display = 'block';
-            document.getElementById('edit-product-stock-status').value = product.stock_status || '';
-        } else {
-            quantityGroup.style.display = 'none';
-            statusGroup.style.display = 'none';
-        }
+        quantityGroup.style.display = (inventoryTypeSelect.value === 'quantity') ? 'block' : 'none';
+        statusGroup.style.display = (inventoryTypeSelect.value === 'status') ? 'block' : 'none';
+        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
+        document.getElementById('edit-product-stock-status').value = product.stock_status || '';
 
-        // 處理價格邏輯
         const priceTypeSelect = document.getElementById('edit-product-price-type');
         const simplePriceGroup = document.getElementById('simple-price-group');
         const multiplePriceGroup = document.getElementById('multiple-price-group');
 
         priceTypeSelect.value = product.price_type || 'simple';
-        if (priceTypeSelect.value === 'simple') {
-            simplePriceGroup.style.display = 'block';
-            multiplePriceGroup.style.display = 'none';
-            document.getElementById('edit-product-price').value = product.price || 0;
-        } else {
-            simplePriceGroup.style.display = 'none';
-            multiplePriceGroup.style.display = 'block';
-            document.getElementById('edit-product-price-options').value = product.price_options || '[]';
-        }
+        simplePriceGroup.style.display = (priceTypeSelect.value === 'simple') ? 'block' : 'none';
+        multiplePriceGroup.style.display = (priceTypeSelect.value === 'multiple') ? 'block' : 'none';
+        document.getElementById('edit-product-price').value = product.price || 0;
+        document.getElementById('edit-product-price-options').value = product.price_options || '[]';
 
-        // 填充通用規格欄位
         for (let i = 1; i <= 5; i++) {
             document.getElementById(`edit-spec-${i}-name`).value = product[`spec_${i}_name`] || '';
             document.getElementById(`edit-spec-${i}-value`).value = product[`spec_${i}_value`] || '';
@@ -358,11 +334,24 @@ function openEditProductModal(productId) {
         editProductModal.style.display = 'flex';
     }
 
+    if(editProductModal){
+        document.getElementById('edit-product-inventory-type').addEventListener('change', (e) => {
+            document.getElementById('stock-quantity-group').style.display = (e.target.value === 'quantity') ? 'block' : 'none';
+            document.getElementById('stock-status-group').style.display = (e.target.value === 'status') ? 'block' : 'none';
+        });
+
+        document.getElementById('edit-product-price-type').addEventListener('change', (e) => {
+            document.getElementById('simple-price-group').style.display = (e.target.value === 'simple') ? 'block' : 'none';
+            document.getElementById('multiple-price-group').style.display = (e.target.value === 'multiple') ? 'block' : 'none';
+        });
+    }
+
     if (editProductForm) {
         editProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const productId = document.getElementById('edit-product-id').value;
             
+            const formData = new FormData(editProductForm);
             const updatedData = {
                 productId: productId,
                 name: document.getElementById('edit-product-name').value,
@@ -376,18 +365,12 @@ function openEditProductModal(productId) {
                 stock_status: document.getElementById('edit-product-stock-status').value,
                 price_type: document.getElementById('edit-product-price-type').value,
                 price: document.getElementById('edit-product-price').value,
-                price_options: document.getElementById('edit-product-price-options').value,
-                spec_1_name: document.getElementById('edit-spec-1-name').value,
-                spec_1_value: document.getElementById('edit-spec-1-value').value,
-                spec_2_name: document.getElementById('edit-spec-2-name').value,
-                spec_2_value: document.getElementById('edit-spec-2-value').value,
-                spec_3_name: document.getElementById('edit-spec-3-name').value,
-                spec_3_value: document.getElementById('edit-spec-3-value').value,
-                spec_4_name: document.getElementById('edit-spec-4-name').value,
-                spec_4_value: document.getElementById('edit-spec-4-value').value,
-                spec_5_name: document.getElementById('edit-spec-5-name').value,
-                spec_5_value: document.getElementById('edit-spec-5-value').value
+                price_options: document.getElementById('edit-product-price-options').value
             };
+            for(let i=1; i<=5; i++){
+                updatedData[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
+                updatedData[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value;
+            }
 
             try {
                 const response = await fetch('/api/admin/update-product-details', {
@@ -400,35 +383,28 @@ function openEditProductModal(productId) {
                     throw new Error(err.error || '更新失敗');
                 }
                 
-                // 更新前端的資料狀態
-                const productIndex = allProducts.findIndex(p => p.product_id === productId);
-                if (productIndex !== -1) {
-                    // 將表單資料同步回 allProducts 陣列
-                    allProducts[productIndex] = { ...allProducts[productIndex], ...updatedData, is_visible: updatedData.is_visible ? 1 : 0 };
-                }
-
-                renderProductList(allProducts);
+                await fetchAllProducts();
                 editProductModal.style.display = 'none';
-                alert('更新成功！');
             } catch (error) {
                 alert(`錯誤：${error.message}`);
             }
         });
     }
+
+    if(editProductModal) {
+      editProductModal.querySelector('.modal-close').addEventListener('click', () => editProductModal.style.display = 'none');
+      editProductModal.querySelector('.btn-cancel').addEventListener('click', () => editProductModal.style.display = 'none');
+    }
+    
     // =================================================================
     // 顧客管理模組 (User Management)
     // =================================================================
     async function fetchAllUsers() {
-        if (allUsers.length > 0) {
-            renderUserList(allUsers);
-            return;
-        }
         try {
-            const response = await fetch('/api/get-users');
-            if (!response.ok) throw new Error('無法獲取使用者列表');
-            allUsers = await response.json();
+            const usersResponse = await fetch('/api/get-users');
+            if (!usersResponse.ok) throw new Error('無法獲取使用者列表');
+            allUsers = await usersResponse.json();
 
-            // 從 Google Sheets 獲取職業/福利的定義
             const perksResponse = await fetch('/api/get-class-perks');
             if (perksResponse.ok) {
                 classPerks = await perksResponse.json();
@@ -456,9 +432,9 @@ function openEditProductModal(productId) {
                     <div class="main-info">${displayName || 'N/A'}</div>
                     <div class="sub-info">${user.user_id}</div>
                 </td>
-                <td>${user.level}</td>
                 <td>${user.class || '無'}</td>
-                <td>${user.current_exp}</td>
+                <td>${user.level} / ${user.current_exp}</td>
+                <td>${user.perk || '無'}</td>
                 <td><span class="tag-display">${user.tag || '無'}</span></td>
                 <td class="actions-cell">
                     <button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: #ffc107; color: #000;">編輯</button>
@@ -514,7 +490,6 @@ function openEditProductModal(productId) {
         const tagSelect = document.getElementById('edit-tag-select');
         const otherTagInput = document.getElementById('edit-tag-other-input');
 
-        // --- 填充職業和福利下拉選單 ---
         classSelect.innerHTML = '<option value="">無</option>';
         perkSelect.innerHTML = '<option value="">無</option>';
         const standardPerks = new Set();
@@ -528,7 +503,6 @@ function openEditProductModal(productId) {
         classSelect.add(new Option('其他 (自訂)', 'other'));
         perkSelect.add(new Option('其他 (自訂)', 'other'));
 
-        // --- 設定預設值 ---
         if (classPerks[user.class]) {
             classSelect.value = user.class;
             otherClassInput.style.display = 'none';
@@ -607,16 +581,7 @@ function openEditProductModal(productId) {
                     throw new Error(err.error || '更新失敗');
                 }
                 
-                const userIndex = allUsers.findIndex(u => u.user_id === userId);
-                if (userIndex > -1) {
-                    allUsers[userIndex].level = updatedData.level;
-                    allUsers[userIndex].current_exp = updatedData.current_exp;
-                    allUsers[userIndex].tag = updatedData.tag;
-                    allUsers[userIndex].class = updatedData.user_class;
-                    allUsers[userIndex].perk = updatedData.perk;
-                    allUsers[userIndex].notes = updatedData.notes;
-                }
-                renderUserList(allUsers);
+                await fetchAllUsers();
                 editUserModal.style.display = 'none';
             } catch (error) {
                 alert(`錯誤：${error.message}`);
@@ -643,7 +608,7 @@ function openEditProductModal(productId) {
     }
 
     function renderUserDetails(data) {
-        const { profile, bookings, exp_history } = data; // 'rentals' 已被移除
+        const { profile, bookings, exp_history } = data;
         const contentContainer = userDetailsModal.querySelector('#user-details-content');
         if (!contentContainer) return;
 
@@ -734,7 +699,66 @@ function openEditProductModal(productId) {
         fragment.appendChild(table);
         return fragment;
     }
-// public/admin-login.js (完整通用化修正版) - PART 3 of 4
+    
+    if(userDetailsModal) {
+      userDetailsModal.querySelector('.modal-close').addEventListener('click', () => userDetailsModal.style.display = 'none');
+    }
+    
+    async function loadAndBindMessageDrafts(userId) {
+        const select = document.querySelector('#message-draft-select');
+        const content = document.querySelector('#direct-message-content');
+        const sendBtn = document.querySelector('#send-direct-message-btn');
+        if (!select || !content || !sendBtn) return;
+        
+        await fetchAllDrafts();
+        select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
+        allDrafts.forEach(d => select.add(new Option(d.title, d.content)));
+        
+        select.onchange = () => { content.value = select.value; };
+
+        sendBtn.onclick = async () => {
+            const message = content.value.trim();
+            if (!message) { alert('訊息內容不可為空！'); return; }
+            if (!confirm(`確定要發送以下訊息給 ${userId} 嗎？\n\n${message}`)) return;
+            try {
+                sendBtn.textContent = '發送中...';
+                sendBtn.disabled = true;
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, message })
+                });
+                if (!response.ok) throw new Error('發送失敗');
+                alert('訊息發送成功！');
+                content.value = '';
+                select.value = '';
+            } catch (error) {
+                alert(`錯誤：${error.message}`);
+            } finally {
+                sendBtn.textContent = '確認發送';
+                sendBtn.disabled = false;
+            }
+        };
+    }
+    
+    if (syncD1ToSheetBtn) {
+        syncD1ToSheetBtn.addEventListener('click', async () => {
+            if (!confirm('確定要將所有 D1 使用者資料完整同步至 Google Sheet 嗎？\n這將會覆蓋 Sheet 上的現有資料。')) return;
+            try {
+                syncD1ToSheetBtn.textContent = '同步中...';
+                syncD1ToSheetBtn.disabled = true;
+                const response = await fetch('/api/sync-d1-to-sheet', { method: 'POST' });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || '同步失敗');
+                alert(result.message);
+            } catch (error) {
+                alert(`錯誤：${error.message}`);
+            } finally {
+                syncD1ToSheetBtn.textContent = '同步至 Google Sheet';
+                syncD1ToSheetBtn.disabled = false;
+            }
+        });
+    }
 
     // =================================================================
     // 預約管理模組 (Booking Management)
@@ -748,21 +772,25 @@ function openEditProductModal(productId) {
             if (!response.ok) throw new Error('無法獲取預約列表');
             allBookings = await response.json();
 
-            // 列表視圖的渲染邏輯
-            const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter;
-            let filteredForList = allBookings;
-            if (activeFilter) {
+            if(listViewContainer.style.display !== 'none') {
+                const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                let filteredForList = allBookings;
                 if (activeFilter === 'today') {
                     const today = new Date().toISOString().split('T')[0];
-                    filteredForList = allBookings.filter(b => b.booking_date === today);
+                    filteredForList = allBookings.filter(b => b.booking_date === today && b.status !== 'cancelled');
+                } else if (activeFilter === 'confirmed') {
+                    const today = new Date().toISOString().split('T')[0];
+                    filteredForList = allBookings.filter(b => b.booking_date > today && b.status === 'confirmed');
                 } else {
                     filteredForList = allBookings.filter(b => b.status === activeFilter);
                 }
+                renderBookingList(filteredForList);
             }
-            renderBookingList(filteredForList);
+            
+            if(calendarViewContainer.style.display !== 'none'){
+                updateCalendar();
+            }
 
-            // 日曆視圖的渲染邏輯 (永遠使用 all_upcoming 的完整資料)
-            updateCalendar();
         } catch (error) { 
             console.error('獲取預約列表失敗:', error); 
             if(bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">讀取預約失敗</td></tr>';
@@ -868,7 +896,8 @@ function openEditProductModal(productId) {
             if (e.target.tagName === 'BUTTON') {
                 document.querySelector('#booking-status-filter .active')?.classList.remove('active');
                 e.target.classList.add('active');
-                fetchAllBookings(e.target.dataset.filter);
+                const filter = e.target.dataset.filter;
+                fetchAllBookings(filter);
             }
         });
     }
@@ -889,11 +918,9 @@ function openEditProductModal(productId) {
         });
     }
 
-    if (calendarPrevMonthBtn) calendarPrevMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });
-    if (calendarNextMonthBtn) calendarNextMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); });
+    if (calendarPrevMonthBtn) calendarPrevMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); fetchAllBookings('all_upcoming'); });
+    if (calendarNextMonthBtn) calendarNextMonthBtn.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); fetchAllBookings('all_upcoming'); });
     
-// ... (接續上一段 PART 3 的 bookingListTbody event listener 之後)
-
     if (createBookingBtn) {
         createBookingBtn.addEventListener('click', openCreateBookingModal);
     }
@@ -916,16 +943,13 @@ function openEditProductModal(productId) {
     }
 
     async function initializeBookingSettings() {
-        if (bookingDatepicker) {
-            const response = await fetch('/api/admin/booking-settings');
-            enabledDates = await response.json();
-            bookingDatepicker.setDate(enabledDates, false);
-            return;
-        }
         try {
             const response = await fetch('/api/admin/booking-settings');
             if (!response.ok) throw new Error('無法獲取公休日設定');
             enabledDates = await response.json();
+            
+            if (bookingDatepicker) bookingDatepicker.destroy(); // 確保銷毀舊的實例
+
             bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
                 inline: true,
                 mode: "multiple",
@@ -948,9 +972,11 @@ function openEditProductModal(productId) {
             const newEnabledDates = bookingDatepicker.selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
             const datesToAdd = newEnabledDates.filter(d => !enabledDates.includes(d));
             const datesToRemove = enabledDates.filter(d => !newEnabledDates.includes(d));
+            
             const promises = [];
-            datesToAdd.forEach(date => promises.push(fetch('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, action: 'add' }) })));
-            datesToRemove.forEach(date => promises.push(fetch('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, action: 'remove' }) })));
+            if(datesToAdd.length > 0) promises.push(fetch('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dates: datesToAdd, action: 'add' }) }));
+            if(datesToRemove.length > 0) promises.push(fetch('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dates: datesToRemove, action: 'remove' }) }));
+            
             await Promise.all(promises);
             enabledDates = newEnabledDates;
             alert('可預約日設定已成功儲存！');
@@ -975,6 +1001,21 @@ function openEditProductModal(productId) {
         bookingSettingsModal.querySelector('.modal-close').addEventListener('click', () => bookingSettingsModal.style.display = 'none');
         bookingSettingsModal.querySelector('.btn-cancel').addEventListener('click', () => bookingSettingsModal.style.display = 'none');
         bookingSettingsModal.querySelector('#save-booking-settings-btn')?.addEventListener('click', saveBookingSettings);
+        bookingSettingsModal.querySelector('#open-month-btn')?.addEventListener('click', async () => {
+            if (!bookingDatepicker) return;
+            const currentDate = bookingDatepicker.currentYear ? new Date(bookingDatepicker.currentYear, bookingDatepicker.currentMonth) : new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            if(!confirm(`確定要將 ${year} 年 ${month + 1} 月的所有日期都設定為可預約嗎？`)) return;
+
+            try {
+                 await fetch('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year, month, action: 'open_month' }) });
+                 await initializeBookingSettings(); // 重新載入
+            } catch (error) {
+                alert('開啟整月失敗: ' + error.message);
+            }
+        });
     }
 
     function openCreateBookingModal() {
@@ -983,9 +1024,12 @@ function openEditProductModal(productId) {
         flatpickr("#booking-date-input", { dateFormat: "Y-m-d", minDate: "today" });
         const slotSelect = document.getElementById('booking-slot-select');
         slotSelect.innerHTML = '<option value="">-- 請選擇 --</option>';
-        for (let hour = 8; hour <= 18; hour++) {
-            const timeString = `${hour.toString().padStart(2, '0')}:00`;
+        for (let hour = 8; hour <= 22; hour++) {
+          for(let minute of ['00', '30']){
+            if(hour === 22 && minute === '30') continue;
+            const timeString = `${String(hour).padStart(2, '0')}:${minute}`;
             slotSelect.add(new Option(timeString, timeString));
+          }
         }
         document.getElementById('booking-user-select').style.display = 'none';
         createBookingModal.style.display = 'flex';
@@ -1053,12 +1097,15 @@ function openEditProductModal(productId) {
         select.innerHTML = '<option value="">-- 不發送通知或手動輸入 --</option>';
         allDrafts.forEach(draft => select.add(new Option(draft.title, draft.content)));
         select.onchange = () => { content.value = select.value; };
+        
         const newConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
         newConfirmBtn.onclick = async () => {
             const message = content.value.trim();
             const shouldSendMessage = message.length > 0;
             if (!confirm(`確定要取消此預約嗎？${shouldSendMessage ? '\n\n並發送通知訊息。' : ''}`)) return;
+            
             try {
                 newConfirmBtn.textContent = '處理中...';
                 newConfirmBtn.disabled = true;
@@ -1075,8 +1122,10 @@ function openEditProductModal(productId) {
                     body: JSON.stringify({ bookingId: Number(booking.booking_id), status: 'cancelled' })
                 });
                 if (!statusResponse.ok) throw new Error('更新預約狀態失敗');
+                
                 alert('預約已成功取消！');
-                await fetchAllBookings(document.querySelector('#booking-status-filter .active').dataset.filter);
+                const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                await fetchAllBookings(activeFilter);
                 cancelBookingModal.style.display = 'none';
             } catch (error) {
                 alert(`操作失敗：${error.message}`);
@@ -1096,10 +1145,6 @@ function openEditProductModal(productId) {
     // 點數紀錄模組 (Experience/Points History)
     // =================================================================
     async function fetchAllExpHistory() {
-        if (allExpHistory.length > 0) {
-            renderExpHistoryList(allExpHistory);
-            return;
-        }
         try {
             const response = await fetch('/api/admin/exp-history-list');
             if (!response.ok) throw new Error('無法獲取點數紀錄');
@@ -1121,8 +1166,8 @@ function openEditProductModal(productId) {
         records.forEach(record => {
             const row = expHistoryTbody.insertRow();
             const displayName = record.nickname || record.line_display_name || '未知使用者';
-            const date = new Date(record.created_at).toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS
-            const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss'; // CSS class for color
+            const date = new Date(record.created_at).toLocaleString('sv-SE');
+            const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
             const expSign = record.exp_added > 0 ? '+' : '';
             
             row.innerHTML = `
@@ -1149,8 +1194,142 @@ function openEditProductModal(productId) {
             renderExpHistoryList(filteredRecords);
         });
     }
+    
+    // =================================================================
+    // 系統設定模組 (System Settings)
+    // =================================================================
+    async function fetchAndRenderSettings() {
+        if (!settingsContainer) return;
+        try {
+            settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
+            const response = await fetch('/api/admin/get-settings');
+            if (!response.ok) throw new Error('無法獲取設定列表');
+            allSettings = await response.json();
+            renderSettingsForm(allSettings);
+        } catch (error) {
+            console.error('獲取設定失敗:', error);
+            settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
+        }
+    }
 
-// public/admin-login.js (完整通用化修正版) - PART 4 of 4
+    function renderSettingsForm(settings) {
+        if (!settingsContainer) return;
+        settingsContainer.innerHTML = ''; 
+
+        const groupedSettings = {
+            FEATURES: { title: '功能開關 (FEATURES)', items: [] },
+            TERMS: { title: '商業術語 (TERMS)', items: [] },
+            LOGIC: { title: '業務邏輯 (LOGIC)', items: [] }
+        };
+
+        settings.forEach(setting => {
+            const groupKey = setting.key.split('_')[0];
+            if (groupedSettings[groupKey]) {
+                groupedSettings[groupKey].items.push(setting);
+            }
+        });
+
+        for (const groupName in groupedSettings) {
+            const group = groupedSettings[groupName];
+            if (group.items.length === 0) continue;
+
+            const groupTitle = document.createElement('h3');
+            groupTitle.textContent = group.title;
+            groupTitle.style.cssText = 'margin-top: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;';
+            settingsContainer.appendChild(groupTitle);
+            
+            group.items.forEach(setting => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'form-group';
+
+                const label = document.createElement('label');
+                label.htmlFor = setting.key;
+                label.textContent = setting.description || setting.key;
+                formGroup.appendChild(label);
+
+                let inputElement;
+                switch (setting.type) {
+                    case 'boolean':
+                        inputElement = document.createElement('select');
+                        inputElement.innerHTML = `<option value="true">啟用</option><option value="false">停用</option>`;
+                        inputElement.value = setting.value;
+                        break;
+                    case 'json':
+                        inputElement = document.createElement('textarea');
+                        inputElement.rows = 4;
+                        try {
+                           inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
+                        } catch(e) {
+                           inputElement.value = setting.value;
+                        }
+                        break;
+                    case 'number':
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'number';
+                        inputElement.value = setting.value;
+                        break;
+                    default:
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'text';
+                        inputElement.value = setting.value;
+                }
+                
+                inputElement.id = setting.key;
+                inputElement.name = setting.key;
+                formGroup.appendChild(inputElement);
+                settingsContainer.appendChild(formGroup);
+            });
+        }
+    }
+
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveButton = settingsForm.querySelector('button[type="submit"]');
+            const originalButtonText = saveButton.textContent;
+            
+            try {
+                saveButton.textContent = '儲存中...';
+                saveButton.disabled = true;
+
+                const updatedSettings = [];
+                const formElements = settingsForm.querySelectorAll('input, select, textarea');
+                
+                formElements.forEach(el => {
+                    let value = el.value;
+                    const settingDef = allSettings.find(s => s.key === el.name);
+                    if (settingDef && settingDef.type === 'json') {
+                        try {
+                            JSON.parse(value);
+                        } catch (e) {
+                            throw new Error(`設定項 "${settingDef.description}" 的 JSON 格式無效！`);
+                        }
+                    }
+                    updatedSettings.push({ key: el.name, value: value });
+                });
+                
+                const response = await fetch('/api/admin/update-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedSettings)
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || '儲存設定時發生未知錯誤');
+                }
+                
+                alert('系統設定已成功儲存！');
+
+            } catch (error) {
+                alert(`錯誤: ${error.message}`);
+            } finally {
+                saveButton.textContent = originalButtonText;
+                saveButton.disabled = false;
+            }
+        });
+    }
+
 
     // =================================================================
     // 資訊管理模組 (News Management)
@@ -1400,134 +1579,7 @@ function openEditProductModal(productId) {
             }
         });
     }
-    // =================================================================
-    // 【新增】系統設定模組 (System Settings)
-    // =================================================================
-    async function fetchAndRenderSettings() {
-        if (!settingsContainer) return;
-        try {
-            settingsContainer.innerHTML = '<p>正在讀取設定...</p>';
-            const response = await fetch('/api/admin/get-settings');
-            if (!response.ok) throw new Error('無法獲取設定列表');
-            allSettings = await response.json();
-            renderSettingsForm(allSettings);
-        } catch (error) {
-            console.error('獲取設定失敗:', error);
-            settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
-        }
-    }
 
-    function renderSettingsForm(settings) {
-        if (!settingsContainer) return;
-        settingsContainer.innerHTML = ''; // 清空容器
-
-        // 將設定分組
-        const groupedSettings = {
-            FEATURES: { title: '功能開關 (FEATURES)', items: [] },
-            TERMS: { title: '商業術語 (TERMS)', items: [] },
-            LOGIC: { title: '業務邏輯 (LOGIC)', items: [] }
-        };
-
-        settings.forEach(setting => {
-            const groupKey = setting.key.split('_')[0];
-            if (groupedSettings[groupKey]) {
-                groupedSettings[groupKey].items.push(setting);
-            }
-        });
-
-        // 遍歷分組並渲染
-        for (const groupName in groupedSettings) {
-            const group = groupedSettings[groupName];
-            if (group.items.length === 0) continue;
-
-            const groupTitle = document.createElement('h3');
-            groupTitle.textContent = group.title;
-            groupTitle.style.marginTop = '20px';
-            groupTitle.style.borderBottom = '1px solid var(--border-color)';
-            groupTitle.style.paddingBottom = '10px';
-            settingsContainer.appendChild(groupTitle);
-            
-            group.items.forEach(setting => {
-                const formGroup = document.createElement('div');
-                formGroup.className = 'form-group';
-
-                const label = document.createElement('label');
-                label.htmlFor = setting.key;
-                label.textContent = setting.description || setting.key;
-                formGroup.appendChild(label);
-
-                let inputElement;
-                switch (setting.type) {
-                    case 'boolean':
-                        inputElement = document.createElement('select');
-                        inputElement.innerHTML = `<option value="true">啟用</option><option value="false">停用</option>`;
-                        inputElement.value = setting.value;
-                        break;
-                    case 'json':
-                        inputElement = document.createElement('textarea');
-                        inputElement.rows = 4;
-                        inputElement.value = setting.value;
-                        break;
-                    case 'number':
-                        inputElement = document.createElement('input');
-                        inputElement.type = 'number';
-                        inputElement.value = setting.value;
-                        break;
-                    default: // string
-                        inputElement = document.createElement('input');
-                        inputElement.type = 'text';
-                        inputElement.value = setting.value;
-                }
-                
-                inputElement.id = setting.key;
-                inputElement.name = setting.key; // 關鍵：用於表單提交
-                formGroup.appendChild(inputElement);
-                settingsContainer.appendChild(formGroup);
-            });
-        }
-    }
-
-    if (settingsForm) {
-        settingsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const saveButton = settingsForm.querySelector('button[type="submit"]');
-            const originalButtonText = saveButton.textContent;
-            
-            try {
-                saveButton.textContent = '儲存中...';
-                saveButton.disabled = true;
-
-                const updatedSettings = [];
-                const formElements = settingsForm.querySelectorAll('input, select, textarea');
-                
-                formElements.forEach(el => {
-                    updatedSettings.push({
-                        key: el.name,
-                        value: el.value
-                    });
-                });
-                
-                const response = await fetch('/api/admin/update-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedSettings)
-                });
-
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || '儲存設定時發生未知錯誤');
-                }
-                
-                alert('系統設定已成功儲存！');
-
-            } catch (error) {
-                alert(`錯誤: ${error.message}`);
-            } finally {
-                saveButton.textContent = originalButtonText;
-                saveButton.disabled = false;
-            }
-        });
-    }
  
     // --- 初始化第一個頁面 ---
     showPage('dashboard'); 

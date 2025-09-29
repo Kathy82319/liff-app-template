@@ -14,16 +14,15 @@ async function getAccessToken(env) {
       .setAudience('https://oauth2.googleapis.com/token').setSubject(GOOGLE_SERVICE_ACCOUNT_EMAIL)
       .setIssuedAt().setExpirationTime('1h').sign(privateKey);
     
-    // ** START: 關鍵修正 - 手動建立請求 Body **
-    const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
-    const body = `grant_type=${encodeURIComponent(grantType)}&assertion=${encodeURIComponent(jwt)}`;
-
+    // 【錯誤修正】改用 URLSearchParams 建立請求，更加穩健
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body,
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type-jwt-bearer',
+        assertion: jwt
+      }),
     });
-    // ** END: 關鍵修正 **
 
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok) throw new Error(`從 Google 取得 access token 失敗: ${tokenData.error_description || tokenData.error}`);
@@ -33,13 +32,11 @@ async function getAccessToken(env) {
 
 export async function onRequest(context) {
     const { env } = context;
-    // ** START: 關鍵修正 - 讀取 USERS_SHEET_NAME 而不是 CLASS_PERKS_SHEET_NAME **
     const { GOOGLE_SHEET_ID, USERS_SHEET_NAME } = env;
 
     if (!USERS_SHEET_NAME) {
         return new Response(JSON.stringify({ error: '缺少 USERS_SHEET_NAME 環境變數。' }), { status: 500 });
     }
-    // ** END: 關鍵修正 **
 
     try {
         const accessToken = await getAccessToken(env);
@@ -47,7 +44,6 @@ export async function onRequest(context) {
         const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
         
         await doc.loadInfo();
-        // ** START: 關鍵修正 - 從使用者列表讀取 **
         const sheet = doc.sheetsByTitle[USERS_SHEET_NAME];
         if (!sheet) {
             throw new Error(`在 Google Sheets 中找不到名為 "${USERS_SHEET_NAME}" 的工作表。`);
@@ -55,17 +51,14 @@ export async function onRequest(context) {
         
         const rows = await sheet.getRows();
         
-        // 從所有使用者資料中，提取出不重複的 class 和 perk 對應關係
         const perks = rows.reduce((acc, row) => {
             const className = row.get('class');
             const perkDescription = row.get('perk');
-            // 只有當 class 存在且尚未被記錄時，才加入
             if (className && !acc[className]) {
                 acc[className] = perkDescription || '';
             }
             return acc;
         }, {});
-        // ** END: 關鍵修正 **
 
         return new Response(JSON.stringify(perks), {
             status: 200,

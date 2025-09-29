@@ -623,7 +623,6 @@ function renderProductDetails(product) {
     const tagsContainer = appContent.querySelector('#game-tags-container');
     const introContent = appContent.querySelector('#game-intro-content');
     const priceContent = appContent.querySelector('#game-price-content');
-    const specsContainer = appContent.querySelector('.core-info-grid');
     const mainImage = imageContainer.querySelector('.details-image-main');
     const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
     appContent.querySelector('.details-title').textContent = product.name;

@@ -1312,7 +1312,6 @@ async function initializeAdminPanel() {
         }
     }
 
-firstDayOfMonth
         if (!settingsContainer) return;
         settingsContainer.innerHTML = ''; 
 

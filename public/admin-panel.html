@@ -242,17 +242,17 @@
         <header class="header">
             <h1>店務管理系統</h1>
         </header>
-        <nav class="nav-tabs">
+<nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
             <a href="#inventory">產品/服務管理</a>
             <a href="#bookings">訂位管理</a>
-            <a href="#exp-history">經驗紀錄</a>
+            <a href="#exp-history">點數紀錄</a>
             <a href="#news">資訊管理</a>
             <a href="#drafts">訊息草稿</a>
             <a href="#store-info">店家資訊</a>
             <a href="#settings">系統設定</a>
-            <a href="#scan">掃碼加點</a>
+            <a href="#points">點數發放</a>
         </nav>
 
         <main class="main-content">
@@ -436,22 +436,42 @@
             </form>
         </div>
 
-        <div id="page-scan" class="page">
-            <div class="page-header"><h2>掃碼加點</h2></div>
-            <div id="scan-container">
-                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
-                <div id="scan-result" style="display: none; max-width: 500px; margin: 0 auto;">
-                    <div class="form-group">
-                        <label for="user-id-display">掃描結果 (使用者 ID):</label>
-                        <input type="text" id="user-id-display" readonly style="background-color: #e9ecef; cursor: not-allowed;">
-                    </div>
+<div id="page-points" class="page">
+            <div class="page-header"><h2>點數發放中心</h2></div>
+            <div id="points-user-selection">
+                <div class="form-group">
+                    <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
+                    <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
+                    <ul id="user-search-results"></ul>
                 </div>
+                <div class="points-actions">
+                     <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
+                </div>
+                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
             </div>
-            <div class="form-group"><label for="reason-select">點數名稱 (原因):</label><select id="reason-select"><option value="消費回饋">消費回饋</option><option value="活動獎勵">活動獎勵</option><option value="會員優惠">會員優惠</option><option value="other">其他 (請手動輸入)</option></select><input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;"></div>
-            <div class="form-group"><label for="exp-input">經驗值點數:</label><input type="number" id="exp-input" placeholder="請輸入要新增的點數" min="1"></div>
-            <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認新增</button>
-            <button id="rescan-btn" class="action-btn btn-cancel" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px;">重新掃描</button>
-            <div id="scan-status-container" style="margin-top: 15px; text-align: center;"></div>
+            <hr style="margin: 2rem 0;">
+            <div id="points-entry-form" style="display: none;">
+                <div class="form-group">
+                    <label>目標顧客</label>
+                    <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
+                </div>
+                <div class="form-group">
+                    <label for="reason-select">點數名稱 (原因):</label>
+                    <select id="reason-select">
+                        <option value="消費回饋">消費回饋</option>
+                        <option value="活動獎勵">活動獎勵</option>
+                        <option value="會員優惠">會員優惠</option>
+                        <option value="other">其他 (請手動輸入)</option>
+                    </select>
+                    <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="exp-input">點數:</label>
+                    <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
+                </div>
+                <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
+                <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
+            </div>
         </div>
     </main>
     
@@ -654,10 +674,23 @@
                                 <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="edit-product-images">圖片網址 (JSON 格式)</label>
-                            <textarea id="edit-product-images" rows="3" placeholder='["網址一", "網址二"]'></textarea>
-                        </div>
+                                <div class="form-group">
+                                    <label>圖片網址 (最多5張)</label>
+                                    <div class="edit-product-image-inputs">
+                                        <div class="form-group"><label for="edit-product-image-1">1.</label><input type="url" id="edit-product-image-1" placeholder="請貼上圖片網址"></div>
+                                        <div class="form-group"><label for="edit-product-image-2">2.</label><input type="url" id="edit-product-image-2" placeholder="請貼上圖片網址"></div>
+                                        <div class="form-group"><label for="edit-product-image-3">3.</label><input type="url" id="edit-product-image-3" placeholder="請貼上圖片網址"></div>
+                                        <div class="form-group"><label for="edit-product-image-4">4.</label><input type="url" id="edit-product-image-4" placeholder="請貼上圖片網址"></div>
+                                        <div class="form-group"><label for="edit-product-image-5">5.</label><input type="url" id="edit-product-image-5" placeholder="請貼上圖片網址"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                                <div class="form-group grid-span-2">
+                                <hr>
+                                <label>彈性通用規格 (選填，最多5組)</label>
+                                </div>
+
                         <div class="form-group">
                             <label for="edit-product-description">詳細介紹</label>
                             <textarea id="edit-product-description" rows="5"></textarea>
@@ -683,19 +716,8 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="edit-product-price-type">定價模式</label>
-                            <select id="edit-product-price-type">
-                                <option value="simple">單一定價</option>
-                                <option value="multiple">多重選項定價</option>
-                            </select>
-                        </div>
-                        <div id="simple-price-group" class="form-group">
                             <label for="edit-product-price">價格</label>
                             <input type="number" id="edit-product-price" min="0">
-                        </div>
-                        <div id="multiple-price-group" class="form-group" style="display: none;">
-                            <label for="edit-product-price-options">價格選項 (JSON 格式)</label>
-                            <textarea id="edit-product-price-options" rows="3" placeholder='[{"name":"選項A", "price":100}, {"name":"選項B", "price":200}]'></textarea>
                         </div>
                         
                         <div class="form-group">
@@ -816,6 +838,45 @@
         </form>
     </div>
 </div>
+
+            <div id="page-points" class="page">
+                <div class="page-header"><h2>點數發放中心</h2></div>
+                <div id="points-user-selection">
+                    <div class="form-group">
+                        <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
+                        <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
+                        <ul id="user-search-results"></ul>
+                    </div>
+                    <div class="points-actions">
+                         <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
+                    </div>
+                    <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
+                </div>
+                <hr style="margin: 2rem 0;">
+                <div id="points-entry-form" style="display: none;">
+                    <div class="form-group">
+                        <label>目標顧客</label>
+                        <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reason-select">點數名稱 (原因):</label>
+                        <select id="reason-select">
+                            <option value="消費回饋">消費回饋</option>
+                            <option value="活動獎勵">活動獎勵</option>
+                            <option value="會員優惠">會員優惠</option>
+                            <option value="other">其他 (請手動輸入)</option>
+                        </select>
+                        <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="exp-input">點數:</label>
+                        <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
+                    </div>
+                    <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
+                    <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
+                </div>
+            </div>
+
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>

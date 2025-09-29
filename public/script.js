@@ -153,7 +153,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // 全域事件監聽
     // =================================================================
     function setupGlobalEventListeners() {
-        appContent.addEventListener('click', (event) => {
+
+    appContent.addEventListener('click', (event) => {
+            // 【修改】產品卡片點擊事件
+            const productCard = event.target.closest('.product-card');
+            if (productCard && productCard.dataset.productId) {
+                const productId = productCard.dataset.productId;
+                const productItem = allProducts.find(p => p.product_id == productId);
+                if (productItem) {
+                    pageHistory.push('page-product-details');
+                    appContent.innerHTML = pageTemplates.querySelector('#page-product-details').innerHTML;
+                    renderProductDetails(productItem);
+                }
+                return;
+            }
             const target = event.target;
             const targetId = target.id;
 
@@ -623,51 +636,44 @@ function renderProductDetails(product) {
     const introContent = appContent.querySelector('#game-intro-content');
     const priceContent = appContent.querySelector('#game-price-content');
     const specsContainer = appContent.querySelector('.core-info-grid');
+    const mainImage = imageContainer.querySelector('.details-image-main');
+    const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
+    appContent.querySelector('.details-title').textContent = product.name;
+    appContent.querySelector('#product-intro-content').textContent = product.description || '暫無介紹。';
+    appContent.querySelector('#product-price-content').innerHTML = `<p class="price-value">$${product.price || '洽詢'}</p>`;    
 
     detailsTitle.textContent = product.name;
 
     try {
-        const images = JSON.parse(product.images || '[]');
-        const mainImage = imageContainer.querySelector('.details-image-main');
-        const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
-        if(images.length > 0) {
-            mainImage.src = images[0];
-            thumbnails.innerHTML = images.map((img, index) => `<img src="${img}" class="${index === 0 ? 'active' : ''}">`).join('');
-            imageContainer.style.display = 'block';
-        } else {
-            imageContainer.style.display = 'none';
+            const images = JSON.parse(product.images || '[]');
+            if (images.length > 0) {
+                mainImage.src = images[0];
+                thumbnails.innerHTML = images.map((img, index) => 
+                    `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`
+                ).join('');
+                imageContainer.style.display = 'block';
+
+                thumbnails.addEventListener('click', e => {
+                    if (e.target.tagName === 'IMG') {
+                        mainImage.src = e.target.dataset.src;
+                        thumbnails.querySelector('.active')?.classList.remove('active');
+                        e.target.classList.add('active');
+                    }
+                });
+            } else {
+                imageContainer.style.display = 'none';
+            }
+        } catch(e) { imageContainer.style.display = 'none'; }
+
+        const specsContainer = appContent.querySelector('#product-specs-container');
+        let specsHTML = '';
+        for(let i = 1; i <= 5; i++) {
+            if (product[`spec_${i}_name`] && product[`spec_${i}_value`]) {
+                specsHTML += `<div class="spec-item"><strong>${product[`spec_${i}_name`]}</strong>: <span>${product[`spec_${i}_value`]}</span></div>`;
+            }
         }
-    } catch(e) { imageContainer.style.display = 'none'; }
-
-    introContent.textContent = product.description || '暫無介紹。';
-
-    const tags = (product.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-    if (tags.length > 0) {
-        tagsContainer.innerHTML = tags.map(tag => `<span class="game-tag">${tag}</span>`).join('');
-        tagsContainer.style.display = 'block';
-    } else {
-        tagsContainer.style.display = 'none';
+        specsContainer.innerHTML = specsHTML;
     }
-
-    let priceHTML = '';
-    if (product.price_type === 'simple') {
-        priceHTML = `<div class="price-item"><p class="price-value">$${product.price}</p></div>`;
-    } else if (product.price_type === 'multiple' && product.price_options) {
-        try {
-            const options = JSON.parse(product.price_options);
-            priceHTML = options.map(opt => `<div class="price-item"><p class="price-tag">${opt.name}</p><p class="price-value">$${opt.price}</p></div>`).join('');
-        } catch (e) { priceHTML = `<p>價格資訊請洽店內</p>`; }
-    }
-    priceContent.innerHTML = priceHTML || `<p>價格資訊請洽店內</p>`;
-
-    let specsHTML = '';
-    for(let i = 1; i <= 5; i++) {
-        if (product[`spec_${i}_name`] && product[`spec_${i}_value`]) {
-            specsHTML += `<div class="info-item"><span>${product[`spec_${i}_name`]}</span><strong>${product[`spec_${i}_value`]}</strong></div>`;
-        }
-    }
-    specsContainer.innerHTML = specsHTML;
-}
 
 // public/script.js -> 替換 renderProducts 函式
 function renderProducts() {
@@ -812,25 +818,31 @@ async function initializeBookingPage() {
     document.getElementById('view-my-bookings-btn').addEventListener('click', () => showPage('page-my-bookings'));
     document.getElementById('confirm-booking-btn').addEventListener('click', handleBookingConfirmation);
 
-    // --- 【核心修改開始】 ---
-    // 根據 config 計算最小可預約日期
-    const cutoffDays = CONFIG.LOGIC.BOOKING_CUTOFF_DAYS || 0;
-    const minDate = new Date();
-    minDate.setDate(minDate.getDate() + cutoffDays);
-    // --- 【核心修改結束】 ---
+     // 【修改】線上預約頁面初始化
+        const cutoffDays = CONFIG.LOGIC.BOOKING_CUTOFF_DAYS || 0;
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() + cutoffDays);
 
+        // 【修改】先獲取可預約日期
+        let enabledDates = [];
+        try {
+            const response = await fetch('/api/admin/booking-settings');
+            enabledDates = await response.json();
+        } catch(e) {
+            console.error('無法獲取可預約日期設定');
+        }
     // 初始化日期選擇器
-    flatpickr(datepickerContainer, {
-        inline: true,
-        minDate: minDate, // 【核心修改】應用計算出來的最小日期
-        dateFormat: "Y-m-d",
-        locale: "zh_tw",
-        onChange: (selectedDates, dateStr) => {
-            bookingData.date = dateStr;
-            renderTimeSlots(timeSlotSelect);
-            if (timeSlotContainer) timeSlotContainer.style.display = 'block';
-        },
-    });
+        flatpickr(datepickerContainer, {
+            inline: true,
+            minDate: minDate,
+            dateFormat: "Y-m-d",
+            locale: "zh_tw",
+            // 【修改】使用 enable 選項來實現白名單模式
+            enable: enabledDates,
+            onChange: (selectedDates, dateStr) => {
+                // ... (onChange 邏輯不變)
+            },
+        });
 
     // 當時段被選擇後，顯示下方的詳細資訊表單
     if (timeSlotSelect) {

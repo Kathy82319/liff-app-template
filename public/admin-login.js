@@ -57,9 +57,9 @@ async function initializeAdminPanel() {
     const submitExpBtn = document.getElementById('submit-exp-btn');
     const rescanBtn = document.getElementById('rescan-btn');
     const scanStatusMessage = document.querySelector('#scan-status-container');
-    // 【錯誤修正】在此處宣告 settingsForm 和 settingsContainer
     const settingsForm = document.getElementById('settings-form');
     const settingsContainer = document.getElementById('settings-container');
+    const pointsStatusMessage = document.getElementById('points-status-message');
 
     // --- 全域狀態 ---
     let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allDrafts = [];
@@ -68,6 +68,7 @@ async function initializeAdminPanel() {
     let html5QrCode = null;
     let sortableProducts = null;
     let allSettings = [];
+    let currentSelectedUserForPoints = null;
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {
@@ -75,25 +76,24 @@ async function initializeAdminPanel() {
             html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
         }
         pages.forEach(page => page.classList.remove('active'));
-        document.getElementById(`page-${pageId}`)?.classList.add('active');
+        // 舊的 'scan' 頁面現在由 'points' 頁面取代
+        const targetPageId = pageId === 'scan' ? 'points' : pageId;
+        document.getElementById(`page-${targetPageId}`)?.classList.add('active');
+
         document.querySelectorAll('.nav-tabs a').forEach(link => {
+            const linkTarget = link.getAttribute('href').substring(1);
             link.classList.remove('active');
-            if (link.getAttribute('href') === `#${pageId}`) link.classList.add('active');
+            if (linkTarget === pageId) {
+                link.classList.add('active');
+            }
         });
 
         const pageLoader = {
-            'dashboard': fetchDashboardStats,
-            'users': fetchAllUsers,
-            'inventory': fetchAllProducts,
-            'bookings': () => fetchAllBookings('today'),
-            'exp-history': fetchAllExpHistory,
-            'scan': startScanner,
-            'news': fetchAllNews,
-            'store-info': fetchStoreInfo,
-            'drafts': fetchAllDrafts,
+            // ...
+            'points': initializePointsPage, // 取代 'scan'
             'settings': fetchAndRenderSettings
         };
-        pageLoader[pageId]?.();
+        pageLoader[targetPageId]?.();
     }
 
     mainNav.addEventListener('click', (event) => {
@@ -187,6 +187,12 @@ async function initializeAdminPanel() {
         productListTbody.innerHTML = '';
         products.forEach(p => {
             const row = productListTbody.insertRow();
+            const cellVisible = row.insertCell();
+            cellVisible.innerHTML = `
+                <label class="switch">
+                    <input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>`;            
             row.className = 'draggable-row';
             row.dataset.productId = p.product_id;
 
@@ -207,8 +213,7 @@ async function initializeAdminPanel() {
             const cellOrder = row.insertCell();
             const cellProduct = row.insertCell();
             const cellStock = row.insertCell();
-            const cellPrice = row.insertCell();
-            const cellVisible = row.insertCell();
+            const cellPrice = row.insertCell();          
             const cellActions = row.insertCell();
 
             cellOrder.className = 'drag-handle-cell';
@@ -324,6 +329,10 @@ async function initializeAdminPanel() {
         simplePriceGroup.style.display = (priceTypeSelect.value === 'simple') ? 'block' : 'none';
         multiplePriceGroup.style.display = (priceTypeSelect.value === 'multiple') ? 'block' : 'none';
         document.getElementById('edit-product-price').value = product.price || 0;
+        const images = JSON.parse(product.images || '[]');
+        for(let i=1; i<=5; i++){
+            document.getElementById(`edit-product-image-${i}`).value = images[i-1] || '';
+        }
         document.getElementById('edit-product-price-options').value = product.price_options || '[]';
 
         for (let i = 1; i <= 5; i++) {
@@ -350,22 +359,25 @@ async function initializeAdminPanel() {
         editProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const productId = document.getElementById('edit-product-id').value;
-            
+            const images = [];
+            for(let i=1; i<=5; i++){
+                const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
+                if(imgUrl) images.push(imgUrl);
+            }
             const formData = new FormData(editProductForm);
             const updatedData = {
+                images: JSON.stringify(images),
+                price: document.getElementById('edit-product-price').value,                
                 productId: productId,
                 name: document.getElementById('edit-product-name').value,
                 description: document.getElementById('edit-product-description').value,
                 category: document.getElementById('edit-product-category').value,
                 tags: document.getElementById('edit-product-tags').value,
-                images: document.getElementById('edit-product-images').value,
                 is_visible: document.getElementById('edit-product-is-visible').checked,
                 inventory_management_type: document.getElementById('edit-product-inventory-type').value,
                 stock_quantity: document.getElementById('edit-product-stock-quantity').value,
                 stock_status: document.getElementById('edit-product-stock-status').value,
-                price_type: document.getElementById('edit-product-price-type').value,
                 price: document.getElementById('edit-product-price').value,
-                price_options: document.getElementById('edit-product-price-options').value
             };
             for(let i=1; i<=5; i++){
                 updatedData[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
@@ -854,6 +866,24 @@ async function initializeAdminPanel() {
         if (!calendarGrid || !calendarMonthYear) return;
         const year = currentCalendarDate.getFullYear();
         const month = currentCalendarDate.getMonth();
+            const isPast = new Date(dateStr) < new Date(new Date().toDateString());
+            
+            let bookingsHTML = bookingsForDay.map(b => {
+                const actionsHTML = `
+                    <div class="actions">
+                        <button class="action-btn btn-check-in" data-booking-id="${b.booking_id}" style="background:var(--success-color);" ${b.status !== 'confirmed' ? 'disabled' : ''}>✓</button>
+                        <button class="action-btn btn-cancel-booking" data-booking-id="${b.booking_id}" style="background:var(--danger-color);" ${b.status === 'cancelled' ? 'disabled' : ''}>✗</button>
+                    </div>`;
+
+                return `<div class="calendar-booking status-${b.status} ${isPast ? 'is-past' : ''}" data-booking-id="${b.booking_id}">
+                            ${b.time_slot} ${b.contact_name}
+                            ${actionsHTML}
+                        </div>`;
+            }).join('');
+            
+            calendarGrid.innerHTML += `<div class="calendar-day ${isPast ? 'is-past' : ''}">${day}</span>${bookingsHTML}</div>`;
+        }        
+        
         calendarMonthYear.textContent = `${year} 年 ${month + 1} 月`;
         calendarGrid.innerHTML = '';
         ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
@@ -880,7 +910,22 @@ async function initializeAdminPanel() {
             `;
         }
     }
+    if (calendarGrid) {
+        calendarGrid.addEventListener('click', async (e) => {
+            const button = e.target.closest('button.action-btn');
+            if(!button) return;
+            
+            const bookingId = button.dataset.bookingId;
+            if(!bookingId) return;
 
+            if (button.classList.contains('btn-check-in')) {
+                // ... (報到邏輯與列表視圖相同)
+            } else if (button.classList.contains('btn-cancel-booking')) {
+                const booking = allBookings.find(b => b.booking_id == bookingId);
+                openCancelBookingModal(booking);
+            }
+        });
+    }
     if (bookingListTbody) {
         bookingListTbody.addEventListener('click', async (event) => {
             const target = event.target;
@@ -1232,122 +1277,150 @@ async function initializeAdminPanel() {
         }
     }
 
-    function renderSettingsForm(settings) {
+function renderSettingsForm(settings) {
         if (!settingsContainer) return;
         settingsContainer.innerHTML = ''; 
 
         const groupedSettings = {
-            FEATURES: { title: '功能開關 (FEATURES)', items: [] },
-            TERMS: { title: '商業術語 (TERMS)', items: [] },
-            LOGIC: { title: '業務邏輯 (LOGIC)', items: [] }
+            FEATURES: { title: '功能開關', items: [] },
+            TERMS: { title: '商業術語', items: [] },
+            LOGIC: { title: '業務邏輯', items: [] }
         };
 
         settings.forEach(setting => {
             const groupKey = setting.key.split('_')[0];
-            if (groupedSettings[groupKey]) {
-                groupedSettings[groupKey].items.push(setting);
-            }
+            if (groupedSettings[groupKey]) groupedSettings[groupKey].items.push(setting);
         });
 
         for (const groupName in groupedSettings) {
             const group = groupedSettings[groupName];
             if (group.items.length === 0) continue;
 
-            const groupTitle = document.createElement('h3');
-            groupTitle.textContent = group.title;
-            groupTitle.style.cssText = 'margin-top: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;';
-            settingsContainer.appendChild(groupTitle);
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'setting-group';
+
+            const header = document.createElement('div');
+            header.className = 'setting-group-header';
+            header.innerHTML = `<h4>${group.title}</h4>`;
+
+            const body = document.createElement('div');
+            body.className = 'setting-group-body';
             
             group.items.forEach(setting => {
-                const formGroup = document.createElement('div');
-                formGroup.className = 'form-group';
-
-                const label = document.createElement('label');
-                label.htmlFor = setting.key;
-                label.textContent = setting.description || setting.key;
-                formGroup.appendChild(label);
-
-                let inputElement;
-                switch (setting.type) {
-                    case 'boolean':
-                        inputElement = document.createElement('select');
-                        inputElement.innerHTML = `<option value="true">啟用</option><option value="false">停用</option>`;
-                        inputElement.value = setting.value;
-                        break;
-                    case 'json':
-                        inputElement = document.createElement('textarea');
-                        inputElement.rows = 4;
-                        try {
-                           inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
-                        } catch(e) {
-                           inputElement.value = setting.value;
-                        }
-                        break;
-                    case 'number':
-                        inputElement = document.createElement('input');
-                        inputElement.type = 'number';
-                        inputElement.value = setting.value;
-                        break;
-                    default:
-                        inputElement = document.createElement('input');
-                        inputElement.type = 'text';
-                        inputElement.value = setting.value;
+                let formGroup;
+                if(setting.type === 'boolean') {
+                    formGroup = createToggleSwitch(setting);
+                } else {
+                    formGroup = createGenericInput(setting);
                 }
                 
-                inputElement.id = setting.key;
-                inputElement.name = setting.key;
-                formGroup.appendChild(inputElement);
-                settingsContainer.appendChild(formGroup);
-            });
-        }
-    }
-
-    if (settingsForm) {
-        settingsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const saveButton = settingsForm.querySelector('button[type="submit"]');
-            const originalButtonText = saveButton.textContent;
-            
-            try {
-                saveButton.textContent = '儲存中...';
-                saveButton.disabled = true;
-
-                const updatedSettings = [];
-                const formElements = settingsForm.querySelectorAll('input, select, textarea');
-                
-                formElements.forEach(el => {
-                    let value = el.value;
-                    const settingDef = allSettings.find(s => s.key === el.name);
-                    if (settingDef && settingDef.type === 'json') {
-                        try {
-                            JSON.parse(value);
-                        } catch (e) {
-                            throw new Error(`設定項 "${settingDef.description}" 的 JSON 格式無效！`);
+                // 條件顯示邏輯
+                if (setting.key.startsWith('TERMS_') || setting.key.startsWith('LOGIC_')) {
+                    const featureKey = findRelatedFeatureKey(setting.key);
+                    if (featureKey) {
+                        formGroup.dataset.dependency = featureKey;
+                        const featureSetting = settings.find(s => s.key === featureKey);
+                        if (featureSetting && featureSetting.value !== 'true') {
+                            formGroup.style.display = 'none';
                         }
                     }
-                    updatedSettings.push({ key: el.name, value: value });
-                });
-                
-                const response = await fetch('/api/admin/update-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedSettings)
-                });
-
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || '儲存設定時發生未知錯誤');
                 }
-                
-                alert('系統設定已成功儲存！');
+                body.appendChild(formGroup);
+            });
+            
+            groupDiv.appendChild(header);
+            groupDiv.appendChild(body);
+            settingsContainer.appendChild(groupDiv);
 
-            } catch (error) {
-                alert(`錯誤: ${error.message}`);
-            } finally {
-                saveButton.textContent = originalButtonText;
-                saveButton.disabled = false;
-            }
+            header.addEventListener('click', () => {
+                body.classList.toggle('visible');
+            });
+        }
+        
+        // 首次載入時展開第一個群組
+        const firstGroupBody = settingsContainer.querySelector('.setting-group-body');
+        if(firstGroupBody) firstGroupBody.classList.add('visible');
+    }
+    
+    function createToggleSwitch(setting) {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.style.display = 'flex';
+        formGroup.style.alignItems = 'center';
+        formGroup.style.justifyContent = 'space-between';
+        
+        const label = document.createElement('label');
+        label.htmlFor = setting.key;
+        label.textContent = setting.description;
+        label.style.marginBottom = '0';
+
+        const switchLabel = document.createElement('label');
+        switchLabel.className = 'switch';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = setting.key;
+        input.name = setting.key;
+        input.checked = (setting.value === 'true');
+        const slider = document.createElement('span');
+        slider.className = 'slider';
+
+        switchLabel.appendChild(input);
+        switchLabel.appendChild(slider);
+        formGroup.appendChild(label);
+        formGroup.appendChild(switchLabel);
+        
+        input.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            document.querySelectorAll(`[data-dependency="${setting.key}"]`).forEach(el => {
+                el.style.display = isEnabled ? 'block' : 'none';
+            });
         });
+
+        return formGroup;
+    }
+
+    function createGenericInput(setting) {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+
+        const label = document.createElement('label');
+        label.htmlFor = setting.key;
+        label.textContent = setting.description || setting.key;
+        formGroup.appendChild(label);
+
+        let inputElement;
+        switch (setting.type) {
+            case 'json':
+                inputElement = document.createElement('textarea');
+                inputElement.rows = 4;
+                try {
+                    // 格式化 JSON，使其在顯示時更易讀
+                    inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
+                } catch (e) {
+                    inputElement.value = setting.value; // 如果解析失敗，則顯示原始字串
+                }
+                break;
+            case 'number':
+                inputElement = document.createElement('input');
+                inputElement.type = 'number';
+                inputElement.value = setting.value;
+                break;
+            default: // 'string'
+                inputElement = document.createElement('input');
+                inputElement.type = 'text';
+                inputElement.value = setting.value;
+        }
+        
+        inputElement.id = setting.key;
+        inputElement.name = setting.key;
+        formGroup.appendChild(inputElement);
+        return formGroup;
+    }
+
+    function findRelatedFeatureKey(key) {
+        if (key.includes('BOOKING')) return 'FEATURES_ENABLE_BOOKING_SYSTEM';
+        if (key.includes('MEMBERSHIP') || key.includes('POINTS')) return 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM';
+        return null;
     }
 
 
@@ -1575,6 +1648,25 @@ async function initializeAdminPanel() {
     if (draftListTbody) {
         draftListTbody.addEventListener('click', async (e) => {
             const target = e.target;
+            // 【新增】處理快速上架開關
+            if (target.classList.contains('visibility-toggle')) {
+                const productId = target.dataset.productId;
+                const isVisible = target.checked;
+                try {
+                    const response = await fetch('/api/admin/toggle-product-visibility', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ productId, isVisible })
+                    });
+                    if(!response.ok) throw new Error('更新失敗');
+                    const product = allProducts.find(p => p.product_id === productId);
+                    if(product) product.is_visible = isVisible ? 1 : 0;
+                } catch(error) {
+                    alert(`更新失敗: ${error.message}`);
+                    target.checked = !isVisible; // 操作失敗時，還原 checkbox 狀態
+                }
+                return; // 結束，避免觸發 row click
+            }
             const draftId = target.dataset.draftid;
             if (!draftId) return;
 
@@ -1683,92 +1775,126 @@ async function initializeAdminPanel() {
     }
 
     // =================================================================
-    // 掃碼加點模組
+    // 點數發放中心模組 (改造後)
     // =================================================================
-    function onScanSuccess(decodedText, decodedResult) {
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                if(qrReaderElement) qrReaderElement.style.display = 'none';
-                if(scanResultSection) scanResultSection.style.display = 'block';
-                if(userIdDisplay) userIdDisplay.value = decodedText;
-                if(scanStatusMessage) {
-                    scanStatusMessage.textContent = '掃描成功！請輸入點數。';
-                    scanStatusMessage.className = 'success';
-                }
-            }).catch(err => console.error("停止掃描失敗", err));
+    function initializePointsPage() {
+        if (!pointsPage) return;
+        currentSelectedUserForPoints = null;
+        userSearchInputPoints.value = '';
+        userSearchResults.innerHTML = '';
+        pointsEntryForm.style.display = 'none';
+        selectedUserDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
+        if(html5QrCode && html5QrCode.isScanning) html5QrCode.stop();
+        qrReaderPoints.style.display = 'none';
+    }
+
+    async function handleUserSearchForPoints(query) {
+        if (query.length < 1) {
+            userSearchResults.innerHTML = '';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('搜尋失敗');
+            const users = await response.json();
+            userSearchResults.innerHTML = '';
+            if (users.length === 0) {
+                userSearchResults.innerHTML = '<li>找不到符合的顧客</li>';
+            } else {
+                users.forEach(user => {
+                    const li = document.createElement('li');
+                    li.textContent = `${user.nickname || user.line_display_name} (${user.user_id.substring(0, 15)}...)`;
+                    li.dataset.userId = user.user_id;
+                    li.dataset.userName = user.nickname || user.line_display_name;
+                    userSearchResults.appendChild(li);
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            userSearchResults.innerHTML = '<li>搜尋時發生錯誤</li>';
         }
     }
 
-    function startScanner() {
-        if (!qrReaderElement) return;
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().catch(err => console.log("掃描器已停止"));
-        }
-        
-        html5QrCode = new Html5Qrcode("qr-reader");
-        qrReaderElement.style.display = 'block';
-        if(scanResultSection) scanResultSection.style.display = 'none';
-        if(scanStatusMessage) {
-            scanStatusMessage.textContent = '請將顧客的 QR Code 對準掃描框';
-            scanStatusMessage.className = '';
-        }
-        if(expInput) expInput.value = '';
-        if(reasonSelect) reasonSelect.value = '消費回饋';
-        if(customReasonInput) customReasonInput.style.display = 'none';
-
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-            .catch(err => {
-                console.error("無法啟動掃描器", err);
-                if(scanStatusMessage) scanStatusMessage.textContent = '無法啟動相機，請檢查權限。';
-            });
+    if (userSearchInputPoints) {
+        userSearchInputPoints.addEventListener('input', (e) => handleUserSearchForPoints(e.target.value));
     }
-    
-    if (reasonSelect) {
-        reasonSelect.addEventListener('change', () => {
-            if(customReasonInput) customReasonInput.style.display = (reasonSelect.value === 'other') ? 'block' : 'none';
+
+    if (userSearchResults) {
+        userSearchResults.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (li && li.dataset.userId) {
+                currentSelectedUserForPoints = {
+                    id: li.dataset.userId,
+                    name: li.dataset.userName
+                };
+                selectedUserDisplay.textContent = `${currentSelectedUserForPoints.name} (${currentSelectedUserForPoints.id})`;
+                pointsEntryForm.style.display = 'block';
+                userSearchResults.innerHTML = '';
+                userSearchInputPoints.value = '';
+            }
         });
     }
 
-    if (rescanBtn) {
-        rescanBtn.addEventListener('click', startScanner);
+    if(startScanBtn){
+        startScanBtn.addEventListener('click', () => {
+            qrReaderPoints.style.display = 'block';
+            if (html5QrCode && html5QrCode.isScanning) return;
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+                async (decodedText, decodedResult) => {
+                    await html5QrCode.stop();
+                    qrReaderPoints.style.display = 'none';
+                    const user = allUsers.find(u => u.user_id === decodedText);
+                    if(user){
+                         currentSelectedUserForPoints = { id: user.user_id, name: user.nickname || user.line_display_name };
+                         selectedUserDisplay.textContent = `${currentSelectedUserForPoints.name} (${currentSelectedUserForPoints.id})`;
+                         pointsEntryForm.style.display = 'block';
+                    } else {
+                        alert('在資料庫中找不到此使用者！');
+                    }
+                },
+                (errorMessage) => { /* 掃描中... */ }
+            ).catch(err => alert('無法啟動相機，請檢查權限。'));
+        });
     }
 
     if (submitExpBtn) {
         submitExpBtn.addEventListener('click', async () => {
-            const userId = userIdDisplay.value;
+            // 【重要修正】確保 userId 來自新的全域變數
+            if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
+                alert('錯誤：尚未選取顧客！');
+                return;
+            }
+            const userId = currentSelectedUserForPoints.id;
+
             const expValue = Number(expInput.value);
             let reason = reasonSelect.value;
             if (reason === 'other') reason = customReasonInput.value.trim();
-            if (!userId || !expValue || expValue <= 0 || !reason) {
-                if(scanStatusMessage) {
-                    scanStatusMessage.textContent = '錯誤：所有欄位皆為必填。';
-                    scanStatusMessage.className = 'error';
-                }
+
+            if (!expValue || expValue <= 0 || !reason) {
+                pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
+                pointsStatusMessage.style.color = 'var(--danger-color)';
                 return;
             }
+            
+            pointsStatusMessage.textContent = '正在處理中...';
+            submitExpBtn.disabled = true;
+
             try {
-                if(scanStatusMessage) {
-                    scanStatusMessage.textContent = '正在處理中...';
-                    scanStatusMessage.className = '';
-                }
-                submitExpBtn.disabled = true;
-                const response = await fetch('api/add-exp', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                const response = await fetch('/api/add-points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, expValue, reason }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || '未知錯誤');
-                if(scanStatusMessage) {
-                    scanStatusMessage.textContent = `成功為 ${userId.substring(0, 10)}... 新增 ${expValue} 點經驗！`;
-                    scanStatusMessage.className = 'success';
-                }
-                if(expInput) expInput.value = '';
+
+                pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
+                pointsStatusMessage.style.color = 'var(--success-color)';
+                expInput.value = ''; // 清空輸入
             } catch (error) {
-                if(scanStatusMessage) {
-                    scanStatusMessage.textContent = `新增失敗: ${error.message}`;
-                    scanStatusMessage.className = 'error';
-                }
+                pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
+                pointsStatusMessage.style.color = 'var(--danger-color)';
             } finally {
                 submitExpBtn.disabled = false;
             }

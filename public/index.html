@@ -20,64 +20,68 @@
     <main id="app-content" class="page"></main>
 
     <div id="page-templates" style="display: none;">
-       <div id="page-product-details">
-            <button class="details-back-button">← 返回</button>
-            <h1 class="details-title page-main-title"></h1>
-            <div class="details-section">
-                <div class="details-gallery">
-                    <img src="https://placehold.co/600x400/112240/ccd6f6?text=Image" class="details-image-main">
-                    <div class="details-image-thumbnails"></div>
-                </div>
-                <h3>費用</h3>
-                <div id="product-price-content"></div>
-                <hr>
-                <h3>介紹</h3>
-                <p id="product-intro-content"></p>
-                <div id="product-specs-container"></div>
-            </div>
-        </div>
 
-        <div id="page-news-details">
-            <button class="details-back-button">← 返回</button>
-            <h1 id="news-details-title" class="page-main-title"></h1>
-            <div class="details-section">
-                <div class="news-card-header">
-                    <span id="news-details-category"></span>
-                    <span id="news-details-date"></span>
-                </div>
-                <img id="news-details-image" src="" alt="" style="width: 100%; display: none;">
-                <div id="news-details-content" style="white-space: pre-wrap;"></div>
+        
+    <div id="page-product-details">
+        <button class="details-back-button">← 返回</button>
+        <h1 class="details-title page-main-title"></h1>
+        <div class="details-section">
+            <div class="details-gallery">
+                <img src="https://placehold.co/600x400/112240/ccd6f6?text=Image" class="details-image-main">
+                <div class="details-image-thumbnails"></div>
             </div>
+            <h3>費用</h3>
+            <div id="product-price-content"></div>
+            <hr>
+            <h3>介紹</h3>
+            <p id="product-intro-content"></p>
+            <div id="product-specs-container"></div>
+        </div>
+    </div>        
+
+    <div id="page-news-details">
+        <button class="details-back-button">← 返回</button>
+        <h1 id="news-details-title" class="page-main-title"></h1>
+        <div class="details-section">
+            <div class="news-card-header">
+                <span id="news-details-category"></span>
+                <span id="news-details-date"></span>
+            </div>
+            <img id="news-details-image" src="" alt="" style="width: 100%; display: none;">
+            <div id="news-details-content" style="white-space: pre-wrap;"></div>
         </div>
     </div>
 
-    <div id="page-templates" style="display: none;">
-    
-        <div id="page-home">
-            <div class="news-header">
-                <div class="news-header-decoration"></div>
-                <h1 class="page-main-title">最新情報</h1>
-            </div>
-            <div id="news-filter-container"><p>讀取中...</p></div>
-            <div id="news-list-container"><p>正在載入最新情報...</p></div>
+    <div id="page-home">
+        <div class="news-header">
+            <div class="news-header-decoration"></div>
+            <h1 class="page-main-title">最新情報</h1>
         </div>
-
-<div id="page-products"> <h1 class="page-main-title">產品型錄</h1>
-    <div id="filter-controls">
-        <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
-        <div id="tag-filter-container">
-            </div>
-        <button id="clear-filters">清除所有篩選</button>
+        <div id="news-filter-container"><p>讀取中...</p></div>
+        <div id="news-list-container"><p>正在載入最新情報...</p></div>
     </div>
-    <div id="product-list-container"><p>正在載入資料...</p></div> </div>
 
-<div id="page-templates" style="display: none;">
+    <div id="page-products">
+        <h1 class="page-main-title">產品型錄</h1>
+        <div id="filter-controls">
+            <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
+            <div id="tag-filter-container">
+                <div id="primary-tags" class="filter-group"></div>
+                <div id="secondary-tags" class="filter-group" style="display: none;"></div>
+            </div>
+            <button id="more-tags-btn">更多標籤</button>
+            <button id="clear-filters">清除所有篩選</button>
+        </div>
+        <div id="game-list-container"><p>正在載入資料...</p></div>
+    </div>
+
     <div id="page-my-exp-history">
         <h1 class="page-main-title">我的積分紀錄</h1>
         <div id="my-exp-history-container"><p>查詢中...</p></div>
         <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
     </div>
 
+    
     <div id="page-my-bookings">
         <h1 class="page-main-title"></h1>
         <div class="filter-group" style="margin-bottom: 20px;">
@@ -87,36 +91,34 @@
         <div id="my-bookings-container"><p>查詢中...</p></div>
         <div id="past-bookings-container" style="display: none;">
             <h2 style="margin-top: 30px;">過往的預約</h2>
-            </div>
+        </div>
         <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
-    </div>
-
-</div>
+    </div>    
 
 
-        <div id="page-profile">
-            <h1 class="page-main-title">會員中心</h1>
-            <div id="qrcode-container">
-                <div id="qrcode"></div>
+    <div id="page-profile">
+        <h1 class="page-main-title">會員中心</h1>
+        <div id="qrcode-container">
+            <div id="qrcode"></div>
+        </div>
+        <div class="profile-details-grid">
+            <div class="profile-avatar">
+                <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
             </div>
-            <div class="profile-details-grid">
-                <div class="profile-avatar">
-                    <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
-                </div>
-                <div class="profile-stats">
-                    <h2 id="display-name">讀取中...</h2>
-                    <p><strong></strong><span id="user-class"></span></p>
-                    <p><strong></strong><span id="user-level"></span></p>
-                    <p><strong></strong><span id="user-exp"></span></p>
-                </div>
-            </div>
-            <div id="user-perk-line" class="perk-display" style="display: none;"></div>
-            <div class="profile-actions">
-                <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
-                <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
-                <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
+            <div class="profile-stats">
+                <h2 id="display-name">讀取中...</h2>
+                <p><strong></strong><span id="user-class"></span></p>
+                <p><strong></strong><span id="user-level"></span></p>
+                <p><strong></strong><span id="user-exp"></span></p>
             </div>
         </div>
+        <div id="user-perk-line" class="perk-display" style="display: none;"></div>
+        <div class="profile-actions">
+            <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
+            <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
+            <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
+        </div>
+    </div>
 
 
 <div id="page-edit-profile">
@@ -182,7 +184,7 @@
         </div>
     </div>
 
-    <div id="booking-details-form" class="details-section" style="display: none;">
+    <div id="booking-details-form">
         <h3>請填寫預約資訊</h3>
         <div class="form-group">
             <label for="booking-item">預約項目</label>
@@ -232,7 +234,7 @@
 
 <nav id="tab-bar">
     <button class="tab-button active" data-target="page-home">最新<br>情報</button>
-    <button class="tab-button" data-target="page-games">產品<br>型錄</button>
+    <button class="tab-button" data-target="page-products">產品<br>型錄</button>
     <button class="tab-button" data-target="page-checkout">購物<br>結帳</button>
     <button class="tab-button" data-target="page-profile">會員<br>中心</button>
     <button class="tab-button" data-target="page-booking">線上<br>預約</button>

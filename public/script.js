@@ -1,34 +1,4 @@
-// public/script.js - v1.5 Final Corrected Version
-document.addEventListener('DOMContentLoaded', async () => {
-    // --- 【新增】非同步主函式 ---
-    // 透過一個 async 函式來包裝整個初始化流程
-    // 確保我們能先拿到後台設定，再執行後續操作
-    async function main() {
-        try {
-            // 步驟 1: 動態獲取 App 設定
-            const response = await fetch('/api/get-app-config');
-            if (!response.ok) {
-                throw new Error('無法從伺服器獲取應用程式設定檔。');
-            }
-            // 將獲取到的設定賦值給全域變數，讓舊有程式碼能無痛銜接
-            window.APP_CONFIG = await response.json();
-
-            // 步驟 2: 繼續執行原有的 LIFF 初始化流程
-            await initializeLiff();
-
-        } catch (error) {
-            console.error("初始化失敗:", error);
-            // 在嚴重錯誤時，於畫面上顯示錯誤訊息
-            const appContent = document.getElementById('app-content');
-            if (appContent) {
-                appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                    <h2>系統啟動失敗</h2>
-                    <p>${error.message}</p>
-                    <p>請稍後再試或聯繫管理員。</p>
-                </div>`;
-            }
-        }
-    }
+document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
     const myLiffId = "2008032417-3yJQGaO6";
@@ -38,8 +8,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
 
-    // --- 狀態變數 ---
+    // 【修正】將 CONFIG 宣告在頂層，以便整個模組共用
     let CONFIG; 
+    
+    // --- 狀態變數 ---
     let allProducts = [];
     let allNews = [];
     let pageHistory = ['page-home'];
@@ -50,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let enabledDatesByAdmin = [];
     const PEOPLE_PER_TABLE = 4;
     const AVAILABLE_TIME_SLOTS = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
-
 
     // --- 頁面初始化函式映射 ---
     const pageInitializers = {
@@ -64,6 +35,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         'page-edit-profile': initializeEditProfilePage,
     };
 
+    // =================================================================
+    // 【新增】非同步主函式 (程式啟動點)
+    // =================================================================
+    async function main() {
+        try {
+            // 步驟 1: 動態獲取 App 設定
+            const response = await fetch('/api/get-app-config');
+            if (!response.ok) {
+                throw new Error('無法從伺服器獲取應用程式設定檔。');
+            }
+            // 將獲取到的設定賦值給頂層的 CONFIG 變數
+            CONFIG = await response.json();
+
+            // 步驟 2: 繼續執行原有的 LIFF 初始化流程
+            await initializeLiff();
+
+        } catch (error) {
+            console.error("初始化失敗:", error);
+            if (appContent) {
+                appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
+                    <h2>系統啟動失敗</h2><p>${error.message}</p><p>請稍後再試或聯繫管理員。</p>
+                </div>`;
+            }
+        }
+    }
 
     // =================================================================
     // 設定檔應用函式 (Template Engine)
@@ -71,8 +67,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     function applyConfiguration() {
         CONFIG = window.APP_CONFIG; 
         try {
+            // 【修正】直接檢查頂層 CONFIG 變數
             if (typeof CONFIG === 'undefined' || !CONFIG) {
-                console.error("嚴重錯誤：找不到 window.CONFIG 設定檔！"); return;
+                console.error("嚴重錯誤：CONFIG 設定檔不存在！"); return;
             }
             const { FEATURES, TERMS } = CONFIG;
             
@@ -144,13 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             liff.closeWindow();
         }
     }
-    window.addEventListener('popstate', (event) => {
-        if (pageHistory.length > 1) {
-            pageHistory.pop();
-            const previousPageId = pageHistory[pageHistory.length - 1];
-            showPage(previousPageId, true);
-        }
-    });
     
     // =================================================================
     // 全域事件監聽
@@ -160,100 +150,49 @@ document.addEventListener('DOMContentLoaded', async () => {
             const target = event.target;
             const targetId = target.id;
 
-            // --- 通用按鈕 ---
             if (target.matches('.details-back-button')) {
                 goBackPage();
                 return;
             }
 
-            // --- 新聞卡片點擊 ---
             const newsCard = target.closest('.news-card');
             if (newsCard && newsCard.dataset.newsId) {
                 const newsId = parseInt(newsCard.dataset.newsId, 10);
                 const newsItem = allNews.find(n => n.id === newsId);
                 if (newsItem) {
-                    appContent.innerHTML = `
-                        <div id="page-news-details">
-                            <button class="details-back-button">← 返回</button>
-                            <h1 id="news-details-title" class="page-main-title"></h1>
-                            <div class="details-section">
-                                <div class="news-card-header" style="margin-bottom: 15px;">
-                                    <span id="news-details-category" class="news-card-category"></span>
-                                    <span id="news-details-date" class="news-card-date"></span>
-                                </div>
-                                <img id="news-details-image" src="" alt="" style="width: 100%; border-radius: var(--border-radius); margin-bottom: 15px; display: none;">
-                                <div id="news-details-content" style="line-height: 1.8;"></div>
-                            </div>
-                        </div>
-                    `;
+                    pageHistory.push('page-news-details');
+                    appContent.innerHTML = pageTemplates.querySelector('#page-news-details').innerHTML;
                     renderNewsDetails(newsItem);
                 }
                 return;
             }
 
-            // --- 產品卡片點擊 ---
-            const gameCard = target.closest('.product-card');
-            if (gameCard && gameCard.dataset.gameId) {
-                const gameId = gameCard.dataset.gameId;
-                const gameItem = allProducts.find(g => g.game_id == gameId);
-                if (gameItem) {
-                    appContent.innerHTML = `
-                        <div id="page-game-details">
-                            <button class="details-back-button">← 返回</button>
-                            <h1 class="details-title page-main-title"></h1>
-                            <div class="details-section">
-                                <div class="details-gallery">
-                                    <img src="" class="details-image-main">
-                                    <div class="details-image-thumbnails"></div>
-                                </div>
-                                <div class="core-info-grid">
-                                    <div class="info-item">
-                                        <span>建議人數</span>
-                                        <strong id="game-players"></strong>
-                                    </div>
-                                    <div class="info-item">
-                                        <span>${CONFIG.TERMS.PRODUCT_DIFFICULTY_LABEL}</span>
-                                        <strong id="game-difficulty"></strong>
-                                    </div>
-                                </div>
-                                <div id="game-tags-container"></div>
-                                <hr style="border-color: var(--color-secondary); border-style: dashed;">
-                                <h3>介紹</h3>
-                                <p id="game-intro-content"></p>
-                                <div id="game-supplementary-section" style="display:none;">
-                                    <h3>補充說明</h3>
-                                    <p id="game-supplementary-content"></p>
-                                </div>
-                                <hr style="border-color: var(--color-secondary); border-style: dashed;">
-                                <h3>費用</h3>
-                                <div id="game-price-content"></div>
-                            </div>
-                        </div>
-                    `;
-                    renderProductDetails(product);
+            const productCard = target.closest('.product-card');
+            if (productCard && productCard.dataset.productId) {
+                const productId = productCard.dataset.productId;
+                const productItem = allProducts.find(p => p.product_id == productId);
+                if (productItem) {
+                    pageHistory.push('page-product-details');
+                    appContent.innerHTML = pageTemplates.querySelector('#page-product-details').innerHTML;
+                    renderProductDetails(productItem);
                 }
                 return;
             }
 
-            // --- 會員中心內的導覽按鈕 ---
             if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');
-
-            // --- 歷史紀錄頁的切換按鈕 ---
             else if (targetId === 'toggle-past-bookings-btn') togglePastView('bookings', 'past-bookings-container', target);
-            else if (targetId === 'toggle-past-rentals-btn') togglePastView('rentals', 'past-rentals-container', target);
-            else if (target.matches('.cancel-booking-btn')) {
-    const bookingId = target.dataset.bookingId;
-    if (!bookingId) return;
-
-    if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-        handleCancelBooking(bookingId);
-    }
-}
+            
+            if (target.matches('.cancel-booking-btn')) {
+                const bookingId = target.dataset.bookingId;
+                if (!bookingId) return;
+                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+                    handleCancelBooking(bookingId);
+                }
+            }
         });
     }
-// public/script.js (新增的函式)
 
 async function handleCancelBooking(bookingId) {
     const card = document.getElementById(`booking-card-${bookingId}`);
@@ -351,7 +290,7 @@ function renderBookings(bookings, container, isPast = false) {
             await liff.init({ liffId: myLiffId });
             if (!liff.isLoggedIn()) {
                 liff.login();
-                return;
+                return; // login() 會重新導向，後續程式碼不會執行
             }
             userProfile = await liff.getProfile();
             
@@ -362,7 +301,7 @@ function renderBookings(bookings, container, isPast = false) {
 
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            // 即使 LIFF 失敗，我們依然可以嘗試顯示基本內容
+            // 即使 LIFF 失敗，我們依然可以嘗試顯示基本內容 (例如在電腦上預覽)
             applyConfiguration();
             setupGlobalEventListeners();
             showPage('page-home');
@@ -389,7 +328,7 @@ function renderBookings(bookings, container, isPast = false) {
     function updateProfileDisplay(data) {
         if (!data) return;
         const displayNameEl = document.getElementById('display-name');
-        if(displayNameEl) displayNameEl.textContent = data.nickname || userProfile.displayName;
+        if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
         const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
         const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
         const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
@@ -397,7 +336,7 @@ function renderBookings(bookings, container, isPast = false) {
         const qrcodeContainer = document.getElementById('qrcode-container');
 
         if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            if (qrcodeContainer) qrcodeContainer.style.display = 'flex';
+            if (qrcodeContainer && userProfile) qrcodeContainer.style.display = 'flex';
             if (classP) classP.style.display = 'block';
             if (levelP) levelP.style.display = 'block';
             if (expP) expP.style.display = 'block';
@@ -1053,12 +992,15 @@ async function handleBookingConfirmation(event) {
     // =================================================================
     // Tab Bar 主導航
     // =================================================================
-    tabBar.addEventListener('click', (event) => {
-        const button = event.target.closest('.tab-button');
-        if (button) {
-            showPage(button.dataset.target);
-        }
-    });
+    if (tabBar) {
+        tabBar.addEventListener('click', (event) => {
+            const button = event.target.closest('.tab-button');
+            if (button) {
+                showPage(button.dataset.target);
+            }
+        });
+    }
 
-    initializeLiff();
+    // --- 啟動點 ---
+    main();
 });

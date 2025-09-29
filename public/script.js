@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     `;
-                    renderGameDetails(gameItem);
+                    renderProductDetails(product);
                 }
                 return;
             }
@@ -465,7 +465,6 @@ function renderBookings(bookings, container, isPast = false) {
         if (!userProfile) return;
         document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
         document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
-        document.querySelector('#rental-history-btn').innerHTML = `${CONFIG.TERMS.RENTAL_NAME}紀錄`;
         document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
         document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         document.querySelector('#rental-history-btn').style.display = CONFIG.FEATURES.ENABLE_RENTAL_SYSTEM ? 'block' : 'none';
@@ -640,44 +639,59 @@ function renderBookings(bookings, container, isPast = false) {
         return '★'.repeat(level) + '☆'.repeat(4 - level);
     }
 
-    function renderGameDetails(game) {
-        const mainImage = appContent.querySelector('.details-image-main');
-        const thumbnailsContainer = appContent.querySelector('.details-image-thumbnails');
-        const images = [game.image_url, game.image_url_2, game.image_url_3].filter(Boolean);
-        mainImage.src = images.length > 0 ? images[0] : '';
-        thumbnailsContainer.innerHTML = images.map((imgSrc, index) => `<img src="${imgSrc}" class="details-image-thumbnail ${index === 0 ? 'active' : ''}" data-src="${imgSrc}">`).join('');
-        thumbnailsContainer.addEventListener('click', e => {
-            if (e.target.matches('.details-image-thumbnail')) {
-                mainImage.src = e.target.dataset.src;
-                thumbnailsContainer.querySelector('.active')?.classList.remove('active');
-                e.target.classList.add('active');
-            }
-        });
-        appContent.querySelector('.details-title').textContent = game.name;
-        appContent.querySelector('#game-players').textContent = `${game.min_players} - ${game.max_players} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}`;
-        appContent.querySelector('#game-difficulty').textContent = difficultyToStars(game.difficulty);
-        const tagsContainer = appContent.querySelector('#game-tags-container');
-        const tags = (game.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-        if (tags.length > 0) {
-            tagsContainer.innerHTML = tags.map(tag => `<span class="game-tag">${tag}</span>`).join('');
-            tagsContainer.style.display = 'block';
+// 在 public/script.js 中，取代舊的 renderGameDetails 函式
+function renderProductDetails(product) {
+    const imageContainer = appContent.querySelector('.details-gallery');
+    const detailsTitle = appContent.querySelector('.details-title');
+    const tagsContainer = appContent.querySelector('#game-tags-container');
+    const introContent = appContent.querySelector('#game-intro-content');
+    const priceContent = appContent.querySelector('#game-price-content');
+    const specsContainer = appContent.querySelector('.core-info-grid');
+
+    detailsTitle.textContent = product.name;
+
+    try {
+        const images = JSON.parse(product.images || '[]');
+        const mainImage = imageContainer.querySelector('.details-image-main');
+        const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
+        if(images.length > 0) {
+            mainImage.src = images[0];
+            thumbnails.innerHTML = images.map((img, index) => `<img src="${img}" class="${index === 0 ? 'active' : ''}">`).join('');
+            imageContainer.style.display = 'block';
         } else {
-            tagsContainer.style.display = 'none';
+            imageContainer.style.display = 'none';
         }
-        appContent.querySelector('#game-intro-content').textContent = game.description || '暫無介紹。';
-        const supplementarySection = appContent.querySelector('#game-supplementary-section');
-        if (game.supplementary_info) {
-            appContent.querySelector('#game-supplementary-content').innerHTML = game.supplementary_info.replace(/\n/g, '<br>');
-            supplementarySection.style.display = 'block';
-        } else {
-            supplementarySection.style.display = 'none';
-        }
-        const priceContent = appContent.querySelector('#game-price-content');
-        let priceHTML = '';
-        if (Number(game.sale_price) > 0) priceHTML += `<div class="price-item"><p class="price-tag">${CONFIG.TERMS.PRODUCT_SALE_PRICE_LABEL}</p><p class="price-value">$${game.sale_price}</p></div>`;
-        if (Number(game.rent_price) > 0) priceHTML += `<div class="price-item"><p class="price-tag">${CONFIG.TERMS.PRODUCT_RENTAL_PRICE_LABEL}</p><p class="price-value">$${game.rent_price}</p></div>`;
-        priceContent.innerHTML = priceHTML || `<p>價格資訊請洽店內</p>`;
+    } catch(e) { imageContainer.style.display = 'none'; }
+
+    introContent.textContent = product.description || '暫無介紹。';
+
+    const tags = (product.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    if (tags.length > 0) {
+        tagsContainer.innerHTML = tags.map(tag => `<span class="game-tag">${tag}</span>`).join('');
+        tagsContainer.style.display = 'block';
+    } else {
+        tagsContainer.style.display = 'none';
     }
+
+    let priceHTML = '';
+    if (product.price_type === 'simple') {
+        priceHTML = `<div class="price-item"><p class="price-value">$${product.price}</p></div>`;
+    } else if (product.price_type === 'multiple' && product.price_options) {
+        try {
+            const options = JSON.parse(product.price_options);
+            priceHTML = options.map(opt => `<div class="price-item"><p class="price-tag">${opt.name}</p><p class="price-value">$${opt.price}</p></div>`).join('');
+        } catch (e) { priceHTML = `<p>價格資訊請洽店內</p>`; }
+    }
+    priceContent.innerHTML = priceHTML || `<p>價格資訊請洽店內</p>`;
+
+    let specsHTML = '';
+    for(let i = 1; i <= 5; i++) {
+        if (product[`spec_${i}_name`] && product[`spec_${i}_value`]) {
+            specsHTML += `<div class="info-item"><span>${product[`spec_${i}_name`]}</span><strong>${product[`spec_${i}_value`]}</strong></div>`;
+        }
+    }
+    specsContainer.innerHTML = specsHTML;
+}
 
 // public/script.js -> 替換 renderProducts 函式
 function renderProducts() {

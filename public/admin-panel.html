@@ -135,7 +135,7 @@
         .drag-handle-cell { text-align: left !important; }
         .drag-handle { cursor: move; display: inline-block; width: 20px; font-size: 1.2rem; color: #999; margin-right: 5px; }
 
-        /* 【** 編輯遊戲視窗專用 RWD 樣式 **】 */
+        /* 【** 編輯視窗專用 RWD 樣式 **】 */
         #edit-game-modal .modal-content { max-width: 800px; }
         .edit-game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .grid-span-2 { grid-column: span 2; }
@@ -433,13 +433,13 @@ input:checked + .slider:before {
 <div id="page-inventory" class="page">
             <div class="page-header">
                 <h2>產品/服務管理</h2>
-            <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--secondary-color);">下載 CSV 模板</button>
-            <label for="csv-upload-input" class="action-btn" style="background-color: var(--info-color); cursor: pointer; line-height: 1.5;">從 CSV 匯入</label>
+            <button id="download-csv-template-btn" class="action-btn" style="margin-right: 10px;"style="background-color: var(--secondary-color);">下載 CSV 模板</button>
+            <label for="csv-upload-input" class="action-btn" style="margin-right: 10px;"style="background-color: var(--info-color); cursor: pointer; line-height: 1.5;">從 CSV 匯入</label>
             <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
-            <button id="add-product-btn" class="action-btn btn-save">新增單筆產品</button>
+            <button id="add-product-btn" style="margin-right: 10px;" class="action-btn btn-save">新增單筆產品</button>
             </div>
             <div class="filter-bar">
-                <input type="text" id="product-search-input" placeholder="依桌遊名稱搜尋..." style="flex-grow: 1; padding: 8px;">
+                <input type="text" id="product-search-input" placeholder="依名稱搜尋..." style="flex-grow: 1; padding: 8px;">
                 <div id="inventory-stock-filter" class="filter-group">
                     <button class="active" data-filter="all">全部庫存</button>
                     <button data-filter="in_stock">有庫存</button>

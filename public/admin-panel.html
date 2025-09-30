@@ -2,11 +2,22 @@
 <html lang="zh-Hant">
 
 <head>
+    <script src="/config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店務管理系統</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
     <style>
+            /* 【新增這一段】響應式 CRM 樣式 */
+    @media (max-width: 768px) {
+        .details-grid {
+            grid-template-columns: 1fr; /* 在手機上，從左右兩欄變成垂直單欄 */
+        }
+        .profile-summary {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+    }
         :root {
             --primary-color: #007bff; --secondary-color: #6c757d; --danger-color: #dc3545;
             --success-color: #28a745; --warning-color: #ffc107; --info-color: #17a2b8;
@@ -15,121 +26,215 @@
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--light-gray); }
         .header { background-color: var(--text-dark); color: white; padding: 0.8rem 1.5rem; }
-        h1, h2, h3 { margin: 0; }
-        .header h1 { font-size: 1.4rem; }
+        .header h1 { margin: 0; font-size: 1.4rem; }
         .nav-tabs { background-color: white; padding: 0 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: nowrap; overflow-x: auto; }
         .nav-tabs a { padding: 0.8rem; color: var(--text-light); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
         .nav-tabs a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
         .main-content { padding: 1.5rem; }
         .page { display: none; } .page.active { display: block; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        .page-header h2 { font-size: 1.8rem; color: var(--text-dark); }
+        .page-header h2 { margin: 0; font-size: 1.8rem; color: var(--text-dark); }
         
         table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
         th, td { padding: 0.8rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; text-align: center; }
         th { background-color: var(--light-gray); font-weight: 600; font-size: 0.9rem; }
+        td { font-size: 0.9rem; }
+        
         .compound-cell .main-info { font-weight: bold; }
         .compound-cell .sub-info { font-size: 0.8rem; color: var(--text-light); }
         .action-btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        .btn-edit { background-color: var(--warning-color); color: #212529; }
+        .btn-sync { background-color: var(--info-color); }
+
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; align-items: center; }
+        .filter-group { display: flex; gap: 0.5rem; }
+        .filter-group button { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: 1px solid var(--border-color); background-color: white; border-radius: 5px; cursor: pointer; }
+        .filter-group button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
         
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: none;
-    justify-content: center;
-    align-items: flex-start;
-    z-index: 1000;
-    overflow-y: auto;
-    padding: 5vh 0;
-}
-.modal-content {
-    background: white;
-    padding: 0; /* 注意，正確版本是沒有 padding 的 */
-    border-radius: 8px;
-    width: 90%;
-    max-width: 800px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    display: flex; /* 【錯誤點】您的版本可能少了這一行 */
-    flex-direction: column; /* 【錯誤點】您的版本可能少了這一行 */
-    max-height: 90vh;
-}
-        .modal-header { padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
-.modal-body {
-    padding: 25px;
-    overflow-y: auto; /* 【錯誤點】您的版本可能少了這一行，這是產生滾動條的關鍵 */
-    flex-grow: 1; /* 【錯誤點】您的版本可能少了這一行，這是讓內容區塊自動填滿空間的關鍵 */
-}
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-start; z-index: 1000; overflow-y: auto; padding-top: 5vh; padding-bottom: 5vh; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; }
         .modal-close { font-size: 1.5rem; font-weight: bold; border: none; background: none; cursor: pointer; }
         
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .form-actions { margin-top: 20px; text-align: right; padding: 20px 25px; border-top: 1px solid var(--border-color); flex-shrink: 0; background-color: var(--light-gray); }
-        .btn-save { background-color: var(--primary-color); } .btn-cancel { background-color: var(--secondary-color); }
+        .form-actions { margin-top: 20px; text-align: right; }
+        .btn-save { background-color: var(--primary-color); }
+        .btn-cancel { background-color: var(--secondary-color); }
 
-        /* 通用開關樣式 */
-        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary-color); }
-        input:checked + .slider:before { transform: translateX(22px); }
+        /* Dashboard Styles */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+        .stat-card { background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-card h3 { margin-top: 0; color: var(--text-light); font-size: 1rem; }
+        .stat-card .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary-color); }
+        .stat-card .stat-subtext { color: var(--text-light); font-size: 0.9rem; margin-top: 5px;}
 
-        /* 系統設定頁面摺疊區塊 */
-        .setting-group { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
-        .setting-group-header { background-color: var(--light-gray); padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
-        .setting-group-header h4 { margin: 0; }
-        .setting-group-body { padding: 1rem; border-top: 1px solid var(--border-color); display: none; }
-        .setting-group-body.visible { display: block; }
+    /* CRM Modal Styles (優化空間版本) */
+        #user-details-modal .modal-content {
+            max-width: 800px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1rem; /* 縮小網格間距 */
+        }
+        .profile-summary {
+            text-align: left;
+            word-break: break-all; /* 避免長字串撐開版面 */
+        }
+        .profile-summary img {
+            width: 80px; /* 縮小頭像 */
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 0.5rem; /* 縮小頭像下方間距 */
+            display: block;
+            background-color: #f0f0f0;
+            border: 1px solid var(--border-color);
+        }
+        .profile-summary h4 { margin: 0.2rem 0; }
+        .profile-summary p {
+            margin: 0.15rem 0; /* 大幅縮小文字行間距 */
+            font-size: 0.8rem; /* 稍微縮小字體 */
+            color: var(--text-light);
+        }
+        .profile-summary hr { margin: 0.5rem 0; }
 
-        /* 點數發放中心 */
-        #user-search-results { list-style-type: none; padding: 0; margin: 10px 0 0 0; border: 1px solid #ccc; border-radius: 4px; max-height: 150px; overflow-y: auto; background: white; position: absolute; width: calc(100% - 2rem); z-index: 10;}
-        #user-search-results li { padding: 10px; cursor: pointer; }
-        #user-search-results li:hover { background-color: #f0f0f0; }
-        #selected-user-display { padding: 10px; background-color: #e9ecef; border-radius: 4px; margin-bottom: 1rem; }
-        #points-entry-form { display: none; }
-        .points-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+        .details-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 0.5rem; /* 縮小頁籤下方間距 */
+        }
+        .details-tab {
+            padding: 0.5rem 0.8rem; /* 縮小頁籤上下內距 */
+            cursor: pointer;
+        }
+        .details-tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            font-weight: bold;
+        }
+        .details-tab-content { display: none; }
+        .details-tab-content.active {
+            display: block;
+            max-height: 220px; /* 設定一個最大高度，內容超長時內部會產生捲軸 */
+            overflow-y: auto;
+        }
+        #user-details-modal table { font-size: 0.8rem; }
+        #user-details-modal th, #user-details-modal td { padding: 0.4rem; } /* 縮小表格內距 */
 
-        /* 產品管理 */
-        .drag-handle-cell { cursor: grab; }
-        .edit-product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .message-sender {
+            margin-top: 1rem; /* 縮小訊息發送區上方間距 */
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem; /* 縮小訊息發送區上方內距 */
+        }
+
+
+        /* 【** 庫存管理頁樣式 **】 */
+        .draggable-row { cursor: default; }
+        .drag-handle-cell { text-align: left !important; }
+        .drag-handle { cursor: move; display: inline-block; width: 20px; font-size: 1.2rem; color: #999; margin-right: 5px; }
+
+        /* 【** 編輯遊戲視窗專用 RWD 樣式 **】 */
+        #edit-game-modal .modal-content { max-width: 800px; }
+        .edit-game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .grid-span-2 { grid-column: span 2; }
-        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .edit-product-image-inputs .form-group { display: flex; align-items: center; gap: 10px; }
-        .edit-product-image-inputs .form-group label { flex-basis: 20px; text-align: right; }
-        
-        /* --- 【新增】日曆樣式 --- */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background-color: white; border-radius: 6px; }
-/* 這是 calendar-grid 正確的樣子 */
-.calendar-grid {
-    display: grid; /* 【錯誤點】請確認您的版本有這一行 */
-    grid-template-columns: repeat(7, 1fr); /* 還有這一行，定義七個等寬欄位 */
-    gap: 5px;
-}
-        .calendar-weekday, .calendar-day { text-align: center; padding: 0.5rem 0; }
-        .calendar-weekday { font-weight: bold; color: var(--text-light); }
-        .calendar-day { background: white; border-radius: 4px; min-height: 100px; padding: 5px; font-size: 0.9rem; border: 1px solid #eee; }
-        .calendar-day .day-number { display: block; text-align: left; margin-bottom: 5px; }
-        .calendar-day.day-other-month { background-color: #f8f9fa; }
-        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin-top: 2px; text-align: left; position: relative; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        .calendar-booking .actions { display: none; }
-        .status-cancelled { background-color: var(--danger-color) !important; text-decoration: line-through; }
-        .status-checked-in { background-color: var(--success-color); }
-        .is-past { opacity: 0.6; }
+        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .sub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
 
-        /* CRM Modal */
-        .details-grid { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
-        .profile-summary img { width: 100px; height: 100px; border-radius: 50%; display: block; margin: 0 auto 10px; }
-        .details-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
-        .details-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; font-size: 1rem; }
-        .details-tab.active { border-bottom: 2px solid var(--primary-color); font-weight: bold; }
-        .details-tab-content { display: none; } .details-tab-content.active { display: block; }
-        .message-sender { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+        @media (max-width: 768px) {
+            .details-grid, .edit-game-grid, .sub-grid, .sub-grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .grid-span-2 { grid-column: span 1; }
+            .profile-summary { border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        }
+                .modal-content {
+            background: white; padding: 25px; border-radius: 8px;
+            width: 90%; max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+            max-height: 90vh;
+        }
+
+        /* 【** 步驟 1: 讓表單填滿可用空間 **】 */
+        /* 我們需要讓 form 元素也成為 flex 容器的一部分 */
+        #edit-game-form {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 確保內容不會溢出 form */
+            flex-grow: 1; /* 讓 form 填滿 modal-content 的剩餘空間 */
+        }
+        
+        .modal-body {
+            overflow-y: auto; /* 讓內容區塊可以垂直滾動 */
+            padding-right: 15px; /* 增加一點右邊距，避免滾動條太貼近內容 */
+        }
+        
+        .modal-header, .form-actions {
+            flex-shrink: 0; /* 確保頭部和腳部不會被壓縮 */
+        }
+
+        /* 【** 步驟 2: (可選，但建議) 幫按鈕區塊加上分隔線 **】 */
+        .form-actions {
+            margin-top: 20px;
+            text-align: right;
+            flex-shrink: 0;
+            padding-top: 20px; /* 增加上方間距 */
+            border-top: 1px solid var(--border-color); /* 加上分隔線 */
+        }
+
+/* --- 行事曆樣式 --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+}
+.calendar-header h3 { margin: 0; font-size: 1.2rem; }
+.calendar-header button { background: none; border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+
+#calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border-color);
+    background-color: white;
+}
+.calendar-day, .calendar-weekday {
+    border-right: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+    padding: 8px;
+}
+.calendar-day:nth-child(7n) { border-right: none; }
+.calendar-weekday {
+    font-weight: bold;
+    text-align: center;
+    background-color: var(--light-gray);
+}
+.calendar-day {
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+}
+.day-number { font-weight: bold; }
+.day-other-month .day-number { color: #ccc; }
+.calendar-booking {
+    font-size: 0.75rem;
+    padding: 3px 5px;
+    margin-top: 5px;
+    border-radius: 4px;
+    background-color: var(--info-color);
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+} 
     </style>
+
 </head>
 
 

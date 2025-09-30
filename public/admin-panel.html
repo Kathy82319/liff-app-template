@@ -105,24 +105,6 @@
             <a href="#points">點數發放</a>
         </nav>
 
-        <main class="main-content">
-            <div id="page-settings" class="page">
-                <div class="page-header">
-                    <h2>系統設定</h2>
-                </div>
-                <form id="settings-form">
-                    <div id="settings-container">
-                        <p>正在載入設定...</p>
-                    </div>
-                    <div class="form-actions" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                        <button type="submit" class="action-btn btn-save">儲存所有變更</button>
-                    </div>
-                </form>
-            </div>
-
-            <div id="page-scan" class="page">
-            </div>
-        </main>        
 
 <main class="main-content">
         <div id="page-dashboard" class="page active">
@@ -323,11 +305,11 @@
                 <form id="edit-user-form">
                     <input type="hidden" id="edit-user-id">
                     <div class="form-group">
-                        <label for="edit-level-input">等級</label>
+                        <label for="edit-level-input">消費等級</label>
                         <input type="number" id="edit-level-input" min="1" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit-exp-input">經驗值</label>
+                        <label for="edit-exp-input">消費次數</label>
                         <input type="number" id="edit-exp-input" min="0" required>
                     </div>
                     <div class="form-group">
@@ -384,54 +366,7 @@
         </div>
     </div>
 
-    <div id="create-rental-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>建立租借紀錄</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div id="rental-modal-status" style="text-align: center; color: var(--primary-color); min-height: 20px; margin-bottom: 15px;"></div>
-            <form id="create-rental-form">
-                <input type="hidden" id="rental-product-id">
-                <div class="form-group">
-                    <label>租借品項 (可多選)</label>
-                    <div id="rental-products-container">
-                        <input type="text" id="rental-product-search" placeholder="依產品/服務名稱搜尋...">
-                    </div>
-                    <ul id="product-search-results" style="display: none;"></ul>
-                </div>
-                <div class="form-group">
-                    <label for="rental-user-search">搜尋租借會員 (LINE 名稱或 ID)</label>
-                    <input type="text" id="rental-user-search" placeholder="請至少輸入 2 個字元...">
-                    <select id="rental-user-select" style="margin-top: 10px; display: none;"></select>
-                </div>
-                <div class="form-group">
-                    <label for="rental-contact-name">租借人姓名</label>
-                    <input type="text" id="rental-contact-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="rental-contact-phone">聯絡電話</label>
-                    <input type="tel" id="rental-contact-phone" required maxlength="10">
-                </div>
-                <div class="form-group">
-                    <label for="rental-due-date">歸還日期</label>
-                    <input type="text" id="rental-due-date" required>
-                </div>
-                <div class="form-group" style="display:none;">
-                    <label for="rental-deposit">押金</label>
-                    <input type="number" id="rental-deposit" value="0">
-                </div>
-                <div class="form-group" style="display:none;">
-                    <label for="rental-late-fee">每日逾期費用</label>
-                    <input type="number" id="rental-late-fee" value="50">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="action-btn btn-cancel">取消</button>
-                    <button type="submit" class="action-btn btn-save">確認租借</button>
-                </div>
-            </form>
-        </div>
-    </div>
+
  
        <div id="cancel-booking-modal" class="modal-overlay">
         <div class="modal-content">
@@ -498,10 +433,6 @@
                                 </div>
                             </div>
 
-                                <div class="form-group grid-span-2">
-                                <hr>
-                                <label>彈性通用規格 (選填，最多5組)</label>
-                                </div>
 
                         <div class="form-group">
                             <label for="edit-product-description">詳細介紹</label>

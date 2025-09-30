@@ -234,33 +234,42 @@
     text-overflow: ellipsis;
 } 
 
-/* --- 【新增】讓編輯彈窗內容可滾動的 CSS --- */
+/* --- 【最終修正】彈窗滾動樣式 --- */
 
-/* 步驟 1: 讓 modal-content 成為 flex 容器，並限制最大高度 */
-#edit-product-modal .modal-content, #edit-user-modal .modal-content {
+/* 1. 讓 modal-content 成為 flex 容器，並限制最大高度 */
+#edit-product-modal .modal-content {
     display: flex;
     flex-direction: column;
     max-height: 90vh; /* 最大高度為視窗的 90% */
 }
 
-/* 步驟 2: 讓 modal 的主要內容區域 (modal-body) 可以自動延展並產生滾動條 */
-#edit-product-modal .modal-body {
-    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
-    padding-right: 15px; /* 增加一點右邊距，避免滾動條太貼近內容 */
+/* 2. 【關鍵】讓 form 填滿 header 以外的剩餘空間，並成為 flex 容器 */
+#edit-product-modal #edit-product-form {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* 延展以填滿可用空間 */
+    overflow: hidden; /* 防止內部元素溢出 form */
 }
 
-/* 步驟 3: 確保頭部和腳部(按鈕區)不會被壓縮 */
-#edit-product-modal .modal-header, 
+/* 3. 讓 modal-body 在 form 內部延展，並在內容過多時產生滾動條 */
+#edit-product-modal .modal-body {
+    flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
+    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
+    padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
+}
+
+/* 4. 確保頭部和腳部(按鈕區)高度固定，不被壓縮 */
+#edit-product-modal .modal-header,
 #edit-product-modal .form-actions {
     flex-shrink: 0;
 }
 
-/* 步驟 4 (建議): 為按鈕區加上分隔線，視覺上更清晰 */
+/* 5. (美化) 為按鈕區加上分隔線 */
 #edit-product-modal .form-actions {
     padding-top: 20px;
+    margin-top: 15px;
     border-top: 1px solid var(--border-color);
 }
-
 
 /* --- 【新增】滑動開關 (Toggle Switch) 樣式 --- */
 .switch {

@@ -132,7 +132,9 @@ async function initializeAdminPanel() {
     const pointsEntryForm = document.getElementById('points-entry-form');
     const pointsStatusMessage = document.getElementById('points-status-message');    
     const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
-    
+    const addProductBtn = document.getElementById('add-product-btn');
+
+
     // =================================================================
     // 事件監聽器綁定 (Event Listeners Setup)
     // =================================================================
@@ -691,7 +693,101 @@ function openEditProductModal(productId) {
       editProductModal.querySelector('.modal-close').addEventListener('click', () => editProductModal.style.display = 'none');
       editProductModal.querySelector('.btn-cancel').addEventListener('click', () => editProductModal.style.display = 'none');
     }
+
+// 在 openEditProductModal 函式下方，新增一個開啟「新增模式」的函式
+function openCreateProductModal() {
+    if (!editProductModal || !editProductForm) return;
+
+    // 1. 重設表單所有欄位
+    editProductForm.reset();
     
+    // 2. 將彈窗標題改為「新增」
+    editProductModal.querySelector('#modal-product-title').textContent = '新增產品/服務';
+    
+    // 3. 清空隱藏的 product ID，這是判斷「新增/編輯」模式的關鍵
+    document.getElementById('edit-product-id').value = '';
+    
+    // 4. 讓使用者知道 ID 會自動生成
+    const productIdDisplay = document.getElementById('edit-product-id-display');
+    productIdDisplay.value = '(儲存後將自動生成)';
+    productIdDisplay.closest('.form-group').style.display = 'block'; // 確保欄位可見
+
+    // 5. 將庫存管理模式重設為預設值
+    const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
+    inventoryTypeSelect.value = 'none';
+    // 手動觸發 change 事件，以確保相關欄位正確顯示/隱藏
+    inventoryTypeSelect.dispatchEvent(new Event('change'));
+
+    // 6. 顯示彈窗
+    editProductModal.style.display = 'flex';
+}
+
+
+// 找到 editProductForm 的 'submit' 事件監聽器，並用以下新邏輯完整取代它
+if (editProductForm) {
+    editProductForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // 透過隱藏的 ID 欄位是否有值，來判斷是「更新」還是「新增」
+        const productId = document.getElementById('edit-product-id').value;
+        const isUpdating = !!productId;
+
+        const images = [];
+        for(let i=1; i<=5; i++){
+            const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
+            if(imgUrl) images.push(imgUrl);
+        }
+
+        const formData = {
+            // 如果是更新模式，才帶入 productId
+            productId: isUpdating ? productId : undefined,
+            name: document.getElementById('edit-product-name').value,
+            description: document.getElementById('edit-product-description').value,
+            category: document.getElementById('edit-product-category').value,
+            tags: document.getElementById('edit-product-tags').value,
+            images: JSON.stringify(images),
+            is_visible: document.getElementById('edit-product-is-visible').checked,
+            inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+            stock_quantity: document.getElementById('edit-product-stock-quantity').value || null,
+            stock_status: document.getElementById('edit-product-stock-status').value || null,
+            price_type: 'simple', // 暫時寫死，未來可擴充
+            price: document.getElementById('edit-product-price').value || null,
+            price_options: null, // 暫時寫死
+        };
+        for(let i=1; i<=5; i++){
+            formData[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value || null;
+            formData[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value || null;
+        }
+
+        // 根據模式決定要呼叫的 API 端點與方法
+        const apiUrl = isUpdating ? '/api/admin/update-product-details' : '/api/admin/create-product';
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || '儲存失敗');
+            }
+            
+            await fetchAllProducts(); // 重新載入產品列表
+            editProductModal.style.display = 'none'; // 關閉彈窗
+            alert(`產品${isUpdating ? '更新' : '新增'}成功！`);
+
+        } catch (error) {
+            alert(`錯誤：${error.message}`);
+        }
+    });
+}
+
+// 在 initializeAdminPanel 函式的底部，找到事件綁定區域，加上新增按鈕的監聽
+if (addProductBtn) {
+    addProductBtn.addEventListener('click', openCreateProductModal);
+}    
+
     // =================================================================
     // 顧客管理模組 (User Management)
     // =================================================================

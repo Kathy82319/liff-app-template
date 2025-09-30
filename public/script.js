@@ -786,7 +786,7 @@ function renderProducts() {
         return false;
     }
 
-// public/script.js
+
 
 async function initializeBookingPage() {
     // 獲取頁面上的元素
@@ -930,7 +930,7 @@ function renderTimeSlots(selectElement) {
         `;
     }
 
-// public/script.js
+
 
 async function handleBookingConfirmation(event) {
     const confirmBtn = event.target;

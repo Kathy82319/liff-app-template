@@ -383,10 +383,36 @@ async function initializeAdminPanel() {
     }
 
     if (productListTbody) {
-        productListTbody.addEventListener('click', (e) => {
-            const button = e.target.closest('.btn-edit-product');
-            if (button) {
-                openEditProductModal(button.dataset.productid);
+        productListTbody.addEventListener('click', async (e) => {
+            const target = e.target;
+
+            // 處理「上架」開關的點擊
+            if (target.classList.contains('visibility-toggle')) {
+                const productId = target.dataset.productId;
+                const isVisible = target.checked;
+                try {
+                    const response = await fetch('/api/admin/toggle-product-visibility', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ productId, isVisible })
+                    });
+                    if(!response.ok) throw new Error('更新失敗');
+                    // 更新成功後，直接修改記憶體中的資料狀態
+                    const product = allProducts.find(p => p.product_id === productId);
+                    if(product) product.is_visible = isVisible ? 1 : 0;
+                } catch(error) {
+                    alert(`更新可見性失敗: ${error.message}`);
+                    target.checked = !isVisible; // 操作失敗時，還原 checkbox 狀態
+                }
+                return; // 結束執行
+            }
+
+            // 處理「編輯」按鈕的點擊
+            const editButton = target.closest('.btn-edit-product');
+            if (editButton) {
+                const productId = editButton.dataset.productid;
+                openEditProductModal(productId);
+                return; // 結束執行
             }
         });
     }
@@ -1012,20 +1038,25 @@ async function initializeAdminPanel() {
 
     if (bookingListTbody) {
         bookingListTbody.addEventListener('click', async (event) => {
-            const target = event.target;
-            if (!target.classList.contains('action-btn')) return;
-
-            const bookingId = target.closest('td').querySelector('.action-btn').dataset.bookingid;
-            if (!bookingId) return;
-            const booking = allBookings.find(b => b.booking_id == bookingId);
-            if (!booking) return;
-
-            if (target.classList.contains('btn-check-in')) {
-                if (confirm(`確定要將 ${booking.booking_date} ${booking.contact_name} 的預約標示為「已報到」嗎？`)) {
+            const checkInButton = event.target.closest('.btn-check-in');
+            const cancelButton = event.target.closest('.btn-cancel-booking');
+            
+            if (checkInButton) {
+                const bookingId = checkInButton.dataset.bookingId;
+                const booking = allBookings.find(b => b.booking_id == bookingId);
+                if (booking && confirm(`確定要將 ${booking.booking_date} ${booking.contact_name} 的預約標示為「已報到」嗎？`)) {
                     await updateBookingStatus(Number(bookingId), 'checked-in');
                 }
-            } else if (target.classList.contains('btn-cancel-booking')) {
-                openCancelBookingModal(booking);
+                return;
+            }
+
+            if (cancelButton) {
+                const bookingId = cancelButton.dataset.bookingId;
+                const booking = allBookings.find(b => b.booking_id == bookingId);
+                if (booking) {
+                    openCancelBookingModal(booking);
+                }
+                return;
             }
         });
     }
@@ -1588,6 +1619,7 @@ async function initializeAdminPanel() {
         }
     }
 
+    
     function renderDraftList(drafts) {
         if (!draftListTbody) return;
         draftListTbody.innerHTML = '';
@@ -1598,13 +1630,15 @@ async function initializeAdminPanel() {
             const cellActions = row.insertCell();
             
             cellTitle.textContent = draft.title;
-            cellContent.textContent = draft.content.substring(0, 50) + '...';
+            cellContent.textContent = draft.content.substring(0, 50) + (draft.content.length > 50 ? '...' : '');
             cellActions.className = 'actions-cell';
             
             const editBtn = document.createElement('button');
-            editBtn.className = 'action-btn btn-edit';
+            editBtn.className = 'action-btn btn-edit-draft'; // 使用 btn-edit-draft class
             editBtn.dataset.draftid = draft.draft_id;
             editBtn.textContent = '編輯';
+            editBtn.style.backgroundColor = 'var(--warning-color)'; // 【核心修正】設定背景為黃色
+            editBtn.style.color = '#000'; // 黃色背景搭配黑色文字
             
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'action-btn btn-delete-draft';

@@ -2,11 +2,10 @@
 <html lang="zh-Hant">
 
 <head>
-    <script src="/config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店務管理系統</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         :root {
             --primary-color: #007bff; --secondary-color: #6c757d; --danger-color: #dc3545;
@@ -59,31 +58,34 @@
         .setting-group-header h4 { margin: 0; }
         .setting-group-body { padding: 1rem; border-top: 1px solid var(--border-color); display: none; }
         .setting-group-body.visible { display: block; }
-        .sub-settings { padding-left: 20px; margin-top: 15px; border-left: 3px solid var(--primary-color); display: none; }
-        .sub-settings.visible { display: block; }
 
         /* 點數發放中心 */
         #user-search-results { list-style-type: none; padding: 0; margin: 10px 0 0 0; border: 1px solid #ccc; border-radius: 4px; max-height: 150px; overflow-y: auto; background: white; position: absolute; width: calc(100% - 2rem); z-index: 10;}
         #user-search-results li { padding: 10px; cursor: pointer; }
         #user-search-results li:hover { background-color: #f0f0f0; }
         #selected-user-display { padding: 10px; background-color: #e9ecef; border-radius: 4px; margin-bottom: 1rem; }
-        #points-entry-form { display: block; }
+        #points-entry-form { display: none; }
         .points-actions { display: flex; gap: 1rem; margin-top: 1rem; }
 
         /* 產品管理 */
+        .drag-handle-cell { cursor: grab; }
+        .edit-product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-span-2 { grid-column: span 2; }
+        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .edit-product-image-inputs .form-group { display: flex; align-items: center; gap: 10px; }
         .edit-product-image-inputs .form-group label { flex-basis: 20px; text-align: right; }
         
         /* 日曆 */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background-color: white; border-radius: 6px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
         .calendar-weekday, .calendar-day { text-align: center; padding: 0.5rem 0; }
-        .calendar-day { background: white; border-radius: 4px; min-height: 80px; }
-        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin: 2px; cursor: pointer; transition: background-color 0.2s; }
-        .calendar-booking:hover { background-color: var(--primary-color) !important; }
-        .calendar-booking .actions { display: none; margin-top: 4px; }
-        .calendar-booking:hover .actions { display: flex; justify-content: space-evenly; }
-        .calendar-booking .actions button { padding: 2px 6px; font-size: 0.7rem; border-radius: 3px; }
+        .calendar-weekday { font-weight: bold; }
+        .calendar-day { background: white; border-radius: 4px; min-height: 100px; padding: 5px; font-size: 0.9rem; }
+        .calendar-day .day-number { display: block; text-align: left; margin-bottom: 5px; }
+        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin-top: 2px; text-align: left; position: relative; }
+        .calendar-booking .actions { display: none; position: absolute; right: 2px; top: 2px; }
+        .calendar-booking:hover .actions { display: flex; gap: 2px; }
+        .calendar-booking .actions button { padding: 2px 4px; font-size: 0.7rem; border-radius: 3px; line-height: 1; }
         .status-cancelled { background-color: var(--danger-color) !important; text-decoration: line-through; }
         .status-checked-in { background-color: var(--success-color); }
         .is-past { opacity: 0.6; }
@@ -92,10 +94,11 @@
         .details-grid { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
         .profile-summary img { width: 100px; height: 100px; border-radius: 50%; display: block; margin: 0 auto 10px; }
         .details-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
-        .details-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; }
+        .details-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; font-size: 1rem; }
         .details-tab.active { border-bottom: 2px solid var(--primary-color); font-weight: bold; }
         .details-tab-content { display: none; }
         .details-tab-content.active { display: block; }
+        .message-sender { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
     </style>
 </head>
 

@@ -263,22 +263,24 @@ async function initializeAdminPanel() {
         const unpublishBtn = pageContainer.querySelector('#batch-unpublish-btn');
         const tBody = pageContainer.querySelector('#product-list-tbody');
 
-        // 【修正】將事件監聽器綁定在更穩定的父層容器上
-        pageContainer.addEventListener('click', (e) => {
-            // 監聽每一行的 checkbox 和 全選 checkbox
-            if (e.target.matches('.product-checkbox') || e.target.matches('#select-all-products')) {
+        // 監聽表格內容區域的 "change" 事件，處理每一行的 checkbox 變化
+        tBody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-checkbox')) {
                 updateBatchToolbarState();
             }
         });
 
-        // 「全選」checkbox 的邏輯
+        // 「全選」checkbox 的 "change" 事件邏輯
         selectAllCheckbox.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
+            // 將所有產品的 checkbox 狀態同步為「全選」的狀態
             tBody.querySelectorAll('.product-checkbox').forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
+            // 更新工具列的顯示狀態
             updateBatchToolbarState();
         });
+
 
         // 批次處理函式
         const handleBatchUpdate = async (isVisible) => {

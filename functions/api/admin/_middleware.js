@@ -19,7 +19,7 @@ async function authMiddleware(context) {
         if (!token) {
             return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401 });
         }
-        
+
         try {
             const secret = new TextEncoder().encode(env.JWT_SECRET);
             // 【**核心修正：將 'game' 改為 'product'**】

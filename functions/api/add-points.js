@@ -104,10 +104,7 @@ export const onRequest = async (context) => {
       db.prepare('UPDATE Users SET level = ?, current_exp = ? WHERE user_id = ?').bind(currentLevel, currentExp, userId),
       db.prepare('INSERT INTO Purchasehistory (user_id, exp_added, reason) VALUES (?, ?, ?)').bind(userId, exp, reason)
     ]);
-
-        
-        // ... (背景同步邏輯不變)
-        
+       
         return new Response(JSON.stringify({ 
             success: true, 
             message: `成功新增 ${exp} 點積分。`,

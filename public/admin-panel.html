@@ -32,7 +32,12 @@
         .nav-tabs a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
         .main-content { padding: 1.5rem; }
         .page { display: none; } .page.active { display: block; }
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .page-header {
+            display: flex;                 /* 啟用 Flexbox 佈局 */
+            justify-content: space-between; /* 核心：將子元素推向兩端 */
+            align-items: center;           /* 讓標題和按鈕垂直置中對齊 */
+            margin-bottom: 1.5rem;
+        }
         .page-header h2 { margin: 0; font-size: 1.8rem; color: var(--text-dark); }
         
         table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
@@ -433,11 +438,12 @@ input:checked + .slider:before {
 <div id="page-inventory" class="page">
             <div class="page-header">
                 <h2>產品/服務管理</h2>                            
-            <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
-            <label for="csv-upload-input" class="action-btn" style=" margin-right: 10px;">從 CSV 匯入</label>
+        <div class="filter-group">
+            <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--secondary-color);">下載 CSV 模板</button>
+            <label for="csv-upload-input" class="action-btn" style="background-color: var(--info-color); cursor: pointer; line-height: 1.5;">從 CSV 匯入</label>
             <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
-            <button id="add-product-btn" style="margin-right: 10px;" class="action-btn btn-save">新增單筆產品</button>
-            </div>
+            <button id="add-product-btn" class="action-btn btn-save">新增單筆產品</button>
+        </div>
             <div class="filter-bar">
                 <input type="text" id="product-search-input" placeholder="依名稱搜尋..." style="flex-grow: 1; padding: 8px;">
                 <div id="inventory-stock-filter" class="filter-group">

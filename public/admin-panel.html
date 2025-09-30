@@ -393,7 +393,6 @@ input:checked + .slider:before {
 <div id="page-inventory" class="page">
             <div class="page-header">
                 <h2>產品/服務管理</h2>
-                <button id="sync-product-btn" class="action-btn" style="background-color: #28a745;">同步至資料庫</button>
             </div>
             <div class="filter-bar">
                 <input type="text" id="product-search-input" placeholder="依桌遊名稱搜尋..." style="flex-grow: 1; padding: 8px;">
@@ -733,9 +732,7 @@ input:checked + .slider:before {
         <form id="edit-product-form">
             <div class="modal-body">
                 <input type="hidden" id="edit-product-id">
-                <div class="edit-product-grid">
-                    
-                    <div>
+                <div class="edit-product-grid">                
                         <div class="form-group">
                             <label for="edit-product-name">產品/服務名稱</label>
                             <input type="text" id="edit-product-name" required>
@@ -754,7 +751,7 @@ input:checked + .slider:before {
                                 <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
                             </div>
                         </div>
-                                <div class="form-group">
+                        <div class="form-group">
                                     <label>圖片網址 (最多5張)</label>
                                     <div class="edit-product-image-inputs">
                                         <div class="form-group"><label for="edit-product-image-1">1.</label><input type="url" id="edit-product-image-1" placeholder="請貼上圖片網址"></div>
@@ -763,21 +760,15 @@ input:checked + .slider:before {
                                         <div class="form-group"><label for="edit-product-image-4">4.</label><input type="url" id="edit-product-image-4" placeholder="請貼上圖片網址"></div>
                                         <div class="form-group"><label for="edit-product-image-5">5.</label><input type="url" id="edit-product-image-5" placeholder="請貼上圖片網址"></div>
                                     </div>
-                                </div>
-                            </div>
-
-                                <div class="form-group grid-span-2">
+                        </div>
+                        <div class="form-group grid-span-2">
                                 <hr>
                                 <label>彈性通用規格 (選填，最多5組)</label>
-                                </div>
-
+                        </div>
                         <div class="form-group">
                             <label for="edit-product-description">詳細介紹</label>
                             <textarea id="edit-product-description" rows="5"></textarea>
                         </div>
-                    </div>
-
-                    <div>
                         <div class="form-group">
                             <label for="edit-product-inventory-type">庫存管理模式</label>
                             <select id="edit-product-inventory-type">
@@ -794,21 +785,17 @@ input:checked + .slider:before {
                             <label for="edit-product-stock-status">庫存狀態</label>
                             <input type="text" id="edit-product-stock-status" placeholder="例如: 可預約, 已售罄">
                         </div>
-                        
                         <div class="form-group">
                             <label for="edit-product-price">價格</label>
                             <input type="number" id="edit-product-price" min="0">
-                        </div>
-                        
+                        </div>                       
                         <div class="form-group">
                             <label style="display: flex; align-items: center; margin-top: 10px;">
                                 <input type="checkbox" id="edit-product-is-visible" style="width: auto; margin-right: 10px;">
                                 是否上架 (顯示於 LIFF)
                             </label>
                         </div>
-                    </div>
-
-                    <div class="form-group grid-span-2">
+                        <div class="form-group grid-span-2">
                         <hr>
                         <label>彈性通用規格 (選填，最多5組)</label>
                         <div class="sub-grid" style="margin-bottom: 10px;">
@@ -831,15 +818,15 @@ input:checked + .slider:before {
                             <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
                             <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
                         </div>
-                    </div>
-                </div>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="action-btn btn-cancel">取消</button>
-                <button type="submit" class="action-btn btn-save">儲存變更</button>
-            </div>
+                        </div>
+                        <div class="form-actions">
+                        <button type="button" class="action-btn btn-cancel">取消</button>
+                        <button type="submit" class="action-btn btn-save">儲存變更</button>
+                        </div>
+                </div>    
+            </div>           
         </form>
-    </div>
+
 </div>
 
     

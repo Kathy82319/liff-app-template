@@ -141,33 +141,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function goBackPage() {
+        // 【修正】當歷史紀錄大於1筆時，才進行返回操作
         if (pageHistory.length > 1) {
-            pageHistory.pop();
-            showPage(pageHistory[pageHistory.length - 1], true);
-        } else {
-            liff.closeWindow();
+            pageHistory.pop(); // 移除當前頁
+            // 顯示歷史紀錄中的最後一頁，並標記這是返回操作
+            showPage(pageHistory[pageHistory.length - 1], true); 
         }
+        // 【移除】拿掉 else { liff.closeWindow(); }，不再主動關閉視窗
     }
     
     // =================================================================
     // 全域事件監聽
     // =================================================================
     function setupGlobalEventListeners() {
+        appContent.addEventListener('click', (event) => {
+            const target = event.target;
 
-    appContent.addEventListener('click', (event) => {
-            // 【修改】產品卡片點擊事件
-            const productCard = event.target.closest('.product-card');
+            // 【統一返回邏輯】
+            if (target.closest('.details-back-button')) {
+                goBackPage();
+                return;
+            }
+
+            // 【統一產品卡片點擊邏輯】
+            const productCard = target.closest('.product-card');
             if (productCard && productCard.dataset.productId) {
                 const productId = productCard.dataset.productId;
                 const productItem = allProducts.find(p => p.product_id == productId);
                 if (productItem) {
-                    pageHistory.push('page-product-details');
-                    appContent.innerHTML = pageTemplates.querySelector('#page-product-details').innerHTML;
-                    renderProductDetails(productItem);
+                    // 直接呼叫 showPage，並把要顯示的產品資料當作參數傳入
+                    showPage('page-product-details', false, { product: productItem });
                 }
                 return;
             }
-            const target = event.target;
+            
+            // 【統一情報卡片點擊邏輯】
+            const newsCard = target.closest('.news-card');
+            if (newsCard && newsCard.dataset.newsId) {
+                const newsId = parseInt(newsCard.dataset.newsId, 10);
+                const newsItem = allNews.find(n => n.id === newsId);
+                if (newsItem) {
+                    // 直接呼叫 showPage，並把要顯示的情報資料當作參數傳入
+                    showPage('page-news-details', false, { news: newsItem });
+                }
+                return;
+            }
             const targetId = target.id;
 
             if (target.matches('.details-back-button')) {

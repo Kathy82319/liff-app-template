@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-booking': initializeBookingPage,
         'page-info': initializeInfoPage,
         'page-edit-profile': initializeEditProfilePage,
+        'page-product-details': (data) => renderProductDetails(data.product),
+        'page-news-details': (data) => renderNewsDetails(data.news),        
     };
 
     // =================================================================
@@ -142,22 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
         }
     }
-
-    // --- 頁面初始化函式映射 ---
-    // 【升級】讓初始化函式可以接收 data 參數
-    const pageInitializers = {
-        'page-home': initializeHomePage,
-        'page-products': initializeProductsPage,
-        'page-profile': initializeProfilePage,
-        'page-my-bookings': initializeMyBookingsPage,
-        'page-my-exp-history': initializeMyExpHistoryPage,
-        'page-booking': initializeBookingPage,
-        'page-info': initializeInfoPage,
-        'page-edit-profile': initializeEditProfilePage,
-        // 【新增】細節頁也加入初始化映射
-        'page-product-details': (data) => renderProductDetails(data.product),
-        'page-news-details': (data) => renderNewsDetails(data.news),
-    };
 
     function goBackPage() {
         // 【修正】當歷史紀錄大於1筆時，才進行返回操作

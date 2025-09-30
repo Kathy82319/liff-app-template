@@ -66,18 +66,11 @@ function setupLoginForm() {
 }
 
 
-// 主要的 DOMContentLoaded 事件監聽器，現在變得非常簡潔
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[DEBUG] 1. DOMContentLoaded event fired.');
-    
-    // 判斷當前在哪個頁面，然後執行對應的啟動函式
-    if (document.getElementById('login-form')) {
-        // 如果在登入頁，就設定登入表單
-        setupLoginForm();
-    } else if (window.location.pathname.includes('admin-panel.html')) {
-        // 如果在後台主頁，就檢查登入狀態並初始化
-        checkLoginStatusAndInit();
-    }
+document.addEventListener('DOMContentLoaded', async () => {
+    // 直接顯示後台面板並初始化
+    const adminPanel = document.getElementById('admin-panel');
+    if(adminPanel) adminPanel.style.display = 'block';
+    await initializeAdminPanel();
 });
 
 

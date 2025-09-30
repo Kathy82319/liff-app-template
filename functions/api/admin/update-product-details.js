@@ -1,4 +1,4 @@
-// functions/api/admin/update-boardgame-details.js
+// functions/api/admin/update-boardproduct-details.js
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 

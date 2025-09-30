@@ -53,7 +53,7 @@ async function syncProfileUpdateToSheet(env, userData) {
                 'nickname': userData.nickname,
                 'phone': userData.phone,
                 'email': userData.email,
-                'preferred_games': userData.preferredGames,
+                'preferred_product': userData.preferredproduct,
                 'line_display_name': userData.displayName,
                 'line_picture_url': userData.pictureUrl
             });
@@ -77,7 +77,7 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json();
-    const { userId, realName, nickname, phone, email, preferredGames, displayName, pictureUrl } = body;
+    const { userId, realName, nickname, phone, email, preferredproduct, displayName, pictureUrl } = body;
 
     // --- 【新增的驗證區塊】 ---
     const errors = [];
@@ -109,17 +109,17 @@ export async function onRequest(context) {
 
     const db = context.env.DB;
     
-    const preferredGamesString = Array.isArray(preferredGames) ? preferredGames.join(',') : preferredGames || '未提供';
+    const preferredproductString = Array.isArray(preferredproduct) ? preferredproduct.join(',') : preferredproduct || '未提供';
 
     const stmt = db.prepare(
-      'UPDATE Users SET real_name = ?, nickname = ?, phone = ?, email = ?, preferred_games = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
+      'UPDATE Users SET real_name = ?, nickname = ?, phone = ?, email = ?, preferred_product = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
     );
     const result = await stmt.bind(
         realName || '',
         nickname, 
         phone, 
         email || '',
-        preferredGamesString,
+        preferredproductString,
         displayName,
         pictureUrl,
         userId
@@ -131,7 +131,7 @@ export async function onRequest(context) {
       });
     }
 
-    const userDataToSync = { userId, realName: realName || '', nickname, phone, email: email || '', preferredGames: preferredGamesString, displayName, pictureUrl };
+    const userDataToSync = { userId, realName: realName || '', nickname, phone, email: email || '', preferredproduct: preferredproductString, displayName, pictureUrl };
     context.waitUntil(syncProfileUpdateToSheet(context.env, userDataToSync));
 
     return new Response(JSON.stringify({ 

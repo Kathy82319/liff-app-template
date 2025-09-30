@@ -30,8 +30,8 @@ export async function onRequest(context) {
         const jwt = await new jose.SignJWT({ userId: user.user_id, role: user.role })
             .setProtectedHeader({ alg })
             .setExpirationTime('8h')
-            .setIssuer('urn:tabletop-game:issuer')
-            .setAudience('urn:tabletop-game:audience')
+            .setIssuer('urn:tabletop-product:issuer')
+            .setAudience('urn:tabletop-product:audience')
             .sign(secret);
 
         const headers = new Headers();

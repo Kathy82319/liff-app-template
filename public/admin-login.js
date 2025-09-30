@@ -44,10 +44,10 @@ async function initializeAdminPanel() {
     const syncD1ToSheetBtn = document.getElementById('sync-d1-to-sheet-btn');
     const userDetailsModal = document.getElementById('user-details-modal');
     const productListTbody = document.getElementById('product-list-tbody')
-    const productSearchInput = document.getElementById('game-search-input');
+    const productSearchInput = document.getElementById('product-search-input');
     const editProductModal = document.getElementById('edit-product-modal');
     const editProductForm = document.getElementById('edit-product-form');
-    const syncProductsBtn = document.getElementById('sync-games-btn');
+    const syncProductsBtn = document.getElementById('sync-product-btn');
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const manageBookingDatesBtn = document.getElementById('manage-booking-dates-btn');
     const bookingSettingsModal = document.getElementById('booking-settings-modal');
@@ -282,7 +282,7 @@ async function initializeAdminPanel() {
                         const response = await fetch('/api/admin/update-product-order', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ orderedGameIds: orderedIds })
+                            body: JSON.stringify({ orderedproductIds: orderedIds })
                         });
                         if (!response.ok) throw new Error('儲存順序失敗');
                         
@@ -682,7 +682,7 @@ async function initializeAdminPanel() {
                     <p><strong>姓名:</strong> ${profile.real_name || '未設定'}</p>
                     <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
                     <p><strong>Email:</strong> ${profile.email || '未設定'}</p>
-                    <p><strong>偏好類型:</strong> ${profile.preferred_games || '未設定'}</p>
+                    <p><strong>偏好類型:</strong> ${profile.preferred_product || '未設定'}</p>
                     <hr>
                     <p><strong>等級:</strong> ${profile.level} (${profile.current_exp}/10 EXP)</p>
                     <p><strong>會員方案:</strong> ${profile.class}</p>

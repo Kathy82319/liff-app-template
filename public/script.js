@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 核心變數 ---
     const myLiffId = "2008032417-3yJQGaO6";
     let userProfile = null;
-    let gameData = {};
+    let productData = {};
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
@@ -81,13 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const { FEATURES, TERMS } = CONFIG;
             
             const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
-            const gamesTab = document.querySelector('.tab-button[data-target="page-products"]');
+            const productTab = document.querySelector('.tab-button[data-target="page-products"]');
             const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
             const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
             const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
             const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
 
-            if (gamesTab) gamesTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
+            if (productTab) productTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
             if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
             if (profileTab) profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
             if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
 
             if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
-            if (gamesTab) gamesTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
+            if (productTab) productTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
             if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
             if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
             if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
@@ -314,8 +314,8 @@ function renderBookings(bookings, container, isPast = false) {
         }
     }
 
-    async function fetchGameData(forceRefresh = false) {
-        if (!forceRefresh && gameData.user_id) return gameData;
+    async function fetchproductData(forceRefresh = false) {
+        if (!forceRefresh && productData.user_id) return productData;
         try {
             const response = await fetch('/api/user', {
                 method: 'POST',
@@ -323,8 +323,8 @@ function renderBookings(bookings, container, isPast = false) {
                 body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
             });
             if (!response.ok) throw new Error('無法取得會員資料');
-            gameData = await response.json();
-            return gameData;
+            productData = await response.json();
+            return productData;
         } catch (error) {
             console.error('會員API失敗:', error);
             return null;
@@ -453,7 +453,7 @@ function renderBookings(bookings, container, isPast = false) {
             new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
         }
         try {
-            const userData = await fetchGameData(true);
+            const userData = await fetchproductData(true);
             updateProfileDisplay(userData);
         } catch (error) {
             const displayNameEl = document.getElementById('display-name');
@@ -521,20 +521,20 @@ function renderBookings(bookings, container, isPast = false) {
         }
         if (!userProfile) return;
         document.getElementById('edit-profile-name').value = userProfile.displayName;
-        const userData = await fetchGameData();
+        const userData = await fetchproductData();
         if (!userData) return;
         document.getElementById('edit-profile-real-name').value = userData.real_name || '';
         document.getElementById('edit-profile-nickname').value = userData.nickname || '';
         document.getElementById('edit-profile-phone').value = userData.phone || '';
         document.getElementById('edit-profile-email').value = userData.email || '';
-        const gamesContainer = document.getElementById('preferred-games-container');
-        const otherContainer = document.getElementById('preferred-games-other-container');
-        const otherInput = document.getElementById('preferred-games-other-input');
-        if (gamesContainer && otherContainer && otherInput) {
+        const productContainer = document.getElementById('preferred-product-container');
+        const otherContainer = document.getElementById('preferred-product-other-container');
+        const otherInput = document.getElementById('preferred-product-other-input');
+        if (productContainer && otherContainer && otherInput) {
             const allStandardTags = [...new Set(allProducts.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
-            const userTags = new Set((userData.preferred_games || '').split(',').map(tag => tag.trim()).filter(Boolean));
+            const userTags = new Set((userData.preferred_product || '').split(',').map(tag => tag.trim()).filter(Boolean));
             const userCustomTags = [...userTags].filter(tag => !allStandardTags.includes(tag));
-            gamesContainer.innerHTML = allStandardTags.map(tag => {
+            productContainer.innerHTML = allStandardTags.map(tag => {
                 const isActive = userTags.has(tag) ? 'active' : '';
                 return `<button type="button" class="preference-tag-btn ${isActive}" data-tag="${tag}">${tag}</button>`;
             }).join('');
@@ -542,7 +542,7 @@ function renderBookings(bookings, container, isPast = false) {
             otherBtn.type = 'button';
             otherBtn.className = 'preference-tag-btn';
             otherBtn.textContent = '其他';
-            gamesContainer.appendChild(otherBtn);
+            productContainer.appendChild(otherBtn);
             if (userCustomTags.length > 0) {
                 otherBtn.classList.add('active');
                 otherContainer.style.display = 'block';
@@ -550,7 +550,7 @@ function renderBookings(bookings, container, isPast = false) {
             } else {
                 otherContainer.style.display = 'none';
             }
-            gamesContainer.addEventListener('click', (e) => {
+            productContainer.addEventListener('click', (e) => {
                 const target = e.target;
                 if (target.classList.contains('preference-tag-btn')) {
                     if (target === otherBtn) {
@@ -580,10 +580,10 @@ function renderBookings(bookings, container, isPast = false) {
             event.preventDefault();
             const statusMsg = document.getElementById('edit-profile-form-status');
             statusMsg.textContent = '儲存中...';
-            let selectedGames = Array.from(gamesContainer.querySelectorAll('.preference-tag-btn.active')).map(btn => btn.dataset.tag).filter(tag => tag);
+            let selectedproduct = Array.from(productContainer.querySelectorAll('.preference-tag-btn.active')).map(btn => btn.dataset.tag).filter(tag => tag);
             if (otherContainer.style.display === 'block' && otherInput.value.trim() !== '') {
                 const customTags = otherInput.value.trim().split(/[,，\s]+/).filter(Boolean);
-                selectedGames.push(...customTags);
+                selectedproduct.push(...customTags);
             }
             const formData = {
                 userId: userProfile.userId,
@@ -591,7 +591,7 @@ function renderBookings(bookings, container, isPast = false) {
                 nickname: document.getElementById('edit-profile-nickname').value,
                 phone: document.getElementById('edit-profile-phone').value,
                 email: document.getElementById('edit-profile-email').value,
-                preferredGames: [...new Set(selectedGames)],
+                preferredproduct: [...new Set(selectedproduct)],
                 displayName: userProfile.displayName,
                 pictureUrl: userProfile.pictureUrl || ''
             };
@@ -599,7 +599,7 @@ function renderBookings(bookings, container, isPast = false) {
                 const response = await fetch('/api/update-user-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || '儲存失敗');
-                gameData = {};
+                productData = {};
                 statusMsg.textContent = '儲存成功！';
                 statusMsg.style.color = 'green';
                 setTimeout(() => goBackPage(), 1500);
@@ -616,13 +616,13 @@ function renderBookings(bookings, container, isPast = false) {
         return '★'.repeat(level) + '☆'.repeat(4 - level);
     }
 
-// 在 public/script.js 中，取代舊的 renderGameDetails 函式
+// 在 public/script.js 中，取代舊的 renderproductDetails 函式
 function renderProductDetails(product) {
     const imageContainer = appContent.querySelector('.details-gallery');
     const detailsTitle = appContent.querySelector('.details-title');
-    const tagsContainer = appContent.querySelector('#game-tags-container');
-    const introContent = appContent.querySelector('#game-intro-content');
-    const priceContent = appContent.querySelector('#game-price-content');
+    const tagsContainer = appContent.querySelector('#product-tags-container');
+    const introContent = appContent.querySelector('#product-intro-content');
+    const priceContent = appContent.querySelector('#product-price-content');
     const mainImage = imageContainer.querySelector('.details-image-main');
     const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
     appContent.querySelector('.details-title').textContent = product.name;
@@ -694,11 +694,11 @@ function renderProducts() {
 
         return `
             <div class="product-card" data-product-id="${product.product_id}">
-                <img src="${imageUrl}" alt="${product.name}" class="game-image">
-                <div class="game-info">
-                    <h3 class="game-title">${product.name}</h3>
-                    <p class="game-description">${(product.description || '').substring(0, 40)}...</p> 
-                    <div class="game-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                <img src="${imageUrl}" alt="${product.name}" class="product-image">
+                <div class="product-info">
+                    <h3 class="product-title">${product.name}</h3>
+                    <p class="product-description">${(product.description || '').substring(0, 40)}...</p> 
+                    <div class="product-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                         <span style="font-size: 0.8rem; background-color: var(--color-bg); padding: 2px 8px; border-radius: 10px;">${product.category || '未分類'}</span>
                         <span style="font-size: 1rem; font-weight: bold; color: var(--color-primary);">${priceDisplay}</span>
                     </div>
@@ -852,7 +852,7 @@ async function initializeBookingPage() {
     }
 
     // 帶入已有的使用者資料
-    const userData = await fetchGameData();
+    const userData = await fetchproductData();
     if (userData) {
         const nameInput = document.getElementById('contact-name');
         const phoneInput = document.getElementById('contact-phone');

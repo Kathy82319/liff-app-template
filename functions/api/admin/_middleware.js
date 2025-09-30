@@ -23,8 +23,8 @@ async function authMiddleware(context) {
         try {
             const secret = new TextEncoder().encode(env.JWT_SECRET);
             const { payload } = await jose.jwtVerify(token, secret, {
-                issuer: 'urn:tabletop-game:issuer',
-                audience: 'urn:tabletop-game:audience',
+                issuer: 'urn:tabletop-product:issuer',
+                audience: 'urn:tabletop-product:audience',
             });
 
             if (payload.role !== 'admin') {

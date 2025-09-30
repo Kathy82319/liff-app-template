@@ -211,7 +211,7 @@ input:focus, select:focus, textarea:focus {
     flex-wrap: wrap;
     gap: 8px;
 }
-.filter-tag-btn { /* for games page */
+.filter-tag-btn { /* for product page */
     padding: 6px 14px;
     border: 1px solid var(--color-secondary);
     background: transparent;

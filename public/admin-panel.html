@@ -160,10 +160,10 @@
 <div id="page-inventory" class="page">
             <div class="page-header">
                 <h2>產品/服務管理</h2>
-                <button id="sync-games-btn" class="action-btn" style="background-color: #28a745;">同步至資料庫</button>
+                <button id="sync-product-btn" class="action-btn" style="background-color: #28a745;">同步至資料庫</button>
             </div>
             <div class="filter-bar">
-                <input type="text" id="game-search-input" placeholder="依桌遊名稱搜尋..." style="flex-grow: 1; padding: 8px;">
+                <input type="text" id="product-search-input" placeholder="依桌遊名稱搜尋..." style="flex-grow: 1; padding: 8px;">
                 <div id="inventory-stock-filter" class="filter-group">
                     <button class="active" data-filter="all">全部庫存</button>
                     <button data-filter="in_stock">有庫存</button>
@@ -431,13 +431,13 @@
             </div>
             <div id="rental-modal-status" style="text-align: center; color: var(--primary-color); min-height: 20px; margin-bottom: 15px;"></div>
             <form id="create-rental-form">
-                <input type="hidden" id="rental-game-id">
+                <input type="hidden" id="rental-product-id">
                 <div class="form-group">
                     <label>租借品項 (可多選)</label>
-                    <div id="rental-games-container">
-                        <input type="text" id="rental-game-search" placeholder="依產品/服務名稱搜尋...">
+                    <div id="rental-products-container">
+                        <input type="text" id="rental-product-search" placeholder="依產品/服務名稱搜尋...">
                     </div>
-                    <ul id="game-search-results" style="display: none;"></ul>
+                    <ul id="product-search-results" style="display: none;"></ul>
                 </div>
                 <div class="form-group">
                     <label for="rental-user-search">搜尋租借會員 (LINE 名稱或 ID)</label>
@@ -503,7 +503,7 @@
         <form id="edit-product-form">
             <div class="modal-body">
                 <input type="hidden" id="edit-product-id">
-                <div class="edit-game-grid">
+                <div class="edit-product-grid">
                     
                     <div>
                         <div class="form-group">

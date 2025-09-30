@@ -198,18 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const newsCard = target.closest('.news-card');
-            if (newsCard && newsCard.dataset.newsId) {
-                const newsId = parseInt(newsCard.dataset.newsId, 10);
-                const newsItem = allNews.find(n => n.id === newsId);
-                if (newsItem) {
-                    pageHistory.push('page-news-details');
-                    appContent.innerHTML = pageTemplates.querySelector('#page-news-details').innerHTML;
-                    renderNewsDetails(newsItem);
-                }
-                return;
-            }
-
             if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');

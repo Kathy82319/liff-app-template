@@ -1009,9 +1009,11 @@ if (tabBar) {
     tabBar.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
         if (button) {
-            // 【修正此處】
-            const targetPage = button.dataset.target === 'page-products' : button.dataset.target;
-            showPage(targetPage);
+            if (button.dataset.target === 'page-products') {
+                 showPage('page-products');
+            } else {
+                 showPage(button.dataset.target);
+            }
         }
     });
 }

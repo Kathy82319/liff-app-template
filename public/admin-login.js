@@ -255,13 +255,18 @@ async function initializeAdminPanel() {
     }
 
     function setupBatchActions() {
-        const selectAllCheckbox = document.getElementById('select-all-products');
-        const publishBtn = document.getElementById('batch-publish-btn');
-        const unpublishBtn = document.getElementById('batch-unpublish-btn');
+        const pageContainer = document.getElementById('page-inventory');
+        if (!pageContainer) return; // 如果頁面不存在，就直接返回
 
-        // 監聽表格內容區域的點擊，來處理每一行的 checkbox
-        productListTbody.addEventListener('change', (e) => {
-            if (e.target.classList.contains('product-checkbox')) {
+        const selectAllCheckbox = pageContainer.querySelector('#select-all-products');
+        const publishBtn = pageContainer.querySelector('#batch-publish-btn');
+        const unpublishBtn = pageContainer.querySelector('#batch-unpublish-btn');
+        const tBody = pageContainer.querySelector('#product-list-tbody');
+
+        // 【修正】將事件監聽器綁定在更穩定的父層容器上
+        pageContainer.addEventListener('click', (e) => {
+            // 監聽每一行的 checkbox 和 全選 checkbox
+            if (e.target.matches('.product-checkbox') || e.target.matches('#select-all-products')) {
                 updateBatchToolbarState();
             }
         });
@@ -269,7 +274,7 @@ async function initializeAdminPanel() {
         // 「全選」checkbox 的邏輯
         selectAllCheckbox.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
-            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+            tBody.querySelectorAll('.product-checkbox').forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
             updateBatchToolbarState();
@@ -277,7 +282,7 @@ async function initializeAdminPanel() {
 
         // 批次處理函式
         const handleBatchUpdate = async (isVisible) => {
-            const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+            const selectedIds = Array.from(tBody.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
             if (selectedIds.length === 0) {
                 alert('請至少選取一個項目！');
                 return;
@@ -288,8 +293,11 @@ async function initializeAdminPanel() {
                 return;
             }
 
+            // 禁用按鈕防止重複提交
+            publishBtn.disabled = true;
+            unpublishBtn.disabled = true;
+
             try {
-                // 我們需要一個新的 API 來處理批次更新
                 const response = await fetch('/api/admin/batch-update-products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -302,10 +310,14 @@ async function initializeAdminPanel() {
                 }
 
                 alert(`成功${actionText} ${selectedIds.length} 個項目！`);
-                await fetchAllProducts(); // 重新載入列表
+                await fetchAllProducts(); // 重新載入列表以顯示最新狀態
 
             } catch (error) {
                 alert(`錯誤：${error.message}`);
+            } finally {
+                // 恢復按鈕
+                publishBtn.disabled = false;
+                unpublishBtn.disabled = false;
             }
         };
 

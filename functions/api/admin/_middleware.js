@@ -19,9 +19,10 @@ async function authMiddleware(context) {
         if (!token) {
             return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401 });
         }
-
+        
         try {
             const secret = new TextEncoder().encode(env.JWT_SECRET);
+            // 【**核心修正：將 'game' 改為 'product'**】
             const { payload } = await jose.jwtVerify(token, secret, {
                 issuer: 'urn:tabletop-product:issuer',
                 audience: 'urn:tabletop-product:audience',
@@ -35,9 +36,10 @@ async function authMiddleware(context) {
 
         } catch (err) {
             // Token 驗證失敗 (例如過期、偽造等)
-            return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401 });
+            // 【偵錯強化】在這裡加入 console.log，讓靜默錯誤現形
+            console.error('JWT 驗證失敗:', err);
+            return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token', details: err.message }), { status: 401 });
         }
-    }
 
     // 如果不是 admin 路由或驗證通過，就繼續執行原本的 API
     return await next();

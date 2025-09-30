@@ -1,77 +1,88 @@
-async function checkLoginStatusAndInit() {
-    try {
-        console.log('[DEBUG] 2. Starting login status check...');
-        const response = await fetch('/api/admin/auth/status');
-        
-        if (response.ok) {
-            console.log('[DEBUG] 3. Login status OK. Initializing admin panel...');
-            const adminPanel = document.getElementById('admin-panel');
-            if (adminPanel) {
-                adminPanel.style.display = 'block';
-                console.log('[DEBUG] 4. Admin panel display set to "block".');
-            } else {
-                // 如果連 admin-panel 這個 div 都找不到，說明 HTML 肯定有問題
-                document.body.innerHTML = '<h2 style="color:red; text-align:center; margin-top: 50px;">錯誤：找不到必要的 HTML 元素 (admin-panel)。</h2>';
-                return;
-            }
-            // 狀態檢查通過，才開始執行龐大的後台初始化函式
-            await initializeAdminPanel();
+
+const App = {
+    // 唯一的啟動函式
+    init: function() {
+        console.log('[DEBUG] 1. DOMContentLoaded event fired. Initializing App...');
+        // 判斷當前是在登入頁還是後台主頁
+        if (document.getElementById('login-form')) {
+            console.log('[DEBUG] 1a. Detected Login Page.');
+            this.handleLoginPage();
+        } else if (document.getElementById('admin-panel')) {
+            console.log('[DEBUG] 1b. Detected Admin Panel Page.');
+            this.handleAdminPage();
         } else {
-            // API 回傳非 2xx 狀態 (例如 401 Unauthorized)，跳轉回登入頁
-            console.error('[DEBUG] Login status check failed. Redirecting to login page.');
-            window.location.href = '/admin-login.html';
+            console.error('CRITICAL ERROR: Could not determine page type (login or admin).');
+            document.body.innerHTML = `<h2>頁面結構錯誤</h2><p>找不到 'login-form' 或 'admin-panel' 的 ID。</p>`;
         }
-    } catch (error) {
-        // Fetch 本身失敗 (例如網路問題)，也跳轉回登入頁
-        console.error('[DEBUG] A critical error occurred during login status check:', error);
-        window.location.href = '/admin-login.html';
-    }
-}
+    },
 
-function setupLoginForm() {
-    const loginForm = document.getElementById('login-form');
-    if (!loginForm) return;
+    // 專門處理登入頁的邏輯
+    handleLoginPage: function() {
+        const loginForm = document.getElementById('login-form');
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const loginStatus = document.getElementById('login-status');
+            const loginButton = document.getElementById('login-button');
+            
+            loginStatus.textContent = '';
+            loginButton.disabled = true;
+            loginButton.textContent = '登入中...';
+            
+            try {
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || '登入失敗，請檢查帳號或密碼。');
+                }
+                console.log('[DEBUG] Login successful, redirecting to admin panel...');
+                window.location.href = '/admin-panel.html';
+            } catch (error) {
+                loginStatus.textContent = error.message;
+                loginButton.disabled = false;
+                loginButton.textContent = '登入';
+            }
+        });
+    },
 
-    console.log('[DEBUG] 1a. Login form found, setting up listener.');
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
-        const loginStatus = document.getElementById('login-status');
-        const loginButton = document.getElementById('login-button');
-        
-        loginStatus.textContent = '';
-        loginButton.disabled = true;
-        loginButton.textContent = '登入中...';
-        
+    // 專門處理後台主頁的邏輯
+    handleAdminPage: async function() {
         try {
-            const response = await fetch('/api/admin/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || '登入失敗');
+            console.log('[DEBUG] 2. Checking login status...');
+            const response = await fetch('/api/admin/auth/status');
+            
+            if (!response.ok) {
+                // 如果 API 回應 401 或其他錯誤，明確導向回登入頁
+                console.error('[DEBUG] Login status check failed (status: ' + response.status + '). Redirecting to login page.');
+                window.location.href = '/admin-login.html';
+                return; // 中斷後續執行
+            }
 
-            console.log('[DEBUG] Login successful, redirecting to admin panel...');
-            window.location.href = '/admin-panel.html';
+            // 登入狀態驗證成功
+            console.log('[DEBUG] 3. Login status OK. Preparing to show panel...');
+            const adminPanel = document.getElementById('admin-panel');
+            adminPanel.style.display = 'block';
+            
+            console.log('[DEBUG] 4. Admin panel displayed. Initializing content...');
+            // 執行後台的主要初始化函式
+            await initializeAdminPanel();
+            console.log('[DEBUG] 5. initializeAdminPanel() finished.');
 
         } catch (error) {
-            loginStatus.textContent = error.message;
-        } finally {
-            loginButton.disabled = false;
-            loginButton.textContent = '登入';
+            // 如果 fetch 本身就失敗了 (例如網路斷線)
+            console.error('[DEBUG] CRITICAL: fetch to /api/admin/auth/status failed.', error);
+            document.body.innerHTML = `<h2>後台啟動失敗</h2><p>無法連接到認證伺服器，請檢查網路連線或後端服務是否正常。</p><p>錯誤訊息: ${error.message}</p>`;
         }
-    });
-}
+    }
+};
 
-
-document.addEventListener('DOMContentLoaded', async () => {
-    // 直接顯示後台面板並初始化
-    const adminPanel = document.getElementById('admin-panel');
-    if(adminPanel) adminPanel.style.display = 'block';
-    await initializeAdminPanel();
-});
+// 當 DOM 載入完成後，只呼叫 App.init() 啟動程式
+document.addEventListener('DOMContentLoaded', () => App.init());
 
 
 async function initializeAdminPanel() {

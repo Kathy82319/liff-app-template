@@ -233,6 +233,88 @@
     overflow: hidden;
     text-overflow: ellipsis;
 } 
+
+/* --- 【新增】讓編輯彈窗內容可滾動的 CSS --- */
+
+/* 步驟 1: 讓 modal-content 成為 flex 容器，並限制最大高度 */
+#edit-product-modal .modal-content, #edit-user-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* 最大高度為視窗的 90% */
+}
+
+/* 步驟 2: 讓 modal 的主要內容區域 (modal-body) 可以自動延展並產生滾動條 */
+#edit-product-modal .modal-body {
+    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
+    padding-right: 15px; /* 增加一點右邊距，避免滾動條太貼近內容 */
+}
+
+/* 步驟 3: 確保頭部和腳部(按鈕區)不會被壓縮 */
+#edit-product-modal .modal-header, 
+#edit-product-modal .form-actions {
+    flex-shrink: 0;
+}
+
+/* 步驟 4 (建議): 為按鈕區加上分隔線，視覺上更清晰 */
+#edit-product-modal .form-actions {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+
+/* --- 【新增】滑動開關 (Toggle Switch) 樣式 --- */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px; /* 寬度 */
+    height: 28px; /* 高度 */
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+    border-radius: 28px; /* 圓角 */
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px; /* 圓點高度 */
+    width: 20px;  /* 圓點寬度 */
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--success-color); /* 開啟時的顏色 */
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--success-color);
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(22px); /* 圓點移動距離 */
+    -ms-transform: translateX(22px);
+    transform: translateX(22px);
+}
     </style>
 
 </head>
@@ -334,8 +416,8 @@
                         <th>總庫存</th>
                         <th>顯示庫存</th>
                         <th>售價 / 折扣價</th>
-                        <th>上架</th>
-                        <th>操作</th>
+                        <th style="width: 80px;">上架</th>
+                        <th style="width: 80px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="product-list-tbody"></tbody>

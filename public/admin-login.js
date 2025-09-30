@@ -303,53 +303,61 @@ async function initializeAdminPanel() {
         renderProductList(filtered);
     }
 
-    function renderProductList(products) {
-        if (!productListTbody) return;
-        productListTbody.innerHTML = '';
-        products.forEach(p => {
-            const row = productListTbody.insertRow();
-            const cellVisible = row.insertCell();
-            cellVisible.innerHTML = `
-                <label class="switch">
-                    <input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </label>`;            
-            row.className = 'draggable-row';
-            row.dataset.productId = p.product_id;
+// public/admin-login.js
 
-            let stockDisplay = '無管理';
-            if (p.inventory_management_type === 'quantity') stockDisplay = `數量: ${p.stock_quantity ?? 'N/A'}`;
-            else if (p.inventory_management_type === 'status') stockDisplay = `狀態: ${p.stock_status ?? 'N/A'}`;
-            
-            let priceDisplay = '未設定';
-            if (p.price_type === 'simple') {
-                priceDisplay = `$${p.price}`;
-            } else if (p.price_type === 'multiple' && p.price_options) {
-                try {
-                    const options = JSON.parse(p.price_options);
-                    priceDisplay = options.map(opt => `${opt.name}: $${opt.price}`).join('<br>');
-                } catch (e) { priceDisplay = '價格格式錯誤'; }
-            }
-            
-            const cellOrder = row.insertCell();
-            const cellProduct = row.insertCell();
-            const cellStock = row.insertCell();
-            const cellPrice = row.insertCell();          
-            const cellActions = row.insertCell();
+function renderProductList(products) {
+    if (!productListTbody) return;
+    productListTbody.innerHTML = '';
+    products.forEach(p => {
+        const row = productListTbody.insertRow();
+        row.className = 'draggable-row';
+        row.dataset.productId = p.product_id;
 
-            cellOrder.className = 'drag-handle-cell';
-            cellOrder.innerHTML = `<span class="drag-handle">⠿</span> ${p.display_order}`;
-            
-            cellProduct.className = 'compound-cell';
-            cellProduct.style.textAlign = 'left';
-            cellProduct.innerHTML = `<div class="main-info">${p.name}</div><div class="sub-info">ID: ${p.product_id}</div><div class="sub-info">分類: ${p.category || '未分類'}</div>`;
+        // 定義庫存和價格的顯示文字
+        let stockDisplay = '無管理';
+        if (p.inventory_management_type === 'quantity') stockDisplay = `數量: ${p.stock_quantity ?? 'N/A'}`;
+        else if (p.inventory_management_type === 'status') stockDisplay = `狀態: ${p.stock_status ?? 'N/A'}`;
 
-            cellStock.innerHTML = stockDisplay;
-            cellPrice.innerHTML = priceDisplay;
-            cellVisible.textContent = p.is_visible ? '是' : '否';
-            cellActions.innerHTML = `<td class="actions-cell"><button class="action-btn btn-edit-product" data-productid="${p.product_id}" style="background-color: #ffc107; color: #000;">編輯</button></td>`;
-        });
-    }
+        let priceDisplay = '未設定';
+        if (p.price_type === 'simple' && p.price) {
+            priceDisplay = `$${p.price}`;
+        } else if (p.price_type === 'multiple' && p.price_options) {
+            try {
+                const options = JSON.parse(p.price_options);
+                priceDisplay = options.map(opt => `${opt.name}: $${opt.price}`).join('<br>');
+            } catch (e) { priceDisplay = '價格格式錯誤'; }
+        }
+
+        // 【核心修正】依照新的 a順序建立儲存格
+        const cellOrder = row.insertCell();
+        const cellProduct = row.insertCell();
+        const cellStock = row.insertCell();
+        const cellPrice = row.insertCell();
+        const cellVisible = row.insertCell(); // 上架狀態格
+        const cellActions = row.insertCell(); // 操作格
+
+        // 填入內容
+        cellOrder.className = 'drag-handle-cell';
+        cellOrder.innerHTML = `<span class="drag-handle">⠿</span> ${p.display_order}`;
+
+        cellProduct.className = 'compound-cell';
+        cellProduct.style.textAlign = 'left';
+        cellProduct.innerHTML = `<div class="main-info">${p.name}</div><div class="sub-info">ID: ${p.product_id}</div><div class="sub-info">分類: ${p.category || '未分類'}</div>`;
+
+        cellStock.innerHTML = stockDisplay;
+        cellPrice.innerHTML = priceDisplay;
+
+        // 【核心修正】上架欄位改為滑動開關
+        cellVisible.innerHTML = `
+            <label class="switch">
+                <input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}>
+                <span class="slider"></span>
+            </label>`;
+
+        // 【核心修正】編輯按鈕現在放在正確的「操作」欄位
+        cellActions.innerHTML = `<button class="action-btn btn-edit-product" data-productid="${p.product_id}" style="background-color: var(--warning-color); color: #000;">編輯</button>`;
+    });
+}
 
     function initializeProductDragAndDrop() {
         if (sortableProducts) sortableProducts.destroy();
@@ -407,40 +415,51 @@ async function initializeAdminPanel() {
         });
     }
 
-    if (productListTbody) {
-        productListTbody.addEventListener('click', async (e) => {
-            const target = e.target;
 
-            // 處理「上架」開關的點擊
-            if (target.classList.contains('visibility-toggle')) {
-                const productId = target.dataset.productId;
-                const isVisible = target.checked;
-                try {
-                    const response = await fetch('/api/admin/toggle-product-visibility', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ productId, isVisible })
-                    });
-                    if(!response.ok) throw new Error('更新失敗');
-                    // 更新成功後，直接修改記憶體中的資料狀態
-                    const product = allProducts.find(p => p.product_id === productId);
-                    if(product) product.is_visible = isVisible ? 1 : 0;
-                } catch(error) {
-                    alert(`更新可見性失敗: ${error.message}`);
-                    target.checked = !isVisible; // 操作失敗時，還原 checkbox 狀態
-                }
-                return; // 結束執行
-            }
 
-            // 處理「編輯」按鈕的點擊
-            const editButton = target.closest('.btn-edit-product');
-            if (editButton) {
-                const productId = editButton.dataset.productid;
-                openEditProductModal(productId);
-                return; // 結束執行
+if (productListTbody) {
+    productListTbody.addEventListener('click', async (e) => {
+        const target = e.target;
+
+        // 【新增這一段】處理「上架」開關的點擊
+        if (target.classList.contains('visibility-toggle')) {
+            const productId = target.dataset.productId;
+            const isVisible = target.checked;
+
+            // 暫時禁用開關，防止重複點擊
+            target.disabled = true;
+
+            try {
+                const response = await fetch('/api/admin/toggle-product-visibility', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId, isVisible })
+                });
+                if(!response.ok) throw new Error('更新失敗');
+
+                // API 更新成功後，直接修改記憶體中的資料狀態
+                const product = allProducts.find(p => p.product_id === productId);
+                if(product) product.is_visible = isVisible ? 1 : 0;
+
+            } catch(error) {
+                alert(`更新可見性失敗: ${error.message}`);
+                target.checked = !isVisible; // 操作失敗時，還原 checkbox 狀態
+            } finally {
+                // 無論成功或失敗，最後都重新啟用開關
+                target.disabled = false;
             }
-        });
-    }
+            return; // 結束執行，避免觸發其他事件
+        }
+
+        // 處理「編輯」按鈕的點擊 (這段邏輯不變)
+        const editButton = target.closest('.btn-edit-product');
+        if (editButton) {
+            const productId = editButton.dataset.productid;
+            openEditProductModal(productId);
+            return;
+        }
+    });
+}
    
 function openEditProductModal(productId) {
         const product = allProducts.find(p => p.product_id == productId); // 使用 == 進行寬鬆比較

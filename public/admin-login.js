@@ -833,16 +833,20 @@ function handleDownloadCsvTemplate() {
 /**
  * 處理 CSV 檔案上傳與解析
  */
+/**
+ * 處理 CSV 檔案上傳與解析 (最終修正版)
+ */
 function handleCsvUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
+
+    // 1. 定義 onload 事件：當檔案讀取完成後執行
     reader.onload = async (e) => {
-        const text = e.target.result;
+        const text = e.target.result; // 在這裡才能正確獲取到檔案內容
         const lines = text.split(/\r\n|\n/);
         
-        // 檢查檔案是否為空或只有標頭
         if (lines.length < 2 || !lines[1]) {
             alert('CSV 檔案中沒有可匯入的資料。');
             return;
@@ -851,7 +855,7 @@ function handleCsvUpload(event) {
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = [];
 
-        // 【** 核心修正：使用更強健的解析邏輯 **】
+        // 使用強健的正規表示式來解析每一行，正確處理被引號包住的逗號
         const csvRegex = /(?:,|^)(?:"([^"]*(?:""[^"]*)*)"|([^",]*))/g;
 
         for (let i = 1; i < lines.length; i++) {
@@ -859,18 +863,18 @@ function handleCsvUpload(event) {
             
             let values = [];
             let match;
-            // 重新執行正規表示式來解析每一行
             while (match = csvRegex.exec(lines[i])) {
-                // 如果是帶引號的內容(match[1])，則取代雙引號""為單引號"
-                // 否則直接使用不帶引號的內容(match[2])
                 values.push(match[1] ? match[1].replace(/""/g, '"') : match[2]);
             }
 
-            const obj = {};
-            for (let j = 0; j < headers.length; j++) {
-                obj[headers[j]] = values[j] ? values[j].trim() : "";
+            // 確保解析出的欄位數與標頭數一致，避免錯位
+            if (values.length === headers.length) {
+                const obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    obj[headers[j]] = values[j] ? values[j].trim() : "";
+                }
+                data.push(obj);
             }
-            data.push(obj);
         }
 
         if (data.length === 0) {
@@ -879,7 +883,7 @@ function handleCsvUpload(event) {
         }
 
         if (!confirm(`您準備從 CSV 檔案匯入 ${data.length} 筆產品資料，確定要繼續嗎？`)) {
-            event.target.value = ''; // 讓使用者可以重新選擇同一個檔案
+            event.target.value = '';
             return;
         }
 
@@ -904,7 +908,9 @@ function handleCsvUpload(event) {
             event.target.value = '';
         }
     };
-    reader.readAsText(file);
+
+    // 2. 啟動檔案讀取：這是非同步的，執行後會等待 onload 事件被觸發
+    reader.readAsText(file, 'UTF-8'); // 直接在這裡指定編碼
 }
 
 if (downloadCsvTemplateBtn) {

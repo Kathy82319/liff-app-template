@@ -132,8 +132,9 @@ async function initializeAdminPanel() {
     const pointsEntryForm = document.getElementById('points-entry-form');
     const pointsStatusMessage = document.getElementById('points-status-message');    
     const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
-    const addProductBtn = document.getElementById('add-product-btn');
-
+    const addProductBtn = document.getElementById('add-product-btn'); //產品頁面的"新增"
+    const downloadCsvTemplateBtn = document.getElementById('download-csv-template-btn'); //產品頁面的"批量"
+    const csvUploadInput = document.getElementById('csv-upload-input'); //產品頁面的"批量"
 
     // =================================================================
     // 事件監聽器綁定 (Event Listeners Setup)
@@ -800,10 +801,98 @@ if (editProductForm) {
     });
 }
 
-// 在 initializeAdminPanel 函式的底部，找到事件綁定區域，加上新增按鈕的監聽
+
 if (addProductBtn) {
     addProductBtn.addEventListener('click', openCreateProductModal);
 }    
+
+function handleDownloadCsvTemplate() {
+    // 定義模板的欄位標頭 (必須與後端 API 對應)
+    const headers = [
+        "name", "description", "category", "tags", "images", "is_visible",
+        "inventory_management_type", "stock_quantity", "stock_status",
+        "price", "spec_1_name", "spec_1_value", "spec_2_name", "spec_2_value",
+        "spec_3_name", "spec_3_value", "spec_4_name", "spec_4_value",
+        "spec_5_name", "spec_5_value"
+    ];
+    // 將標頭轉換為 CSV 格式的字串
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",");
+    
+    // 建立一個隱藏的 a 標籤來觸發下載
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "product_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+/**
+ * 處理 CSV 檔案上傳與解析
+ */
+function handleCsvUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        // 簡易 CSV 解析：將文字轉換為物件陣列
+        const lines = text.split(/\r\n|\n/);
+        const headers = lines[0].split(',').map(h => h.trim());
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i]) continue;
+            const values = lines[i].split(',');
+            const obj = {};
+            for (let j = 0; j < headers.length; j++) {
+                obj[headers[j]] = values[j] ? values[j].trim() : "";
+            }
+            data.push(obj);
+        }
+
+        if (data.length === 0) {
+            alert('CSV 檔案中沒有可匯入的資料。');
+            return;
+        }
+
+        if (!confirm(`您準備從 CSV 檔案匯入 ${data.length} 筆產品資料，確定要繼續嗎？`)) {
+            return;
+        }
+
+        try {
+            // 呼叫新的後端 API
+            const response = await fetch('/api/admin/bulk-create-products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ products: data })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || '匯入過程中發生未知錯誤。');
+            }
+
+            alert(result.message); // 顯示後端回傳的成功訊息
+            await fetchAllProducts(); // 重新整理產品列表
+
+        } catch (error) {
+            alert(`匯入失敗：${error.message}`);
+        } finally {
+            // 清空 input 的值，以便使用者可以重複上傳同一個檔案
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+if (downloadCsvTemplateBtn) {
+    downloadCsvTemplateBtn.addEventListener('click', handleDownloadCsvTemplate);
+}
+if (csvUploadInput) {
+    csvUploadInput.addEventListener('change', handleCsvUpload);
+}
 
     // =================================================================
     // 顧客管理模組 (User Management)

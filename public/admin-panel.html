@@ -433,6 +433,8 @@ input:checked + .slider:before {
 <div id="page-inventory" class="page">
             <div class="page-header">
                 <h2>產品/服務管理</h2>
+                <label for="csv-upload-input" class="action-btn" style="background-color: var(--info-color); cursor: pointer;">從 CSV 匯入</label>
+                <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
                 <button id="add-product-btn" class="action-btn btn-save">新增產品</button>
             </div>
             <div class="filter-bar">

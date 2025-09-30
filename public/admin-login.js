@@ -904,7 +904,7 @@ function handleCsvUpload(event) {
             event.target.value = '';
         }
     };
-    reader.readAsText(new Blob([text], { type: 'text/csv;charset=utf-8;' }));
+    reader.readAsText(file);
 }
 
 if (downloadCsvTemplateBtn) {

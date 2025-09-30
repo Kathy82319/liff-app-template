@@ -1,4 +1,38 @@
 
+// =================================================================
+// 全域 Modal 關閉事件監聽
+// =================================================================
+document.addEventListener('click', (e) => {
+    // 監聽所有 class 為 modal-close 或 btn-cancel 的點擊
+    if (e.target.matches('.modal-close') || e.target.matches('.btn-cancel')) {
+        const modal = e.target.closest('.modal-overlay');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+});
+
+const App = {
+    init: function() {
+        if (document.getElementById('login-form')) this.handleLoginPage();
+        else if (document.getElementById('admin-panel')) this.handleAdminPage();
+    },
+    handleLoginPage: function() { /* ... 此處代碼與您現有版本相同，保持不變 ... */ },
+    handleAdminPage: async function() {
+        try {
+            const response = await fetch('/api/admin/auth/status');
+            if (!response.ok) {
+                window.location.href = '/admin-login.html';
+                return;
+            }
+            document.getElementById('admin-panel').style.display = 'block';
+            await initializeAdminPanel();
+        } catch (error) {
+            document.body.innerHTML = `<h2>後台啟動失敗: ${error.message}</h2>`;
+        }
+    }
+};
+
 const App = {
     // 唯一的啟動函式
     init: function() {
@@ -1048,39 +1082,46 @@ function openEditProductModal(productId) {
         const month = currentCalendarDate.getMonth();
         calendarMonthYear.textContent = `${year} 年 ${month + 1} 月`;
         calendarGrid.innerHTML = '';
+
+        // 1. 產生星期標題
         ['日', '一', '二', '三', '四', '五', '六'].forEach(day => {
-            calendarGrid.innerHTML += `<div class="calendar-weekday">${day}</div>`;
+            const weekdayEl = document.createElement('div');
+            weekdayEl.className = 'calendar-weekday';
+            weekdayEl.textContent = day;
+            calendarGrid.appendChild(weekdayEl);
         });
 
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
-        const startingDayOfWeek = firstDayOfMonth.getDay();
+        const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
 
+        // 2. 補上個月的空白
         for (let i = 0; i < startingDayOfWeek; i++) {
-            calendarGrid.innerHTML += `<div class="calendar-day day-other-month"></div>`;
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day day-other-month';
+            calendarGrid.appendChild(emptyDay);
         }
 
+        // 3. 產生當月所有日期
         for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr);
             const isPast = new Date(dateStr) < new Date(new Date().toDateString());
-            
-            let bookingsHTML = bookingsForDay.map(b => {
-                const actionsHTML = `
-                    <div class="actions">
-                        <button class="action-btn btn-check-in" data-booking-id="${b.booking_id}" style="background:var(--success-color);" ${b.status !== 'confirmed' || isPast ? 'disabled' : ''}>✓</button>
-                        <button class="action-btn btn-cancel-booking" data-booking-id="${b.booking_id}" style="background:var(--danger-color);" ${b.status === 'cancelled' ? 'disabled' : ''}>✗</button>
-                    </div>`;
 
-                return `<div class="calendar-booking status-${b.status}" data-booking-id="${b.booking_id}">
-                            ${b.time_slot} ${b.contact_name}
-                            ${actionsHTML}
-                        </div>`;
-            }).join('');
+            const dayEl = document.createElement('div');
+            dayEl.className = `calendar-day ${isPast ? 'is-past' : ''}`;
+            dayEl.innerHTML = `<span class="day-number">${day}</span>`;
             
-            calendarGrid.innerHTML += `<div class="calendar-day ${isPast ? 'is-past' : ''}"><span class="day-number">${day}</span>${bookingsHTML}</div>`;
+            bookingsForDay.forEach(b => {
+                const bookingEl = document.createElement('div');
+                bookingEl.className = `calendar-booking status-${b.status}`;
+                bookingEl.textContent = `${b.time_slot} ${b.contact_name}`;
+                dayEl.appendChild(bookingEl);
+            });
+            calendarGrid.appendChild(dayEl);
         }
     }
+
     
     // --- 事件監聽器 ---
 
@@ -1669,6 +1710,43 @@ function openEditProductModal(productId) {
         });
     }
 
+    // =================================================================
+    // 【核心修正】將所有一次性事件綁定集中管理
+    // =================================================================
+    function setupStaticEventListeners() {
+        // --- 訊息草稿表格的事件委派 ---
+        if (draftListTbody) {
+            draftListTbody.addEventListener('click', async (e) => {
+                const editButton = e.target.closest('.btn-edit-draft');
+                if (editButton) {
+                    const draftId = editButton.dataset.draftid;
+                    const draft = allDrafts.find(d => d.draft_id == draftId);
+                    if (draft) openEditDraftModal(draft);
+                    return;
+                }
+                
+                const deleteButton = e.target.closest('.btn-delete-draft');
+                if (deleteButton) {
+                    const draftId = Number(deleteButton.dataset.draftid);
+                    if (confirm('確定要刪除這則草稿嗎？')) {
+                        try {
+                            const response = await fetch('/api/admin/message-drafts', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ draft_id: draftId })
+                            });
+                            if (!response.ok) throw new Error('刪除失敗');
+                            alert('刪除成功！');
+                            allDrafts = allDrafts.filter(d => d.draft_id != draftId);
+                            renderDraftList(allDrafts);
+                        } catch (error) {
+                            alert(`錯誤：${error.message}`);
+                        }
+                    }
+                }
+            });
+        }
+    }    
     // =================================================================
     // 訊息草稿模組
     // =================================================================

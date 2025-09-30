@@ -75,17 +75,16 @@
         .edit-product-image-inputs .form-group { display: flex; align-items: center; gap: 10px; }
         .edit-product-image-inputs .form-group label { flex-basis: 20px; text-align: right; }
         
-        /* 日曆 */
+        /* --- 【新增】日曆樣式 --- */
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background-color: white; border-radius: 6px; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
         .calendar-weekday, .calendar-day { text-align: center; padding: 0.5rem 0; }
-        .calendar-weekday { font-weight: bold; }
-        .calendar-day { background: white; border-radius: 4px; min-height: 100px; padding: 5px; font-size: 0.9rem; }
+        .calendar-weekday { font-weight: bold; color: var(--text-light); }
+        .calendar-day { background: white; border-radius: 4px; min-height: 100px; padding: 5px; font-size: 0.9rem; border: 1px solid #eee; }
         .calendar-day .day-number { display: block; text-align: left; margin-bottom: 5px; }
-        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin-top: 2px; text-align: left; position: relative; }
-        .calendar-booking .actions { display: none; position: absolute; right: 2px; top: 2px; }
-        .calendar-booking:hover .actions { display: flex; gap: 2px; }
-        .calendar-booking .actions button { padding: 2px 4px; font-size: 0.7rem; border-radius: 3px; line-height: 1; }
+        .calendar-day.day-other-month { background-color: #f8f9fa; }
+        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin-top: 2px; text-align: left; position: relative; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .calendar-booking .actions { display: none; }
         .status-cancelled { background-color: var(--danger-color) !important; text-decoration: line-through; }
         .status-checked-in { background-color: var(--success-color); }
         .is-past { opacity: 0.6; }
@@ -96,8 +95,7 @@
         .details-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
         .details-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; font-size: 1rem; }
         .details-tab.active { border-bottom: 2px solid var(--primary-color); font-weight: bold; }
-        .details-tab-content { display: none; }
-        .details-tab-content.active { display: block; }
+        .details-tab-content { display: none; } .details-tab-content.active { display: block; }
         .message-sender { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
     </style>
 </head>

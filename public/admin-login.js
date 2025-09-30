@@ -331,7 +331,7 @@ async function initializeAdminPanel() {
         // 綁定工具列按鈕事件
         publishBtn.addEventListener('click', () => handleBatchUpdate(true));
         unpublishBtn.addEventListener('click', () => handleBatchUpdate(false));
-    }
+
     
 // 綁定刪除按鈕事件
 deleteBtn.addEventListener('click', async () => {
@@ -377,7 +377,10 @@ deleteBtn.addEventListener('click', async () => {
         deleteBtn.disabled = false;
     }
 });
-    
+            
+        
+    }
+
     // =================================================================
     // 儀表板模組 (Dashboard)
     // =================================================================

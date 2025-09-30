@@ -815,10 +815,10 @@ function handleDownloadCsvTemplate() {
         "規格3名稱", "規格3內容", "規格4名稱", "規格4內容",
         "規格5名稱", "規格5內容"
     ];
-    // 將標頭轉換為 CSV 格式的字串
-    const csvContent = "data:text/csv;charset=utf-8," + userFriendlyHeaders.join(",");
+    // 將標頭轉換為 CSV 格式的字串【** 在此處加入 \uFEFF 即可 **】
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + userFriendlyHeaders.join(",");
     
-        const encodedUri = encodeURI(csvContent);
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "product_template_zh.csv"); // 修改檔名以茲區別

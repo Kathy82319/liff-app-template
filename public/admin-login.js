@@ -132,8 +132,8 @@ async function initializeAdminPanel() {
     const selectedUserDisplay = document.getElementById('selected-user-display');
     const pointsEntryForm = document.getElementById('points-entry-form');
     const pointsStatusMessage = document.getElementById('points-status-message');    
-
-
+    const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
+    
     // --- 全域狀態 ---
     let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allDrafts = [];
     let classPerks = {};
@@ -142,6 +142,7 @@ async function initializeAdminPanel() {
     let sortableProducts = null;
     let allSettings = [];
     let currentSelectedUserForPoints = null;
+    let currentEditingDraftId = null;
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {

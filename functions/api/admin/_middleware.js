@@ -1,4 +1,5 @@
-// functions/api/admin/_middleware.js (修正並加入偵錯日誌)
+// functions/api/admin/_middleware.js
+
 import * as jose from 'jose';
 
 async function authMiddleware(context) {
@@ -7,8 +8,9 @@ async function authMiddleware(context) {
 
     // 只對 /api/admin/ 路由下的請求進行權限檢查
     if (url.pathname.startsWith('/api/admin/')) {
-        // 排除登入/登出和狀態檢查 API
-        if (url.pathname.startsWith('/api/admin/auth/')) {
+        // 【關鍵修正】只排除 login 和 logout，status 檢查需要被保護
+        const isAuthRoute = url.pathname.startsWith('/api/admin/auth/login') || url.pathname.startsWith('/api/admin/auth/logout');
+        if (isAuthRoute) {
             return await next();
         }
 
@@ -24,7 +26,6 @@ async function authMiddleware(context) {
         try {
             const secret = new TextEncoder().encode(env.JWT_SECRET);
             
-            // 【**核心修正：將 'game' 改為 'product'**】
             const { payload } = await jose.jwtVerify(token, secret, {
                 issuer: 'urn:tabletop-product:issuer',
                 audience: 'urn:tabletop-product:audience',
@@ -39,13 +40,11 @@ async function authMiddleware(context) {
             context.data.user = payload; 
 
         } catch (err) {
-            // 【偵錯強化】讓靜默的錯誤在後台日誌中顯示出來
             console.error('[Auth Middleware] JWT 驗證失敗:', err.code, err.message);
             return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token', details: err.message }), { status: 401 });
         }
     }
 
-    // 如果不是 admin 路由或驗證通過，就繼續執行
     return await next();
 }
 

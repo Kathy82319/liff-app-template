@@ -92,7 +92,7 @@
         <header class="header">
             <h1>店務管理系統</h1>
         </header>
-<nav class="nav-tabs">
+        <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
             <a href="#inventory">產品/服務管理</a>
@@ -286,45 +286,7 @@
             </form>
         </div>
 
-<div id="page-points" class="page">
-            <div class="page-header"><h2>點數發放中心</h2></div>
-            <div id="points-user-selection">
-                <div class="form-group">
-                    <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
-                    <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
-                    <ul id="user-search-results"></ul>
-                </div>
-                <div class="points-actions">
-                     <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
-                </div>
-                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
-            </div>
-            <hr style="margin: 2rem 0;">
-            <div id="points-entry-form" style="display: none;">
-                <div class="form-group">
-                    <label>目標顧客</label>
-                    <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
-                </div>
-                <div class="form-group">
-                    <label for="reason-select">點數名稱 (原因):</label>
-                    <select id="reason-select">
-                        <option value="消費回饋">消費回饋</option>
-                        <option value="活動獎勵">活動獎勵</option>
-                        <option value="會員優惠">會員優惠</option>
-                        <option value="other">其他 (請手動輸入)</option>
-                    </select>
-                    <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
-                </div>
-                <div class="form-group">
-                    <label for="exp-input">點數:</label>
-                    <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
-                </div>
-                <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
-                <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
-            </div>
-        </div>
-    </main>
-    
+
 <div id="booking-settings-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">

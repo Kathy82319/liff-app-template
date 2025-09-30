@@ -406,6 +406,46 @@ input:focus, select:focus, textarea:focus {
     color: var(--text-light);
 }
 
+/* public/style.css */
+
+/* --- 【新增】產品細節頁圖片庫樣式 --- */
+.details-gallery {
+    margin-bottom: 20px;
+}
+
+/* 主圖樣式：寬度 100% 填滿容器，並設定最大高度避免圖片過大 */
+.details-image-main {
+    width: 100%;
+    max-height: 400px; /* 限制最大高度 */
+    object-fit: cover;  /* 裁切圖片以適應容器，不變形 */
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
+    border: 1px solid var(--color-secondary);
+}
+
+/* 縮圖容器樣式：使用 flexbox 讓縮圖橫向排列 */
+.details-image-thumbnails {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto; /* 如果縮圖太多，可以橫向滾動 */
+}
+
+/* 縮圖樣式 */
+.details-image-thumbnails img {
+    width: 60px;  /* 固定寬度 */
+    height: 60px; /* 固定高度 */
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    border: 2px solid transparent; /* 預留邊框空間 */
+    transition: border-color 0.3s;
+}
+
+/* 當前選中縮圖的樣式 */
+.details-image-thumbnails img.active {
+    border-color: var(--color-primary); /* 加上高亮邊框 */
+}
+
 /* C. 會員中心 */
 #qrcode-container { display: flex; justify-content: center; margin: 20px 0; }
 #qrcode { padding: 10px; background: white; border-radius: var(--border-radius); }

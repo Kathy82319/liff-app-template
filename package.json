@@ -5,6 +5,7 @@
   "scripts": {},
   "dependencies": {
     "google-spreadsheet": "^4.1.1",
-    "jose": "^5.6.3"
+    "jose": "^5.6.3",
+    "nanoid": "^5.0.7"
   }
-} 
+}

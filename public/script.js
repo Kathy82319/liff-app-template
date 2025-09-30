@@ -693,7 +693,7 @@ function renderProducts() {
         const imageUrl = images.length > 0 ? images[0] : 'https://via.placeholder.com/150';
 
         return `
-            <div class="game-card" data-product-id="${product.product_id}">
+            <div class="product-card" data-product-id="${product.product_id}">
                 <img src="${imageUrl}" alt="${product.name}" class="game-image">
                 <div class="game-info">
                     <h3 class="game-title">${product.name}</h3>

@@ -131,7 +131,7 @@ body {
 }
 
 /* 通用卡片/區塊樣式 */
-.news-card, .game-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
+.news-card, .product-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
@@ -228,16 +228,16 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--color-danger);
     color: white;
 }
-#game-list-container {
+#product-list-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
-.game-card { padding: 10px; }
-.game-image { width: 100%; height: 120px; object-fit: cover; border-radius: var(--border-radius); }
-.game-title { margin: 10px 0 5px 0; font-size: 1rem; }
-.game-description { font-size: 0.8rem; color: var(--color-text-secondary); height: 3.2em; overflow: hidden; }
-.game-tag { display: inline-block; background-color: var(--color-bg); color: var(--color-accent); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin: 5px 5px 0 0; }
+.product-card { padding: 10px; }
+.product-image { width: 100%; height: 120px; object-fit: cover; border-radius: var(--border-radius); }
+.product-title { margin: 10px 0 5px 0; font-size: 1rem; }
+.product-description { font-size: 0.8rem; color: var(--color-text-secondary); height: 3.2em; overflow: hidden; }
+.product-tag { display: inline-block; background-color: var(--color-bg); color: var(--color-accent); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin: 5px 5px 0 0; }
 
 /* C. 會員中心 */
 #qrcode-container { display: flex; justify-content: center; margin: 20px 0; }

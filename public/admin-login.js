@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 如果 token 有效，直接初始化後台
                 const adminPanel = document.getElementById('admin-panel');
                 if(adminPanel) adminPanel.style.display = 'block';
-                await initializeAdminPanel();
+                initializeAdminPanel(); // 注意：此處不再需要 await
             } else {
                 // 如果 token 無效或不存在，導向到登入頁面
                 window.location.href = '/admin-login.html';
@@ -142,6 +142,7 @@ async function initializeAdminPanel() {
             showPage(pageId);
         }
     });
+
     
     // =================================================================
     // 儀表板模組 (Dashboard)

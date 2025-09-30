@@ -729,7 +729,7 @@ function renderProducts() {
     }
 
     async function initializeProductsPage() {
-        const container = document.getElementById('game-list-container');
+        const container = document.getElementById('product-list-container');
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`;
         try {

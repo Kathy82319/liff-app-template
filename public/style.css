@@ -131,7 +131,7 @@ body {
 }
 
 /* 通用卡片/區塊樣式 */
-.news-card, .game-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
+.news-card, .product-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);

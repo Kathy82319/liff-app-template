@@ -133,7 +133,7 @@ async function initializeAdminPanel() {
     const pointsStatusMessage = document.getElementById('points-status-message');    
     const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
     
-// =================================================================
+    // =================================================================
     // 事件監聽器綁定 (Event Listeners Setup)
     // =================================================================
     function setupEventListeners() {
@@ -224,6 +224,95 @@ async function initializeAdminPanel() {
         }
     });
 
+    // =================================================================
+    // 【新增】批次處理相關函式
+    // =================================================================
+    function updateBatchToolbarState() {
+        const toolbar = document.getElementById('batch-actions-toolbar');
+        const countSpan = document.getElementById('batch-selected-count');
+        const selectAllCheckbox = document.getElementById('select-all-products');
+        const allCheckboxes = document.querySelectorAll('.product-checkbox');
+        const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+
+        if (selectedCheckboxes.length > 0) {
+            toolbar.classList.add('visible');
+            countSpan.textContent = `已選取 ${selectedCheckboxes.length} 項`;
+        } else {
+            toolbar.classList.remove('visible');
+        }
+
+        // 更新「全選」按鈕的狀態
+        if (allCheckboxes.length > 0 && selectedCheckboxes.length === allCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (selectedCheckboxes.length > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true; // 半選狀態
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+
+    function setupBatchActions() {
+        const selectAllCheckbox = document.getElementById('select-all-products');
+        const publishBtn = document.getElementById('batch-publish-btn');
+        const unpublishBtn = document.getElementById('batch-unpublish-btn');
+
+        // 監聽表格內容區域的點擊，來處理每一行的 checkbox
+        productListTbody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-checkbox')) {
+                updateBatchToolbarState();
+            }
+        });
+
+        // 「全選」checkbox 的邏輯
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateBatchToolbarState();
+        });
+
+        // 批次處理函式
+        const handleBatchUpdate = async (isVisible) => {
+            const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+            if (selectedIds.length === 0) {
+                alert('請至少選取一個項目！');
+                return;
+            }
+
+            const actionText = isVisible ? '上架' : '下架';
+            if (!confirm(`確定要將選取的 ${selectedIds.length} 個項目全部${actionText}嗎？`)) {
+                return;
+            }
+
+            try {
+                // 我們需要一個新的 API 來處理批次更新
+                const response = await fetch('/api/admin/batch-update-products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productIds: selectedIds, isVisible: isVisible })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || '批次更新失敗');
+                }
+
+                alert(`成功${actionText} ${selectedIds.length} 個項目！`);
+                await fetchAllProducts(); // 重新載入列表
+
+            } catch (error) {
+                alert(`錯誤：${error.message}`);
+            }
+        };
+
+        // 綁定工具列按鈕事件
+        publishBtn.addEventListener('click', () => handleBatchUpdate(true));
+        unpublishBtn.addEventListener('click', () => handleBatchUpdate(false));
+    }
     
     // =================================================================
     // 儀表板模組 (Dashboard)
@@ -303,8 +392,6 @@ async function initializeAdminPanel() {
         renderProductList(filtered);
     }
 
-// public/admin-login.js
-
 function renderProductList(products) {
     if (!productListTbody) return;
     productListTbody.innerHTML = '';
@@ -329,6 +416,7 @@ function renderProductList(products) {
         }
 
         // 【核心修正】依照新的 a順序建立儲存格
+        const cellCheckbox = row.insertCell();
         const cellOrder = row.insertCell();
         const cellProduct = row.insertCell();
         const cellStock = row.insertCell();
@@ -337,6 +425,7 @@ function renderProductList(products) {
         const cellActions = row.insertCell(); // 操作格
 
         // 填入內容
+        cellCheckbox.innerHTML = `<input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}">`;
         cellOrder.className = 'drag-handle-cell';
         cellOrder.innerHTML = `<span class="drag-handle">⠿</span> ${p.display_order}`;
 

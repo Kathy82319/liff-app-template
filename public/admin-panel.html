@@ -324,6 +324,37 @@ input:checked + .slider:before {
     -ms-transform: translateX(22px);
     transform: translateX(22px);
 }
+
+/* public/admin-panel.html */
+
+/* --- 【新增】批次操作工具列樣式 --- */
+.batch-actions-toolbar {
+    display: none; /* 預設隱藏 */
+    position: sticky;
+    bottom: 80px; /* 顯示在 Tab Bar 上方 */
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 30px); /* 寬度比螢幕稍窄 */
+    max-width: 600px;
+    background-color: var(--text-dark);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.2);
+    z-index: 99;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.batch-actions-toolbar.visible {
+    display: flex; /* 當加上 visible class 時顯示 */
+}
+
+#batch-selected-count {
+    font-weight: bold;
+}
+
     </style>
 
 </head>
@@ -416,13 +447,22 @@ input:checked + .slider:before {
                     <button data-filter="hidden">未上架</button>
                 </div>
             </div>
+    <div id="batch-actions-toolbar" class="batch-actions-toolbar">
+        <span id="batch-selected-count">已選取 0 項</span>
+        <div>
+            <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架選取項目</button>
+            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架選取項目</button>
+        </div>
+    </div>
+
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
                         <th style="width: 50px;">順序</th>
                         <th>產品/服務 (ID / 分類)</th>
                         <th>庫存</th>
-                        <th>售價 / 折扣價</th>
+                        <th>售價</th>
                         <th style="width: 80px;">上架</th>
                         <th style="width: 80px;">操作</th>
                     </tr>

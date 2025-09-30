@@ -437,11 +437,12 @@ input:checked + .slider:before {
 
 <div id="page-inventory" class="page">
             <div class="page-header">
-                <h2>產品/服務管理</h2>                            
-            <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
-            <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
-            <label for="csv-upload-input" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">從 CSV 匯入</label>            
-            <button id="add-product-btn" style="margin-right: 10px;" class="action-btn btn-save">新增單筆產品</button>
+                <h2>產品/服務管理</h2>     
+            <div class="filter-group">                          
+                <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
+                <label for="csv-upload-input" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">從 CSV 匯入</label>
+                <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
+                <button id="add-product-btn" style="margin-right: 10px;" class="action-btn btn-save">新增單筆產品</button>
             </div>
             <div class="filter-bar">
                 <input type="text" id="product-search-input" placeholder="依名稱搜尋..." style="flex-grow: 1; padding: 8px;">

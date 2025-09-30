@@ -641,53 +641,70 @@ function openEditProductModal(productId) {
         });
     }
 
-    if (editProductForm) {
-        editProductForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const productId = document.getElementById('edit-product-id').value;
-            const images = [];
-            for(let i=1; i<=5; i++){
-                const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
-                if(imgUrl) images.push(imgUrl);
-            }
-            const formData = new FormData(editProductForm);
-            const updatedData = {
-                images: JSON.stringify(images),
-                price: document.getElementById('edit-product-price').value,                
-                productId: productId,
-                name: document.getElementById('edit-product-name').value,
-                description: document.getElementById('edit-product-description').value,
-                category: document.getElementById('edit-product-category').value,
-                tags: document.getElementById('edit-product-tags').value,
-                is_visible: document.getElementById('edit-product-is-visible').checked,
-                inventory_management_type: document.getElementById('edit-product-inventory-type').value,
-                stock_quantity: document.getElementById('edit-product-stock-quantity').value,
-                stock_status: document.getElementById('edit-product-stock-status').value,
-                price: document.getElementById('edit-product-price').value,
-            };
-            for(let i=1; i<=5; i++){
-                updatedData[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
-                updatedData[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value;
-            }
+if (editProductForm) {
+    editProductForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitButton = editProductForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = '儲存中...';
 
-            try {
-                const response = await fetch('/api/admin/update-product-details', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
-                });
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '更新失敗');
-                }
-                
-                await fetchAllProducts();
-                editProductModal.style.display = 'none';
-            } catch (error) {
-                alert(`錯誤：${error.message}`);
+        // 透過隱藏的 ID 欄位是否有值，來判斷是「更新」還是「新增」
+        const productId = document.getElementById('edit-product-id').value;
+        const isUpdating = !!productId;
+
+        const images = [];
+        for(let i=1; i<=5; i++){
+            const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
+            if(imgUrl) images.push(imgUrl);
+        }
+
+        const formData = {
+            productId: isUpdating ? productId : undefined,
+            name: document.getElementById('edit-product-name').value,
+            description: document.getElementById('edit-product-description').value,
+            category: document.getElementById('edit-product-category').value,
+            tags: document.getElementById('edit-product-tags').value,
+            images: JSON.stringify(images),
+            is_visible: document.getElementById('edit-product-is-visible').checked,
+            inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+            stock_quantity: document.getElementById('edit-product-stock-quantity').value || null,
+            stock_status: document.getElementById('edit-product-stock-status').value || null,
+            price_type: 'simple', 
+            price: document.getElementById('edit-product-price').value || null,
+            price_options: null,
+        };
+        for(let i=1; i<=5; i++){
+            formData[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value || null;
+            formData[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value || null;
+        }
+
+        const apiUrl = isUpdating ? '/api/admin/update-product-details' : '/api/admin/create-product';
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || '儲存失敗');
             }
-        });
-    }
+            
+            await fetchAllProducts();
+            editProductModal.style.display = 'none';
+            alert(`產品${isUpdating ? '更新' : '新增'}成功！`);
+
+        } catch (error) {
+            alert(`錯誤：${error.message}`);
+        } finally {
+            // 無論成功或失敗，都恢復按鈕狀態
+            submitButton.disabled = false;
+            submitButton.textContent = '儲存變更';
+        }
+    });
+}
 
     if(editProductModal) {
       editProductModal.querySelector('.modal-close').addEventListener('click', () => editProductModal.style.display = 'none');

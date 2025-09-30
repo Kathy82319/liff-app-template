@@ -42,7 +42,7 @@
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .form-actions { margin-top: 20px; text-align: right; padding: 20px 25px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+        .form-actions { margin-top: 20px; text-align: right; padding: 20px 25px; border-top: 1px solid var(--border-color); flex-shrink: 0; background-color: var(--light-gray); }
         .btn-save { background-color: var(--primary-color); } .btn-cancel { background-color: var(--secondary-color); }
 
         /* 通用開關樣式 */
@@ -55,7 +55,7 @@
 
         /* 系統設定頁面摺疊區塊 */
         .setting-group { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
-        .setting-group-header { background-color: var(--light-gray); padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .setting-group-header { background-color: var(--light-gray); padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
         .setting-group-header h4 { margin: 0; }
         .setting-group-body { padding: 1rem; border-top: 1px solid var(--border-color); display: none; }
         .setting-group-body.visible { display: block; }
@@ -63,11 +63,11 @@
         .sub-settings.visible { display: block; }
 
         /* 點數發放中心 */
-        #user-search-results { list-style-type: none; padding: 0; margin: 10px 0 0 0; border: 1px solid #ccc; border-radius: 4px; max-height: 150px; overflow-y: auto; }
+        #user-search-results { list-style-type: none; padding: 0; margin: 10px 0 0 0; border: 1px solid #ccc; border-radius: 4px; max-height: 150px; overflow-y: auto; background: white; position: absolute; width: calc(100% - 2rem); z-index: 10;}
         #user-search-results li { padding: 10px; cursor: pointer; }
         #user-search-results li:hover { background-color: #f0f0f0; }
         #selected-user-display { padding: 10px; background-color: #e9ecef; border-radius: 4px; margin-bottom: 1rem; }
-        #points-entry-form { display: none; }
+        #points-entry-form { display: block; }
         .points-actions { display: flex; gap: 1rem; margin-top: 1rem; }
 
         /* 產品管理 */
@@ -75,25 +75,38 @@
         .edit-product-image-inputs .form-group label { flex-basis: 20px; text-align: right; }
         
         /* 日曆 */
-        .calendar-booking { cursor: pointer; transition: background-color 0.2s; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-weekday, .calendar-day { text-align: center; padding: 0.5rem 0; }
+        .calendar-day { background: white; border-radius: 4px; min-height: 80px; }
+        .calendar-booking { font-size: 0.8rem; background-color: var(--info-color); color: white; padding: 4px; border-radius: 4px; margin: 2px; cursor: pointer; transition: background-color 0.2s; }
         .calendar-booking:hover { background-color: var(--primary-color) !important; }
         .calendar-booking .actions { display: none; margin-top: 4px; }
         .calendar-booking:hover .actions { display: flex; justify-content: space-evenly; }
         .calendar-booking .actions button { padding: 2px 6px; font-size: 0.7rem; border-radius: 3px; }
         .status-cancelled { background-color: var(--danger-color) !important; text-decoration: line-through; }
-        .status-checked-in { opacity: 0.6; }
+        .status-checked-in { background-color: var(--success-color); }
         .is-past { opacity: 0.6; }
 
+        /* CRM Modal */
+        .details-grid { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+        .profile-summary img { width: 100px; height: 100px; border-radius: 50%; display: block; margin: 0 auto 10px; }
+        .details-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
+        .details-tab { padding: 0.5rem 1rem; cursor: pointer; border: none; background: none; }
+        .details-tab.active { border-bottom: 2px solid var(--primary-color); font-weight: bold; }
+        .details-tab-content { display: none; }
+        .details-tab-content.active { display: block; }
     </style>
-
 </head>
+
+
 <body>
 
     <div id="admin-panel" style="display: none;">
         <header class="header">
             <h1>店務管理系統</h1>
         </header>
-<nav class="nav-tabs">
+        <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
             <a href="#inventory">產品/服務管理</a>
@@ -126,7 +139,7 @@
         </main>        
 
 <main class="main-content">
-        <div id="page-dashboard" class="page active">
+        <div id="page-dashboard" class="page">
             <div class="page-header">
                 <h2>今日狀態總覽</h2>
             </div>
@@ -287,44 +300,43 @@
             </form>
         </div>
 
-<div id="page-points" class="page">
-            <div class="page-header"><h2>點數發放中心</h2></div>
-            <div id="points-user-selection">
-                <div class="form-group">
-                    <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
-                    <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
-                    <ul id="user-search-results"></ul>
+            <div id="page-points" class="page">
+                <div class="page-header"><h2>點數發放中心</h2></div>
+                <div id="points-user-selection">
+                    <div class="form-group">
+                        <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
+                        <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
+                        <ul id="user-search-results"></ul>
+                    </div>
+                    <div class="points-actions">
+                         <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
+                    </div>
+                    <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
                 </div>
-                <div class="points-actions">
-                     <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
+                <hr style="margin: 2rem 0;">
+                <div id="points-entry-form" style="display: none;">
+                    <div class="form-group">
+                        <label>目標顧客</label>
+                        <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reason-select">點數名稱 (原因):</label>
+                        <select id="reason-select">
+                            <option value="消費回饋">消費回饋</option>
+                            <option value="活動獎勵">活動獎勵</option>
+                            <option value="會員優惠">會員優惠</option>
+                            <option value="other">其他 (請手動輸入)</option>
+                        </select>
+                        <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="exp-input">點數:</label>
+                        <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
+                    </div>
+                    <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
+                    <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
                 </div>
-                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
             </div>
-            <hr style="margin: 2rem 0;">
-            <div id="points-entry-form" style="display: none;">
-                <div class="form-group">
-                    <label>目標顧客</label>
-                    <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
-                </div>
-                <div class="form-group">
-                    <label for="reason-select">點數名稱 (原因):</label>
-                    <select id="reason-select">
-                        <option value="消費回饋">消費回饋</option>
-                        <option value="活動獎勵">活動獎勵</option>
-                        <option value="會員優惠">會員優惠</option>
-                        <option value="other">其他 (請手動輸入)</option>
-                    </select>
-                    <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
-                </div>
-                <div class="form-group">
-                    <label for="exp-input">點數:</label>
-                    <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
-                </div>
-                <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
-                <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
-            </div>
-        </div>
-    </main>
     
 <div id="booking-settings-modal" class="modal-overlay">
     <div class="modal-content">
@@ -688,44 +700,6 @@
         </form>
     </div>
 </div>
-
-            <div id="page-points" class="page">
-                <div class="page-header"><h2>點數發放中心</h2></div>
-                <div id="points-user-selection">
-                    <div class="form-group">
-                        <label for="user-search-input-points">搜尋顧客 (LINE 名稱 / 暱稱 / ID)</label>
-                        <input type="text" id="user-search-input-points" placeholder="請輸入至少1個字元...">
-                        <ul id="user-search-results"></ul>
-                    </div>
-                    <div class="points-actions">
-                         <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
-                    </div>
-                    <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
-                </div>
-                <hr style="margin: 2rem 0;">
-                <div id="points-entry-form" style="display: none;">
-                    <div class="form-group">
-                        <label>目標顧客</label>
-                        <div id="selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
-                    </div>
-                    <div class="form-group">
-                        <label for="reason-select">點數名稱 (原因):</label>
-                        <select id="reason-select">
-                            <option value="消費回饋">消費回饋</option>
-                            <option value="活動獎勵">活動獎勵</option>
-                            <option value="會員優惠">會員優惠</option>
-                            <option value="other">其他 (請手動輸入)</option>
-                        </select>
-                        <input type="text" id="custom-reason-input" placeholder="請輸入自訂原因" style="display: none; margin-top: 10px;">
-                    </div>
-                    <div class="form-group">
-                        <label for="exp-input">點數:</label>
-                        <input type="number" id="exp-input" placeholder="請輸入要發放的點數" min="1">
-                    </div>
-                    <button id="submit-exp-btn" class="action-btn btn-save" style="width: 100%; padding: 12px; font-size: 1rem;">確認發放</button>
-                    <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
-                </div>
-            </div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 狀態變數 ---
     let allProducts = [];
     let allNews = [];
-    let pageHistory = ['page-home'];
     let activeFilters = { keyword: '', tag: null };
     let bookingData = {};
     let bookingHistoryStack = [];
@@ -35,6 +34,34 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-product-details': (data) => renderProductDetails(data.product),
         'page-news-details': (data) => renderNewsDetails(data.news),        
     };
+
+    // =================================================================
+    // 【新增】頁面渲染核心 (只負責顯示，不碰歷史紀錄)
+    // =================================================================
+    function renderPage(pageId, data = null) {
+        const template = pageTemplates.querySelector(`#${pageId}`);
+        if (template) {
+            appContent.innerHTML = template.innerHTML;
+            
+            // 呼叫對應的初始化函式，並傳入資料
+            if (pageInitializers[pageId]) {
+                pageInitializers[pageId](data);
+            }
+
+            // 更新底部 Tab Bar 的高亮狀態
+            // 判斷 pageId 是否為主頁籤之一
+            const isMainTab = ['page-home', 'page-products', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId);
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                // 如果是主頁籤，高亮對應的按鈕；如果不是(例如細節頁)，則不高亮任何按鈕
+                btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
+            });
+        } else {
+            console.error(`在 page-templates 中找不到樣板: ${pageId}`);
+            // 如果找不到頁面，保險起見，顯示首頁
+            renderPage('page-home');
+        }
+    }
+
 
     // =================================================================
     // 非同步主函式 (程式啟動點)
@@ -120,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
-    function showPage(pageId, isBackAction = false, data = null) {
+    function showPage(pageId, data = null) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
@@ -145,16 +172,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function goBackPage() {
-        // 【修正】當歷史紀錄大於1筆時，才進行返回操作
-        if (pageHistory.length > 1) {
-            pageHistory.pop(); // 移除當前頁
-            // 顯示歷史紀錄中的最後一頁，並標記這是返回操作
-            showPage(pageHistory[pageHistory.length - 1], true); 
+    // =================================================================
+    // 【新增】監聽所有返回事件 (popstate)
+    // =================================================================
+    window.addEventListener('popstate', (event) => {
+        // event.state 就是我們之前用 pushState 存進去的物件
+        if (event.state && event.state.page) {
+            // 收到返回指令，直接用渲染核心顯示對應的頁面即可
+            renderPage(event.state.page, event.state.data);
+        } else {
+            // 如果 state 為空，通常意味著退到了最開始的狀態，顯示首頁
+            renderPage('page-home');
         }
-        // 【移除】拿掉 else { liff.closeWindow(); }，不再主動關閉視窗
-    }
-    
+    });    
+
     // =================================================================
     // 全域事件監聽
     // =================================================================
@@ -162,35 +193,34 @@ document.addEventListener('DOMContentLoaded', () => {
         appContent.addEventListener('click', (event) => {
             const target = event.target;
 
-            // 【統一返回邏輯】
+            // 【最終修正】返回按鈕，現在只呼叫 history.back()
             if (target.closest('.details-back-button')) {
-                goBackPage();
+                history.back();
                 return;
             }
 
-            // 【統一產品卡片點擊邏輯】
+            // 【最終修正】產品卡片點擊，呼叫 showPage
             const productCard = target.closest('.product-card');
             if (productCard && productCard.dataset.productId) {
                 const productId = productCard.dataset.productId;
                 const productItem = allProducts.find(p => p.product_id == productId);
                 if (productItem) {
-                    // 直接呼叫 showPage，並把要顯示的產品資料當作參數傳入
-                    showPage('page-product-details', false, { product: productItem });
+                    showPage('page-product-details', { product: productItem });
                 }
                 return;
             }
-            
-            // 【統一情報卡片點擊邏輯】
+
+            // 【最終修正】情報卡片點擊，呼叫 showPage
             const newsCard = target.closest('.news-card');
             if (newsCard && newsCard.dataset.newsId) {
                 const newsId = parseInt(newsCard.dataset.newsId, 10);
                 const newsItem = allNews.find(n => n.id === newsId);
                 if (newsItem) {
-                    // 直接呼叫 showPage，並把要顯示的情報資料當作參數傳入
-                    showPage('page-news-details', false, { news: newsItem });
+                    showPage('page-news-details', { news: newsItem });
                 }
                 return;
             }
+
             const targetId = target.id;
 
             if (target.matches('.details-back-button')) {
@@ -312,16 +342,24 @@ function renderBookings(bookings, container, isPast = false) {
                 return;
             }
             userProfile = await liff.getProfile();
-            
+
+            // 【最終修正】設定 App 啟動時的初始歷史狀態
+            // replaceState 不會觸發 popstate，它只是替換當前的歷史紀錄點
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+
             applyConfiguration(); 
             setupGlobalEventListeners();
-            showPage('page-home');
+
+            // 第一次載入時，直接使用渲染核心，不建立新的歷史紀錄
+            renderPage('page-home');
 
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
+            // 即使 LIFF 失敗，也要嘗試渲染頁面
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
             applyConfiguration();
             setupGlobalEventListeners();
-            showPage('page-home');
+            renderPage('page-home');
         }
     }
 

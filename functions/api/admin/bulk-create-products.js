@@ -1,7 +1,31 @@
-// functions/api/admin/bulk-create-products.js
+// functions/api/admin/bulk-create-products.js (優化版)
 import { customAlphabet } from 'nanoid';
 
 const generateProductId = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz', 8);
+
+// 【** 核心修改：建立中文到英文的欄位對照表 **】
+const headerMapping = {
+    "產品名稱": "name",
+    "詳細介紹": "description",
+    "分類": "category",
+    "標籤(逗號分隔)": "tags",
+    "圖片網址(JSON陣列)": "images",
+    "是否上架(TRUE/FALSE)": "is_visible",
+    "庫存管理模式(none/quantity/status)": "inventory_management_type",
+    "庫存數量": "stock_quantity",
+    "庫存狀態": "stock_status",
+    "價格": "price",
+    "規格1名稱": "spec_1_name",
+    "規格1內容": "spec_1_value",
+    "規格2名稱": "spec_2_name",
+    "規格2內容": "spec_2_value",
+    "規格3名稱": "spec_3_name",
+    "規格3內容": "spec_3_value",
+    "規格4名稱": "spec_4_name",
+    "規格4內容": "spec_4_value",
+    "規格5名稱": "spec_5_name",
+    "規格5內容": "spec_5_value"
+};
 
 export async function onRequest(context) {
     try {
@@ -21,7 +45,6 @@ export async function onRequest(context) {
         let failCount = 0;
         const errors = [];
 
-        // 準備好一次性的 SQL 插入語句
         const stmt = db.prepare(
             `INSERT INTO Products (
                 product_id, name, description, category, tags, images, is_visible, display_order,
@@ -31,11 +54,18 @@ export async function onRequest(context) {
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         
-        // 遍歷前端傳來的每一筆產品資料
         for (let i = 0; i < products.length; i++) {
-            const product = products[i];
+            const rawProduct = products[i];
             
-            // 簡易驗證：至少要有 name
+            // 【** 核心修改：將中文 key 的物件轉換為英文 key 的物件 **】
+            const product = {};
+            for (const chiHeader in rawProduct) {
+                if (headerMapping[chiHeader]) {
+                    const engHeader = headerMapping[chiHeader];
+                    product[engHeader] = rawProduct[chiHeader];
+                }
+            }
+
             if (!product.name || product.name.trim().length === 0) {
                 failCount++;
                 errors.push(`第 ${i + 2} 行：缺少產品名稱。`);
@@ -64,20 +94,17 @@ export async function onRequest(context) {
                 spec_5_name: product.spec_5_name || null, spec_5_value: product.spec_5_value || null,
             };
             
-            // 將合法的操作加入到 operations 陣列中
             operations.push(stmt.bind(...Object.values(newProductData)));
             successCount++;
         }
 
-        // 如果有任何合法的操作，就一次性執行
         if (operations.length > 0) {
             await db.batch(operations);
         }
 
-        // 組合回傳訊息
         let message = `匯入完成！成功新增 ${successCount} 筆資料。`;
         if (failCount > 0) {
-            message += `\n失敗 ${failCount} 筆。\n錯誤詳情：\n${errors.slice(0, 5).join('\n')}`; // 最多顯示前 5 條錯誤
+            message += `\n失敗 ${failCount} 筆。\n錯誤詳情：\n${errors.slice(0, 5).join('\n')}`;
         }
 
         return new Response(JSON.stringify({ success: true, message }), {

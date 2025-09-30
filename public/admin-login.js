@@ -808,21 +808,20 @@ if (addProductBtn) {
 
 function handleDownloadCsvTemplate() {
     // 定義模板的欄位標頭 (必須與後端 API 對應)
-    const headers = [
-        "name", "description", "category", "tags", "images", "is_visible",
-        "inventory_management_type", "stock_quantity", "stock_status",
-        "price", "spec_1_name", "spec_1_value", "spec_2_name", "spec_2_value",
-        "spec_3_name", "spec_3_value", "spec_4_name", "spec_4_value",
-        "spec_5_name", "spec_5_value"
+    const userFriendlyHeaders = [
+        "產品名稱", "詳細介紹", "分類", "標籤(逗號分隔)", "圖片網址(JSON陣列)", "是否上架(TRUE/FALSE)",
+        "庫存管理模式(none/quantity/status)", "庫存數量", "庫存狀態",
+        "價格", "規格1名稱", "規格1內容", "規格2名稱", "規格2內容",
+        "規格3名稱", "規格3內容", "規格4名稱", "規格4內容",
+        "規格5名稱", "規格5內容"
     ];
     // 將標頭轉換為 CSV 格式的字串
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",");
+    const csvContent = "data:text/csv;charset=utf-8," + userFriendlyHeaders.join(",");
     
-    // 建立一個隱藏的 a 標籤來觸發下載
-    const encodedUri = encodeURI(csvContent);
+        const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "product_template.csv");
+    link.setAttribute("download", "product_template_zh.csv"); // 修改檔名以茲區別
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

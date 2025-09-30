@@ -2185,4 +2185,5 @@ if (submitExpBtn) {
     // --- 初始化第一個頁面 ---
     showPage('dashboard'); 
     setupEventListeners();
+    setupBatchActions(); // 【新增】呼叫安裝函式
 }

@@ -434,7 +434,7 @@ input:checked + .slider:before {
             <div class="page-header">
                 <h2>產品/服務管理</h2>
             <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--secondary-color);">下載 CSV 模板</button>
-            <label for="csv-upload-input" class="action-btn" style="background-color: var(--info-color); cursor: pointer;">從 CSV 匯入</label>
+            <label for="csv-upload-input" class="action-btn" style="background-color: var(--info-color); cursor: pointer; line-height: 1.5;">從 CSV 匯入</label>
             <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
             <button id="add-product-btn" class="action-btn btn-save">新增單筆產品</button>
             </div>
@@ -453,9 +453,9 @@ input:checked + .slider:before {
             </div>
     <div id="batch-actions-toolbar" class="batch-actions-toolbar">
         <span id="batch-selected-count">已選取 0 項</span>
-        <div>
-            <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架選取項目</button>
-            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架選取項目</button>
+        <div class="filter-group"> <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架</button>
+            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架</button>
+            <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
         </div>
     </div>
 

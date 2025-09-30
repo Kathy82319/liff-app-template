@@ -135,6 +135,7 @@ async function initializeAdminPanel() {
     const addProductBtn = document.getElementById('add-product-btn'); //產品頁面的"新增"
     const downloadCsvTemplateBtn = document.getElementById('download-csv-template-btn'); //產品頁面的"批量"
     const csvUploadInput = document.getElementById('csv-upload-input'); //產品頁面的"批量"
+    const batchDeleteBtn = document.getElementById('batch-delete-btn');//產品頁面的"刪除"
 
     // =================================================================
     // 事件監聽器綁定 (Event Listeners Setup)
@@ -265,6 +266,7 @@ async function initializeAdminPanel() {
         const publishBtn = pageContainer.querySelector('#batch-publish-btn');
         const unpublishBtn = pageContainer.querySelector('#batch-unpublish-btn');
         const tBody = pageContainer.querySelector('#product-list-tbody');
+        const deleteBtn = pageContainer.querySelector('#batch-delete-btn');
 
         // 監聽表格內容區域的 "change" 事件，處理每一行的 checkbox 變化
         tBody.addEventListener('change', (e) => {
@@ -330,6 +332,51 @@ async function initializeAdminPanel() {
         publishBtn.addEventListener('click', () => handleBatchUpdate(true));
         unpublishBtn.addEventListener('click', () => handleBatchUpdate(false));
     }
+    
+// 綁定刪除按鈕事件
+deleteBtn.addEventListener('click', async () => {
+    const tBody = pageContainer.querySelector('#product-list-tbody');
+    const selectedIds = Array.from(tBody.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    
+    if (selectedIds.length === 0) {
+        alert('請至少選取一個要刪除的項目！');
+        return;
+    }
+
+    // 【** 防呆提醒 **】
+    if (!confirm(`確定要永久刪除選取的 ${selectedIds.length} 個項目嗎？\n\n【警告】此操作無法復原！`)) {
+        return;
+    }
+
+    // 禁用所有批次按鈕
+    publishBtn.disabled = true;
+    unpublishBtn.disabled = true;
+    deleteBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/admin/delete-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds: selectedIds })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || '刪除失敗');
+        }
+
+        alert(result.message);
+        await fetchAllProducts(); // 重新載入列表以顯示最新狀態
+
+    } catch (error) {
+        alert(`錯誤：${error.message}`);
+    } finally {
+        // 無論成功或失敗，都恢復按鈕狀態
+        publishBtn.disabled = false;
+        unpublishBtn.disabled = false;
+        deleteBtn.disabled = false;
+    }
+});
     
     // =================================================================
     // 儀表板模組 (Dashboard)

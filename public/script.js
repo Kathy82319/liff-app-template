@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { FEATURES, TERMS } = CONFIG;
             
             const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
-            const gamesTab = document.querySelector('.tab-button[data-target="page-games"]');
+            const gamesTab = document.querySelector('.tab-button[data-target="page-products"]');
             const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
             const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
             const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (template) {
             appContent.innerHTML = template.innerHTML;
             if (!isBackAction) {
-                if (['page-home', 'page-games', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId)) {
+                if (['page-home', 'page-products', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId)) {
                     pageHistory = [pageId];
                 } else {
                     pageHistory.push(pageId);
@@ -1010,7 +1010,7 @@ if (tabBar) {
         const button = event.target.closest('.tab-button');
         if (button) {
             // 【修正此處】
-            const targetPage = button.dataset.target === 'page-games' ? 'page-products' : button.dataset.target;
+            const targetPage = button.dataset.target === 'page-products' : button.dataset.target;
             showPage(targetPage);
         }
     });

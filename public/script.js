@@ -43,25 +43,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (template) {
             appContent.innerHTML = template.innerHTML;
             
-            // 呼叫對應的初始化函式，並傳入資料
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId](data);
             }
 
-            // 更新底部 Tab Bar 的高亮狀態
-            // 判斷 pageId 是否為主頁籤之一
+            // 判斷 pageId 是否為底部 Tab Bar 的主頁籤之一
             const isMainTab = ['page-home', 'page-products', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId);
             document.querySelectorAll('.tab-button').forEach(btn => {
-                // 如果是主頁籤，高亮對應的按鈕；如果不是(例如細節頁)，則不高亮任何按鈕
+                // 如果是主頁籤，高亮對應按鈕；如果不是(如細節頁)，則不高亮任何按鈕
                 btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
             });
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
-            // 如果找不到頁面，保險起見，顯示首頁
+            // 如果找不到頁面，保險起見，強制顯示首頁
             renderPage('page-home');
         }
     }
-
 
     // =================================================================
     // 非同步主函式 (程式啟動點)
@@ -147,30 +144,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
+    /**
+     * 導航函式：當需要前往一個新頁面時呼叫此函式。
+     * 它會建立一個新的瀏覽歷史紀錄點，並呼叫 renderPage 來顯示頁面。
+     */
     function showPage(pageId, data = null) {
-        const template = pageTemplates.querySelector(`#${pageId}`);
-        if (template) {
-            appContent.innerHTML = template.innerHTML;
-            if (!isBackAction) {
-                // 如果是主頁籤，重置歷史
-                if (['page-home', 'page-products', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId)) {
-                    pageHistory = [pageId];
-                } else {
-                    pageHistory.push(pageId);
-                }
-            }
-            // 如果有對應的初始化函式，就呼叫它，並把 data 傳進去
-            if (pageInitializers[pageId]) {
-                pageInitializers[pageId](data);
-            }
-            // 更新底部 Tab Bar 的高亮狀態
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.target === pageHistory[0]);
-            });
-        } else {
-            console.error(`在 page-templates 中找不到樣板: ${pageId}`);
-        }
+        // 使用 history.pushState 建立一個新的歷史紀錄點
+        history.pushState({ page: pageId, data: data }, '', `#${pageId.replace('page-', '')}`);
+        // 呼叫渲染核心來實際顯示頁面
+        renderPage(pageId, data);
     }
+
+    /**
+     * 監聽返回事件 (popstate)：
+     * 當使用者點擊手機的實體返回鍵，或程式呼叫 history.back() 時，此事件會被觸發。
+     */
+    window.addEventListener('popstate', (event) => {
+        // event.state 就是我們之前用 pushState 存進去的物件
+        if (event.state && event.state.page) {
+            // 根據歷史紀錄中的資訊，重新渲染對應的頁面
+            renderPage(event.state.page, event.state.data);
+        } else {
+            // 如果 state 為空 (例如，使用者一直按返回，退到了 LIFF 的最開頭)
+            // 這種情況下我們顯示首頁，而不是關閉 App
+            renderPage('page-home');
+        }
+    });
 
     // =================================================================
     // 【新增】監聽所有返回事件 (popstate)
@@ -187,19 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });    
 
     // =================================================================
-    // 全域事件監聽
+    // 全域事件監聽 (請確保這也是最新版本)
     // =================================================================
     function setupGlobalEventListeners() {
         appContent.addEventListener('click', (event) => {
             const target = event.target;
 
-            // 【最終修正】返回按鈕，現在只呼叫 history.back()
+            // 返回按鈕：現在只呼叫 history.back()，剩下的交給 popstate 監聽器處理
             if (target.closest('.details-back-button')) {
                 history.back();
                 return;
             }
 
-            // 【最終修正】產品卡片點擊，呼叫 showPage
+            // 產品卡片點擊
             const productCard = target.closest('.product-card');
             if (productCard && productCard.dataset.productId) {
                 const productId = productCard.dataset.productId;
@@ -209,8 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
-
-            // 【最終修正】情報卡片點擊，呼叫 showPage
+            
+            // 情報卡片點擊
             const newsCard = target.closest('.news-card');
             if (newsCard && newsCard.dataset.newsId) {
                 const newsId = parseInt(newsCard.dataset.newsId, 10);
@@ -221,18 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // 其他按鈕點擊
             const targetId = target.id;
-
-            if (target.matches('.details-back-button')) {
-                goBackPage();
-                return;
-            }
-
             if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');
             else if (targetId === 'toggle-past-bookings-btn') togglePastView('bookings', 'past-bookings-container', target);
             
+            // 取消預約按鈕
             if (target.matches('.cancel-booking-btn')) {
                 const bookingId = target.dataset.bookingId;
                 if (!bookingId) return;

@@ -118,20 +118,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 頁面切換邏輯
     // =================================================================
-    function showPage(pageId, isBackAction = false) {
+    function showPage(pageId, isBackAction = false, data = null) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
             if (!isBackAction) {
+                // 如果是主頁籤，重置歷史
                 if (['page-home', 'page-products', 'page-checkout', 'page-profile', 'page-booking', 'page-info'].includes(pageId)) {
                     pageHistory = [pageId];
                 } else {
                     pageHistory.push(pageId);
                 }
             }
+            // 如果有對應的初始化函式，就呼叫它，並把 data 傳進去
             if (pageInitializers[pageId]) {
-                pageInitializers[pageId]();
+                pageInitializers[pageId](data);
             }
+            // 更新底部 Tab Bar 的高亮狀態
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.target === pageHistory[0]);
             });
@@ -139,6 +142,22 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
         }
     }
+
+    // --- 頁面初始化函式映射 ---
+    // 【升級】讓初始化函式可以接收 data 參數
+    const pageInitializers = {
+        'page-home': initializeHomePage,
+        'page-products': initializeProductsPage,
+        'page-profile': initializeProfilePage,
+        'page-my-bookings': initializeMyBookingsPage,
+        'page-my-exp-history': initializeMyExpHistoryPage,
+        'page-booking': initializeBookingPage,
+        'page-info': initializeInfoPage,
+        'page-edit-profile': initializeEditProfilePage,
+        // 【新增】細節頁也加入初始化映射
+        'page-product-details': (data) => renderProductDetails(data.product),
+        'page-news-details': (data) => renderNewsDetails(data.news),
+    };
 
     function goBackPage() {
         // 【修正】當歷史紀錄大於1筆時，才進行返回操作
@@ -442,7 +461,8 @@ function renderBookings(bookings, container, isPast = false) {
     }
 
     function renderNewsDetails(newsItem) {
-        document.getElementById('news-details-title').textContent = newsItem.title;
+        if (!newsItem) return;
+        document.getElementById('news-details-title').textContent = newsItem.title;        
         document.getElementById('news-details-category').textContent = newsItem.category;
         document.getElementById('news-details-date').textContent = newsItem.published_date;
         const contentEl = document.getElementById('news-details-content');
@@ -636,6 +656,7 @@ function renderBookings(bookings, container, isPast = false) {
 
 
 function renderProductDetails(product) {
+    if (!product) return;
     const imageContainer = appContent.querySelector('.details-gallery');
     const detailsTitle = appContent.querySelector('.details-title');
     const tagsContainer = appContent.querySelector('#product-tags-container');

@@ -806,22 +806,25 @@ if (addProductBtn) {
     addProductBtn.addEventListener('click', openCreateProductModal);
 }    
 
+
+//處理 CSV 模板下載 (優化版：提供簡化版欄位)
 function handleDownloadCsvTemplate() {
-    // 定義模板的欄位標頭 (必須與後端 API 對應)
+    // 【** 核心修改：只提供最常用、最重要的欄位給使用者 **】//必須跟後端API名稱相符bulk-create-products.js
     const userFriendlyHeaders = [
-        "產品名稱", "詳細介紹", "分類", "標籤(逗號分隔)", "圖片網址(JSON陣列)", "是否上架(TRUE/FALSE)",
-        "庫存管理模式(none/quantity/status)", "庫存數量", "庫存狀態",
-        "價格", "規格1名稱", "規格1內容", "規格2名稱", "規格2內容",
-        "規格3名稱", "規格3內容", "規格4名稱", "規格4內容",
-        "規格5名稱", "規格5內容"
+        "產品名稱",       // 必填
+        "分類",
+        "價格",
+        "詳細介紹",
+        "標籤(逗號分隔)",
+        "是否上架(TRUE/FALSE)"
     ];
-    // 將標頭轉換為 CSV 格式的字串【** 在此處加入 \uFEFF 即可 **】
+    
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + userFriendlyHeaders.join(",");
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "product_template_zh.csv"); // 修改檔名以茲區別
+    link.setAttribute("download", "product_template_simple.csv"); // 修改檔名
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -837,13 +840,32 @@ function handleCsvUpload(event) {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const text = e.target.result;
-        // 簡易 CSV 解析：將文字轉換為物件陣列
         const lines = text.split(/\r\n|\n/);
-        const headers = lines[0].split(',').map(h => h.trim());
+        
+        // 檢查檔案是否為空或只有標頭
+        if (lines.length < 2 || !lines[1]) {
+            alert('CSV 檔案中沒有可匯入的資料。');
+            return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = [];
+
+        // 【** 核心修正：使用更強健的解析邏輯 **】
+        const csvRegex = /(?:,|^)(?:"([^"]*(?:""[^"]*)*)"|([^",]*))/g;
+
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i]) continue;
-            const values = lines[i].split(',');
+            
+            let values = [];
+            let match;
+            // 重新執行正規表示式來解析每一行
+            while (match = csvRegex.exec(lines[i])) {
+                // 如果是帶引號的內容(match[1])，則取代雙引號""為單引號"
+                // 否則直接使用不帶引號的內容(match[2])
+                values.push(match[1] ? match[1].replace(/""/g, '"') : match[2]);
+            }
+
             const obj = {};
             for (let j = 0; j < headers.length; j++) {
                 obj[headers[j]] = values[j] ? values[j].trim() : "";
@@ -852,16 +874,16 @@ function handleCsvUpload(event) {
         }
 
         if (data.length === 0) {
-            alert('CSV 檔案中沒有可匯入的資料。');
+            alert('CSV 檔案解析後無有效資料。');
             return;
         }
 
         if (!confirm(`您準備從 CSV 檔案匯入 ${data.length} 筆產品資料，確定要繼續嗎？`)) {
+            event.target.value = ''; // 讓使用者可以重新選擇同一個檔案
             return;
         }
 
         try {
-            // 呼叫新的後端 API
             const response = await fetch('/api/admin/bulk-create-products', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -873,17 +895,16 @@ function handleCsvUpload(event) {
                 throw new Error(result.error || '匯入過程中發生未知錯誤。');
             }
 
-            alert(result.message); // 顯示後端回傳的成功訊息
-            await fetchAllProducts(); // 重新整理產品列表
+            alert(result.message);
+            await fetchAllProducts();
 
         } catch (error) {
             alert(`匯入失敗：${error.message}`);
         } finally {
-            // 清空 input 的值，以便使用者可以重複上傳同一個檔案
             event.target.value = '';
         }
     };
-    reader.readAsText(file);
+    reader.readAsText(new Blob([text], { type: 'text/csv;charset=utf-8;' }));
 }
 
 if (downloadCsvTemplateBtn) {

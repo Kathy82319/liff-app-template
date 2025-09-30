@@ -1,74 +1,85 @@
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[DEBUG] 1. DOMContentLoaded event fired.');
-
-    // 登入頁面的表單提交邏輯
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        console.log('[DEBUG] 1a. Login form found, setting up listener.');
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
-            const loginStatus = document.getElementById('login-status');
-            const loginButton = document.getElementById('login-button');
-            
-            loginStatus.textContent = '';
-            loginButton.disabled = true;
-            loginButton.textContent = '登入中...';
-            
-            try {
-                const response = await fetch('/api/admin/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '登入失敗');
-
-                console.log('[DEBUG] Login successful, redirecting to admin panel...');
-                window.location.href = '/admin-panel.html';
-
-            } catch (error) {
-                loginStatus.textContent = error.message;
-            } finally {
-                loginButton.disabled = false;
-                loginButton.textContent = '登入';
-            }
-        });
-        return; // 如果是登入頁，後續代碼不執行
-    }
-    
-    // 後台頁面的啟動邏輯
-    async function checkLoginStatus() {
-        try {
-            console.log('[DEBUG] 2. Starting login status check...');
-            const response = await fetch('/api/admin/auth/status');
-            
-            if (response.ok) {
-                console.log('[DEBUG] 3. Login status OK. Initializing admin panel...');
-                const adminPanel = document.getElementById('admin-panel');
-                if(adminPanel) {
-                    adminPanel.style.display = 'block';
-                    console.log('[DEBUG] 4. Admin panel display set to "block".');
-                } else {
-                    console.error('[DEBUG] CRITICAL: Admin panel element not found!');
-                    return;
-                }
-                await initializeAdminPanel();
+async function checkLoginStatusAndInit() {
+    try {
+        console.log('[DEBUG] 2. Starting login status check...');
+        const response = await fetch('/api/admin/auth/status');
+        
+        if (response.ok) {
+            console.log('[DEBUG] 3. Login status OK. Initializing admin panel...');
+            const adminPanel = document.getElementById('admin-panel');
+            if (adminPanel) {
+                adminPanel.style.display = 'block';
+                console.log('[DEBUG] 4. Admin panel display set to "block".');
             } else {
-                console.error('[DEBUG] Login status check failed. Redirecting to login page.');
-                window.location.href = '/admin-login.html';
+                // 如果連 admin-panel 這個 div 都找不到，說明 HTML 肯定有問題
+                document.body.innerHTML = '<h2 style="color:red; text-align:center; margin-top: 50px;">錯誤：找不到必要的 HTML 元素 (admin-panel)。</h2>';
+                return;
             }
-        } catch (error) {
-            console.error('[DEBUG] Error during login status check:', error);
+            // 狀態檢查通過，才開始執行龐大的後台初始化函式
+            await initializeAdminPanel();
+        } else {
+            // API 回傳非 2xx 狀態 (例如 401 Unauthorized)，跳轉回登入頁
+            console.error('[DEBUG] Login status check failed. Redirecting to login page.');
             window.location.href = '/admin-login.html';
         }
+    } catch (error) {
+        // Fetch 本身失敗 (例如網路問題)，也跳轉回登入頁
+        console.error('[DEBUG] A critical error occurred during login status check:', error);
+        window.location.href = '/admin-login.html';
     }
+}
 
-    if (window.location.pathname.includes('admin-panel.html')) {
-        await checkLoginStatus();
+function setupLoginForm() {
+    const loginForm = document.getElementById('login-form');
+    if (!loginForm) return;
+
+    console.log('[DEBUG] 1a. Login form found, setting up listener.');
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const loginStatus = document.getElementById('login-status');
+        const loginButton = document.getElementById('login-button');
+        
+        loginStatus.textContent = '';
+        loginButton.disabled = true;
+        loginButton.textContent = '登入中...';
+        
+        try {
+            const response = await fetch('/api/admin/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || '登入失敗');
+
+            console.log('[DEBUG] Login successful, redirecting to admin panel...');
+            window.location.href = '/admin-panel.html';
+
+        } catch (error) {
+            loginStatus.textContent = error.message;
+        } finally {
+            loginButton.disabled = false;
+            loginButton.textContent = '登入';
+        }
+    });
+}
+
+
+// 主要的 DOMContentLoaded 事件監聽器，現在變得非常簡潔
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[DEBUG] 1. DOMContentLoaded event fired.');
+    
+    // 判斷當前在哪個頁面，然後執行對應的啟動函式
+    if (document.getElementById('login-form')) {
+        // 如果在登入頁，就設定登入表單
+        setupLoginForm();
+    } else if (window.location.pathname.includes('admin-panel.html')) {
+        // 如果在後台主頁，就檢查登入狀態並初始化
+        checkLoginStatusAndInit();
     }
 });
+
 
 async function initializeAdminPanel() {
 

@@ -103,12 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
 
             if (pageTemplates) {
-                pageTemplates.querySelector('#page-home .page-main-title').textContent = TERMS.NEWS_PAGE_TITLE;
-                pageTemplates.querySelector('#page-games .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE;
+                pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE; 
+                pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE;
                 pageTemplates.querySelector('#page-checkout .page-main-title').textContent = TERMS.CHECKOUT_PAGE_TITLE;
                 pageTemplates.querySelector('#page-profile .page-main-title').textContent = TERMS.MEMBER_PROFILE_TITLE;
                 pageTemplates.querySelector('#page-booking .page-main-title').textContent = TERMS.BOOKING_PAGE_TITLE;
-                pageTemplates.querySelector('#page-games #keyword-search').setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
+                pageTemplates.querySelector('#page-products #keyword-search').setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
             }
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);
@@ -819,17 +819,26 @@ async function initializeBookingPage() {
             console.error('無法獲取可預約日期設定');
         }
     // 初始化日期選擇器
-        flatpickr(datepickerContainer, {
-            inline: true,
-            minDate: minDate,
-            dateFormat: "Y-m-d",
-            locale: "zh_tw",
-            // 【修改】使用 enable 選項來實現白名單模式
-            enable: enabledDates,
-            onChange: (selectedDates, dateStr) => {
-                // ... (onChange 邏輯不變)
-            },
-        });
+    flatpickr(datepickerContainer, {
+        inline: true,
+        minDate: minDate,
+        dateFormat: "Y-m-d",
+        locale: "zh_tw",
+        enable: enabledDates,
+        // 【**補上此處的關鍵邏輯**】
+        onChange: (selectedDates, dateStr) => {
+            if (dateStr) {
+                bookingData.date = dateStr; // 將選擇的日期存到 bookingData 中
+                timeSlotContainer.style.display = 'block';
+                detailsForm.style.display = 'none';
+                renderTimeSlots(timeSlotSelect); // 呼叫 renderTimeSlots 來產生時間選項
+            } else {
+                bookingData.date = null;
+                timeSlotContainer.style.display = 'none';
+                detailsForm.style.display = 'none';
+            }
+        },
+    });
 
     // 當時段被選擇後，顯示下方的詳細資訊表單
     if (timeSlotSelect) {
@@ -1000,12 +1009,9 @@ if (tabBar) {
     tabBar.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
         if (button) {
-            // 將 data-target 從 page-games 改為 page-products
-            if (button.dataset.target === 'page-games') {
-                 showPage('page-products');
-            } else {
-                 showPage(button.dataset.target);
-            }
+            // 【修正此處】
+            const targetPage = button.dataset.target === 'page-games' ? 'page-products' : button.dataset.target;
+            showPage(targetPage);
         }
     });
 }

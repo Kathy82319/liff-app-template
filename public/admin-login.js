@@ -1,8 +1,33 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // 直接顯示後台面板並初始化
-    const adminPanel = document.getElementById('admin-panel');
-    if(adminPanel) adminPanel.style.display = 'block';
-    await initializeAdminPanel();
+    // 【**核心修正：新增登入狀態檢查函式**】
+    async function checkLoginStatus() {
+        try {
+            // 嘗試呼叫一個受保護的端點來驗證 token
+            const response = await fetch('/api/admin/auth/status'); 
+            
+            if (response.ok) {
+                // 如果 token 有效，直接初始化後台
+                const adminPanel = document.getElementById('admin-panel');
+                if(adminPanel) adminPanel.style.display = 'block';
+                await initializeAdminPanel();
+            } else {
+                // 如果 token 無效或不存在，導向到登入頁面
+                window.location.href = '/admin-login.html';
+            }
+        } catch (error) {
+            console.error('驗證登入狀態失敗:', error);
+            // 發生網路錯誤等也導向登入頁面
+            window.location.href = '/admin-login.html';
+        }
+    }
+
+    // 【**核心修正：修改啟動流程**】
+    // 檢查當前頁面是否是後台主頁面
+    if (window.location.pathname.includes('admin-panel.html')) {
+        // 如果是，則先檢查登入狀態
+        await checkLoginStatus();
+    }
+    // 如果是登入頁面 (admin-login.html)，則不做任何事，等待使用者提交表單
 });
 
 async function initializeAdminPanel() {

@@ -1,33 +1,73 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // 【**核心修正：新增登入狀態檢查函式**】
+    console.log('[DEBUG] 1. DOMContentLoaded event fired.');
+
+    // 登入頁面的表單提交邏輯
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        console.log('[DEBUG] 1a. Login form found, setting up listener.');
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const loginStatus = document.getElementById('login-status');
+            const loginButton = document.getElementById('login-button');
+            
+            loginStatus.textContent = '';
+            loginButton.disabled = true;
+            loginButton.textContent = '登入中...';
+            
+            try {
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || '登入失敗');
+
+                console.log('[DEBUG] Login successful, redirecting to admin panel...');
+                window.location.href = '/admin-panel.html';
+
+            } catch (error) {
+                loginStatus.textContent = error.message;
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = '登入';
+            }
+        });
+        return; // 如果是登入頁，後續代碼不執行
+    }
+    
+    // 後台頁面的啟動邏輯
     async function checkLoginStatus() {
         try {
-            // 嘗試呼叫一個受保護的端點來驗證 token
-            const response = await fetch('/api/admin/auth/status'); 
+            console.log('[DEBUG] 2. Starting login status check...');
+            const response = await fetch('/api/admin/auth/status');
             
             if (response.ok) {
-                // 如果 token 有效，直接初始化後台
+                console.log('[DEBUG] 3. Login status OK. Initializing admin panel...');
                 const adminPanel = document.getElementById('admin-panel');
-                if(adminPanel) adminPanel.style.display = 'block';
-                initializeAdminPanel(); // 注意：此處不再需要 await
+                if(adminPanel) {
+                    adminPanel.style.display = 'block';
+                    console.log('[DEBUG] 4. Admin panel display set to "block".');
+                } else {
+                    console.error('[DEBUG] CRITICAL: Admin panel element not found!');
+                    return;
+                }
+                await initializeAdminPanel();
             } else {
-                // 如果 token 無效或不存在，導向到登入頁面
+                console.error('[DEBUG] Login status check failed. Redirecting to login page.');
                 window.location.href = '/admin-login.html';
             }
         } catch (error) {
-            console.error('驗證登入狀態失敗:', error);
-            // 發生網路錯誤等也導向登入頁面
+            console.error('[DEBUG] Error during login status check:', error);
             window.location.href = '/admin-login.html';
         }
     }
 
-    // 【**核心修正：修改啟動流程**】
-    // 檢查當前頁面是否是後台主頁面
     if (window.location.pathname.includes('admin-panel.html')) {
-        // 如果是，則先檢查登入狀態
         await checkLoginStatus();
     }
-    // 如果是登入頁面 (admin-login.html)，則不做任何事，等待使用者提交表單
 });
 
 async function initializeAdminPanel() {

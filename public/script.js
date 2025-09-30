@@ -513,10 +513,10 @@ function renderBookings(bookings, container, isPast = false) {
         if (allProducts.length === 0) {
             try {
                 const res = await fetch('/api/get-products');
-                if (!res.ok) throw new Error('無法獲取遊戲資料');
+                if (!res.ok) throw new Error('無法獲取資料');
                 allProducts = await res.json();
             } catch (error) {
-                console.error('獲取遊戲標籤失敗:', error);
+                console.error('獲取標籤失敗:', error);
             }
         }
         if (!userProfile) return;
@@ -616,7 +616,7 @@ function renderBookings(bookings, container, isPast = false) {
         return '★'.repeat(level) + '☆'.repeat(4 - level);
     }
 
-// 在 public/script.js 中，取代舊的 renderproductDetails 函式
+
 function renderProductDetails(product) {
     const imageContainer = appContent.querySelector('.details-gallery');
     const detailsTitle = appContent.querySelector('.details-title');
@@ -662,7 +662,7 @@ function renderProductDetails(product) {
         specsContainer.innerHTML = specsHTML;
     }
 
-// public/script.js -> 替換 renderProducts 函式
+
 function renderProducts() {
     const container = document.getElementById('product-list-container')
     if(!container) return;
@@ -685,10 +685,7 @@ function renderProducts() {
         let priceDisplay = '';
         if (product.price_type === 'simple') {
             priceDisplay = `$${product.price}`;
-        } else if (product.price_type === 'multiple') {
-            priceDisplay = '多重價格';
-        }
-
+        } 
         const images = JSON.parse(product.images || '[]');
         const imageUrl = images.length > 0 ? images[0] : 'https://via.placeholder.com/150';
 

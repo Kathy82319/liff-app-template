@@ -149,6 +149,47 @@ async function initializeAdminPanel() {
     const pointsStatusMessage = document.getElementById('points-status-message');    
     const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
     
+// =================================================================
+    // 事件監聽器綁定 (Event Listeners Setup)
+    // =================================================================
+    function setupEventListeners() {
+        if (switchToCalendarViewBtn) {
+            switchToCalendarViewBtn.addEventListener('click', () => {
+                const isListVisible = listViewContainer.style.display !== 'none';
+                if (isListVisible) {
+                    listViewContainer.style.display = 'none';
+                    calendarViewContainer.style.display = 'block';
+                    switchToCalendarViewBtn.textContent = '切換至列表';
+                    fetchAllBookings('all_upcoming'); // 載入日曆需要的數據
+                } else {
+                    listViewContainer.style.display = 'block';
+                    calendarViewContainer.style.display = 'none';
+                    switchToCalendarViewBtn.textContent = '切換至行事曆';
+                    fetchAllBookings('today'); // 載入列表預設的數據
+                }
+            });
+        }
+
+        if (createBookingBtn) {
+            createBookingBtn.addEventListener('click', openCreateBookingModal);
+        }
+
+        if (calendarPrevMonthBtn) {
+            calendarPrevMonthBtn.addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+                updateCalendar();
+            });
+        }
+
+        if (calendarNextMonthBtn) {
+            calendarNextMonthBtn.addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+                updateCalendar();
+            });
+        }
+
+    }
+
     // --- 全域狀態 ---
     let allUsers = [], allProducts = [], allBookings = [], allNews = [], allExpHistory = [], allDrafts = [];
     let classPerks = {};
@@ -417,41 +458,69 @@ async function initializeAdminPanel() {
         });
     }
    
-    function openEditProductModal(productId) {
-        const product = allProducts.find(p => p.product_id === productId);
+function openEditProductModal(productId) {
+        const product = allProducts.find(p => p.product_id == productId); // 使用 == 進行寬鬆比較
         if (!product || !editProductModal || !editProductForm) return;
 
         editProductForm.reset();
-        editProductModal.querySelector('#modal-product-title').textContent = `編輯產品：${product.name}`;
         
-        document.getElementById('edit-product-id').value = product.product_id;
-        document.getElementById('edit-product-id-display').value = product.product_id;
-        document.getElementById('edit-product-name').value = product.name;
-        document.getElementById('edit-product-description').value = product.description || '';
-        document.getElementById('edit-product-category').value = product.category || '';
-        document.getElementById('edit-product-tags').value = product.tags || '';
-        document.getElementById('edit-product-images').value = product.images || '[]';
-        document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
+        const modalTitle = editProductModal.querySelector('#modal-product-title');
+        if (modalTitle) modalTitle.textContent = `編輯產品：${product.name}`;
+        
+        // --- 【核心修正】在設定 value 前，先檢查元素是否存在 ---
+        const productIdInput = document.getElementById('edit-product-id');
+        const productIdDisplayInput = document.getElementById('edit-product-id-display');
+        const productNameInput = document.getElementById('edit-product-name');
+
+        if (productIdInput) productIdInput.value = product.product_id;
+        if (productIdDisplayInput) productIdDisplayInput.value = product.product_id;
+        if (productNameInput) productNameInput.value = product.name;
+        
+        // 對其他所有欄位也做同樣的檢查
+        const descriptionInput = document.getElementById('edit-product-description');
+        if (descriptionInput) descriptionInput.value = product.description || '';
+
+        const categoryInput = document.getElementById('edit-product-category');
+        if (categoryInput) categoryInput.value = product.category || '';
+
+        const tagsInput = document.getElementById('edit-product-tags');
+        if (tagsInput) tagsInput.value = product.tags || '';
+
+        const isVisibleCheckbox = document.getElementById('edit-product-is-visible');
+        if (isVisibleCheckbox) isVisibleCheckbox.checked = !!product.is_visible;
 
         const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
         const quantityGroup = document.getElementById('stock-quantity-group');
         const statusGroup = document.getElementById('stock-status-group');
         
-        inventoryTypeSelect.value = product.inventory_management_type || 'none';
-        quantityGroup.style.display = (inventoryTypeSelect.value === 'quantity') ? 'block' : 'none';
-        statusGroup.style.display = (inventoryTypeSelect.value === 'status') ? 'block' : 'none';
-        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
-        document.getElementById('edit-product-stock-status').value = product.stock_status || '';
-
-        const images = JSON.parse(product.images || '[]');
-        for(let i=1; i<=5; i++){
-            document.getElementById(`edit-product-image-${i}`).value = images[i-1] || '';
+        if(inventoryTypeSelect) {
+            inventoryTypeSelect.value = product.inventory_management_type || 'none';
+            if(quantityGroup) quantityGroup.style.display = (inventoryTypeSelect.value === 'quantity') ? 'block' : 'none';
+            if(statusGroup) statusGroup.style.display = (inventoryTypeSelect.value === 'status') ? 'block' : 'none';
         }
-        document.getElementById('edit-product-price-options').value = product.price_options || '[]';
+
+        const stockQuantityInput = document.getElementById('edit-product-stock-quantity');
+        if (stockQuantityInput) stockQuantityInput.value = product.stock_quantity || 0;
+
+        const stockStatusInput = document.getElementById('edit-product-stock-status');
+        if (stockStatusInput) stockStatusInput.value = product.stock_status || '';
+        
+        const priceInput = document.getElementById('edit-product-price');
+        if(priceInput) priceInput.value = product.price || '';
+
+        try {
+            const images = JSON.parse(product.images || '[]');
+            for(let i=1; i<=5; i++){
+                const imgInput = document.getElementById(`edit-product-image-${i}`);
+                if (imgInput) imgInput.value = images[i-1] || '';
+            }
+        } catch(e) { console.error("解析圖片JSON失敗:", e); }
 
         for (let i = 1; i <= 5; i++) {
-            document.getElementById(`edit-spec-${i}-name`).value = product[`spec_${i}_name`] || '';
-            document.getElementById(`edit-spec-${i}-value`).value = product[`spec_${i}_value`] || '';
+            const specNameInput = document.getElementById(`edit-spec-${i}-name`);
+            if (specNameInput) specNameInput.value = product[`spec_${i}_name`] || '';
+            const specValueInput = document.getElementById(`edit-spec-${i}-value`);
+            if (specValueInput) specValueInput.value = product[`spec_${i}_value`] || '';
         }
 
         editProductModal.style.display = 'flex';
@@ -1967,4 +2036,5 @@ if (submitExpBtn) {
  
     // --- 初始化第一個頁面 ---
     showPage('dashboard'); 
+    setupEventListeners();
 }

@@ -35,7 +35,7 @@ body {
     font-family: var(--font-primary);
     background-color: var(--color-bg);
     color: var(--color-text-primary);
-    padding-top: 55px;  /* 為固定頂部 Header 預留空間 */
+    padding-top: 10px;  /* 為固定頂部 Header 預留空間 */
     padding-bottom: 70px; /* 為固定底部 TabBar 預留空間 */
 }
 

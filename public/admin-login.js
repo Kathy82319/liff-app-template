@@ -17,7 +17,10 @@ const App = {
         if (document.getElementById('login-form')) this.handleLoginPage();
         else if (document.getElementById('admin-panel')) this.handleAdminPage();
     },
-        handleLoginPage: function() {
+// =================================================================
+// 登入頁面邏輯 (Login Page Handler)
+// =================================================================
+    handleLoginPage: function() {
         const loginForm = document.getElementById('login-form');
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -36,14 +39,27 @@ const App = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-                const result = await response.json();
+
+                // 【** 核心修改：強化錯誤判斷 **】
                 if (!response.ok) {
-                    throw new Error(result.error || '登入失敗，請檢查帳號或密碼。');
+                    let errorMessage = `登入失敗 (代碼: ${response.status})。`;
+                    try {
+                        // 嘗試解析 API 回傳的 JSON 錯誤訊息
+                        const result = await response.json();
+                        errorMessage = result.error || errorMessage;
+                    } catch (e) {
+                        // 如果解析失敗，代表回傳的不是 JSON，很可能是被其他服務阻擋
+                        errorMessage += ' 伺服器回傳非預期格式，這通常是因為網站的「存取原則 (Access Policy)」阻擋了 API 請求。';
+                    }
+                    throw new Error(errorMessage);
                 }
+
                 console.log('[DEBUG] Login successful, redirecting to admin panel...');
                 window.location.href = '/admin-panel.html';
+
             } catch (error) {
                 loginStatus.textContent = error.message;
+            } finally {
                 loginButton.disabled = false;
                 loginButton.textContent = '登入';
             }

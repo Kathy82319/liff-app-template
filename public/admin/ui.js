@@ -18,11 +18,48 @@ export const ui = {
      */
     setActiveNav(pageId) {
         document.querySelectorAll('.nav-tabs a').forEach(link => {
-            // href 格式是 #pageId
             const linkTarget = link.getAttribute('href').substring(1);
             link.classList.toggle('active', linkTarget === pageId);
         });
     },
 
-    // 我們未來會在這裡加入更多共用函式，例如 showModal, showNotification 等
+    // --- 【** 以下為本次新增功能 **】 ---
+
+    /**
+     * 顯示指定的 Modal 彈窗
+     * @param {string} modalId - Modal 的 ID (例如 '#edit-user-modal')
+     */
+    showModal(modalId) {
+        const modal = document.querySelector(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    },
+
+    /**
+     * 隱藏指定的 Modal 彈窗
+     * @param {string} modalId - Modal 的 ID
+     */
+    hideModal(modalId) {
+        const modal = document.querySelector(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
+    /**
+     * 初始化全域共享的事件監聽器 (例如：所有 Modal 的關閉按鈕)
+     */
+    initSharedEventListeners() {
+        // 監聽所有 class 為 .modal-close 或 .btn-cancel 的點擊事件
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.modal-close') || e.target.matches('.btn-cancel')) {
+                // 找到被點擊按鈕所在的最近的一個 Modal
+                const modal = e.target.closest('.modal-overlay');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        });
+    }
 };

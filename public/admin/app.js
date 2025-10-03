@@ -57,6 +57,9 @@ const App = {
             return; // 中斷後續所有程式碼的執行
         }
         */
+       
+        ui.initSharedEventListeners();// 啟動全域 UI 事件監聽 (如 Modal 關閉)
+        
         // 監聽 URL hash 的變化 (使用者點擊導覽列)
         window.addEventListener('hashchange', () => this.handleRouteChange());
         

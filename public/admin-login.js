@@ -2,15 +2,6 @@
 // =================================================================
 // 全域 Modal 關閉事件監聽
 // =================================================================
-document.addEventListener('click', (e) => {
-    // 監聽所有 class 為 modal-close 或 btn-cancel 的點擊
-    if (e.target.matches('.modal-close') || e.target.matches('.btn-cancel')) {
-        const modal = e.target.closest('.modal-overlay');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-});
 
 const App = {
     init: function() {

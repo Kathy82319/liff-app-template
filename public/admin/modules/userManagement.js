@@ -109,7 +109,7 @@ function openEditUserModal(userId) {
         otherTagInput.style.display = 'none';
     }
 
-    editUserModal.style.display = 'flex';
+    ui.showModal('#edit-user-modal');
 }
 
 
@@ -255,7 +255,7 @@ async function openUserDetailsModal(userId) {
     if (!userDetailsModal || !contentContainer) return;
     
     contentContainer.innerHTML = '<p>讀取中...</p>';
-    userDetailsModal.style.display = 'flex';
+    ui.showModal('#user-details-modal');
 
     try {
         const data = await api.getUserDetails(userId);
@@ -329,7 +329,7 @@ function setupEventListeners() {
 
         try {
             await api.updateUserDetails(updatedData);
-            document.getElementById('edit-user-modal').style.display = 'none';
+            ui.hideModal('#edit-user-modal');
             // 重新載入列表以顯示更新後的資料
             init(); 
         } catch (error) {

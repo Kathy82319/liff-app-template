@@ -381,60 +381,7 @@ deleteBtn.addEventListener('click', async () => {
         
     }
 
-    // =================================================================
-    // 儀表板模組 (Dashboard)
-    // =================================================================
-    async function fetchDashboardStats() {
-        try {
-            const response = await fetch('/api/admin/dashboard-stats');
-            if (!response.ok) throw new Error('無法獲取儀表板數據');
-            const stats = await response.json();
-            
-            const guestsEl = document.getElementById('stat-today-guests');
-            if(guestsEl) guestsEl.textContent = stats.today_total_guests || 0;
-
-        } catch (error) {
-            console.error('獲取儀表板數據失敗:', error);
-            if(dashboardGrid) dashboardGrid.innerHTML = `<p style="color:red;">讀取數據失敗</p>`;
-        }
-    }
-
-    if (dashboardGrid) {
-        dashboardGrid.addEventListener('click', (e) => {
-            const card = e.target.closest('.stat-card');
-            if (!card) return;
-            const target = card.dataset.target;
-            if (target === 'bookings') {
-                showPage('bookings');
-                document.querySelector('#booking-status-filter button[data-filter="today"]').click();
-            }
-        });
-    }
-
-    if (resetDemoDataBtn) {
-        resetDemoDataBtn.addEventListener('click', async () => {
-            if (!confirm('【警告】您真的確定要清空所有展示資料嗎？\n\n此操作將會刪除所有預約和消費紀錄，且無法復原！')) {
-                return;
-            }
-            try {
-                resetDemoDataBtn.textContent = '正在清空中...';
-                resetDemoDataBtn.disabled = true;
-                const response = await fetch('/api/admin/reset-demo-data', { method: 'POST' });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '清空失敗');
-                alert('展示資料已成功清空！');
-                fetchDashboardStats();
-                allBookings = [];
-                allExpHistory = [];
-            } catch (error) {
-                alert(`錯誤：${error.message}`);
-            } finally {
-                resetDemoDataBtn.textContent = '清空所有展示資料';
-                resetDemoDataBtn.disabled = false;
-            }
-        });
-    }
-    
+   
     // =================================================================
     // 產品/服務管理模組 (Product Management)
     // =================================================================

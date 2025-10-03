@@ -2,10 +2,91 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
-let allBookings = []; // 快取所有預約資料
-let currentCalendarDate = new Date(); // 用於行事曆月份導航
-let bookingDatepicker = null; // 用於公休日設定的 flatpickr 實例
-let enabledDates = []; // 快取可預約日期
+let allBookings = [];
+let currentCalendarDate = new Date();
+let bookingDatepicker = null;
+let createBookingDatepicker = null;
+let enabledDates = [];
+let currentCreateBookingUser = null;
+
+// --- 【新增】手動建立預約 Modal 的相關函式 ---
+
+// 初始化手動建立 Modal
+function initializeCreateBookingModal() {
+    // 初始化日期選擇器
+    if (createBookingDatepicker) createBookingDatepicker.destroy();
+    createBookingDatepicker = flatpickr("#booking-date-input", { dateFormat: "Y-m-d" });
+
+    // 填充時間選項
+    const slotSelect = document.getElementById('booking-slot-select');
+    if (slotSelect) {
+        slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
+        for (let hour = 8; hour <= 22; hour++) {
+            for (let minute of ['00', '30']) {
+                const time = `${String(hour).padStart(2, '0')}:${minute}`;
+                slotSelect.add(new Option(time, time));
+            }
+        }
+    }
+
+    // 處理使用者搜尋
+    const userSearchInput = document.getElementById('booking-user-search');
+    const userSelect = document.getElementById('booking-user-select');
+    if (userSearchInput && userSelect) {
+        userSearchInput.addEventListener('input', async (e) => {
+            const query = e.target.value;
+            if (query.length < 1) {
+                userSelect.style.display = 'none';
+                return;
+            }
+            try {
+                const users = await api.searchUsers(query);
+                userSelect.innerHTML = '<option value="">-- 請從搜尋結果中選擇 --</option>';
+                users.forEach(u => {
+                    const displayName = u.nickname || u.line_display_name;
+                    userSelect.add(new Option(`${displayName} (${u.user_id})`, u.user_id));
+                });
+                userSelect.style.display = 'block';
+            } catch (error) {
+                console.error('搜尋使用者失敗:', error);
+            }
+        });
+
+        userSelect.addEventListener('change', () => {
+            currentCreateBookingUser = userSelect.value;
+        });
+    }
+}
+
+// 處理手動建立表單提交
+async function handleCreateBookingSubmit(e) {
+    e.preventDefault();
+    const formData = {
+        userId: currentCreateBookingUser,
+        bookingDate: document.getElementById('booking-date-input').value,
+        timeSlot: document.getElementById('booking-slot-select').value,
+        contactName: document.getElementById('booking-name-input').value,
+        contactPhone: document.getElementById('booking-phone-input').value,
+        numOfPeople: document.getElementById('booking-people-input').value,
+        item: document.getElementById('booking-item-input').value,
+    };
+
+    if (!formData.userId || !formData.bookingDate || !formData.timeSlot) {
+        alert('會員、預約日期和時段為必填！');
+        return;
+    }
+
+    try {
+        await api.createBooking(formData);
+        alert('預約建立成功！');
+        ui.hideModal('#create-booking-modal');
+        document.getElementById('create-booking-form').reset();
+        fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today');
+    } catch (error) {
+        alert(`建立失敗: ${error.message}`);
+    }
+}
+
 
 // 渲染預約列表
 function renderBookingList(bookings) {
@@ -103,89 +184,61 @@ async function fetchDataAndRender(filter = 'today') {
 
 // 綁定事件監聽器
 function setupEventListeners() {
-    // 視圖切換按鈕
-    const switchToCalendarViewBtn = document.getElementById('switch-to-calendar-view-btn');
-    if (switchToCalendarViewBtn) {
-        switchToCalendarViewBtn.onclick = () => {
-            const listViewContainer = document.getElementById('list-view-container');
-            const calendarViewContainer = document.getElementById('calendar-view-container');
-            const isListVisible = listViewContainer.style.display !== 'none';
-            
-            listViewContainer.style.display = isListVisible ? 'none' : 'block';
-            calendarViewContainer.style.display = isListVisible ? 'block' : 'none';
-            switchToCalendarViewBtn.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
-            
-            fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today');
-        };
-    }
-    
-    // 列表篩選按鈕
-    const statusFilter = document.getElementById('booking-status-filter');
-    if (statusFilter) {
-        statusFilter.onclick = (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                statusFilter.querySelector('.active')?.classList.remove('active');
-                e.target.classList.add('active');
-                fetchDataAndRender(e.target.dataset.filter);
-            }
-        };
-    }
-    
-    // 列表操作按鈕 (報到/取消)
-    const bookingListTbody = document.getElementById('booking-list-tbody');
-    if(bookingListTbody) {
-        bookingListTbody.onclick = async (e) => {
-            const bookingId = e.target.dataset.bookingId;
+    const page = document.getElementById('page-bookings');
+    if(!page) return;
+
+    // 將所有點擊事件委派到 page 元素
+    page.addEventListener('click', async e => {
+        const target = e.target;
+        
+        // 視圖切換
+        if(target.id === 'switch-to-calendar-view-btn') {
+            const listView = document.getElementById('list-view-container');
+            const calendarView = document.getElementById('calendar-view-container');
+            const isListVisible = listView.style.display !== 'none';
+            listView.style.display = isListVisible ? 'none' : 'block';
+            calendarView.style.display = isListVisible ? 'block' : 'none';
+            target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
+            fetchDataAndRender();
+        }
+        
+        // 列表篩選
+        else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
+            document.querySelector('#booking-status-filter .active')?.classList.remove('active');
+            target.classList.add('active');
+            fetchDataAndRender(target.dataset.filter);
+        }
+
+        // 列表操作按鈕
+        else if (target.closest('.actions-cell')) {
+            const bookingId = target.dataset.bookingId;
             if (!bookingId) return;
 
-            if (e.target.classList.contains('btn-check-in')) {
+            if (target.classList.contains('btn-check-in')) {
                 if (confirm('確定要將此預約標示為「已報到」嗎？')) {
-                    try {
-                        await api.updateBookingStatus(Number(bookingId), 'checked-in');
-                        fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
-                    } catch (error) {
-                        alert(`錯誤：${error.message}`);
-                    }
+                    await api.updateBookingStatus(Number(bookingId), 'checked-in').catch(err => alert(`錯誤：${err.message}`));
+                    fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
                 }
-            } else if (e.target.classList.contains('btn-cancel-booking')) {
-                // 此處未來可以加入更複雜的取消彈窗邏輯
+            } else if (target.classList.contains('btn-cancel-booking')) {
                 if (confirm('確定要取消此預約嗎？')) {
-                    try {
-                        await api.updateBookingStatus(Number(bookingId), 'cancelled');
-                        fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
-                    } catch (error) {
-                        alert(`錯誤：${error.message}`);
-                    }
+                     await api.updateBookingStatus(Number(bookingId), 'cancelled').catch(err => alert(`錯誤：${err.message}`));
+                    fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
                 }
             }
-        };
-    }
-
-    // 行事曆月份切換
-    const calendarPrevMonthBtn = document.getElementById('calendar-prev-month-btn');
-    const calendarNextMonthBtn = document.getElementById('calendar-next-month-btn');
-    if (calendarPrevMonthBtn) {
-        calendarPrevMonthBtn.onclick = () => {
-            currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
-            updateCalendar();
-        };
-    }
-    if (calendarNextMonthBtn) {
-        calendarNextMonthBtn.onclick = () => {
-            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
-            updateCalendar();
-        };
-    }
-    
-    // 手動建立預約按鈕
-    const createBookingBtn = document.getElementById('create-booking-btn');
-    if (createBookingBtn) {
-        createBookingBtn.onclick = () => {
-            // 此處省略了打開和處理建立預約 Modal 的詳細邏輯
-            // 我們會在下個步驟中將其遷移
+        }
+        
+        // 手動建立預約
+        else if(target.id === 'create-booking-btn') {
+            initializeCreateBookingModal();
             ui.showModal('#create-booking-modal');
-        };
-    }
+        }
+
+        // 管理公休日
+        else if (target.id === 'manage-booking-dates-btn') {
+            // ... (此部分邏輯不變)
+        }
+    });
+
 
     // 管理公休日按鈕
     const manageBookingDatesBtn = document.getElementById('manage-booking-dates-btn');
@@ -224,6 +277,17 @@ function setupEventListeners() {
         };
     }
 }
+
+    // 行事曆月份切換
+    const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
+    const nextMonthBtn = document.getElementById('calendar-next-month-btn');
+    if (prevMonthBtn) prevMonthBtn.onclick = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); };
+    if (nextMonthBtn) nextMonthBtn.onclick = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); };
+
+    // 手動建立預約表單提交
+    const createBookingForm = document.getElementById('create-booking-form');
+    if (createBookingForm) createBookingForm.addEventListener('submit', handleCreateBookingSubmit);
+
 
 // 模組初始化函式
 export const init = async () => {

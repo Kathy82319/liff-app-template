@@ -47,6 +47,8 @@ const App = {
         // **【資安重點】**
         // 在執行任何操作之前，先檢查管理員登入狀態。
         // 這是前端安全的第一道防線。
+        
+        /* 這是登入守門員，目前還在建置階段，先關起來
         try {
             await api.checkAuthStatus(); // 假設 api.js 有這個函式
         } catch (error) {
@@ -54,7 +56,7 @@ const App = {
             window.location.href = '/admin-login.html';
             return; // 中斷後續所有程式碼的執行
         }
-
+        */
         // 監聽 URL hash 的變化 (使用者點擊導覽列)
         window.addEventListener('hashchange', () => this.handleRouteChange());
         

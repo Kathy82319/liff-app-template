@@ -89,10 +89,6 @@ async function initializeAdminPanel() {
     const cancelBookingModal = document.getElementById('cancel-booking-modal');
     const expHistoryTbody = document.getElementById('exp-history-tbody');
     const expUserFilterInput = document.getElementById('exp-user-filter-input');
-    const newsListTbody = document.getElementById('news-list-tbody');
-    const addNewsBtn = document.getElementById('add-news-btn');
-    const editNewsModal = document.getElementById('edit-news-modal');
-    const editNewsForm = document.getElementById('edit-news-form');
     const draftListTbody = document.getElementById('draft-list-tbody');
     const addDraftBtn = document.getElementById('add-draft-btn');
     const editDraftModal = document.getElementById('edit-draft-modal');
@@ -525,123 +521,6 @@ if (csvUploadInput) {
         if (key.includes('BOOKING')) return 'FEATURES_ENABLE_BOOKING_SYSTEM';
         if (key.includes('MEMBERSHIP') || key.includes('POINTS')) return 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM';
         return null;
-    }
-
-    // =================================================================
-    // 資訊管理模組 (News Management)
-    // =================================================================
-    async function fetchAllNews() {
-        if (allNews.length > 0) {
-            renderNewsList(allNews);
-            return;
-        }
-        try {
-            const response = await fetch('/api/admin/get-all-news');
-            if (!response.ok) throw new Error('無法獲取資訊列表');
-            allNews = await response.json();
-            renderNewsList(allNews);
-        } catch (error) { 
-            console.error('獲取資訊列表失敗:', error);
-            if (newsListTbody) newsListTbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">讀取失敗</td></tr>`;
-        }
-    }
-
-    function renderNewsList(newsItems) {
-        if(!newsListTbody) return;
-        newsListTbody.innerHTML = '';
-        newsItems.forEach(news => {
-            const row = newsListTbody.insertRow();
-            row.innerHTML = `
-                <td>${news.title}</td>
-                <td>${news.category}</td>
-                <td>${news.published_date}</td>
-                <td>${news.is_published ? '已發布' : '草稿'}</td>
-                <td class="actions-cell">
-                    <button class="action-btn btn-edit-news" data-news-id="${news.id}" style="background-color: #ffc107; color: #000;">編輯</button>
-                </td>
-            `;
-        });
-    }
-
-    if (newsListTbody) {
-        newsListTbody.addEventListener('click', (e) => {
-            const button = e.target.closest('.btn-edit-news');
-            if (button) {
-                const newsId = button.dataset.newsId;
-                const newsItem = allNews.find(n => n.id == newsId);
-                openEditNewsModal(newsItem);
-            }
-        });
-    }
-
-    function openEditNewsModal(news = null) {
-        if (!editNewsModal || !editNewsForm) return;
-        editNewsForm.reset();
-        
-        const modalTitle = editNewsModal.querySelector('#modal-news-title');
-        const deleteBtn = editNewsModal.querySelector('#delete-news-btn');
-        const newsIdInput = document.getElementById('edit-news-id');
-        
-        if (news) {
-            modalTitle.textContent = '編輯資訊';
-            deleteBtn.style.display = 'inline-block';
-            newsIdInput.value = news.id;
-            document.getElementById('edit-news-title').value = news.title;
-            document.getElementById('edit-news-category').value = news.category;
-            document.getElementById('edit-news-date').value = news.published_date;
-            document.getElementById('edit-news-image').value = news.image_url || '';
-            document.getElementById('edit-news-content').value = news.content || '';
-            document.getElementById('edit-news-published').checked = !!news.is_published;
-        } else {
-            modalTitle.textContent = '新增資訊';
-            deleteBtn.style.display = 'none';
-            newsIdInput.value = '';
-        }
-        editNewsModal.style.display = 'flex';
-    }
-
-    if(addNewsBtn) addNewsBtn.addEventListener('click', () => openEditNewsModal());
-
-    if(editNewsModal) {
-        editNewsModal.querySelector('.modal-close').addEventListener('click', () => editNewsModal.style.display = 'none');
-        editNewsModal.querySelector('.btn-cancel').addEventListener('click', () => editNewsModal.style.display = 'none');
-        
-        editNewsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newsId = document.getElementById('edit-news-id').value;
-            const formData = {
-                id: newsId ? Number(newsId) : null,
-                title: document.getElementById('edit-news-title').value,
-                category: document.getElementById('edit-news-category').value,
-                published_date: document.getElementById('edit-news-date').value,
-                image_url: document.getElementById('edit-news-image').value,
-                content: document.getElementById('edit-news-content').value,
-                is_published: document.getElementById('edit-news-published').checked
-            };
-            const url = newsId ? '/api/admin/update-news' : '/api/admin/create-news';
-            try {
-                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '儲存失敗');
-                alert('儲存成功！');
-                editNewsModal.style.display = 'none';
-                allNews = [];
-                await fetchAllNews();
-            } catch (error) { alert(`錯誤：${error.message}`); }
-        });
-
-        editNewsModal.querySelector('#delete-news-btn').addEventListener('click', async () => {
-            const newsId = Number(document.getElementById('edit-news-id').value);
-            if (!newsId || !confirm('確定要刪除這則資訊嗎？此操作無法復原。')) return;
-            try {
-                const response = await fetch('/api/admin/delete-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: newsId }) });
-                if (!response.ok) throw new Error('刪除失敗');
-                alert('刪除成功！');
-                editNewsModal.style.display = 'none';
-                allNews = [];
-                await fetchAllNews();
-            } catch (error) { alert(`錯誤：${error.message}`); }
-        });
     }
 
     // =================================================================

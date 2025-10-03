@@ -1,10 +1,12 @@
 // public/admin/modules/userManagement.js
 import { api } from '../api.js';
+import { ui } from '../ui.js'; // 【** 就是補上這一行 **】
 // import { ui } from '../ui.js'; // 未來若將 Modal 移至 ui.js 會需要
 
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
 let allDrafts = []; // 【新增】存放訊息草稿的快取
+
 
 // 渲染使用者列表
 function renderUserList(users) {

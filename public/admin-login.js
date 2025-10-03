@@ -87,7 +87,6 @@ async function initializeAdminPanel() {
     const calendarPrevMonthBtn = document.getElementById('calendar-prev-month-btn');
     const calendarNextMonthBtn = document.getElementById('calendar-next-month-btn');
     const cancelBookingModal = document.getElementById('cancel-booking-modal');
-    const storeInfoForm = document.getElementById('store-info-form');
     const qrReaderElement = document.getElementById('qr-reader');
     const scanResultSection = document.getElementById('scan-result');
     const userIdDisplay = document.getElementById('user-id-display');
@@ -500,41 +499,6 @@ if (csvUploadInput) {
         }
     }    
 
-
-    // =================================================================
-    // 店家資訊模組 (Store Info)
-    // =================================================================
-    async function fetchStoreInfo() {
-        try {
-            const response = await fetch('/api/get-store-info');
-            if (!response.ok) throw new Error('無法載入店家資訊');
-            const info = await response.json();
-            document.getElementById('info-address').value = info.address;
-            document.getElementById('info-phone').value = info.phone;
-            document.getElementById('info-hours').value = info.opening_hours;
-            document.getElementById('info-desc').value = info.description;
-        } catch (error) { alert(`錯誤：${error.message}`); }
-    }
-
-    if(storeInfoForm) {
-        storeInfoForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = {
-                address: document.getElementById('info-address').value,
-                phone: document.getElementById('info-phone').value,
-                opening_hours: document.getElementById('info-hours').value,
-                description: document.getElementById('info-desc').value
-            };
-            try {
-                const response = await fetch('/api/admin/update-store-info', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                if (!response.ok) throw new Error('更新失敗');
-                alert('更新成功！');
-            } catch (error) { alert(`錯誤：${error.message}`); }
-        });
-    }
 
     // =================================================================
     // 點數發放中心模組 (改造後)

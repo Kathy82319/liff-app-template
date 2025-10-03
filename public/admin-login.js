@@ -89,10 +89,6 @@ async function initializeAdminPanel() {
     const cancelBookingModal = document.getElementById('cancel-booking-modal');
     const expHistoryTbody = document.getElementById('exp-history-tbody');
     const expUserFilterInput = document.getElementById('exp-user-filter-input');
-    const draftListTbody = document.getElementById('draft-list-tbody');
-    const addDraftBtn = document.getElementById('add-draft-btn');
-    const editDraftModal = document.getElementById('edit-draft-modal');
-    const editDraftForm = document.getElementById('edit-draft-form');
     const storeInfoForm = document.getElementById('store-info-form');
     const qrReaderElement = document.getElementById('qr-reader');
     const scanResultSection = document.getElementById('scan-result');
@@ -113,7 +109,6 @@ async function initializeAdminPanel() {
     const selectedUserDisplay = document.getElementById('selected-user-display');
     const pointsEntryForm = document.getElementById('points-entry-form');
     const pointsStatusMessage = document.getElementById('points-status-message');    
-    const modalDraftTitle = document.querySelector('#edit-draft-modal #modal-draft-title');
     const addProductBtn = document.getElementById('add-product-btn'); //產品頁面的"新增"
     const downloadCsvTemplateBtn = document.getElementById('download-csv-template-btn'); //產品頁面的"批量"
     const csvUploadInput = document.getElementById('csv-upload-input'); //產品頁面的"批量"
@@ -128,7 +123,6 @@ async function initializeAdminPanel() {
     let html5QrCode = null;
     let allSettings = [];
     let currentSelectedUserForPoints = null;
-    let currentEditingDraftId = null;
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {
@@ -560,160 +554,6 @@ if (csvUploadInput) {
             });
         }
     }    
-    // =================================================================
-    // 訊息草稿模組
-    // =================================================================
-    async function fetchAllDrafts() {
-        if (allDrafts.length > 0) {
-            renderDraftList(allDrafts);
-            return;
-        }
-        try {
-            const response = await fetch('api/admin/message-drafts');
-            if (!response.ok) throw new Error('無法獲取訊息草稿');
-            allDrafts = await response.json();
-            renderDraftList(allDrafts);
-        } catch (error) {
-            console.error('獲取訊息草稿失敗:', error);
-            if(draftListTbody) draftListTbody.innerHTML = '<tr><td colspan="3">讀取失敗</td></tr>';
-        }
-    }
-
-    
-    function renderDraftList(drafts) {
-        if (!draftListTbody) return;
-        draftListTbody.innerHTML = '';
-        drafts.forEach(draft => {
-            const row = draftListTbody.insertRow();
-            const cellTitle = row.insertCell();
-            const cellContent = row.insertCell();
-            const cellActions = row.insertCell();
-            
-            cellTitle.textContent = draft.title;
-            cellContent.textContent = draft.content.substring(0, 50) + (draft.content.length > 50 ? '...' : '');
-            cellActions.className = 'actions-cell';
-            
-            const editBtn = document.createElement('button');
-            editBtn.className = 'action-btn btn-edit-draft'; // 使用 btn-edit-draft class
-            editBtn.dataset.draftid = draft.draft_id;
-            editBtn.textContent = '編輯';
-            editBtn.style.backgroundColor = 'var(--warning-color)'; // 【核心修正】設定背景為黃色
-            editBtn.style.color = '#000'; // 黃色背景搭配黑色文字
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'action-btn btn-delete-draft';
-            deleteBtn.dataset.draftid = draft.draft_id;
-            deleteBtn.style.backgroundColor = 'var(--danger-color)';
-            deleteBtn.textContent = '刪除';
-            
-            cellActions.appendChild(editBtn);
-            cellActions.appendChild(deleteBtn);
-        });
-    }
-
-    function openEditDraftModal(draft = null) {
-        if (!editDraftForm) return;
-        editDraftForm.reset();
-        currentEditingDraftId = draft ? draft.draft_id : null;
-        if (modalDraftTitle) modalDraftTitle.textContent = draft ? '編輯訊息草稿' : '新增訊息草稿';
-
-        if (draft) {
-            document.getElementById('edit-draft-id').value = draft.draft_id;
-            document.getElementById('edit-draft-title').value = draft.title;
-            document.getElementById('edit-draft-content').value = draft.content;
-        }
-        
-        if (editDraftModal) editDraftModal.style.display = 'flex';
-    }
-
-    if (addDraftBtn) {
-        addDraftBtn.addEventListener('click', () => openEditDraftModal());
-    }
-    if (editDraftModal) {
-        editDraftModal.querySelector('.modal-close').addEventListener('click', () => editDraftModal.style.display = 'none');
-        editDraftModal.querySelector('.btn-cancel').addEventListener('click', () => editDraftModal.style.display = 'none');
-    }
-
-    if (editDraftForm) {
-        editDraftForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const draftData = {
-                draft_id: currentEditingDraftId,
-                title: document.getElementById('edit-draft-title').value,
-                content: document.getElementById('edit-draft-content').value,
-            };
-
-            const isUpdating = !!currentEditingDraftId;
-            const url = 'api/admin/message-drafts';
-            const method = isUpdating ? 'PUT' : 'POST';
-
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(draftData)
-                });
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || '儲存失敗');
-                }
-                alert('草稿儲存成功！');
-                editDraftModal.style.display = 'none';
-                allDrafts = [];
-                await fetchAllDrafts();
-            } catch (error) {
-                alert(`錯誤： ${error.message}`);
-            }
-        });
-    }
-
-    if (draftListTbody) {
-        draftListTbody.addEventListener('click', async (e) => {
-            const target = e.target;
-            // 【新增】處理快速上架開關
-            if (target.classList.contains('visibility-toggle')) {
-                const productId = target.dataset.productId;
-                const isVisible = target.checked;
-                try {
-                    const response = await fetch('/api/admin/toggle-product-visibility', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ productId, isVisible })
-                    });
-                    if(!response.ok) throw new Error('更新失敗');
-                    const product = allProducts.find(p => p.product_id === productId);
-                    if(product) product.is_visible = isVisible ? 1 : 0;
-                } catch(error) {
-                    alert(`更新失敗: ${error.message}`);
-                    target.checked = !isVisible; // 操作失敗時，還原 checkbox 狀態
-                }
-                return; // 結束，避免觸發 row click
-            }
-            const draftId = target.dataset.draftid;
-            if (!draftId) return;
-
-            if (target.classList.contains('btn-edit')) {
-                const draft = allDrafts.find(d => d.draft_id == draftId);
-                openEditDraftModal(draft);
-            } else if (target.classList.contains('btn-delete-draft')) {
-                if (confirm('確定要刪除這則草稿嗎？')) {
-                    try {
-                        const response = await fetch('api/admin/message-drafts', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ draft_id: Number(draftId) })
-                        });
-                        if (!response.ok) throw new Error('刪除失敗');
-                        alert('刪除成功！');
-                        allDrafts = allDrafts.filter(d => d.draft_id != draftId);
-                        renderDraftList(allDrafts);
-                    } catch (error) {
-                        alert(`錯誤：${error.message}`);
-                    }
-                }
-            }
-        });
-    }
 
 
     // =================================================================

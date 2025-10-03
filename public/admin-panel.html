@@ -7,362 +7,228 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店務管理系統 - 偵錯模式</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
-    <style>
-            /* 【新增這一段】響應式 CRM 樣式 */
-    @media (max-width: 768px) {
-        .details-grid {
-            grid-template-columns: 1fr; /* 在手機上，從左右兩欄變成垂直單欄 */
-        }
-        .profile-summary {
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-        }
+<style>
+    :root {
+        --color-bg: #f4f6f9; /* 頁面主背景色 - 柔和灰 */
+        --color-sidebar-bg: #ffffff; /* 側邊欄/卡片背景 - 純白 */
+        --color-header-bg: #ffffff; /* 頂部導覽列背景 */
+        --color-primary: #007bff; /* 主要互動色 - 經典藍 */
+        --color-secondary: #6c757d; /* 次要色 - 中灰 */
+        --color-success: #28a745; /* 成功色 - 綠色 */
+        --color-danger: #dc3545; /* 危險色 - 紅色 */
+        --color-warning: #ffc107; /* 警告色 - 黃色 */
+        --color-info: #17a2b8; /* 資訊色 - 青色 */
+        --color-text-dark: #212529; /* 主要文字顏色 - 深灰 */
+        --color-text-light: #6c757d; /* 次要文字顏色 - 中灰 */
+        --color-border: #dee2e6; /* 邊框顏色 */
+        --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --box-shadow: 0 0 1rem rgba(0, 0, 0, .05);
+        --border-radius: .375rem;
     }
-        :root {
-            --primary-color: #007bff; --secondary-color: #6c757d; --danger-color: #dc3545;
-            --success-color: #28a745; --warning-color: #ffc107; --info-color: #17a2b8;
-            --light-gray: #f8f9fa; --border-color: #dee2e6;
-            --text-dark: #343a40; --text-light: #6c757d;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--light-gray); }
-        .header { background-color: var(--text-dark); color: #343a40; padding: 0.8rem 1.5rem; }
-        .header h1 { margin: 0; font-size: 1.4rem; }
-        .nav-tabs { background-color: rgb(0, 34, 61); padding: 0 1rem; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: nowrap; overflow-x: auto; }
-        .nav-tabs a { padding: 0.8rem; color: var(--text-light); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
-        .nav-tabs a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
-        .main-content { padding: 1.5rem; }
-        body { background-color: #dcedf1; color: white; }
-        .page { display: none; }
-        .page.active { display: block; }
-        .page-header {
-            display: flex;                 /* 啟用 Flexbox 佈局 */
-            justify-content: space-between; /* 核心：將子元素推向兩端 */
-            align-items: center;           /* 讓標題和按鈕垂直置中對齊 */
-            margin-bottom: 1.5rem;
-        }
-        .page-header h2 { margin: 0; font-size: 1.8rem; color: var(--text-dark); }
-        
-        table { width: 100%; border-collapse: collapse; background: #343a40(7, 6, 6); box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
-        th, td { padding: 0.8rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; text-align: center; }
-        th { background-color: var(--light-gray); font-weight: 600; font-size: 0.9rem; }
-        td { font-size: 0.9rem; }
-        
-        .compound-cell .main-info { font-weight: bold; }
-        .compound-cell .sub-info { font-size: 0.8rem; color: var(--text-light); }
-        .action-btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: none; border-radius: 5px; cursor: pointer; color: white; }
-        .btn-edit { background-color: var(--warning-color); color: #212529; }
-        .btn-sync { background-color: var(--info-color); }
 
-        .filter-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; align-items: center; }
-        .filter-group { display: flex; gap: 0.5rem; }
-        .filter-group button { padding: 0.4rem 0.8rem; font-size: 0.8rem; border: 1px solid var(--border-color); background-color: white; border-radius: 5px; cursor: pointer; }
-        .filter-group button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-start; z-index: 1000; overflow-y: auto; padding-top: 5vh; padding-bottom: 5vh; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; }
-        .modal-header h3 { margin: 0; }
-        .modal-close { font-size: 1.5rem; font-weight: bold; border: none; background: none; cursor: pointer; }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .form-actions { margin-top: 20px; text-align: right; }
-        .btn-save { background-color: var(--primary-color); }
-        .btn-cancel { background-color: var(--secondary-color); }
+    /* --- 全域設定 --- */
+    body {
+        margin: 0;
+        font-family: var(--font-family-sans-serif);
+        background-color: var(--color-bg);
+        color: var(--color-text-dark); /* 主要文字改為深色 */
+    }
 
-        /* Dashboard Styles */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
-        .stat-card { background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .stat-card h3 { margin-top: 0; color: var(--text-light); font-size: 1rem; }
-        .stat-card .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary-color); }
-        .stat-card .stat-subtext { color: var(--text-light); font-size: 0.9rem; margin-top: 5px;}
+    /* --- 佈局 --- */
+    .header {
+        background-color: var(--color-header-bg);
+        color: var(--color-text-dark);
+        padding: 0.8rem 1.5rem;
+        border-bottom: 1px solid var(--color-border);
+        box-shadow: var(--box-shadow);
+    }
+    .header h1 { margin: 0; font-size: 1.4rem; }
 
-    /* CRM Modal Styles (優化空間版本) */
-        #user-details-modal .modal-content {
-            max-width: 800px;
-        }
-        .details-grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 1rem; /* 縮小網格間距 */
-        }
-        .profile-summary {
-            text-align: left;
-            word-break: break-all; /* 避免長字串撐開版面 */
-        }
-        .profile-summary img {
-            width: 80px; /* 縮小頭像 */
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: 0.5rem; /* 縮小頭像下方間距 */
-            display: block;
-            background-color: #f0f0f0;
-            border: 1px solid var(--border-color);
-        }
-        .profile-summary h4 { margin: 0.2rem 0; }
-        .profile-summary p {
-            margin: 0.15rem 0; /* 大幅縮小文字行間距 */
-            font-size: 0.8rem; /* 稍微縮小字體 */
-            color: var(--text-light);
-        }
-        .profile-summary hr { margin: 0.5rem 0; }
+    .nav-tabs {
+        background-color: var(--color-header-bg);
+        padding: 0 1rem;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* for smooth scrolling on mobile */
+    }
+    .nav-tabs a {
+        padding: 1rem 0.8rem;
+        color: var(--color-text-light);
+        text-decoration: none;
+        font-weight: 500;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: color 0.2s ease-in-out;
+    }
+    .nav-tabs a:hover { color: var(--color-primary); }
+    .nav-tabs a.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+    }
 
-        .details-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 0.5rem; /* 縮小頁籤下方間距 */
-        }
-        .details-tab {
-            padding: 0.5rem 0.8rem; /* 縮小頁籤上下內距 */
-            cursor: pointer;
-        }
-        .details-tab.active {
-            border-bottom: 3px solid var(--primary-color);
-            font-weight: bold;
-        }
-        .details-tab-content { display: none; }
-        .details-tab-content.active {
-            display: block;
-            max-height: 220px; /* 設定一個最大高度，內容超長時內部會產生捲軸 */
-            overflow-y: auto;
-        }
-        #user-details-modal table { font-size: 0.8rem; }
-        #user-details-modal th, #user-details-modal td { padding: 0.4rem; } /* 縮小表格內距 */
+    .main-content { padding: 1.5rem; }
+    .page { display: none; }
+    .page.active { display: block; }
 
-        .message-sender {
-            margin-top: 1rem; /* 縮小訊息發送區上方間距 */
-            border-top: 1px solid var(--border-color);
-            padding-top: 1rem; /* 縮小訊息發送區上方內距 */
-        }
+    .page-header {
+        display: flex;
+        flex-wrap: wrap; /* 在小螢幕上換行 */
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .page-header h2 { margin: 0; font-size: 1.8rem; color: var(--color-text-dark); }
 
+    /* --- 通用元件 --- */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--color-sidebar-bg);
+        box-shadow: var(--box-shadow);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+    }
+    th, td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-border);
+        vertical-align: middle;
+        text-align: left; /* 內容靠左對齊更易讀 */
+        color: var(--color-text-dark);
+    }
+    th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--color-text-light);
+    }
+    td { font-size: 0.95rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background-color: #f8f9fa; }
 
-        /* 【** 庫存管理頁樣式 **】 */
-        .draggable-row { cursor: default; }
-        .drag-handle-cell { text-align: left !important; }
-        .drag-handle { cursor: move; display: inline-block; width: 20px; font-size: 1.2rem; color: #999; margin-right: 5px; }
+    .compound-cell .main-info { font-weight: 500; }
+    .compound-cell .sub-info { font-size: 0.8rem; color: var(--color-text-light); }
 
-        /* 【** 編輯視窗專用 RWD 樣式 **】 */
-        #edit-game-modal .modal-content { max-width: 800px; }
-        .edit-game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .grid-span-2 { grid-column: span 2; }
-        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .sub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    .action-btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+        border: none;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        color: white;
+        transition: opacity 0.2s;
+    }
+    .action-btn:hover { opacity: 0.85; }
 
-        @media (max-width: 768px) {
-            .details-grid, .edit-game-grid, .sub-grid, .sub-grid-3 {
-                grid-template-columns: 1fr;
-            }
-            .grid-span-2 { grid-column: span 1; }
-            .profile-summary { border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
-        }
-                .modal-content {
-            background: white; padding: 25px; border-radius: 8px;
-            width: 90%; max-width: 600px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column;
-            max-height: 90vh;
-        }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; align-items: center; }
+    .filter-group { display: flex; gap: 0.5rem; }
+    .filter-group button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+        border: 1px solid var(--color-border);
+        background-color: var(--color-sidebar-bg);
+        border-radius: 5px;
+        cursor: pointer;
+        color: var(--color-text-light);
+    }
+    .filter-group button.active {
+        background-color: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
 
-        /* 【** 步驟 1: 讓表單填滿可用空間 **】 */
-        /* 我們需要讓 form 元素也成為 flex 容器的一部分 */
-        #edit-game-form {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* 確保內容不會溢出 form */
-            flex-grow: 1; /* 讓 form 填滿 modal-content 的剩餘空間 */
-        }
-        
-        .modal-body {
-            overflow-y: auto; /* 讓內容區塊可以垂直滾動 */
-            padding-right: 15px; /* 增加一點右邊距，避免滾動條太貼近內容 */
-        }
-        
-        .modal-header, .form-actions {
-            flex-shrink: 0; /* 確保頭部和腳部不會被壓縮 */
-        }
+    input, select, textarea {
+        width: 100%;
+        padding: .5rem .75rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius);
+        box-sizing: border-box;
+        background-color: var(--color-sidebar-bg);
+        color: var(--color-text-dark);
+    }
+    input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, .25);
+    }
 
-        /* 【** 步驟 2: (可選，但建議) 幫按鈕區塊加上分隔線 **】 */
-        .form-actions {
-            margin-top: 20px;
-            text-align: right;
-            flex-shrink: 0;
-            padding-top: 20px; /* 增加上方間距 */
-            border-top: 1px solid var(--border-color); /* 加上分隔線 */
-        }
+    /* --- Modal 彈窗 --- */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: none; justify-content: center; align-items: flex-start;
+        z-index: 1000; overflow-y: auto; padding: 5vh 0;
+    }
+    .modal-content {
+        background: white; padding: 25px; border-radius: var(--border-radius);
+        width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 10px; margin-bottom: 20px;
+    }
+    .modal-header h3 { margin: 0; color: var(--color-text-dark); }
+    .modal-close {
+        font-size: 1.5rem; font-weight: bold; border: none; background: none;
+        cursor: pointer; color: var(--color-secondary);
+    }
+    .form-actions {
+        margin-top: 20px; display: flex; justify-content: flex-end; gap: 0.5rem;
+    }
+    .btn-save { background-color: var(--color-primary); }
+    .btn-cancel { background-color: var(--color-secondary); }
 
-/* --- 行事曆樣式 --- */
-.calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    background-color: white;
-    border-radius: 8px 8px 0 0;
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-}
-.calendar-header h3 { margin: 0; font-size: 1.2rem; }
-.calendar-header button { background: none; border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+    /* --- 各頁面專屬微調 --- */
+    .stat-card {
+        background-color: var(--color-sidebar-bg); padding: 1.5rem;
+        border-radius: var(--border-radius); box-shadow: var(--box-shadow);
+    }
+    .stat-card h3 { margin-top: 0; color: var(--color-text-light); font-size: 1rem; }
+    .stat-card .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--color-primary); }
 
-#calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border: 1px solid var(--border-color);
-    background-color: white;
-}
-.calendar-day, .calendar-weekday {
-    border-right: 1px solid var(--border-color);
-    border-top: 1px solid var(--border-color);
-    padding: 8px;
-}
-.calendar-day:nth-child(7n) { border-right: none; }
-.calendar-weekday {
-    font-weight: bold;
-    text-align: center;
-    background-color: var(--light-gray);
-}
-.calendar-day {
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-}
-.day-number { font-weight: bold; }
-.day-other-month .day-number { color: #ccc; }
-.calendar-booking {
-    font-size: 0.75rem;
-    padding: 3px 5px;
-    margin-top: 5px;
-    border-radius: 4px;
-    background-color: var(--info-color);
-    color: white;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-} 
+    /* CRM Modal */
+    #user-details-modal .modal-content { max-width: 800px; }
+    .details-grid { display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; }
+    .profile-summary img {
+        width: 100px; height: 100px; border-radius: 50%;
+        margin-bottom: 1rem; background-color: #f0f0f0;
+        border: 2px solid var(--color-border);
+    }
+    .details-tabs { display: flex; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }
+    .details-tab { padding: 0.5rem 1rem; cursor: pointer; color: var(--color-text-light); }
+    .details-tab.active { border-bottom: 3px solid var(--color-primary); font-weight: 500; color: var(--color-primary); }
+    .details-tab-content { display: none; }
+    .details-tab-content.active { display: block; max-height: 250px; overflow-y: auto; }
 
-/* --- 【最終修正】彈窗滾動樣式 --- */
+    /* 產品管理 */
+    .drag-handle { cursor: move; color: #999; margin-right: 10px; }
+    #batch-actions-toolbar {
+        display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        width: calc(100% - 40px); max-width: 600px; background-color: var(--color-text-dark);
+        color: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        z-index: 99; align-items: center; justify-content: space-between; gap: 15px;
+    }
+    #batch-actions-toolbar.visible { display: flex; }
 
-/* 1. 讓 modal-content 成為 flex 容器，並限制最大高度 */
-#edit-product-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh; /* 最大高度為視窗的 90% */
-}
+    /* 滑動開關 */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--color-success); }
+    input:checked + .slider:before { transform: translateX(20px); }
 
-/* 2. 【關鍵】讓 form 填滿 header 以外的剩餘空間，並成為 flex 容器 */
-#edit-product-modal #edit-product-form {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* 延展以填滿可用空間 */
-    overflow: hidden; /* 防止內部元素溢出 form */
-}
-
-/* 3. 讓 modal-body 在 form 內部延展，並在內容過多時產生滾動條 */
-#edit-product-modal .modal-body {
-    flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
-    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
-    padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
-}
-
-/* 4. 確保頭部和腳部(按鈕區)高度固定，不被壓縮 */
-#edit-product-modal .modal-header,
-#edit-product-modal .form-actions {
-    flex-shrink: 0;
-}
-
-/* 5. (美化) 為按鈕區加上分隔線 */
-#edit-product-modal .form-actions {
-    padding-top: 20px;
-    margin-top: 15px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* --- 【新增】滑動開關 (Toggle Switch) 樣式 --- */
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 50px; /* 寬度 */
-    height: 28px; /* 高度 */
-}
-
-.switch input { 
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    -webkit-transition: .4s;
-    transition: .4s;
-    border-radius: 28px; /* 圓角 */
-}
-
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 20px; /* 圓點高度 */
-    width: 20px;  /* 圓點寬度 */
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    -webkit-transition: .4s;
-    transition: .4s;
-    border-radius: 50%;
-}
-
-input:checked + .slider {
-    background-color: var(--success-color); /* 開啟時的顏色 */
-}
-
-input:focus + .slider {
-    box-shadow: 0 0 1px var(--success-color);
-}
-
-input:checked + .slider:before {
-    -webkit-transform: translateX(22px); /* 圓點移動距離 */
-    -ms-transform: translateX(22px);
-    transform: translateX(22px);
-}
-
-/* public/admin-panel.html */
-
-/* --- 【新增】批次操作工具列樣式 --- */
-.batch-actions-toolbar {
-    display: none; /* 預設隱藏 */
-    position: sticky;
-    bottom: 80px; /* 顯示在 Tab Bar 上方 */
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 30px); /* 寬度比螢幕稍窄 */
-    max-width: 600px;
-    background-color: var(--text-dark);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 8px;
-    box-shadow: 0 -4px 15px rgba(0,0,0,0.2);
-    z-index: 99;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-}
-
-.batch-actions-toolbar.visible {
-    display: flex; /* 當加上 visible class 時顯示 */
-}
-
-#batch-selected-count {
-    font-weight: bold;
-}
-
-    </style>
+    /* 響應式 */
+    @media (max-width: 768px) {
+        .details-grid { grid-template-columns: 1fr; }
+        .page-header { flex-direction: column; align-items: flex-start; }
+    }
+</style>
 
 </head>
 

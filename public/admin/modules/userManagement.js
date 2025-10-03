@@ -4,6 +4,7 @@ import { api } from '../api.js';
 
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
+let allDrafts = []; // 【新增】存放訊息草稿的快取
 
 // 渲染使用者列表
 function renderUserList(users) {
@@ -129,6 +130,159 @@ async function openUserDetailsModal(userId) {
         userDetailsModal.querySelector('#user-details-title').textContent = displayName;
         contentContainer.innerHTML = `<p>成功載入使用者 ${displayName} 的資料。</p><p>(詳細 CRM 介面將在後續步驟中遷移)</p>`;
 
+    } catch (error) {
+        console.error("CRM 執行錯誤:", error);
+        contentContainer.innerHTML = `<p style="color:red;">載入資料時發生錯誤：${error.message}</p>`;
+    }
+}
+
+// 輔助函式：渲染歷史紀錄表格
+function renderHistoryTable(items, columns, headers) {
+    const fragment = document.createDocumentFragment();
+    if (!items || items.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = '無相關紀錄';
+        fragment.appendChild(p);
+        return fragment;
+    }
+    
+    const table = document.createElement('table');
+    table.innerHTML = `<thead><tr>${Object.values(headers).map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    const tbody = table.createTBody();
+
+    items.forEach(item => {
+        const row = tbody.insertRow();
+        columns.forEach(col => {
+            const cell = row.insertCell();
+            let value = item[col];
+            if (col.includes('date') || col.includes('_at')) {
+                value = new Date(value).toLocaleDateString();
+            }
+            cell.textContent = value;
+        });
+    });
+    
+    fragment.appendChild(table);
+    return fragment;
+}
+
+// 函式：載入並綁定訊息草稿
+async function loadAndBindMessageDrafts(userId) {
+    const select = document.querySelector('#message-draft-select');
+    const content = document.querySelector('#direct-message-content');
+    const sendBtn = document.querySelector('#send-direct-message-btn');
+    if (!select || !content || !sendBtn) return;
+    
+    // 如果快取中沒有草稿資料，才從 API 獲取
+    if (allDrafts.length === 0) {
+        allDrafts = await api.getMessageDrafts();
+    }
+
+    select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
+    allDrafts.forEach(d => select.add(new Option(d.title, d.content)));
+    
+    select.onchange = () => { content.value = select.value; };
+
+    // 使用 .onclick 確保每次打開 Modal 都綁定到正確的 userId
+    sendBtn.onclick = async () => {
+        const message = content.value.trim();
+        if (!message) { alert('訊息內容不可為空！'); return; }
+        if (!confirm(`確定要發送以下訊息給 ${userId} 嗎？\n\n${message}`)) return;
+        try {
+            sendBtn.textContent = '發送中...';
+            sendBtn.disabled = true;
+            await api.sendMessage(userId, message);
+            alert('訊息發送成功！');
+            content.value = '';
+            select.value = '';
+        } catch (error) {
+            alert(`錯誤：${error.message}`);
+        } finally {
+            sendBtn.textContent = '確認發送';
+            sendBtn.disabled = false;
+        }
+    };
+}
+
+// 函式：渲染 CRM 彈窗的完整內容
+function renderUserDetails(data) {
+    const userDetailsModal = document.getElementById('user-details-modal');
+    const contentContainer = userDetailsModal.querySelector('#user-details-content');
+    if (!contentContainer) return;
+
+    const { profile, bookings, exp_history } = data;
+    const displayName = profile.nickname || profile.line_display_name;
+    userDetailsModal.querySelector('#user-details-title').textContent = displayName;
+
+    contentContainer.innerHTML = `
+        <div class="details-grid">
+            <div class="profile-summary">
+                <img src="/api/admin/get-avatar?userId=${profile.user_id}" alt="Avatar">
+                <h4>${displayName}</h4>
+                <p><strong>姓名:</strong> ${profile.real_name || '未設定'}</p>
+                <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
+                <hr>
+                <p><strong>等級:</strong> ${profile.level} (${profile.current_exp}/10 EXP)</p>
+                <p><strong>會員方案:</strong> ${profile.class}</p>
+                <p><strong>標籤:</strong> ${profile.tag}</p>
+            </div>
+            <div class="profile-details">
+                ${profile.notes ? `<div class="crm-notes-section" style="margin-bottom: 1rem; padding: 0.8rem; background-color: #fffbe6; border-radius: 6px; border: 1px solid #ffe58f; max-height: 5em; overflow-y: auto;"><h4>顧客備註</h4><p style="white-space: pre-wrap; margin: 0;">${profile.notes}</p></div>` : ''}
+                <div class="details-tabs">
+                    <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
+                    <button class="details-tab" data-target="tab-exp">點數紀錄</button>
+                </div>
+                <div class="details-tab-content active" id="tab-bookings"></div>
+                <div class="details-tab-content" id="tab-exp"></div>
+            </div>
+        </div>
+        <div class="message-sender">
+            <h4>發送 LINE 訊息</h4>
+            <div class="form-group">
+                <label for="message-draft-select">選擇訊息草稿</label>
+                <select id="message-draft-select"><option value="">-- 手動輸入或選擇草稿 --</option></select>
+            </div>
+            <div class="form-group">
+                <label for="direct-message-content">訊息內容</label>
+                <textarea id="direct-message-content" rows="4"></textarea>
+            </div>
+            <div class="form-actions">
+                <button id="send-direct-message-btn" class="action-btn btn-save" data-userid="${profile.user_id}">確認發送</button>
+            </div>
+        </div>
+    `;
+
+    // 渲染兩個歷史紀錄表格
+    contentContainer.querySelector('#tab-bookings').appendChild(renderHistoryTable(bookings, ['booking_date', 'num_of_people', 'status'], { booking_date: '預約日', num_of_people: '人數', status: '狀態' }));
+    contentContainer.querySelector('#tab-exp').appendChild(renderHistoryTable(exp_history, ['created_at', 'reason', 'exp_added'], { created_at: '日期', reason: '原因', exp_added: '點數' }));
+
+    // 綁定頁籤切換事件
+    contentContainer.querySelector('.details-tabs').addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON') {
+            contentContainer.querySelector('.details-tab.active')?.classList.remove('active');
+            e.target.classList.add('active');
+            contentContainer.querySelector('.details-tab-content.active')?.classList.remove('active');
+            contentContainer.querySelector(`#${e.target.dataset.target}`)?.classList.add('active');
+        }
+    });
+    
+    // 呼叫函式來載入訊息草稿
+    loadAndBindMessageDrafts(profile.user_id);
+}
+
+// 【升級】開啟使用者詳細資料 (CRM) Modal
+async function openUserDetailsModal(userId) {
+    const userDetailsModal = document.getElementById('user-details-modal');
+    const contentContainer = userDetailsModal.querySelector('#user-details-content');
+    if (!userDetailsModal || !contentContainer) return;
+    
+    contentContainer.innerHTML = '<p>讀取中...</p>';
+    userDetailsModal.style.display = 'flex';
+
+    try {
+        const data = await api.getUserDetails(userId);
+        // 現在呼叫功能完整的渲染函式
+        renderUserDetails(data);
     } catch (error) {
         console.error("CRM 執行錯誤:", error);
         contentContainer.innerHTML = `<p style="color:red;">載入資料時發生錯誤：${error.message}</p>`;

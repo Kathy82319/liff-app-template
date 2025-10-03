@@ -7,19 +7,26 @@ export async function onRequest(context) {
     
     const body = await context.request.json();
     
-    // 【關鍵修正】直接從 body 中解構出 'product_id'
-    const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
+    // 從 body 中解構出所有可能的欄位
+    const { 
+        product_id, name, description, category, tags, images, 
+        is_visible, inventory_management_type, stock_quantity, stock_status, 
+        price, spec_1_name, spec_1_value, spec_2_name, spec_2_value, 
+        spec_3_name, spec_3_value, spec_4_name, spec_4_value, 
+        spec_5_name, spec_5_value 
+    } = body;
   
-    // 【關鍵修正】驗證 'product_id' 而不是 'productId'
+    // 後端驗證
     if (!product_id || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
 
     const db = context.env.DB;
     
+    // 【關鍵修正】對所有可能為空值的欄位進行安全處理，提供預設值
     const priceValue = (price || price === 0) ? Number(price) : null;
     const stockQuantityValue = (inventory_management_type === 'quantity' && (stock_quantity || stock_quantity === 0)) ? Number(stock_quantity) : null;
-
+    
     const stmt = db.prepare(
       `UPDATE Products SET
          name = ?, description = ?, category = ?, tags = ?, images = ?, is_visible = ?,
@@ -28,17 +35,28 @@ export async function onRequest(context) {
          spec_1_name = ?, spec_1_value = ?, spec_2_name = ?, spec_2_value = ?,
          spec_3_name = ?, spec_3_value = ?, spec_4_name = ?, spec_4_value = ?,
          spec_5_name = ?, spec_5_value = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE product_id = ?` // SQL 中的欄位名稱是正確的
+       WHERE product_id = ?`
     );
 
     const result = await stmt.bind(
-        name, description, category, tags, images, is_visible ? 1 : 0,
-        inventory_management_type, stockQuantityValue, stock_status,
-        price_type || 'simple', priceValue, price_options,
-        spec_1_name, spec_1_value, spec_2_name, spec_2_value,
-        spec_3_name, spec_3_value, spec_4_name, spec_4_value,
-        spec_5_name, spec_5_value,
-        product_id // 【關鍵修正】將 product_id 綁定到 SQL 語句
+        name || '', 
+        description || null, 
+        category || null, 
+        tags || null, 
+        images || '[]', 
+        is_visible ? 1 : 0,
+        inventory_management_type || 'none', 
+        stockQuantityValue, 
+        stock_status || null,
+        body.price_type || 'simple', // 如果前端沒傳，預設為 'simple'
+        priceValue, 
+        body.price_options || null, // 如果前端沒傳，預設為 null
+        spec_1_name || null, spec_1_value || null, 
+        spec_2_name || null, spec_2_value || null,
+        spec_3_name || null, spec_3_value || null, 
+        spec_4_name || null, spec_4_value || null,
+        spec_5_name || null, spec_5_value || null,
+        product_id
     ).run();
 
     if (result.meta.changes === 0) {
@@ -51,7 +69,18 @@ export async function onRequest(context) {
     });
 
   } catch (error) {
-    console.error('Error in update-product-details API:', error);
+    // 【新增偵錯日誌】
+    console.error('--- Update Product Details API Error ---');
+    console.error('Error Message:', error.message);
+    console.error('Error Cause:', error.cause);
+    try {
+        const requestBody = await context.request.json();
+        console.error('Request Body:', JSON.stringify(requestBody, null, 2));
+    } catch (e) {
+        console.error('Could not parse request body for debugging.');
+    }
+    console.error('------------------------------------');
+    
     return new Response(JSON.stringify({ error: '更新產品資訊失敗。', details: error.message }), { status: 500 });
   }
 }

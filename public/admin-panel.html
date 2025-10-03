@@ -5,7 +5,7 @@
     <script src="/config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>店務管理系統</title>
+    <title>店務管理系統 - 偵錯模式</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
     <style>
             /* 【新增這一段】響應式 CRM 樣式 */
@@ -31,7 +31,9 @@
         .nav-tabs a { padding: 0.8rem; color: var(--text-light); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
         .nav-tabs a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
         .main-content { padding: 1.5rem; }
-        .page { display: none; } .page.active { display: block; }
+        body { background-color: #222; color: white; }
+        .page { display: none; }
+        .page.active { display: block; }
         .page-header {
             display: flex;                 /* 啟用 Flexbox 佈局 */
             justify-content: space-between; /* 核心：將子元素推向兩端 */
@@ -369,7 +371,7 @@ input:checked + .slider:before {
 
     <div id="admin-panel" style="display: none;">
         <header class="header">
-            <h1>店務管理系統</h1>
+            <h1>店務管理系統 (偵錯模式)</h1>
         </header>
         <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
@@ -409,8 +411,10 @@ input:checked + .slider:before {
                 <h2>今日狀態總覽</h2>
             </div>
             <div id="dashboard-grid" class="dashboard-grid">
+                 <p>這是一段來自儀表板的測試文字。如果您能看到這行字，代表 HTML 結構沒有問題。</p>
                 <div class="stat-card" data-target="bookings">
                     <h3>今日預約總人數</h3>
+                    <p class="stat-value">測試值: 123</p>
                     <p id="stat-today-guests" class="stat-value">讀取中...</p>
                 </div>
                <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #fff5f5;">

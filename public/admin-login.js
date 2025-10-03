@@ -87,8 +87,6 @@ async function initializeAdminPanel() {
     const calendarPrevMonthBtn = document.getElementById('calendar-prev-month-btn');
     const calendarNextMonthBtn = document.getElementById('calendar-next-month-btn');
     const cancelBookingModal = document.getElementById('cancel-booking-modal');
-    const expHistoryTbody = document.getElementById('exp-history-tbody');
-    const expUserFilterInput = document.getElementById('exp-user-filter-input');
     const storeInfoForm = document.getElementById('store-info-form');
     const qrReaderElement = document.getElementById('qr-reader');
     const scanResultSection = document.getElementById('scan-result');
@@ -311,60 +309,7 @@ if (csvUploadInput) {
 }
 
 
-    // =================================================================
-    // 點數紀錄模組 (Experience/Points History)
-    // =================================================================
-    async function fetchAllExpHistory() {
-        try {
-            const response = await fetch('/api/admin/exp-history-list');
-            if (!response.ok) throw new Error('無法獲取點數紀錄');
-            allExpHistory = await response.json();
-            renderExpHistoryList(allExpHistory);
-        } catch (error) {
-            console.error('獲取點數紀錄失敗:', error);
-            if (expHistoryTbody) expHistoryTbody.innerHTML = `<tr><td colspan="4" style="color:red;">讀取紀錄失敗</td></tr>`;
-        }
-    }
 
-    function renderExpHistoryList(records) {
-        if (!expHistoryTbody) return;
-        expHistoryTbody.innerHTML = '';
-        if (records.length === 0) {
-            expHistoryTbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">找不到符合條件的紀錄。</td></tr>';
-            return;
-        }
-        records.forEach(record => {
-            const row = expHistoryTbody.insertRow();
-            const displayName = record.nickname || record.line_display_name || '未知使用者';
-            const date = new Date(record.created_at).toLocaleString('sv-SE');
-            const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
-            const expSign = record.exp_added > 0 ? '+' : '';
-            
-            row.innerHTML = `
-                <td class="compound-cell" style="text-align: left;">
-                    <div class="main-info">${displayName}</div>
-                    <div class="sub-info">${record.user_id}</div>
-                </td>
-                <td>${date}</td>
-                <td>${record.reason}</td>
-                <td class="${expClass}" style="font-weight: bold;">${expSign}${record.exp_added}</td>
-            `;
-        });
-    }
-
-    if (expUserFilterInput) {
-        expUserFilterInput.addEventListener('input', () => {
-            const searchTerm = expUserFilterInput.value.toLowerCase().trim();
-            const filteredRecords = searchTerm
-                ? allExpHistory.filter(record => 
-                    (record.nickname || record.line_display_name || '').toLowerCase().includes(searchTerm) ||
-                    (record.user_id || '').toLowerCase().includes(searchTerm)
-                  )
-                : allExpHistory;
-            renderExpHistoryList(filteredRecords);
-        });
-    }
-    
     // =================================================================
     // 系統設定模組 (System Settings)
     // =================================================================

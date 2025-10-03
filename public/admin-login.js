@@ -87,25 +87,8 @@ async function initializeAdminPanel() {
     const calendarPrevMonthBtn = document.getElementById('calendar-prev-month-btn');
     const calendarNextMonthBtn = document.getElementById('calendar-next-month-btn');
     const cancelBookingModal = document.getElementById('cancel-booking-modal');
-    const qrReaderElement = document.getElementById('qr-reader');
-    const scanResultSection = document.getElementById('scan-result');
-    const userIdDisplay = document.getElementById('user-id-display');
-    const reasonSelect = document.getElementById('reason-select');
-    const customReasonInput = document.getElementById('custom-reason-input');
-    const expInput = document.getElementById('exp-input');
-    const submitExpBtn = document.getElementById('submit-exp-btn');
-    const rescanBtn = document.getElementById('rescan-btn');
-    const scanStatusMessage = document.querySelector('#scan-status-container');
     const settingsForm = document.getElementById('settings-form');
-    const settingsContainer = document.getElementById('settings-container');
-    const pointsPage = document.getElementById('page-points');
-    const userSearchInputPoints = document.getElementById('user-search-input-points');
-    const userSearchResults = document.getElementById('user-search-results');
-    const startScanBtn = document.getElementById('start-scan-btn');
-    const qrReaderPoints = document.getElementById('qr-reader');
-    const selectedUserDisplay = document.getElementById('selected-user-display');
-    const pointsEntryForm = document.getElementById('points-entry-form');
-    const pointsStatusMessage = document.getElementById('points-status-message');    
+    const settingsContainer = document.getElementById('settings-container'); 
     const addProductBtn = document.getElementById('add-product-btn'); //產品頁面的"新增"
     const downloadCsvTemplateBtn = document.getElementById('download-csv-template-btn'); //產品頁面的"批量"
     const csvUploadInput = document.getElementById('csv-upload-input'); //產品頁面的"批量"
@@ -117,9 +100,6 @@ async function initializeAdminPanel() {
 
     // --- 全域狀態 ---
     let classPerks = {};
-    let html5QrCode = null;
-    let allSettings = [];
-    let currentSelectedUserForPoints = null;
 
     // --- 頁面切換邏輯 ---
     function showPage(pageId) {
@@ -498,134 +478,6 @@ if (csvUploadInput) {
             });
         }
     }    
-
-
-    // =================================================================
-    // 點數發放中心模組 (改造後)
-    // =================================================================
-    function initializePointsPage() {
-        if (!document.getElementById('page-points')) return;
-        currentSelectedUserForPoints = null;
-        userSearchInputPoints.value = '';
-        userSearchResults.innerHTML = '';
-        pointsEntryForm.style.display = 'none';
-        selectedUserDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
-        if(html5QrCode && html5QrCode.isScanning) html5QrCode.stop();
-        qrReaderPoints.style.display = 'none';
-        pointsStatusMessage.textContent = '';
-    }
-
-    async function handleUserSearchForPoints(query) {
-        if (query.length < 1) {
-            userSearchResults.innerHTML = '';
-            return;
-        }
-        try {
-            const response = await fetch(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
-            if (!response.ok) throw new Error('搜尋失敗');
-            const users = await response.json();
-            userSearchResults.innerHTML = '';
-            if (users.length === 0) {
-                userSearchResults.innerHTML = '<li>找不到符合的顧客</li>';
-            } else {
-                users.forEach(user => {
-                    const li = document.createElement('li');
-                    li.textContent = `${user.nickname || user.line_display_name} (${user.user_id.substring(0, 15)}...)`;
-                    li.dataset.userId = user.user_id;
-                    li.dataset.userName = user.nickname || user.line_display_name;
-                    userSearchResults.appendChild(li);
-                });
-            }
-        } catch (error) {
-            console.error(error);
-            userSearchResults.innerHTML = '<li>搜尋時發生錯誤</li>';
-        }
-    }
-
-    if (userSearchInputPoints) {
-        userSearchInputPoints.addEventListener('input', (e) => handleUserSearchForPoints(e.target.value));
-    }
-
-    if (userSearchResults) {
-        userSearchResults.addEventListener('click', (e) => {
-            const li = e.target.closest('li');
-            if (li && li.dataset.userId) {
-                currentSelectedUserForPoints = {
-                    id: li.dataset.userId,
-                    name: li.dataset.userName
-                };
-                selectedUserDisplay.textContent = `${currentSelectedUserForPoints.name} (${currentSelectedUserForPoints.id})`;
-                pointsEntryForm.style.display = 'block';
-                userSearchResults.innerHTML = '';
-                userSearchInputPoints.value = '';
-            }
-        });
-    }
-
-    if(startScanBtn){
-        startScanBtn.addEventListener('click', () => {
-            qrReaderPoints.style.display = 'block';
-            if (html5QrCode && html5QrCode.isScanning) return;
-            html5QrCode = new Html5Qrcode("qr-reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
-                async (decodedText, decodedResult) => {
-                    await html5QrCode.stop();
-                    qrReaderPoints.style.display = 'none';
-                    const user = allUsers.find(u => u.user_id === decodedText);
-                    if(user){
-                         currentSelectedUserForPoints = { id: user.user_id, name: user.nickname || user.line_display_name };
-                         selectedUserDisplay.textContent = `${currentSelectedUserForPoints.name} (${currentSelectedUserForPoints.id})`;
-                         pointsEntryForm.style.display = 'block';
-                    } else {
-                        alert('在資料庫中找不到此使用者！');
-                    }
-                },
-                (errorMessage) => { /* 掃描中... */ }
-            ).catch(err => alert('無法啟動相機，請檢查權限。'));
-        });
-    }
-
-if (submitExpBtn) {
-        submitExpBtn.addEventListener('click', async () => {
-            if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
-                alert('錯誤：尚未選取顧客！');
-                return;
-            }
-            const userId = currentSelectedUserForPoints.id;
-            const expValue = Number(expInput.value);
-            let reason = reasonSelect.value;
-            if (reason === 'other') {
-                reason = customReasonInput.value.trim();
-            }
-            if (!expValue || expValue <= 0 || !reason) {
-                pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
-                pointsStatusMessage.style.color = 'var(--danger-color)';
-                return;
-            }
-            pointsStatusMessage.textContent = '正在處理中...';
-            submitExpBtn.disabled = true;
-            try {
-                const response = await fetch('/api/add-points', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, expValue, reason }),
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || '未知錯誤');
-                pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
-                pointsStatusMessage.style.color = 'var(--success-color)';
-                expInput.value = '';
-                // 清空自訂原因輸入框並還原下拉選單
-                customReasonInput.value = '';
-                reasonSelect.value = '消費回饋';
-            } catch (error) {
-                pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
-                pointsStatusMessage.style.color = 'var(--danger-color)';
-            } finally {
-                submitExpBtn.disabled = false;
-            }
-        });
-    }
 
 
  

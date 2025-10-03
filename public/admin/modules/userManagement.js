@@ -112,29 +112,7 @@ function openEditUserModal(userId) {
     editUserModal.style.display = 'flex';
 }
 
-// 開啟使用者詳細資料 (CRM) Modal
-async function openUserDetailsModal(userId) {
-    const userDetailsModal = document.getElementById('user-details-modal');
-    const contentContainer = userDetailsModal.querySelector('#user-details-content');
-    if (!userDetailsModal || !contentContainer) return;
-    
-    contentContainer.innerHTML = '<p>讀取中...</p>';
-    userDetailsModal.style.display = 'flex';
 
-    try {
-        const data = await api.getUserDetails(userId);
-        // 此處省略 renderUserDetails 的詳細實作，因為它依賴更多函式
-        // 我們先確保主流程正確
-        const { profile } = data;
-        const displayName = profile.nickname || profile.line_display_name;
-        userDetailsModal.querySelector('#user-details-title').textContent = displayName;
-        contentContainer.innerHTML = `<p>成功載入使用者 ${displayName} 的資料。</p><p>(詳細 CRM 介面將在後續步驟中遷移)</p>`;
-
-    } catch (error) {
-        console.error("CRM 執行錯誤:", error);
-        contentContainer.innerHTML = `<p style="color:red;">載入資料時發生錯誤：${error.message}</p>`;
-    }
-}
 
 // 輔助函式：渲染歷史紀錄表格
 function renderHistoryTable(items, columns, headers) {

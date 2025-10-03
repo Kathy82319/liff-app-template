@@ -47,8 +47,7 @@ function initializeProductDragAndDrop() {
     if (sortableProducts) sortableProducts.destroy();
     if (tbody) {
         sortableProducts = new Sortable(tbody, {
-            animation: 150,
-            handle: '.drag-handle',
+            animation: 150, handle: '.drag-handle',
             onEnd: async (evt) => {
                 const orderedIds = Array.from(tbody.children).map(row => row.dataset.productId);
                 try {
@@ -59,10 +58,7 @@ function initializeProductDragAndDrop() {
                     });
                     allProducts.sort((a, b) => a.display_order - b.display_order);
                     applyProductFiltersAndRender();
-                } catch (error) {
-                    alert(error.message);
-                    init();
-                }
+                } catch (error) { alert(error.message); init(); }
             }
         });
     }
@@ -88,13 +84,10 @@ function handleCsvUpload(event) {
     reader.onload = async (e) => {
         const text = e.target.result;
         const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
-        if (lines.length < 2) {
-            alert('CSV 檔案中沒有可匯入的資料。');
-            return;
-        }
+        if (lines.length < 2) return alert('CSV 檔案中沒有可匯入的資料。');
+
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = lines.slice(1).map(line => {
-            // This is a simple CSV parser. For robust parsing, a library might be better.
             const values = line.split(',');
             const obj = {};
             headers.forEach((header, index) => {
@@ -108,9 +101,9 @@ function handleCsvUpload(event) {
             return;
         }
         try {
-            // NOTE: This assumes an API endpoint `bulkCreateProducts` exists in api.js
-            const result = await api.bulkCreateProducts({ products: data });
-            alert(result.message);
+            // 注意：這裡假設 api.js 中有名為 bulkCreateProducts 的 API 函式
+            await api.bulkCreateProducts({ products: data });
+            alert('匯入成功！');
             await init();
         } catch (error) {
             alert(`匯入失敗：${error.message}`);
@@ -124,9 +117,7 @@ function handleCsvUpload(event) {
 
 // --- Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
-    const modal = document.getElementById('edit-product-modal');
     const form = document.getElementById('edit-product-form');
-    if (!modal || !form) return;
     form.reset();
     
     const modalTitle = document.getElementById('modal-product-title');
@@ -161,7 +152,6 @@ function openProductModal(product = null) {
         idDisplay.value = '(儲存後將自動生成)';
         inventoryTypeSelect.value = 'none';
     }
-    // Manually trigger change event to show/hide conditional fields
     inventoryTypeSelect.dispatchEvent(new Event('change'));
     ui.showModal('#edit-product-modal');
 }
@@ -205,7 +195,7 @@ async function handleFormSubmit(event) {
         await init();
         alert('儲存成功！');
     } catch (error) {
-        alert(`錯誤：${error.message}`);
+        alert(`儲存失敗：${error.message}`);
     }
 }
 
@@ -253,7 +243,6 @@ function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page) return;
 
-    // 頁面級別的事件委派
     page.addEventListener('click', e => {
         if (e.target.id === 'add-product-btn') openProductModal();
         if (e.target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();

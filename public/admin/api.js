@@ -1,11 +1,5 @@
-// public/admin/api.js (修正後)
+// public/admin/api.js (最終完整版)
 
-/**
- * 處理 API 請求的通用函式
- * @param {string} url - API 的 URL
- * @param {object} options - fetch 的選項 (method, headers, body)
- * @returns {Promise<any>} - 解析後的 JSON 資料
- */
 async function request(url, options = {}) {
     try {
         const response = await fetch(url, options);
@@ -13,9 +7,7 @@ async function request(url, options = {}) {
             const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
             throw new Error(errorData.error || '未知的 API 錯誤');
         }
-        if (response.status === 204) {
-            return { success: true };
-        }
+        if (response.status === 204) return { success: true };
         return await response.json();
     } catch (error) {
         console.error(`API 請求失敗: ${url}`, error);
@@ -23,7 +15,6 @@ async function request(url, options = {}) {
     }
 }
 
-// 導出所有 API 函式
 export const api = {
     checkAuthStatus: () => request('/api/admin/auth/status'),
     getDashboardStats: () => request('/api/admin/dashboard-stats'),
@@ -40,6 +31,9 @@ export const api = {
     batchUpdateProducts: (productIds, isVisible) => request('/api/admin/batch-update-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds, isVisible }) }),
     createProduct: (data) => request('/api/admin/create-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     deleteProducts: (productIds) => request('/api/admin/delete-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds }) }),
+    // 【新增】CSV 匯入 API
+    bulkCreateProducts: (data) => request('/api/admin/bulk-create-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+
 
     getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`),
     updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId, status }) }),
@@ -64,13 +58,8 @@ export const api = {
     getStoreInfo: () => request('/api/get-store-info'),
     updateStoreInfo: (data) => request('/api/admin/update-store-info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
 
-    // 【新增】系統設定相關 API
     getSettings: () => request('/api/admin/get-settings'),
-    updateSettings: (settings) => request('/api/admin/update-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-    }),
+    updateSettings: (settings) => request('/api/admin/update-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) }),
     
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 

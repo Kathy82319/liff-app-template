@@ -1,41 +1,48 @@
-// functions/api/_middleware.js
+// functions/api/admin/_middleware.js
 
-function parseCookie(cookieString) {
-    const cookies = {};
-    if (cookieString) {
-        cookieString.split(';').forEach(cookie => {
-            const parts = cookie.match(/(.*?)=(.*)$/)
-            if(parts) {
-               cookies[parts[1].trim()] = (parts[2] || '').trim();
+import * as jose from 'jose';
+
+async function authMiddleware(context) {
+    const { request, env, next } = context;
+    
+    // **【資安重點 - 開發中暫時停用】**
+    // TODO: 在專案完成後，務必取消註解此區塊，以重新啟用後端 API 的 JWT 驗證！
+    /*
+    const url = new URL(request.url);
+
+    if (url.pathname.startsWith('/api/admin/')) {
+        const isAuthRoute = url.pathname.startsWith('/api/admin/auth/login') || url.pathname.startsWith('/api/admin/auth/logout');
+        if (isAuthRoute) {
+            return await next();
+        }
+
+        const cookie = request.headers.get('Cookie') || '';
+        const tokenMatch = cookie.match(/AuthToken=([^;]+)/);
+        const token = tokenMatch ? tokenMatch[1] : null;
+
+        if (!token) {
+            return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401 });
+        }
+
+        try {
+            const secret = new TextEncoder().encode(env.JWT_SECRET);
+            const { payload } = await jose.jwtVerify(token, secret, {
+                issuer: 'urn:tabletop-product:issuer',
+                audience: 'urn:tabletop-product:audience',
+            });
+
+            if (payload.role !== 'admin') {
+                return new Response(JSON.stringify({ error: 'Forbidden: Insufficient privileges' }), { status: 403 });
             }
-        });
+            context.data.user = payload;
+        } catch (err) {
+            return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token', details: err.message }), { status: 401 });
+        }
     }
-    return cookies;
+    */
+
+    // 在開發模式下，直接允許所有請求通過
+    return await next();
 }
- 
-export const onRequest = async (context) => {
-  const { request, next, env } = context;
-  const url = new URL(request.url);
 
-  // --- 【新增的偵錯 LOG】 ---
-  // 這個 Log 會在任何 /api/* 的請求進來時觸發。
-  // 我們要觀察的重點是：
-  // 1. 這行 Log 到底有沒有出現？
-  // 2. Log 中回報的 DB binding 是否為 true？
-  console.log(`[MIDDLEWARE_CHECK] Request received for: ${url.pathname}. DB binding exists: ${!!env.DB}`);
-  // --- 【偵錯 LOG 結束】 ---
-
-  // 原始的邏輯保持不變
-  if (url.pathname.startsWith('/admin-panel.html')) {
-    const cookie = request.headers.get('Cookie') || '';
-    const cookies = parseCookie(cookie);
-    const token = cookies.AuthToken;
-
-    if (!token) {
-      const loginUrl = new URL('/admin-login.html', url);
-      return Response.redirect(loginUrl.toString(), 302);
-    }
-  }
-
-  return await next();
-};
+export const onRequest = [authMiddleware];

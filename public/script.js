@@ -709,7 +709,7 @@ function renderProductDetails(product) {
     appContent.querySelector('.details-title').textContent = product.name;
     appContent.querySelector('#product-intro-content').textContent = product.description || '暫無介紹。';
     appContent.querySelector('#product-price-content').innerHTML = `<p class="price-value">$${product.price || '洽詢'}</p>`;    
-
+ 
     detailsTitle.textContent = product.name;
 
     try {

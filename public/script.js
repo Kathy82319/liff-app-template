@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
-    const myLiffId = "2008032417-3yJQGaO6";
+    const myLiffId = "2008032417-v82AyzaD";
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');

@@ -26,13 +26,13 @@ export const onRequest = async (context) => {
   // --- 【偵錯 LOG 結束】 ---
 
   // 原始的邏輯保持不變
-  if (url.pathname.startsWith('/admin-panel.html')) {
+  if (url.pathname.startsWith('/admin-panel-demo.html')) {
     const cookie = request.headers.get('Cookie') || '';
     const cookies = parseCookie(cookie);
     const token = cookies.AuthToken;
 
     if (!token) {
-      const loginUrl = new URL('/admin-login.html', url);
+      const loginUrl = new URL('/admin-login-demo.html', url);
       return Response.redirect(loginUrl.toString(), 302);
     }
   }

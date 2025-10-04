@@ -768,7 +768,7 @@ function renderProducts() {
             priceDisplay = `$${product.price}`;
         } 
         const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://via.placeholder.com/150';
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
 
         return `
             <div class="product-card" data-product-id="${product.product_id}">

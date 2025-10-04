@@ -1,10 +1,9 @@
-// functions/api/admin/_middleware.js
 
 import * as jose from 'jose';
 
 async function authMiddleware(context) {
     const { request, env, next } = context;
-    
+
     // **【資安重點 - 開發中暫時停用】**
     // TODO: 在專案完成後，務必取消註解此區塊，以重新啟用後端 API 的 JWT 驗證！
     /*

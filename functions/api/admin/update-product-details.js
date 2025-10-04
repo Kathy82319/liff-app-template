@@ -1,31 +1,60 @@
-// functions/api/admin/update-product-details.js (最終修正版)
+// functions/api/admin/update-boardproduct-details.js
+import { GoogleSpreadsheet } from 'google-spreadsheet';
+import * as jose from 'jose';
+
+// --- Google Sheets 工具函式 ---
+async function getAccessToken(env) {
+    const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY } = env;
+    if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) throw new Error('缺少 Google 服務帳號的環境變數。');
+    const privateKey = await jose.importPKCS8(GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), 'RS256');
+    const jwt = await new jose.SignJWT({ scope: 'https://www.googleapis.com/auth/spreadsheets' })
+      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' }).setIssuer(GOOGLE_SERVICE_ACCOUNT_EMAIL)
+      .setAudience('https://oauth2.googleapis.com/token').setSubject(GOOGLE_SERVICE_ACCOUNT_EMAIL)
+      .setIssuedAt().setExpirationTime('1h').sign(privateKey);
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
+    });
+    const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok) throw new Error(`從 Google 取得 access token 失敗: ${tokenData.error_description || tokenData.error}`);
+    return tokenData.access_token;
+}
+
+async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) {
+    const { GOOGLE_SHEET_ID } = env;
+    if (!GOOGLE_SHEET_ID) throw new Error('缺少 GOOGLE_SHEET_ID 環境變數。');
+    const accessToken = await getAccessToken(env);
+    const simpleAuth = { getRequestHeaders: () => ({ 'Authorization': `Bearer ${accessToken}` }) };
+    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
+    await doc.loadInfo();
+    const sheet = doc.sheetsByTitle[sheetName];
+    if (!sheet) throw new Error(`在 Google Sheets 中找不到名為 "${sheetName}" 的工作表。`);
+    const rows = await sheet.getRows();
+    const rowToUpdate = rows.find(row => row.get(matchColumn) == matchValue);
+    if (rowToUpdate) {
+        rowToUpdate.assign(updateData);
+        await rowToUpdate.save();
+    } else {
+        console.warn(`在工作表 "${sheetName}" 中找不到 ${matchColumn} 為 "${matchValue}" 的資料列，無法更新。`);
+    }
+}
+// --- Google Sheets 工具函式結束 ---
+
+// functions/api/admin/update-product-details.js (修正後)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
-      return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
+      return new Response('Invalid request method.', { status: 405 });
     }
     
     const body = await context.request.json();
-    
-    // 從 body 中解構出所有可能的欄位
-    const { 
-        product_id, name, description, category, tags, images, 
-        is_visible, inventory_management_type, stock_quantity, stock_status, 
-        price, spec_1_name, spec_1_value, spec_2_name, spec_2_value, 
-        spec_3_name, spec_3_value, spec_4_name, spec_4_value, 
-        spec_5_name, spec_5_value 
-    } = body;
+    const { productId, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    // 後端驗證
-    if (!product_id || !name) {
+    if (!productId || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
 
     const db = context.env.DB;
-    
-    // 【關鍵修正】對所有可能為空值的欄位進行安全處理，提供預設值
-    const priceValue = (price || price === 0) ? Number(price) : null;
-    const stockQuantityValue = (inventory_management_type === 'quantity' && (stock_quantity || stock_quantity === 0)) ? Number(stock_quantity) : null;
     
     const stmt = db.prepare(
       `UPDATE Products SET
@@ -39,28 +68,17 @@ export async function onRequest(context) {
     );
 
     const result = await stmt.bind(
-        name || '', 
-        description || null, 
-        category || null, 
-        tags || null, 
-        images || '[]', 
-        is_visible ? 1 : 0,
-        inventory_management_type || 'none', 
-        stockQuantityValue, 
-        stock_status || null,
-        body.price_type || 'simple', // 如果前端沒傳，預設為 'simple'
-        priceValue, 
-        body.price_options || null, // 如果前端沒傳，預設為 null
-        spec_1_name || null, spec_1_value || null, 
-        spec_2_name || null, spec_2_value || null,
-        spec_3_name || null, spec_3_value || null, 
-        spec_4_name || null, spec_4_value || null,
-        spec_5_name || null, spec_5_value || null,
-        product_id
+        name, description, category, tags, images, is_visible ? 1 : 0,
+        inventory_management_type, stock_quantity, stock_status,
+        price_type, price, price_options,
+        spec_1_name, spec_1_value, spec_2_name, spec_2_value,
+        spec_3_name, spec_3_value, spec_4_name, spec_4_value,
+        spec_5_name, spec_5_value,
+        productId
     ).run();
 
     if (result.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: `找不到產品 ID: ${product_id}，無法更新。` }), { status: 404 });
+      return new Response(JSON.stringify({ error: `找不到產品 ID: ${productId}，無法更新。` }), { status: 404 });
     }
     
     return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {
@@ -69,18 +87,7 @@ export async function onRequest(context) {
     });
 
   } catch (error) {
-    // 【新增偵錯日誌】
-    console.error('--- Update Product Details API Error ---');
-    console.error('Error Message:', error.message);
-    console.error('Error Cause:', error.cause);
-    try {
-        const requestBody = await context.request.json();
-        console.error('Request Body:', JSON.stringify(requestBody, null, 2));
-    } catch (e) {
-        console.error('Could not parse request body for debugging.');
-    }
-    console.error('------------------------------------');
-    
+    console.error('Error in update-product-details API:', error);
     return new Response(JSON.stringify({ error: '更新產品資訊失敗。', details: error.message }), { status: 500 });
   }
 }

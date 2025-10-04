@@ -38,7 +38,7 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
         console.warn(`在工作表 "${sheetName}" 中找不到 ${matchColumn} 為 "${matchValue}" 的資料列，無法更新。`);
     }
 }
-// --- Google Sheets 工具函式結束 ---
+
 
 // functions/api/admin/update-product-details.js (修正後)
 export async function onRequest(context) {

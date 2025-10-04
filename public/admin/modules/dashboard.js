@@ -4,11 +4,11 @@ import { ui } from '../ui.js';
 
 // 渲染儀表板數據
 const renderStats = (stats) => {
-    const guestsEl = document.getElementById('stat-today-guests');
-    if (guestsEl) {
-        guestsEl.textContent = stats.today_total_guests || 0;
-    }
-    // 未來可以在此處渲染更多統計數據
+    // 填充所有數據卡片
+    document.getElementById('stat-today-guests').textContent = stats.today_total_guests || 0;
+    document.getElementById('stat-today-new-bookings').textContent = stats.today_new_bookings || 0;
+    document.getElementById('stat-this-week-bookings').textContent = stats.this_week_bookings || 0;
+    document.getElementById('stat-today-new-users').textContent = stats.today_new_users || 0;
 };
 
 // 綁定儀表板頁面上的事件監聽器
@@ -26,7 +26,7 @@ const setupEventListeners = () => {
                 await api.resetDemoData();
                 alert('展示資料已成功清空！');
                 // 重新載入數據
-                init(); 
+                init();
             } catch (error) {
                 alert(`錯誤：${error.message}`);
             } finally {
@@ -42,15 +42,24 @@ export const init = async () => {
     // 確保頁面元素存在
     const page = document.getElementById('page-dashboard');
     if (!page) return;
-    
+
     // 顯示讀取中狀態
-    const guestsEl = document.getElementById('stat-today-guests');
-    if (guestsEl) guestsEl.textContent = '讀取中...';
+    document.getElementById('stat-today-guests').textContent = '讀取中...';
+    document.getElementById('stat-today-new-bookings').textContent = '讀取中...';
+    document.getElementById('stat-this-week-bookings').textContent = '讀取中...';
+    document.getElementById('stat-today-new-users').textContent = '讀取中...';
+
 
     try {
         const stats = await api.getDashboardStats();
         renderStats(stats);
-        setupEventListeners();
+        
+        // 確保事件只綁定一次
+        if (!page.dataset.initialized) {
+            setupEventListeners();
+            page.dataset.initialized = 'true';
+        }
+
     } catch (error) {
         console.error('獲取儀表板數據失敗:', error);
         page.innerHTML = `<p style="color:red;">讀取儀表板數據失敗: ${error.message}</p>`;

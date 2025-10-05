@@ -447,7 +447,6 @@ function renderBookings(bookings, container, isPast = false) {
     // 檢查使用者是否登入 LIFF
     // =================================================================
 async function handleAdminExperienceClick() {
-    // 檢查使用者是否登入 LIFF
     if (!userProfile || !userProfile.userId) {
         alert('無法獲取您的使用者資訊，請重新整理頁面再試一次。');
         return;
@@ -457,27 +456,31 @@ async function handleAdminExperienceClick() {
         return;
     }
 
+    const originalButton = document.getElementById('admin-experience-btn');
     try {
-        // 顯示處理中提示
-        const originalButton = document.getElementById('admin-experience-btn');
-        if(originalButton) originalButton.textContent = '連結產生中...';
+        if(originalButton) {
+            originalButton.textContent = '連結產生中...';
+            originalButton.disabled = true;
+        }
 
         const response = await fetch('/api/generate-admin-link', {
-            method: 'POST', // 使用 POST 方法傳送您的使用者 ID
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userProfile.userId }) // 將當前使用者ID傳給後端檢查
+            body: JSON.stringify({ userId: userProfile.userId })
         });
 
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || `發生未知錯誤，狀態碼: ${response.status}`);
+            throw new Error(result.error || `發生未知錯誤 (狀態碼: ${response.status})`);
         }
         
         if (result.success && result.link) {
-            alert('體驗連結已產生！正在為您開啟後台頁面...');
-            // 在新分頁中開啟後台，體驗較好
-            window.open(result.link, '_blank');
+            // 使用 LIFF 的 openWindow API 開啟新視窗
+            liff.openWindow({
+                url: result.link,
+                external: true
+            });
         } else {
             throw new Error('後端未能成功產生連結。');
         }
@@ -485,9 +488,10 @@ async function handleAdminExperienceClick() {
     } catch (error) {
         alert(`發生錯誤：${error.message}`);
     } finally {
-        // 無論成功失敗，都恢復按鈕文字
-        const originalButton = document.getElementById('admin-experience-btn');
-        if(originalButton) originalButton.textContent = '一鍵體驗後台';
+        if(originalButton) {
+            originalButton.textContent = '一鍵體驗後台';
+            originalButton.disabled = false;
+        }
     }
 }
     

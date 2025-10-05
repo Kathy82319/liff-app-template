@@ -1,0 +1,502 @@
+/* =================================================================
+   通用商業化模板 - 午夜藍主題 v1.0
+   ================================================================= */
+
+/* --- 1. 全域變數與基礎設定 --- */
+:root {
+    /* 色彩配置 */
+    --color-bg: #0a192f;               /* 背景 - 深邃海軍藍 */
+    --color-card-bg: #112240;          /* 卡片背景 - 略亮的藍 */
+    --color-header-bg: rgba(17, 34, 64, 0.85); /* 頁首/導覽列背景 - 半透明 */
+    --color-primary: #58a6ff;          /* 主要顏色 - 亮藍色 (用於標題、邊框) */
+    --color-accent: #6076d4;           /* 強調色 - 青色 (用於按鈕、活動狀態) */
+    --color-text-primary: #ccd6f6;     /* 主要文字 - 淡藍灰色 */
+    --color-text-secondary: #8892b0;   /* 次要文字 - 石板灰色 */
+    --color-danger: #ff5858;           /* 警告色 */
+
+    /* 字體設定 */
+    --font-primary: 'Helvetica Neue', 'Arial', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+
+    /* 圓角與陰影 */
+    --border-radius: 6px;
+    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+html {
+    box-sizing: border-box;
+}
+
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-primary);
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    padding-top: 10px;  /* 為固定頂部 Header 預留空間 */
+    padding-bottom: 70px; /* 為固定底部 TabBar 預留空間 */
+}
+
+#app-content {
+    padding: 15px;
+}
+
+/*不知道哪裡的設定*/
+.hidden {
+    display: none !important;
+}
+
+.page {
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.header {
+    background-color: var(--card-background);
+    padding: 5px 15px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#profile-picture {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-info h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.profile-info p {
+    margin: 5px 0 0;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.main-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.nav-button {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.nav-button:hover {
+    background-color: #f8f8f8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#loading-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    z-index: 1000;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* 預約歷史 */
+#booking-history-list .booking-item {
+    background-color: var(--card-background);
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border-left: 5px solid var(--primary-color);
+}
+#booking-history-list .booking-item.status-cancelled {
+    border-left-color: var(--text-light);
+    opacity: 0.7;
+}
+#booking-history-list .booking-item p {
+    margin: 0 0 8px 0;
+}
+
+/* --- 2. 核心佈局 (Header, Main, TabBar) --- */
+#app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 12px 15px;
+    background-color: var(--color-header-bg);
+    border-bottom: 1px solid var(--color-primary);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+#business-name-header {
+    margin: 0;
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--color-text-primary);
+}
+
+#tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 65px;
+    display: flex;
+    justify-content: space-around;
+    background-color: var(--color-header-bg);
+    border-top: 1px solid var(--color-primary);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+.tab-button {
+    flex-grow: 1;
+    padding: 8px 5px;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.3s, transform 0.3s;
+    line-height: 1.4;
+}
+
+.tab-button.active {
+    color: var(--color-accent);
+    transform: scale(1.1);
+}
+
+/* --- 3. 通用元件 (標題, 按鈕, 卡片, 表單) --- */
+.page-main-title {
+    font-size: 1.8rem;
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.cta-button {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #000;
+    background-color: var(--color-accent);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.cta-button:hover {
+    background-color: white;
+}
+
+.details-back-button {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--color-secondary);
+    color: var(--color-secondary);
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+/* 通用卡片/區塊樣式 */
+.news-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--border-radius);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--border-radius);
+    color: var(--color-text-primary);
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* --- 4. 各頁面專屬樣式 --- */
+
+/* A. 首頁 (最新情報) */
+#news-filter-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.news-filter-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--color-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: 16px;
+    cursor: pointer;
+}
+.news-filter-btn.active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg);
+}
+.news-card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.news-card-category {
+    font-weight: bold;
+    color: var(--color-accent);
+}
+.news-card-date {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+.news-card-title {
+    font-size: 1.2rem;
+    margin: 0 0 10px 0;
+}
+.news-card-image {
+    width: 100%;
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
+}
+
+/* 產品型錄 */
+#product-catalog {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 每行兩個 */
+    gap: 15px;
+}
+
+.product-card {
+    background-color: var(--card-background);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 【修正1】限制產品列表圖片大小 */
+.product-card .product-image {
+    width: 100%;
+    height: 140px; /* 給定一個固定高度 */
+    object-fit: cover; /* 確保圖片被裁剪而不是被壓縮變形 */
+    display: block;
+}
+
+.product-card .product-info {
+    padding: 10px;
+    flex-grow: 1;
+}
+
+.product-card .product-name {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.product-card .product-price {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+/* 產品詳細頁 */
+.page-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-right: 15px;
+    padding: 0 5px;
+}
+
+.page-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+#product-detail-view {
+    background-color: var(--card-background);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+/* 【修正3】限制產品詳細頁圖片大小 */
+#product-detail-images {
+    text-align: center; /* 讓容器內的圖片可以置中 */
+}
+
+#product-detail-images img {
+    width: 100%;
+    max-width: 100%; /* 確保圖片不會超出容器 */
+    height: auto;    /* 保持圖片的長寬比 */
+    display: block;
+    margin: 0 auto 10px; /* 置中並和下一張圖產生間距 */
+    border-radius: 8px;
+}
+
+
+#product-detail-info h3 {
+    margin-top: 0;
+}
+
+#product-specs {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+    border-top: 1px solid var(--border-color);
+}
+
+#product-specs li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+#product-specs li span:first-child {
+    color: var(--text-light);
+}
+
+/* public/style.css */
+
+/* --- 【新增】產品細節頁圖片庫樣式 --- */
+.details-gallery {
+    margin-bottom: 20px;
+}
+
+/* 主圖樣式：寬度 100% 填滿容器，並設定最大高度避免圖片過大 */
+.details-image-main {
+    width: 100%;
+    max-height: 400px; /* 限制最大高度 */
+    object-fit: cover;  /* 裁切圖片以適應容器，不變形 */
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
+    border: 1px solid var(--color-secondary);
+}
+
+/* 縮圖容器樣式：使用 flexbox 讓縮圖橫向排列 */
+.details-image-thumbnails {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto; /* 如果縮圖太多，可以橫向滾動 */
+}
+
+/* 縮圖樣式 */
+.details-image-thumbnails img {
+    width: 60px;  /* 固定寬度 */
+    height: 60px; /* 固定高度 */
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    border: 2px solid transparent; /* 預留邊框空間 */
+    transition: border-color 0.3s;
+}
+
+/* 當前選中縮圖的樣式 */
+.details-image-thumbnails img.active {
+    border-color: var(--color-primary); /* 加上高亮邊框 */
+}
+
+/* C. 會員中心 */
+#qrcode-container { display: flex; justify-content: center; margin: 20px 0; }
+#qrcode { padding: 10px; background: white; border-radius: var(--border-radius); }
+.profile-details-grid { display: flex; align-items: center; gap: 15px; }
+.profile-avatar img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--color-accent); }
+.profile-stats h2 { margin: 0 0 8px 0; font-size: 1.5rem; }
+.profile-stats p { margin: 4px 0; }
+.perk-display { text-align: center; padding: 12px; margin-top: 20px; border: 1px dashed var(--color-accent); border-radius: var(--border-radius); background-color: rgba(100, 255, 218, 0.1); }
+.profile-actions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* D. 線上預約 */
+/* Flatpickr 日曆樣式覆蓋 */
+.flatpickr-calendar {
+    background: var(--color-card-bg) !important;
+    border: 1px solid var(--color-primary) !important;
+    border-radius: var(--border-radius) !important;
+}
+.flatpickr-month, .flatpickr-weekday, .numInputWrapper, .flatpickr-day {
+    color: var(--color-text-primary) !important;
+}
+.flatpickr-day.selected {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-bg) !important;
+}
+.flatpickr-day:hover {
+    background: rgba(88, 166, 255, 0.3) !important;
+}
+
+#booking-slots-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+.slot-button {
+    padding: 12px 5px;
+    border: 1px solid var(--color-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+.slot-button:hover:not(:disabled) {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg);
+}
+.slot-button:disabled {
+    background: rgba(0,0,0,0.2);
+    cursor: not-allowed;
+    border: none;
+}
+

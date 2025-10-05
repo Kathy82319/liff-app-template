@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理系統登入</title>
+    <style>
+        :root { --primary-color: #007bff; --danger-color: #dc3545; --light-gray: #f8f9fa; --text-dark: #343a40; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: var(--light-gray); }
+        .login-box { width: 320px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: #fff; border-radius: 8px; }
+        h2 { text-align: center; color: var(--text-dark); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; font-size: 1rem; border: none; border-radius: 5px; cursor: pointer; color: white; background-color: var(--primary-color); }
+        button:disabled { background-color: #a0a0a0; }
+        .status-message { text-align: center; color: var(--danger-color); min-height: 1.2em; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>管理系統登入</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="login-username">管理員帳號</label>
+                <input type="text" id="login-username" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">密碼</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit" id="login-button">登入</button>
+            <p id="login-status" class="status-message"></p>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            if (!loginForm) return;
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('login-username').value.trim();
+                const password = document.getElementById('login-password').value;
+                const loginStatus = document.getElementById('login-status');
+                const loginButton = document.getElementById('login-button');
+                
+                loginStatus.textContent = '';
+                loginButton.disabled = true;
+                loginButton.textContent = '登入中...';
+                
+                try {
+                    const response = await fetch('/api/admin/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || '登入失敗');
+
+                    // 登入成功，導向到受保護的後台面板
+                    window.location.href = '/admin-panel.html';
+
+                } catch (error) {
+                    loginStatus.textContent = error.message;
+                } finally {
+                    loginButton.disabled = false;
+                    loginButton.textContent = '登入';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

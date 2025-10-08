@@ -18,29 +18,21 @@ const App = {
         'settings': './modules/systemSettings.js',
     },
 
-    // 【*** 偵錯修改處 ***】
     // 處理路由變更的核心函式
     async handleRouteChange() {
-        console.log('[偵錯LOG] 1. handleRouteChange() - 函式啟動');
-        
         // 從 URL hash 獲取當前頁面 ID，預設為 'dashboard'
         const pageId = window.location.hash.substring(1) || 'dashboard';
-        console.log(`[偵錯LOG] 2. 目標頁面 ID: ${pageId}`);
         
         ui.setActiveNav(pageId);
-        ui.showPage(pageId); // 呼叫 UI 模組來顯示頁面
+        ui.showPage(pageId);
 
         const modulePath = this.router[pageId];
         if (modulePath) {
             try {
-                console.log(`[偵錯LOG] 4. 準備載入模組: ${modulePath}`);
                 // 動態載入對應的模組
                 const pageModule = await import(modulePath);
-                console.log(`[偵錯LOG] 5. 模組 ${modulePath} 載入成功`);
-                
                 // 執行模組的初始化函式
                 if (pageModule.init) {
-                    console.log(`[偵錯LOG] 6. 執行 ${pageId} 模組的 init()`);
                     pageModule.init();
                 }
             } catch (error) {
@@ -50,6 +42,7 @@ const App = {
         }
     },
 
+    // 【*** 修改這裡 ***】
     // 應用程式初始化函式
     async init() {
         try {

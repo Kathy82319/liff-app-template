@@ -37,31 +37,36 @@ const setupEventListeners = () => {
     }
 };
 
-// 模組的初始化函式，由 app.js 呼叫
 export const init = async () => {
-    // 確保頁面元素存在
+    console.log('[偵錯LOG] 7. Dashboard init() - 函式啟動');
     const page = document.getElementById('page-dashboard');
-    if (!page) return;
+    if (!page) {
+        console.error('[偵錯LOG] 嚴重錯誤: 找不到 #page-dashboard 元素！');
+        return;
+    }
+    
+    // 為了確認 init 真的有執行，我們先手動改變一下頁面背景色
+    page.style.backgroundColor = 'lightblue';
+    console.log('[偵錯LOG] 8. 已將儀表板背景設為淺藍色');
 
-    // 顯示讀取中狀態
-    document.getElementById('stat-today-guests').textContent = '讀取中...';
-    document.getElementById('stat-today-new-bookings').textContent = '讀取中...';
-    document.getElementById('stat-this-week-bookings').textContent = '讀取中...';
-    document.getElementById('stat-today-new-users').textContent = '讀取中...';
-
+    const guestsEl = document.getElementById('stat-today-guests');
+    if (guestsEl) guestsEl.textContent = '讀取中...';
 
     try {
+        console.log('[偵錯LOG] 9. 準備呼叫 api.getDashboardStats()');
         const stats = await api.getDashboardStats();
-        renderStats(stats);
+        console.log('[偵錯LOG] 10. api.getDashboardStats() 成功，取得數據:', stats);
         
-        // 確保事件只綁定一次
-        if (!page.dataset.initialized) {
-            setupEventListeners();
-            page.dataset.initialized = 'true';
-        }
+        renderStats(stats);
+        setupEventListeners();
+        
+        // 成功後把背景色改回來
+        page.style.backgroundColor = ''; 
 
     } catch (error) {
-        console.error('獲取儀表板數據失敗:', error);
-        page.innerHTML = `<p style="color:red;">讀取儀表板數據失敗: ${error.message}</p>`;
+        console.error('【錯誤捕獲】獲取儀表板數據失敗:', error);
+        page.innerHTML = `<p style="color:red; font-size: 1.2rem;">讀取儀表板數據失敗: ${error.message}</p>`;
+        // 即使出錯，也把背景色改回來
+        page.style.backgroundColor = '';
     }
 };

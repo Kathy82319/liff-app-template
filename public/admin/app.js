@@ -94,5 +94,4 @@ const App = {
     }
 };
 
-// 當 DOM 載入完成後，啟動應用程式
 document.addEventListener('DOMContentLoaded', () => App.init());

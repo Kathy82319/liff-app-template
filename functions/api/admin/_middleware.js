@@ -3,12 +3,9 @@
 import * as jose from 'jose';
 
 async function authMiddleware(context) {
-    const { next } = context;
-    
-    // **【資安重點 - 開發中暫時停用】**
-    // TODO: 在專案完成後，務必取消註解此區塊，以重新啟用後端 API 的 JWT 驗證！
-    /*
-    const { request, env } = context;
+    // 【修改點】取消註解以下區塊
+    // vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    const { request, env, next } = context;
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api/admin/')) {
@@ -40,10 +37,11 @@ async function authMiddleware(context) {
             return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token', details: err.message }), { status: 401 });
         }
     }
-    */
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    // 【修改點】取消註解以上區塊
 
-    // 在開發模式下，直接允許所有請求通過
-    console.log('[Auth Middleware] Development mode: Bypassing authentication.');
+    // 在開發模式下，直接允許所有請求通過 -> 這行可以保留或刪除
+    // console.log('[Auth Middleware] Development mode: Bypassing authentication.');
     return await next();
 }
 

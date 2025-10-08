@@ -42,12 +42,27 @@ const App = {
         }
     },
 
+    // 【*** 修改這裡 ***】
     // 應用程式初始化函式
     async init() {
-        // **【資安重點】**
-        // 在執行任何操作之前，先檢查管理員登入狀態。
-        // 這是前端安全的第一道防線。
-        
+        try {
+            // 首先，從 API 獲取全域設定檔
+            const response = await fetch('/api/get-app-config');
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`獲取設定檔失敗: ${errorText}`);
+            }
+            // 將設定檔存到全域變數 window.CONFIG 中，方便所有模組取用
+            window.CONFIG = await response.json();
+            console.log('App config loaded:', window.CONFIG);
+
+        } catch (error) {
+            console.error("初始化失敗:", error);
+            // 如果連設定檔都拿不到，顯示錯誤訊息並中斷執行
+            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常。</p></div>`;
+            return;
+        }
+
         /* 這是登入守門員，目前還在建置階段，先關起來
         try {
             await api.checkAuthStatus(); // 假設 api.js 有這個函式

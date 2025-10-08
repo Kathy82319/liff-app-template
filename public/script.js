@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
-    const myLiffId = "2008032417-3yJQGaO6";
+    const myLiffId = "2008032417-v82AyzaD";
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -226,17 +226,52 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
             else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');
             else if (targetId === 'toggle-past-bookings-btn') togglePastView('bookings', 'past-bookings-container', target);
-            
-            // 取消預約按鈕
-            if (target.matches('.cancel-booking-btn')) {
-                const bookingId = target.dataset.bookingId;
-                if (!bookingId) return;
-                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-                    handleCancelBooking(bookingId);
-                }
+            else if (target.id === 'experience-backend-btn') {if (!userProfile || !userProfile.userId) {alert('無法獲取您的 LINE 資料，請稍後再試。');
+            return;
             }
-        });
+    target.disabled = true;
+    target.textContent = '正在產生連結...';
+
+    fetch('/api/generate-admin-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.userId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error || '產生連結失敗') });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.magicLink) {
+            // 使用 LIFF 的 API 在外部瀏覽器開啟，體驗最好
+            liff.openWindow({
+                url: data.magicLink,
+                external: true
+            });
+        }
+    })
+    .catch(error => {
+        alert(error.message);
+    })
+    .finally(() => {
+        target.disabled = false;
+        target.textContent = '一鍵體驗後台 (Magic Link)';
+    });
+}
+
+
+// 取消預約按鈕
+if (target.matches('.cancel-booking-btn')) {
+    const bookingId = target.dataset.bookingId;
+    if (!bookingId) return;
+    if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+        handleCancelBooking(bookingId);
+        }
     }
+    });
+}
 
 async function handleCancelBooking(bookingId) {
     const card = document.getElementById(`booking-card-${bookingId}`);
@@ -674,7 +709,7 @@ function renderProductDetails(product) {
     appContent.querySelector('.details-title').textContent = product.name;
     appContent.querySelector('#product-intro-content').textContent = product.description || '暫無介紹。';
     appContent.querySelector('#product-price-content').innerHTML = `<p class="price-value">$${product.price || '洽詢'}</p>`;    
-
+ 
     detailsTitle.textContent = product.name;
 
     try {
@@ -733,7 +768,7 @@ function renderProducts() {
             priceDisplay = `$${product.price}`;
         } 
         const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://via.placeholder.com/150';
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
 
         return `
             <div class="product-card" data-product-id="${product.product_id}">

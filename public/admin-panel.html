@@ -2,11 +2,10 @@
 <html lang="zh-Hant">
 
 <head>
-    <script src="/config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店務管理系統 - 偵錯模式</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">   
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     :root {
         --color-bg: #f4f6f9; /* 頁面主背景色 - 柔和灰 */
@@ -229,46 +228,86 @@
         .page-header { flex-direction: column; align-items: flex-start; }
     }
 
-/* --- 【新增】產品編輯 Modal 滾動樣式 --- */
+    /* --- 【新增】產品編輯 Modal 滾動樣式 --- */
+    #edit-product-modal .modal-content {
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh; /* 最大高度為視窗的 90% */
+    }
+    #edit-product-modal #edit-product-form {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1; /* 延展以填滿可用空間 */
+        overflow: hidden; /* 防止內部元素溢出 form */
+    }
+    #edit-product-modal .modal-body {
+        flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
+        overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
+        padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
+    }
+    #edit-product-modal .modal-header,
+    #edit-product-modal .form-actions {
+        flex-shrink: 0;
+    }
+    #edit-product-modal .form-actions {
+        padding-top: 20px;
+        margin-top: 15px;
+        border-top: 1px solid var(--color-border);
+    }
+    
+    /* --- 【新增】行事曆樣式 --- */
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    #calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        background-color: #fff;
+        padding: 10px;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+    }
+    .calendar-weekday, .calendar-day {
+        text-align: center;
+        padding: 8px 4px;
+    }
+    .calendar-weekday {
+        font-weight: bold;
+        color: var(--color-text-light);
+    }
+    .calendar-day {
+        border: 1px solid var(--color-border);
+        min-height: 100px;
+        position: relative;
+    }
+    .calendar-day .day-number {
+        font-weight: 500;
+    }
+    .calendar-booking {
+        font-size: 0.75rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-top: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .calendar-booking.status-confirmed {
+        background-color: var(--color-info);
+        color: white;
+    }
+     .calendar-booking.status-checked-in {
+        background-color: var(--color-success);
+        color: white;
+    }
 
-/* 1. 讓 modal-content 成為 flex 容器，並限制最大高度 */
-#edit-product-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh; /* 最大高度為視窗的 90% */
-}
-
-/* 2. 【關鍵】讓 form 填滿 header 以外的剩餘空間，並成為 flex 容器 */
-#edit-product-modal #edit-product-form {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* 延展以填滿可用空間 */
-    overflow: hidden; /* 防止內部元素溢出 form */
-}
-
-/* 3. 讓 modal-body 在 form 內部延展，並在內容過多時產生滾動條 */
-#edit-product-modal .modal-body {
-    flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
-    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
-    padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
-}
-
-/* 4. 確保頭部和腳部(按鈕區)高度固定，不被壓縮 */
-#edit-product-modal .modal-header,
-#edit-product-modal .form-actions {
-    flex-shrink: 0;
-}
-
-/* 5. (美化) 為按鈕區加上分隔線，確保與內容區有明顯區隔 */
-#edit-product-modal .form-actions {
-    padding-top: 20px;
-    margin-top: 15px;
-    border-top: 1px solid var(--color-border);
-}
 </style>
 
 </head>
-
 
 <body>
 
@@ -290,41 +329,22 @@
         </nav>
 
         <main class="main-content">
-            <div id="page-settings" class="page">
+            <div id="page-dashboard" class="page active">
                 <div class="page-header">
-                    <h2>系統設定</h2>
+                    <h2>今日狀態總覽</h2>
                 </div>
-                <form id="settings-form">
-                    <div id="settings-container">
-                        <p>正在載入設定...</p>
+                <div id="dashboard-grid" class="dashboard-grid">
+                    <div class="stat-card" data-target="bookings">
+                        <h3>今日預約總人數</h3>
+                        <p id="stat-today-guests" class="stat-value">讀取中...</p>
                     </div>
-                    <div class="form-actions" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                        <button type="submit" class="action-btn btn-save">儲存所有變更</button>
+                   <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #360000;">
+                          <h4 style="color: var(--danger-color); margin-top: 0;">危險操作區</h4>
+                          <p>此按鈕將會清空所有預約、租借、消費紀錄等展示資料，讓系統恢復初始狀態。此操作無法復原。</p>
+                          <button id="reset-demo-data-btn" class="action-btn" style="background-color: var(--danger-color);">清空所有展示資料</button>
                     </div>
-                </form>
-            </div>
-
-            <div id="page-scan" class="page">
-            </div>
-        </main>        
-
-<main class="main-content">
-        <div id="page-dashboard" class="page active">
-            <div class="page-header">
-                <h2>今日狀態總覽</h2>
-            </div>
-            <div id="dashboard-grid" class="dashboard-grid">
-                <div class="stat-card" data-target="bookings">
-                    <h3>今日預約總人數</h3>
-                    <p id="stat-today-guests" class="stat-value">讀取中...</p>
                 </div>
-               <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #360000;">
-                      <h4 style="color: var(--danger-color); margin-top: 0;">危險操作區</h4>
-                      <p>此按鈕將會清空所有預約、租借、消費紀錄等展示資料，讓系統恢復初始狀態。此操作無法復原。</p>
-                      <button id="reset-demo-data-btn" class="action-btn" style="background-color: var(--danger-color);">清空所有展示資料</button>
-                </div>                
             </div>
-        </div>
 
             <div id="page-users" class="page">
                 <div class="page-header">
@@ -340,147 +360,152 @@
                 </table>
             </div>
 
-<div id="page-inventory" class="page">
-            <div class="page-header">
-                <h2>產品/服務管理</h2>     
-                <div class="filter-group">                          
-                <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
-                <label for="csv-upload-input" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">從 CSV 匯入</label>
-                <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
-                <button id="add-product-btn" style="background-color: #17a2b8;" class="action-btn btn-save">新增單筆產品</button>
+            <div id="page-inventory" class="page">
+                <div class="page-header">
+                    <h2>產品/服務管理</h2>
+                    <div class="filter-group">
+                        <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
+                        <label for="csv-upload-input" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">從 CSV 匯入</label>
+                        <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
+                        <button id="add-product-btn" style="background-color: #17a2b8;" class="action-btn btn-save">新增單筆產品</button>
+                    </div>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" id="product-search-input" placeholder="依名稱搜尋..." style="flex-grow: 1; padding: 8px;">
+                    <div id="inventory-stock-filter" class="filter-group">
+                        <button class="active" data-filter="all">全部庫存</button>
+                        <button data-filter="in_stock">有庫存</button>
+                        <button data-filter="out_of_stock">無庫存</button>
+                    </div>
+                    <div id="inventory-visibility-filter" class="filter-group">
+                        <button class="active" data-filter="all">全部狀態</button>
+                        <button data-filter="visible">已上架</button>
+                        <button data-filter="hidden">未上架</button>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
+                            <th style="width: 50px;">順序</th>
+                            <th>產品/服務 (ID / 分類)</th>
+                            <th>庫存</th>
+                            <th>售價</th>
+                            <th style="width: 80px;">上架</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-list-tbody"></tbody>
+                </table>
+            </div>
+
+            <div id="page-bookings" class="page">
+                <div class="page-header">
+                    <h2>訂位管理</h2>
+                    <div>
+                        <button id="switch-to-calendar-view-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">切換至行事曆</button>
+                        <button id="create-booking-btn" class="action-btn btn-save" style="background-color: #17a2b8; margin-right: 10px;">手動建立預約</button>
+                        <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #17a2b8;">管理公休日</button>
+                    </div>
+                </div>
+
+                <div id="calendar-view-container" style="display: none;">
+                    <div class="calendar-header">
+                        <button id="calendar-prev-month-btn">&lt;</button>
+                        <h3 id="calendar-month-year"></h3>
+                        <button id="calendar-next-month-btn">&gt;</button>
+                    </div>
+                    <div id="calendar-grid"></div>
+                </div>
+
+                <div id="list-view-container">
+                    <div class="filter-bar">
+                        <div id="booking-status-filter" class="filter-group">
+                            <button class="active" data-filter="today">今日預約</button>
+                            <button data-filter="confirmed">未來預約</button>
+                            <button data-filter="checked-in">已報到</button>
+                            <button data-filter="cancelled">已取消</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>時間</th><th>客戶</th><th>人數</th><th>狀態</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="booking-list-tbody"></tbody>
+                    </table>
                 </div>
             </div>
-            <div class="filter-bar">
-                <input type="text" id="product-search-input" placeholder="依名稱搜尋..." style="flex-grow: 1; padding: 8px;">
-                <div id="inventory-stock-filter" class="filter-group">
-                    <button class="active" data-filter="all">全部庫存</button>
-                    <button data-filter="in_stock">有庫存</button>
-                    <button data-filter="out_of_stock">無庫存</button>
+
+            <div id="page-exp-history" class="page">
+                <div class="page-header">
+                    <h2>點數紀錄查詢</h2>
                 </div>
-                <div id="inventory-visibility-filter" class="filter-group">
-                    <button class="active" data-filter="all">全部狀態</button>
-                    <button data-filter="visible">已上架</button>
-                    <button data-filter="hidden">未上架</button>
+                <div class="filter-bar">
+                    <input type="search" id="exp-user-filter-input" placeholder="依使用者名稱或 LINE ID 搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
                 </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>使用者</th>
+                            <th>日期</th>
+                            <th>原因</th>
+                            <th>點數</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exp-history-tbody"></tbody>
+                </table>
             </div>
-    <div id="batch-actions-toolbar" class="batch-actions-toolbar">
-        <span id="batch-selected-count">已選取 0 項</span>
-        <div class="filter-group"> <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架</button>
-            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架</button>
-            <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
-        </div>
-    </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
-                        <th style="width: 50px;">順序</th>
-                        <th>產品/服務 (ID / 分類)</th>
-                        <th>庫存</th>
-                        <th>售價</th>
-                        <th style="width: 80px;">上架</th>
-                        <th style="width: 80px;">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="product-list-tbody"></tbody>
-            </table>
-        </div>
-
-
-<div id="page-bookings" class="page">
-    <div class="page-header">
-        <h2>訂位管理</h2>
-        <div>
-            <button id="switch-to-calendar-view-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">切換至行事曆</button>
-            <button id="create-booking-btn" class="action-btn btn-save" style="background-color: #17a2b8; margin-right: 10px;">手動建立預約</button>
-            <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
-            <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
-        </div>
-    </div>
-
-    <div id="calendar-view-container" style="display: none;">
-        <div class="calendar-header">
-            <button id="calendar-prev-month-btn">&lt;</button>
-            <h3 id="calendar-month-year"></h3>
-            <button id="calendar-next-month-btn">&gt;</button>
-        </div>
-        <div id="calendar-grid"></div>
-    </div>
-
-    <div id="list-view-container">
-        <div class="filter-bar">
-            <div id="booking-status-filter" class="filter-group">
-                <button class="active" data-filter="today">今日預約</button>
-                <button data-filter="confirmed">未來預約</button>
-                <button data-filter="checked-in">已報到</button>
-                <button data-filter="cancelled">已取消</button>
+            <div id="page-news" class="page">
+                <div class="page-header">
+                    <h2>情報管理</h2>
+                    <button id="add-news-btn" class="action-btn btn-save">新增情報</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>標題</th><th>分類</th><th>發布日期</th><th>狀態</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="news-list-tbody"></tbody>
+                </table>
             </div>
-        </div>
-        <table>
-            <thead>
-                <tr><th>時間</th><th>客戶</th><th>人數</th><th>狀態</th><th>操作</th></tr>
-            </thead>
-            <tbody id="booking-list-tbody"></tbody>
-        </table>
-    </div>
-</div>
 
-        <div id="page-exp-history" class="page">
-            <div class="page-header">
-                <h2>點數紀錄查詢</h2>
+            <div id="page-drafts" class="page">
+                <div class="page-header">
+                    <h2>訊息草稿管理</h2>
+                    <button id="add-draft-btn" class="action-btn btn-save">新增草稿</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>標題</th><th>內容預覽</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="draft-list-tbody"></tbody>
+                </table>
             </div>
-            <div class="filter-bar">
-                <input type="search" id="exp-user-filter-input" placeholder="依使用者名稱或 LINE ID 搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>使用者</th>
-                        <th>日期</th>
-                        <th>原因</th>
-                        <th>點數</th>
-                    </tr>
-                </thead>
-                <tbody id="exp-history-tbody"></tbody>
-            </table>
-        </div>
-        <div id="page-news" class="page">
-            <div class="page-header">
-                <h2>情報管理</h2>
-                <button id="add-news-btn" class="action-btn btn-save">新增情報</button>
-            </div>
-            <table>
-                <thead>
-                    <tr><th>標題</th><th>分類</th><th>發布日期</th><th>狀態</th><th>操作</th></tr>
-                </thead>
-                <tbody id="news-list-tbody"></tbody>
-            </table>
-        </div>
-        <div id="page-drafts" class="page">
-            <div class="page-header">
-                <h2>訊息草稿管理</h2>
-                <button id="add-draft-btn" class="action-btn btn-save">新增草稿</button>
-            </div>
-            <table>
-                <thead>
-                    <tr><th>標題</th><th>內容預覽</th><th>操作</th></tr>
-                </thead>
-                <tbody id="draft-list-tbody"></tbody>
-            </table>
-        </div>
 
+            <div id="page-store-info" class="page">
+                <div class="page-header"><h2>店家資訊管理</h2></div>
+                <form id="store-info-form">
+                    <div class="form-group"><label for="info-address">地址</label><input type="text" id="info-address" required></div>
+                    <div class="form-group"><label for="info-phone">電話</label><input type="text" id="info-phone" required></div>
+                    <div class="form-group"><label for="info-hours">營業時間 (換行請直接按 Enter)</label><textarea id="info-hours" rows="5" required></textarea></div>
+                    <div class="form-group"><label for="info-desc">店家介紹</label><textarea id="info-desc" rows="8" required></textarea></div>
+                    <div class="form-actions"><button type="submit" class="action-btn btn-save">儲存變更</button></div>
+                </form>
+            </div>
 
-        <div id="page-store-info" class="page">
-            <div class="page-header"><h2>店家資訊管理</h2></div>
-            <form id="store-info-form">
-                <div class="form-group"><label for="info-address">地址</label><input type="text" id="info-address" required></div>
-                <div class="form-group"><label for="info-phone">電話</label><input type="text" id="info-phone" required></div>
-                <div class="form-group"><label for="info-hours">營業時間 (換行請直接按 Enter)</label><textarea id="info-hours" rows="5" required></textarea></div>
-                <div class="form-group"><label for="info-desc">店家介紹</label><textarea id="info-desc" rows="8" required></textarea></div>
-                <div class="form-actions"><button type="submit" class="action-btn btn-save">儲存變更</button></div>
-            </form>
-        </div>
+            <div id="page-settings" class="page">
+                <div class="page-header">
+                    <h2>系統設定</h2>
+                </div>
+                <form id="settings-form">
+                    <div id="settings-container">
+                        <p>正在載入設定...</p>
+                    </div>
+                    <div class="form-actions" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                        <button type="submit" class="action-btn btn-save">儲存所有變更</button>
+                    </div>
+                </form>
+            </div>
 
             <div id="page-points" class="page">
                 <div class="page-header"><h2>點數發放中心</h2></div>
@@ -519,83 +544,267 @@
                     <p id="points-status-message" style="text-align: center; min-height: 1.2em; margin-top: 10px;"></p>
                 </div>
             </div>
-    
-<div id="booking-settings-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>管理可預約日 (可複選)</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <div id="booking-datepicker-admin-container"></div>
-        <div class="form-actions">
-            <button type="button" id="open-month-btn" class="action-btn" style="background-color: var(--info-color); float: left;">開啟本月所有日期</button>
-            <button type="button" class="action-btn btn-cancel">取消</button>
-            <button type="button" id="save-booking-settings-btn" class="action-btn btn-save">儲存變更</button>
+
+        </main>
+    </div>
+
+    <div id="batch-actions-toolbar" class="batch-actions-toolbar">
+        <span id="batch-selected-count">已選取 0 項</span>
+        <div class="filter-group">
+            <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架</button>
+            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架</button>
+            <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
         </div>
     </div>
-</div>
 
-<div id="user-details-modal" class="modal-overlay">
+    <div id="user-details-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="user-details-title">顧客資料</h3>
                 <button class="modal-close">&times;</button>
             </div>
-            <div id="user-details-content">
-                </div>
+            <div id="user-details-content"></div>
         </div>
     </div>
 
-    
-        <div id="edit-user-modal" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 id="modal-user-title">編輯使用者</h3>
-                    <button class="modal-close">&times;</button>
+    <div id="edit-user-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-user-title">編輯使用者</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-level-input">等級</label>
+                    <input type="number" id="edit-level-input" min="1" required>
                 </div>
-                <form id="edit-user-form">
-                    <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-exp-input">消費累積點數</label>
+                    <input type="number" id="edit-exp-input" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-class-select">會員方案</label>
+                    <select id="edit-class-select"></select>
+                    <input type="text" id="edit-class-other-input" placeholder="請輸入自訂方案名稱" style="display: none; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-perk-input">方案優惠</label>
+                    <input type="text" id="edit-perk-input" placeholder="選擇方案後將自動帶入">
+                </div>
+                <div class="form-group">
+                    <label for="edit-tag-select">標籤</label>
+                    <select id="edit-tag-select">
+                        <option value="">無</option>
+                        <option value="會員">會員</option>
+                        <option value="員工">員工</option>
+                        <option value="黑名單">黑名單</option>
+                        <option value="other">其他 (自訂)</option>
+                    </select>
+                    <input type="text" id="edit-tag-other-input" placeholder="請輸入自訂標籤" style="display: none; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-notes-textarea">備註</label>
+                    <textarea id="edit-notes-textarea" rows="4" placeholder="記錄客人的特殊事項..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-product-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-product-title">編輯產品/服務</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-product-form">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-product-id">
+                    <div class="edit-product-grid">
+                        <div class="form-group">
+                            <label for="edit-product-name">產品/服務名稱</label>
+                            <input type="text" id="edit-product-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-id-display">產品 ID (不可修改)</label>
+                            <input type="text" id="edit-product-id-display" readonly style="background: #e9ecef;">
+                        </div>
+                        <div class="sub-grid">
+                            <div class="form-group">
+                                <label for="edit-product-category">分類</label>
+                                <input type="text" id="edit-product-category" placeholder="例如: 課程, 餐飲, 服務">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-product-tags">標籤 (以逗號分隔)</label>
+                                <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>圖片網址 (最多5張)</label>
+                            <div class="edit-product-image-inputs">
+                                <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址" style="margin-bottom: 5px;">
+                                <input type="url" id="edit-product-image-2" placeholder="2. 請貼上圖片網址" style="margin-bottom: 5px;">
+                                <input type="url" id="edit-product-image-3" placeholder="3. 請貼上圖片網址" style="margin-bottom: 5px;">
+                                <input type="url" id="edit-product-image-4" placeholder="4. 請貼上圖片網址" style="margin-bottom: 5px;">
+                                <input type="url" id="edit-product-image-5" placeholder="5. 請貼上圖片網址">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-description">詳細介紹</label>
+                            <textarea id="edit-product-description" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-inventory-type">庫存管理模式</label>
+                            <select id="edit-product-inventory-type">
+                                <option value="none">無庫存管理</option>
+                                <option value="quantity">依數量管理</option>
+                                <option value="status">依狀態管理</option>
+                            </select>
+                        </div>
+                        <div id="stock-quantity-group" class="form-group" style="display: none;">
+                            <label for="edit-product-stock-quantity">庫存數量</label>
+                            <input type="number" id="edit-product-stock-quantity" min="0">
+                        </div>
+                        <div id="stock-status-group" class="form-group" style="display: none;">
+                            <label for="edit-product-stock-status">庫存狀態</label>
+                            <input type="text" id="edit-product-stock-status" placeholder="例如: 可預約, 已售罄">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-product-price">價格</label>
+                            <input type="number" id="edit-product-price" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; margin-top: 10px;">
+                                <input type="checkbox" id="edit-product-is-visible" style="width: auto; margin-right: 10px;">
+                                是否上架 (顯示於 LIFF)
+                            </label>
+                        </div>
+                        <div class="form-group grid-span-2">
+                            <hr>
+                            <label>彈性通用規格 (選填，最多5組)</label>
+                            <div class="sub-grid" style="margin-bottom: 10px;">
+                                <input type="text" id="edit-spec-1-name" placeholder="規格1名稱 (例: 課程時長)">
+                                <input type="text" id="edit-spec-1-value" placeholder="規格1內容 (例: 2小時)">
+                            </div>
+                            <div class="sub-grid" style="margin-bottom: 10px;">
+                                <input type="text" id="edit-spec-2-name" placeholder="規格2名稱 (例: 適合對象)">
+                                <input type="text" id="edit-spec-2-value" placeholder="規格2內容 (例: 初學者)">
+                            </div>
+                            <div class="sub-grid" style="margin-bottom: 10px;">
+                                <input type="text" id="edit-spec-3-name" placeholder="規格3名稱">
+                                <input type="text" id="edit-spec-3-value" placeholder="規格3內容">
+                            </div>
+                            <div class="sub-grid" style="margin-bottom: 10px;">
+                                <input type="text" id="edit-spec-4-name" placeholder="規格4名稱">
+                                <input type="text" id="edit-spec-4-value" placeholder="規格4內容">
+                            </div>
+                            <div class="sub-grid">
+                                <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
+                                <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存變更</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="create-booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>手動建立預約</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="create-booking-form">
+                <div class="form-group">
+                    <label for="booking-user-search">搜尋預約會員 (姓名/暱稱/ID)</label>
+                    <input type="text" id="booking-user-search" placeholder="輸入關鍵字搜尋...">
+                    <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
+                </div>
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                <div class="sub-grid">
                     <div class="form-group">
-                        <label for="edit-level-input">等級</label>
-                        <input type="number" id="edit-level-input" min="1" required>
+                        <label for="booking-date-input">預約日期</label>
+                        <input type="text" id="booking-date-input" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit-exp-input">消費累積點數</label>
-                        <input type="number" id="edit-exp-input" min="0" required>
+                        <label for="booking-slot-select">預約時段</label>
+                        <select id="booking-slot-select" required></select>
+                    </div>
+                </div>
+                <div class="sub-grid">
+                    <div class="form-group">
+                        <label for="booking-name-input">聯絡姓名</label>
+                        <input type="text" id="booking-name-input" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="booking-phone-input">聯絡電話</label>
+                        <input type="tel" id="booking-phone-input" required>
+                    </div>
+                </div>
+                 <div class="sub-grid">
+                    <div class="form-group">
+                        <label for="booking-people-input">人數</label>
+                        <input type="number" id="booking-people-input" value="1" min="1" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit-class-select">會員方案</label>
-                        <select id="edit-class-select"></select>
-                        <input type="text" id="edit-class-other-input" placeholder="請輸入自訂方案名稱" style="display: none; margin-top: 10px;">
+                        <label for="booking-item-input">預約項目 (選填)</label>
+                        <input type="text" id="booking-item-input">
                     </div>
-                    <div class="form-group">
-                        <label for="edit-perk-input">方案優惠</label>
-                        <input type="text" id="edit-perk-input" placeholder="選擇方案後將自動帶入">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-tag-select">標籤</label>
-                        <select id="edit-tag-select">
-                            <option value="">無</option>
-                            <option value="會員">會員</option>
-                            <option value="員工">員工</option>
-                            <option value="黑名單">黑名單</option>
-                            <option value="other">其他 (自訂)</option>
-                        </select>
-                        <input type="text" id="edit-tag-other-input" placeholder="請輸入自訂標籤" style="display: none; margin-top: 10px;">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-notes-textarea">備註</label>
-                        <textarea id="edit-notes-textarea" rows="4" placeholder="記錄客人的特殊事項..."></textarea>
-                    </div>                
-                    <div class="form-actions">
-                        <button type="button" class="action-btn btn-cancel">取消</button>
-                        <button type="submit" class="action-btn btn-save">儲存</button>
-                    </div>
-                </form>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel">取消</button>
+                    <button type="submit" class="action-btn btn-save">確認建立</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="booking-settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>管理可預約日 (可複選)</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="booking-datepicker-admin-container"></div>
+            <div class="form-actions">
+                <button type="button" id="open-month-btn" class="action-btn" style="background-color: var(--info-color); float: left;">開啟本月所有日期</button>
+                <button type="button" class="action-btn btn-cancel">取消</button>
+                <button type="button" id="save-booking-settings-btn" class="action-btn btn-save">儲存變更</button>
             </div>
         </div>
-    
+    </div>
 
+    <div id="cancel-booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>取消預約並發送通知</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <p>您正準備取消 <strong id="cancel-booking-info"></strong> 的預約。</p>
+            <div class="message-sender">
+                <div class="form-group">
+                    <label for="cancel-message-draft-select">選擇通知訊息草稿 (選填)</label>
+                    <select id="cancel-message-draft-select"><option value="">-- 不發送通知或手動輸入 --</option></select>
+                </div>
+                <div class="form-group">
+                    <label for="cancel-direct-message-content">訊息內容</label>
+                    <textarea id="cancel-direct-message-content" rows="4" placeholder="若留空，則只取消預約，不發送通知。"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button id="confirm-cancel-booking-btn" class="action-btn btn-save">確認取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="edit-news-modal" class="modal-overlay">
         <div class="modal-content">
@@ -617,131 +826,6 @@
         </div>
     </div>
 
- 
-       <div id="cancel-booking-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>取消預約並發送通知</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <p>您正準備取消 <strong id="cancel-booking-info"></strong> 的預約。</p>
-            <div class="message-sender">
-                <div class="form-group">
-                    <label for="cancel-message-draft-select">選擇通知訊息草稿 (選填)</label>
-                    <select id="cancel-message-draft-select"><option value="">-- 不發送通知或手動輸入 --</option></select>
-                </div>
-                <div class="form-group">
-                    <label for="cancel-direct-message-content">訊息內容</label>
-                    <textarea id="cancel-direct-message-content" rows="4" placeholder="若留空，則只取消預約，不發送通知。"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button id="confirm-cancel-booking-btn" class="action-btn btn-save">確認取消</button>
-                </div>
-            </div>
-        </div>
-    </div> 
-
-<div id="edit-product-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modal-product-title">編輯產品/服務</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <form id="edit-product-form">
-            <div class="modal-body">
-                <input type="hidden" id="edit-product-id">
-                <div class="edit-product-grid">
-                    <div class="form-group">
-                        <label for="edit-product-name">產品/服務名稱</label>
-                        <input type="text" id="edit-product-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-product-id-display">產品 ID (不可修改)</label>
-                        <input type="text" id="edit-product-id-display" readonly style="background: #e9ecef;">
-                    </div>
-                    <div class="sub-grid">
-                        <div class="form-group">
-                            <label for="edit-product-category">分類</label>
-                            <input type="text" id="edit-product-category" placeholder="例如: 課程, 餐飲, 服務">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-product-tags">標籤 (以逗號分隔)</label>
-                            <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>圖片網址 (最多5張)</label>
-                        <div class="edit-product-image-inputs">
-                            <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址" style="margin-bottom: 5px;">
-                            <input type="url" id="edit-product-image-2" placeholder="2. 請貼上圖片網址" style="margin-bottom: 5px;">
-                            <input type="url" id="edit-product-image-3" placeholder="3. 請貼上圖片網址" style="margin-bottom: 5px;">
-                            <input type="url" id="edit-product-image-4" placeholder="4. 請貼上圖片網址" style="margin-bottom: 5px;">
-                            <input type="url" id="edit-product-image-5" placeholder="5. 請貼上圖片網址">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-product-description">詳細介紹</label>
-                        <textarea id="edit-product-description" rows="5"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-product-inventory-type">庫存管理模式</label>
-                        <select id="edit-product-inventory-type">
-                            <option value="none">無庫存管理</option>
-                            <option value="quantity">依數量管理</option>
-                            <option value="status">依狀態管理</option>
-                        </select>
-                    </div>
-                    <div id="stock-quantity-group" class="form-group" style="display: none;">
-                        <label for="edit-product-stock-quantity">庫存數量</label>
-                        <input type="number" id="edit-product-stock-quantity" min="0">
-                    </div>
-                    <div id="stock-status-group" class="form-group" style="display: none;">
-                        <label for="edit-product-stock-status">庫存狀態</label>
-                        <input type="text" id="edit-product-stock-status" placeholder="例如: 可預約, 已售罄">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-product-price">價格</label>
-                        <input type="number" id="edit-product-price" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; margin-top: 10px;">
-                            <input type="checkbox" id="edit-product-is-visible" style="width: auto; margin-right: 10px;">
-                            是否上架 (顯示於 LIFF)
-                        </label>
-                    </div>
-                    <div class="form-group grid-span-2">
-                        <hr>
-                        <label>彈性通用規格 (選填，最多5組)</label>
-                        <div class="sub-grid" style="margin-bottom: 10px;">
-                            <input type="text" id="edit-spec-1-name" placeholder="規格1名稱 (例: 課程時長)">
-                            <input type="text" id="edit-spec-1-value" placeholder="規格1內容 (例: 2小時)">
-                        </div>
-                        <div class="sub-grid" style="margin-bottom: 10px;">
-                            <input type="text" id="edit-spec-2-name" placeholder="規格2名稱 (例: 適合對象)">
-                            <input type="text" id="edit-spec-2-value" placeholder="規格2內容 (例: 初學者)">
-                        </div>
-                        <div class="sub-grid" style="margin-bottom: 10px;">
-                            <input type="text" id="edit-spec-3-name" placeholder="規格3名稱">
-                            <input type="text" id="edit-spec-3-value" placeholder="規格3內容">
-                        </div>
-                        <div class="sub-grid" style="margin-bottom: 10px;">
-                            <input type="text" id="edit-spec-4-name" placeholder="規格4名稱">
-                            <input type="text" id="edit-spec-4-value" placeholder="規格4內容">
-                        </div>
-                        <div class="sub-grid">
-                            <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
-                            <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
-                        </div>
-                    </div>
-                </div>
-            </div> <div class="form-actions">
-                <button type="button" class="action-btn btn-cancel">取消</button>
-                <button type="submit" class="action-btn btn-save">儲存變更</button>
-            </div>
-        </form>
-    </div>
-</div>
-    
     <div id="edit-draft-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -765,58 +849,6 @@
             </form>
         </div>
     </div>
-
-
-<div id="create-booking-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>手動建立預約</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <form id="create-booking-form">
-            <div class="form-group">
-                <label for="booking-user-search">搜尋預約會員 (姓名/暱稱/ID)</label>
-                <input type="text" id="booking-user-search" placeholder="輸入關鍵字搜尋...">
-                <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
-            </div>
-            <hr style="border-color: var(--border-color); margin: 20px 0;">
-            <div class="sub-grid">
-                <div class="form-group">
-                    <label for="booking-date-input">預約日期</label>
-                    <input type="text" id="booking-date-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="booking-slot-select">預約時段</label>
-                    <select id="booking-slot-select" required></select>
-                </div>
-            </div>
-            <div class="sub-grid">
-                <div class="form-group">
-                    <label for="booking-name-input">聯絡姓名</label>
-                    <input type="text" id="booking-name-input" required>
-                </div>
-                 <div class="form-group">
-                    <label for="booking-phone-input">聯絡電話</label>
-                    <input type="tel" id="booking-phone-input" required>
-                </div>
-            </div>
-             <div class="sub-grid">
-                <div class="form-group">
-                    <label for="booking-people-input">人數</label>
-                    <input type="number" id="booking-people-input" value="1" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label for="booking-item-input">預約項目 (選填)</label>
-                    <input type="text" id="booking-item-input">
-                </div>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="action-btn btn-cancel">取消</button>
-                <button type="submit" class="action-btn btn-save">確認建立</button>
-            </div>
-        </form>
-    </div>
-</div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

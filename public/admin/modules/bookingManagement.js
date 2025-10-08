@@ -182,16 +182,56 @@ async function fetchDataAndRender(filter = 'today') {
     }
 }
 
+// 【*** 核心修正區塊 ***】
+// 處理儲存公休日的邏輯
+async function handleSaveBookingSettings() {
+    if (!bookingDatepicker) return;
+    const saveButton = document.getElementById('save-booking-settings-btn');
+    
+    try {
+        saveButton.disabled = true;
+        saveButton.textContent = '儲存中...';
+
+        const newEnabledDates = bookingDatepicker.selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
+        const originalDates = new Set(enabledDates);
+        const newDates = new Set(newEnabledDates);
+
+        const datesToAdd = newEnabledDates.filter(d => !originalDates.has(d));
+        const datesToRemove = enabledDates.filter(d => !newDates.has(d));
+        
+        const promises = [];
+        datesToAdd.forEach(date => {
+            promises.push(api.saveBookingSettings({ action: 'add', date: date }));
+        });
+        datesToRemove.forEach(date => {
+            promises.push(api.saveBookingSettings({ action: 'remove', date: date }));
+        });
+
+        await Promise.all(promises);
+
+        alert('可預約日期已成功儲存！');
+        ui.hideModal('#booking-settings-modal');
+        // 更新快取的日期
+        enabledDates = newEnabledDates;
+    } catch (error) {
+        alert("儲存失敗: " + error.message);
+    } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = '儲存變更';
+    }
+}
+
+
 // 綁定事件監聽器
 function setupEventListeners() {
     const page = document.getElementById('page-bookings');
     if(!page) return;
 
-    // 將所有點擊事件委派到 page 元素
+    if (page.dataset.initialized) return; // 防止重複綁定
+
     page.addEventListener('click', async e => {
         const target = e.target;
         
-        // 視圖切換
         if(target.id === 'switch-to-calendar-view-btn') {
             const listView = document.getElementById('list-view-container');
             const calendarView = document.getElementById('calendar-view-container');
@@ -202,49 +242,37 @@ function setupEventListeners() {
             fetchDataAndRender();
         }
         
-        // 列表篩選
         else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             target.classList.add('active');
             fetchDataAndRender(target.dataset.filter);
         }
 
-        // 列表操作按鈕
         else if (target.closest('.actions-cell')) {
             const bookingId = target.dataset.bookingId;
             if (!bookingId) return;
+            const currentFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
 
             if (target.classList.contains('btn-check-in')) {
                 if (confirm('確定要將此預約標示為「已報到」嗎？')) {
                     await api.updateBookingStatus(Number(bookingId), 'checked-in').catch(err => alert(`錯誤：${err.message}`));
-                    fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
+                    fetchDataAndRender(currentFilter);
                 }
             } else if (target.classList.contains('btn-cancel-booking')) {
                 if (confirm('確定要取消此預約嗎？')) {
                      await api.updateBookingStatus(Number(bookingId), 'cancelled').catch(err => alert(`錯誤：${err.message}`));
-                    fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
+                    fetchDataAndRender(currentFilter);
                 }
             }
         }
         
-        // 手動建立預約
         else if(target.id === 'create-booking-btn') {
             initializeCreateBookingModal();
             ui.showModal('#create-booking-modal');
         }
 
-        // 管理公休日
         else if (target.id === 'manage-booking-dates-btn') {
-            // ... (此部分邏輯不變)
-        }
-    });
-
-
-    // 管理公休日按鈕
-    const manageBookingDatesBtn = document.getElementById('manage-booking-dates-btn');
-    if (manageBookingDatesBtn) {
-        manageBookingDatesBtn.onclick = async () => {
-            try {
+             try {
                 enabledDates = await api.getBookingSettings();
                 if (bookingDatepicker) bookingDatepicker.destroy();
                 bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
@@ -257,41 +285,29 @@ function setupEventListeners() {
             } catch (error) {
                 alert("初始化公休日設定失敗: " + error.message);
             }
-        };
-    }
+        }
+    });
 
-    // 儲存公休日設定
+    // Modal 內的儲存按鈕
     const saveBookingSettingsBtn = document.getElementById('save-booking-settings-btn');
     if (saveBookingSettingsBtn) {
-        saveBookingSettingsBtn.onclick = async () => {
-            if (!bookingDatepicker) return;
-            const newEnabledDates = bookingDatepicker.selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
-            // 此處省略了比對新舊日期陣列並分批發送 API 的複雜邏輯，簡化處理
-            try {
-                await api.saveBookingSettings({ action: 'replace_all', dates: newEnabledDates }); // 假設 API 支援一次性替換
-                alert('設定已儲存！');
-                ui.hideModal('#booking-settings-modal');
-            } catch (error) {
-                 alert("儲存失敗: " + error.message);
-            }
-        };
+        saveBookingSettingsBtn.onclick = handleSaveBookingSettings;
     }
-}
 
-    // 行事曆月份切換
     const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
     const nextMonthBtn = document.getElementById('calendar-next-month-btn');
     if (prevMonthBtn) prevMonthBtn.onclick = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); };
     if (nextMonthBtn) nextMonthBtn.onclick = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); };
 
-    // 手動建立預約表單提交
     const createBookingForm = document.getElementById('create-booking-form');
     if (createBookingForm) createBookingForm.addEventListener('submit', handleCreateBookingSubmit);
 
+    page.dataset.initialized = 'true';
+}
 
 // 模組初始化函式
 export const init = async () => {
+    setupEventListeners();
     // 預設載入今日預約
     fetchDataAndRender('today');
-    setupEventListeners();
 };

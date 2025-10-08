@@ -228,42 +228,83 @@
         .page-header { flex-direction: column; align-items: flex-start; }
     }
 
-/* --- 【新增】產品編輯 Modal 滾動樣式 --- */
+    /* --- 【新增】產品編輯 Modal 滾動樣式 --- */
+    #edit-product-modal .modal-content {
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh; /* 最大高度為視窗的 90% */
+    }
+    #edit-product-modal #edit-product-form {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1; /* 延展以填滿可用空間 */
+        overflow: hidden; /* 防止內部元素溢出 form */
+    }
+    #edit-product-modal .modal-body {
+        flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
+        overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
+        padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
+    }
+    #edit-product-modal .modal-header,
+    #edit-product-modal .form-actions {
+        flex-shrink: 0;
+    }
+    #edit-product-modal .form-actions {
+        padding-top: 20px;
+        margin-top: 15px;
+        border-top: 1px solid var(--color-border);
+    }
+    
+    /* --- 【新增】行事曆樣式 --- */
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    #calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        background-color: #fff;
+        padding: 10px;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+    }
+    .calendar-weekday, .calendar-day {
+        text-align: center;
+        padding: 8px 4px;
+    }
+    .calendar-weekday {
+        font-weight: bold;
+        color: var(--color-text-light);
+    }
+    .calendar-day {
+        border: 1px solid var(--color-border);
+        min-height: 100px;
+        position: relative;
+    }
+    .calendar-day .day-number {
+        font-weight: 500;
+    }
+    .calendar-booking {
+        font-size: 0.75rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-top: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .calendar-booking.status-confirmed {
+        background-color: var(--color-info);
+        color: white;
+    }
+     .calendar-booking.status-checked-in {
+        background-color: var(--color-success);
+        color: white;
+    }
 
-/* 1. 讓 modal-content 成為 flex 容器，並限制最大高度 */
-#edit-product-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh; /* 最大高度為視窗的 90% */
-}
-
-/* 2. 【關鍵】讓 form 填滿 header 以外的剩餘空間，並成為 flex 容器 */
-#edit-product-modal #edit-product-form {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* 延展以填滿可用空間 */
-    overflow: hidden; /* 防止內部元素溢出 form */
-}
-
-/* 3. 讓 modal-body 在 form 內部延展，並在內容過多時產生滾動條 */
-#edit-product-modal .modal-body {
-    flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
-    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
-    padding: 0 15px; /* 增加一點左右內距，避免滾動條太貼近內容 */
-}
-
-/* 4. 確保頭部和腳部(按鈕區)高度固定，不被壓縮 */
-#edit-product-modal .modal-header,
-#edit-product-modal .form-actions {
-    flex-shrink: 0;
-}
-
-/* 5. (美化) 為按鈕區加上分隔線，確保與內容區有明顯區隔 */
-#edit-product-modal .form-actions {
-    padding-top: 20px;
-    margin-top: 15px;
-    border-top: 1px solid var(--color-border);
-}
 </style>
 
 </head>
@@ -362,12 +403,12 @@
                 <div class="page-header">
                     <h2>訂位管理</h2>
                     <div>
-                        <button id="switch-to-calendar-view-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">切換至行事曆</button>
+                        <button id="switch-to-calendar-view-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">切換至行事曆</button>
                         <button id="create-booking-btn" class="action-btn btn-save" style="background-color: #17a2b8; margin-right: 10px;">手動建立預約</button>
-                        <button id="full-sync-bookings-btn" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">手動同步至 Sheet</button>
-                        <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #ffc107; color: #000;">管理公休日</button>
+                        <button id="manage-booking-dates-btn" class="action-btn" style="background-color: #17a2b8;">管理公休日</button>
                     </div>
                 </div>
+
                 <div id="calendar-view-container" style="display: none;">
                     <div class="calendar-header">
                         <button id="calendar-prev-month-btn">&lt;</button>
@@ -376,6 +417,7 @@
                     </div>
                     <div id="calendar-grid"></div>
                 </div>
+
                 <div id="list-view-container">
                     <div class="filter-bar">
                         <div id="booking-status-filter" class="filter-group">
@@ -450,7 +492,7 @@
                     <div class="form-actions"><button type="submit" class="action-btn btn-save">儲存變更</button></div>
                 </form>
             </div>
-            
+
             <div id="page-settings" class="page">
                 <div class="page-header">
                     <h2>系統設定</h2>
@@ -464,7 +506,7 @@
                     </div>
                 </form>
             </div>
-            
+
             <div id="page-points" class="page">
                 <div class="page-header"><h2>點數發放中心</h2></div>
                 <div id="points-user-selection">
@@ -514,7 +556,7 @@
             <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
         </div>
     </div>
-    
+
     <div id="user-details-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -524,7 +566,7 @@
             <div id="user-details-content"></div>
         </div>
     </div>
-    
+
     <div id="edit-user-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -674,7 +716,7 @@
             </form>
         </div>
     </div>
-    
+
     <div id="create-booking-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -783,7 +825,7 @@
             </form>
         </div>
     </div>
-    
+
     <div id="edit-draft-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">

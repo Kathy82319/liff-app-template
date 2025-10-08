@@ -61,6 +61,18 @@ const App = {
         });
     },
 
+    // 【*** 隱藏的項目，可以一併寫在這裡 ***】
+    hideDemoMenuItems() {
+        // 選取 href 為 #settings 的導覽列按鈕
+        const settingsTab = document.querySelector('.nav-tabs a[href="#settings"]');
+        if (settingsTab) {
+            settingsTab.style.display = 'none'; 
+        }
+
+    },
+
+
+
     // 應用程式初始化函式
     async init() {
         // 【*** 核心修正區塊 ***】
@@ -73,6 +85,7 @@ const App = {
                 const { api } = await import('./api-mock.js');
                 this.api = api;
                 this.showDemoBanner();
+                this.hideDemoMenuItems(); 
             } else {
                 console.log("正在啟用標準模式...");
                 const { api } = await import('./api.js');

@@ -110,6 +110,12 @@ export const api = {
         return { success: true };
     },
 
+    sendMessage: async (userId, message) => {
+        await delay(500); // 模擬網路延遲
+        // 用 alert 提示使用者，並顯示訊息內容
+        alert(`【DEMO 模式】訊息已模擬發送！\n\n收件人 ID: ${userId}\n內容: ${message}\n\n(在真實系統中，顧客此時會收到一則 LINE 通知)`);
+        return { success: true };
+    },    
 
     // 模擬刪除 (Delete)
     deleteProducts: async (productIds) => {

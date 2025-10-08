@@ -4,19 +4,11 @@ import { ui } from '../ui.js';
 
 // 渲染儀表板數據
 const renderStats = (stats) => {
-    console.log('[偵錯LOG] 11. renderStats() - 函式啟動，收到的數據:', stats);
-    const guestsEl = document.getElementById('stat-today-guests');
-
-    if (guestsEl) {
-        console.log('[偵錯LOG] 12. 成功找到 #stat-today-guests 元素。');
-        const guestsCount = stats.today_total_guests || 0;
-        console.log(`[偵錯LOG] 13. 準備將內容更新為: ${guestsCount}`);
-        guestsEl.textContent = guestsCount;
-        console.log('[偵錯LOG] 14. 內容更新完畢。');
-    } else {
-        // 如果找不到元素，這會是一條非常關鍵的紅色錯誤訊息
-        console.error('[偵錯LOG] 嚴重錯誤: 在 renderStats() 中找不到 ID 為 "stat-today-guests" 的 HTML 元素！');
-    }
+    // 填充所有數據卡片
+    document.getElementById('stat-today-guests').textContent = stats.today_total_guests || 0;
+    document.getElementById('stat-today-new-bookings').textContent = stats.today_new_bookings || 0;
+    document.getElementById('stat-this-week-bookings').textContent = stats.this_week_bookings || 0;
+    document.getElementById('stat-today-new-users').textContent = stats.today_new_users || 0;
 };
 
 // 綁定儀表板頁面上的事件監聽器

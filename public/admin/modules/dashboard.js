@@ -4,11 +4,19 @@ import { ui } from '../ui.js';
 
 // 渲染儀表板數據
 const renderStats = (stats) => {
-    // 填充所有數據卡片
-    document.getElementById('stat-today-guests').textContent = stats.today_total_guests || 0;
-    document.getElementById('stat-today-new-bookings').textContent = stats.today_new_bookings || 0;
-    document.getElementById('stat-this-week-bookings').textContent = stats.this_week_bookings || 0;
-    document.getElementById('stat-today-new-users').textContent = stats.today_new_users || 0;
+    console.log('[偵錯LOG] 11. renderStats() - 函式啟動，收到的數據:', stats);
+    const guestsEl = document.getElementById('stat-today-guests');
+
+    if (guestsEl) {
+        console.log('[偵錯LOG] 12. 成功找到 #stat-today-guests 元素。');
+        const guestsCount = stats.today_total_guests || 0;
+        console.log(`[偵錯LOG] 13. 準備將內容更新為: ${guestsCount}`);
+        guestsEl.textContent = guestsCount;
+        console.log('[偵錯LOG] 14. 內容更新完畢。');
+    } else {
+        // 如果找不到元素，這會是一條非常關鍵的紅色錯誤訊息
+        console.error('[偵錯LOG] 嚴重錯誤: 在 renderStats() 中找不到 ID 為 "stat-today-guests" 的 HTML 元素！');
+    }
 };
 
 // 綁定儀表板頁面上的事件監聽器
@@ -38,35 +46,23 @@ const setupEventListeners = () => {
 };
 
 export const init = async () => {
-    console.log('[偵錯LOG] 7. Dashboard init() - 函式啟動');
+    // 1. 確保頁面元素存在
     const page = document.getElementById('page-dashboard');
-    if (!page) {
-        console.error('[偵錯LOG] 嚴重錯誤: 找不到 #page-dashboard 元素！');
-        return;
-    }
+    if (!page) return;
     
-    // 為了確認 init 真的有執行，我們先手動改變一下頁面背景色
-    page.style.backgroundColor = 'lightblue';
-    console.log('[偵錯LOG] 8. 已將儀表板背景設為淺藍色');
-
+    // 2. 顯示讀取中狀態
     const guestsEl = document.getElementById('stat-today-guests');
     if (guestsEl) guestsEl.textContent = '讀取中...';
 
     try {
-        console.log('[偵錯LOG] 9. 準備呼叫 api.getDashboardStats()');
+        // 3. 呼叫 API 獲取數據
         const stats = await api.getDashboardStats();
-        console.log('[偵錯LOG] 10. api.getDashboardStats() 成功，取得數據:', stats);
-        
+        // 4. 渲染數據
         renderStats(stats);
         setupEventListeners();
-        
-        // 成功後把背景色改回來
-        page.style.backgroundColor = ''; 
-
     } catch (error) {
-        console.error('【錯誤捕獲】獲取儀表板數據失敗:', error);
-        page.innerHTML = `<p style="color:red; font-size: 1.2rem;">讀取儀表板數據失敗: ${error.message}</p>`;
-        // 即使出錯，也把背景色改回來
-        page.style.backgroundColor = '';
+        // 5. 如果出錯，印出錯誤
+        console.error('獲取儀表板數據失敗:', error);
+        page.innerHTML = `<p style="color:red;">讀取儀表板數據失敗: ${error.message}</p>`;
     }
 };

@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
-    const myLiffId = "2008032417-3yJQGaO6";
+    const myLiffId = "2008032417-v82AyzaD";
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -443,58 +443,6 @@ function renderBookings(bookings, container, isPast = false) {
         }
     }
 
-    // =================================================================
-    // 檢查使用者是否登入 LIFF
-    // =================================================================
-async function handleAdminExperienceClick() {
-    if (!userProfile || !userProfile.userId) {
-        alert('無法獲取您的使用者資訊，請重新整理頁面再試一次。');
-        return;
-    }
-
-    if (!confirm('這將為您產生一個單次有效的後台體驗連結，是否繼續？')) {
-        return;
-    }
-
-    const originalButton = document.getElementById('admin-experience-btn');
-    try {
-        if(originalButton) {
-            originalButton.textContent = '連結產生中...';
-            originalButton.disabled = true;
-        }
-
-        const response = await fetch('/api/generate-admin-link', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userProfile.userId })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || `發生未知錯誤 (狀態碼: ${response.status})`);
-        }
-        
-        if (result.success && result.link) {
-            // 使用 LIFF 的 openWindow API 開啟新視窗
-            liff.openWindow({
-                url: result.link,
-                external: true
-            });
-        } else {
-            throw new Error('後端未能成功產生連結。');
-        }
-
-    } catch (error) {
-        alert(`發生錯誤：${error.message}`);
-    } finally {
-        if(originalButton) {
-            originalButton.textContent = '一鍵體驗後台';
-            originalButton.disabled = false;
-        }
-    }
-}
-    
     // =================================================================
     // 各頁面初始化函式
     // =================================================================

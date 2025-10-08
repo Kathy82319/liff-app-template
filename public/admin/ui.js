@@ -3,10 +3,18 @@
 // 存放所有與 UI 操作相關的函式
 export const ui = {
     /**
+     * 【*** 偵錯修改處 ***】
      * 顯示指定的頁面，並隱藏其他頁面
      * @param {string} pageId - 頁面 ID (例如 'dashboard', 'users')
      */
     showPage(pageId) {
+        console.log(`[偵錯LOG] 3. ui.showPage() - 準備顯示 page-${pageId}`);
+        const targetPageElement = document.getElementById(`page-${pageId}`);
+
+        if (!targetPageElement) {
+            console.error(`[偵錯LOG] 嚴重錯誤：在 HTML 中找不到 id 為 "page-${pageId}" 的元素！`);
+        }
+
         document.querySelectorAll('.page').forEach(page => {
             page.classList.toggle('active', page.id === `page-${pageId}`);
         });

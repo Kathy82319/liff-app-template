@@ -1,9 +1,11 @@
 // public/admin/app.js
 
-import { api } from './api.js';
 import { ui } from './ui.js';
 
 const App = {
+    api: null, // API 物件將在此處動態載入
+    isDemoMode: false, // 是否為 DEMO 模式
+
     // 路由表：將頁面 ID 映射到對應的模組路徑
     router: {
         'dashboard': './modules/dashboard.js',
@@ -20,7 +22,6 @@ const App = {
 
     // 處理路由變更的核心函式
     async handleRouteChange() {
-        // 從 URL hash 獲取當前頁面 ID，預設為 'dashboard'
         const pageId = window.location.hash.substring(1) || 'dashboard';
         
         ui.setActiveNav(pageId);
@@ -29,11 +30,11 @@ const App = {
         const modulePath = this.router[pageId];
         if (modulePath) {
             try {
-                // 動態載入對應的模組
+                // 動態載入的模組會自動使用 App.api
                 const pageModule = await import(modulePath);
-                // 執行模組的初始化函式
                 if (pageModule.init) {
-                    pageModule.init();
+                    // 將 api 物件傳遞給模組
+                    pageModule.init(this.api);
                 }
             } catch (error) {
                 console.error(`載入模組 ${modulePath} 失敗:`, error);
@@ -42,43 +43,59 @@ const App = {
         }
     },
 
-    // 【*** 修改這裡 ***】
+    // 顯示 DEMO 模式的提示橫幅
+    showDemoBanner() {
+        const banner = document.createElement('div');
+        banner.innerHTML = `您目前正在 DEMO 體驗模式中。所有操作都只會暫存在您的瀏覽器，不會影響真實資料。 <button id="reset-demo-btn" style="margin-left: 15px; padding: 2px 8px; cursor: pointer;">重設體驗資料</button>`;
+        banner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
+        
+        const header = document.querySelector('.header');
+        header.parentNode.insertBefore(banner, header.nextSibling);
+
+        document.getElementById('reset-demo-btn').addEventListener('click', async () => {
+            if (confirm('確定要重設所有體驗資料，恢復到初始範例狀態嗎？')) {
+                await this.api.resetDemoData();
+                alert('DEMO 資料已重設！頁面將重新整理。');
+                window.location.reload();
+            }
+        });
+    },
+
     // 應用程式初始化函式
     async init() {
+        // 【*** 核心修正區塊 ***】
+        const urlParams = new URLSearchParams(window.location.search);
+        this.isDemoMode = urlParams.get('demo') === 'true';
+
         try {
-            // 首先，從 API 獲取全域設定檔
-            const response = await fetch('/api/get-app-config');
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`獲取設定檔失敗: ${errorText}`);
+            if (this.isDemoMode) {
+                console.log("正在啟用 DEMO 模式...");
+                const { api } = await import('./api-mock.js');
+                this.api = api;
+                this.showDemoBanner();
+            } else {
+                console.log("正在啟用標準模式...");
+                const { api } = await import('./api.js');
+                this.api = api;
+                // 在非 DEMO 模式下，才檢查登入狀態
+                await this.api.checkAuthStatus();
             }
-            // 將設定檔存到全域變數 window.CONFIG 中，方便所有模組取用
-            window.CONFIG = await response.json();
-            console.log('App config loaded:', window.CONFIG);
-
         } catch (error) {
-            console.error("初始化失敗:", error);
-            // 如果連設定檔都拿不到，顯示錯誤訊息並中斷執行
-            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常。</p></div>`;
-            return;
+             if (!this.isDemoMode) {
+                console.error('未授權，正在重導向到登入頁面...');
+                window.location.href = '/admin-login.html';
+                return; // 中斷後續所有程式碼的執行
+             }
         }
-
-        /* 這是登入守門員，目前還在建置階段，先關起來
-        try {
-            await api.checkAuthStatus(); // 假設 api.js 有這個函式
-        } catch (error) {
-            console.error('未授權，正在重導向到登入頁面...');
-            window.location.href = '/admin-login.html';
-            return; // 中斷後續所有程式碼的執行
-        }
-        */
-       
-        ui.initSharedEventListeners();// 啟動全域 UI 事件監聽 (如 Modal 關閉)
         
-        // 監聽 URL hash 的變化 (使用者點擊導覽列)
+        // 將 api 物件掛載到全域，方便模組引用
+        // 雖然不是最佳實踐，但為了最小化改動現有模組，暫時這樣處理
+        window.api = this.api;
+
+        ui.initSharedEventListeners();
+        
         window.addEventListener('hashchange', () => this.handleRouteChange());
         
-        // 處理手動修改 nav-tabs 連結的行為
         document.querySelector('.nav-tabs').addEventListener('click', (event) => {
             if (event.target.tagName === 'A') {
                 event.preventDefault();
@@ -89,10 +106,8 @@ const App = {
             }
         });
 
-        // 第一次載入時，手動觸發一次路由處理
         this.handleRouteChange();
     }
 };
 
-// 當 DOM 載入完成後，啟動應用程式
 document.addEventListener('DOMContentLoaded', () => App.init());

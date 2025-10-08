@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
-    const myLiffId = "2008032417-v82AyzaD";
+    const myLiffId = "2008032417-3yJQGaO6";
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -262,16 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 
-// 取消預約按鈕
-if (target.matches('.cancel-booking-btn')) {
-    const bookingId = target.dataset.bookingId;
-    if (!bookingId) return;
-    if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-        handleCancelBooking(bookingId);
-        }
+            // 取消預約按鈕
+            if (target.matches('.cancel-booking-btn')) {
+                const bookingId = target.dataset.bookingId;
+                if (!bookingId) return;
+                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+                    handleCancelBooking(bookingId);
+                }
+            }
+        });
     }
-    });
-}
 
 async function handleCancelBooking(bookingId) {
     const card = document.getElementById(`booking-card-${bookingId}`);

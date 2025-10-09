@@ -118,11 +118,10 @@ function handleCsvUpload(event) {
 function openProductModal(product = null) {
     const form = document.getElementById('edit-product-form');
     form.reset();
-    
+
     const modalTitle = document.getElementById('modal-product-title');
     const idInput = document.getElementById('edit-product-id');
     const idDisplay = document.getElementById('edit-product-id-display');
-    const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
 
     if (product) { // 編輯模式
         modalTitle.textContent = `編輯產品：${product.name}`;
@@ -134,8 +133,8 @@ function openProductModal(product = null) {
         document.getElementById('edit-product-tags').value = product.tags || '';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
         document.getElementById('edit-product-price').value = product.price || '';
-        inventoryTypeSelect.value = product.inventory_management_type || 'none';
-        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
+        // 直接為庫存數量和狀態賦值
+        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? ''; // 使用 ?? 確保 null 轉為空字串
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
         try {
             const images = JSON.parse(product.images || '[]');
@@ -149,13 +148,10 @@ function openProductModal(product = null) {
         modalTitle.textContent = '新增產品/服務';
         idInput.value = '';
         idDisplay.value = '(儲存後將自動生成)';
-        inventoryTypeSelect.value = 'none';
     }
-    inventoryTypeSelect.dispatchEvent(new Event('change'));
     ui.showModal('#edit-product-modal');
 }
 
-// public/admin/modules/productManagement.js -> 清理後的 handleFormSubmit
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
@@ -173,8 +169,17 @@ async function handleFormSubmit(event) {
         if(imgUrl) images.push(imgUrl);
     }
 
+    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value.trim();
+    const stockStatusValue = document.getElementById('edit-product-stock-status').value.trim();
     const priceValue = document.getElementById('edit-product-price').value;
-    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value;
+
+    // 根據使用者輸入自動判斷庫存管理模式
+    let inventoryManagementType = 'none';
+    if (stockQuantityValue !== '') {
+        inventoryManagementType = 'quantity';
+    } else if (stockStatusValue !== '') {
+        inventoryManagementType = 'status';
+    }
 
     const data = {
         name: name.trim(),
@@ -182,9 +187,9 @@ async function handleFormSubmit(event) {
         category: document.getElementById('edit-product-category').value,
         tags: document.getElementById('edit-product-tags').value,
         is_visible: document.getElementById('edit-product-is-visible').checked,
-        inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+        inventory_management_type: inventoryManagementType,
         stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
-        stock_status: document.getElementById('edit-product-stock-status').value,
+        stock_status: stockStatusValue === '' ? null : stockStatusValue,
         price: priceValue === '' ? null : Number(priceValue),
         images: JSON.stringify(images),
         price_type: 'simple',
@@ -292,18 +297,12 @@ function setupEventListeners() {
             }
         });
     }
-    
+
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
 
-    const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
-    if(inventoryTypeSelect) {
-        inventoryTypeSelect.addEventListener('change', (e) => {
-            document.getElementById('stock-quantity-group').style.display = (e.target.value === 'quantity') ? 'block' : 'none';
-            document.getElementById('stock-status-group').style.display = (e.target.value === 'status') ? 'block' : 'none';
-        });
-    }
+    // 移除舊的庫存管理模式事件監聽器
 
     page.dataset.initialized = 'true';
 }

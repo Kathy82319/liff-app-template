@@ -41,31 +41,34 @@ export async function onRequest(context) {
             name: body.name.trim(),
             description: body.description || null,
             category: body.category || null,
-            tags: body.tags || null,
             images: body.images || '[]',
             is_visible: body.is_visible ? 1 : 0,
-            display_order: 999, // 新增的產品預設排在最後
+            display_order: 999,
             inventory_management_type: body.inventory_management_type || 'none',
-            stock_quantity: body.inventory_management_type === 'quantity' ? Number(body.stock_quantity) : null,
-            stock_status: body.inventory_management_type === 'status' ? body.stock_status : null,
+            stock_quantity: body.stock_quantity ?? null,
+            stock_status: body.stock_status || null,
             price_type: body.price_type || 'simple',
-            price: body.price ? Number(body.price) : null,
+            price: body.price ?? null,
             price_options: body.price_options || null,
             spec_1_name: body.spec_1_name || null, spec_1_value: body.spec_1_value || null,
             spec_2_name: body.spec_2_name || null, spec_2_value: body.spec_2_value || null,
             spec_3_name: body.spec_3_name || null, spec_3_value: body.spec_3_value || null,
             spec_4_name: body.spec_4_name || null, spec_4_value: body.spec_4_value || null,
             spec_5_name: body.spec_5_name || null, spec_5_value: body.spec_5_value || null,
+            // 【新增】
+            filter_1: body.filter_1 || null,
+            filter_2: body.filter_2 || null,
+            filter_3: body.filter_3 || null,
         };
 
-        // --- 3. 執行資料庫插入操作 ---
         const stmt = db.prepare(
             `INSERT INTO Products (
-                product_id, name, description, category, tags, images, is_visible, display_order,
+                product_id, name, description, category, images, is_visible, display_order,
                 inventory_management_type, stock_quantity, stock_status, price_type, price, price_options,
                 spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value,
-                spec_4_name, spec_4_value, spec_5_name, spec_5_value
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                spec_4_name, spec_4_value, spec_5_name, spec_5_value,
+                filter_1, filter_2, filter_3
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
 
         await stmt.bind(...Object.values(newProductData)).run();

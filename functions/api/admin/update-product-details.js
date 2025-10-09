@@ -39,6 +39,8 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
     }
 }
 
+// functions/api/admin/update-product-details.js
+
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -46,7 +48,15 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json();
-    const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
+    const { 
+        product_id, name, description, category, images, is_visible, 
+        inventory_management_type, stock_quantity, stock_status, 
+        price_type, price, price_options, 
+        spec_1_name, spec_1_value, spec_2_name, spec_2_value, 
+        spec_3_name, spec_3_value, spec_4_name, spec_4_value, 
+        spec_5_name, spec_5_value,
+        filter_1, filter_2, filter_3 // 【新增】
+    } = body;
 
     if (!product_id || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
@@ -56,22 +66,25 @@ export async function onRequest(context) {
 
     const stmt = db.prepare(
       `UPDATE Products SET
-         name = ?, description = ?, category = ?, tags = ?, images = ?, is_visible = ?,
+         name = ?, description = ?, category = ?, images = ?, is_visible = ?,
          inventory_management_type = ?, stock_quantity = ?, stock_status = ?,
          price_type = ?, price = ?, price_options = ?,
          spec_1_name = ?, spec_1_value = ?, spec_2_name = ?, spec_2_value = ?,
          spec_3_name = ?, spec_3_value = ?, spec_4_name = ?, spec_4_value = ?,
-         spec_5_name = ?, spec_5_value = ?, updated_at = CURRENT_TIMESTAMP
+         spec_5_name = ?, spec_5_value = ?,
+         filter_1 = ?, filter_2 = ?, filter_3 = ?,
+         updated_at = CURRENT_TIMESTAMP
        WHERE product_id = ?`
     );
 
     const result = await stmt.bind(
-        name, description, category, tags, images, is_visible ? 1 : 0,
+        name, description, category, images, is_visible ? 1 : 0,
         inventory_management_type, stock_quantity, stock_status,
         price_type, price, price_options,
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
+        filter_1, filter_2, filter_3, // 【新增】
         product_id
     ).run();
 

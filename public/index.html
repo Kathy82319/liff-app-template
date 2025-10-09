@@ -59,16 +59,25 @@
 
     <div id="page-products">
         <h1 class="page-main-title">產品型錄</h1>
+        
+        <div id="product-view-controls" style="display: none;"> <div class="layout-switcher">
+                <button id="view-list-btn">列表</button>
+                <button id="view-grid-btn">網格</button>
+            </div>
+            <select id="product-sort-select">
+                <option value="default">預設排序</option>
+                <option value="price_desc">價格：由高到低</option>
+                <option value="price_asc">價格：由低到高</option>
+            </select>
+        </div>
+
         <div id="filter-controls">
             <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
             <div id="tag-filter-container">
-                <div id="primary-tags" class="filter-group"></div>
-                <div id="secondary-tags" class="filter-group" style="display: none;"></div>
-            </div>
-            <button id="more-tags-btn" class="filter-action-btn">更多標籤</button>
+                </div>
             <button id="clear-filters" class="filter-action-btn">清除所有篩選</button>
         </div>
-        <div id="product-list-container"><p>正在載入資料...</p></div>
+        <div id="product-list-container" class="view-grid"><p>正在載入資料...</p></div>
     </div>
 
     <div id="page-my-exp-history">

@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let allProducts = [];
     let allNews = [];
     let activeFilters = { keyword: '', tag: null };
+    let productView = {
+        layout: 'grid', // 'grid' 或 'list'
+        sort: 'default' // 'default', 'price_desc', 'price_asc'
+    };
     let bookingData = {};
     let bookingHistoryStack = [];
     let dailyAvailability = { limit: 4, booked: 0, available: 4 };
@@ -743,44 +747,67 @@ function renderProductDetails(product) {
         specsContainer.innerHTML = specsHTML;
     }
 
+    function renderProducts() {
+        const container = document.getElementById('product-list-container');
+        if(!container) return;
 
-function renderProducts() {
-    const container = document.getElementById('product-list-container')
-    if(!container) return;
-    
-    let filteredProducts = allProducts.filter(p => p.is_visible === 1);
-    const keyword = activeFilters.keyword.toLowerCase().trim();
-    if (keyword) { 
-        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(keyword)); 
-    }
-    if (activeFilters.tag) { 
-        filteredProducts = filteredProducts.filter(p => (p.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); 
-    }
+        // 1. 篩選
+        let filteredProducts = allProducts.filter(p => p.is_visible === 1);
+        const keyword = activeFilters.keyword.toLowerCase().trim();
+        if (keyword) { 
+            filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(keyword)); 
+        }
+        if (activeFilters.tag) { 
+            filteredProducts = filteredProducts.filter(p => (p.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); 
+        }
 
-    if (filteredProducts.length === 0) {
-        container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
-        return;
-    }
+        // 2. 排序
+        switch (productView.sort) {
+            case 'price_desc':
+                filteredProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
+                break;
+            case 'price_asc':
+                filteredProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
+                break;
+            case 'default':
+            default:
+                // 維持後台設定的 display_order 順序
+                filteredProducts.sort((a, b) => a.display_order - b.display_order);
+                break;
+        }
 
-    container.innerHTML = filteredProducts.map(product => {
-        let priceDisplay = '';
-        if (product.price_type === 'simple') {
-            priceDisplay = `$${product.price}`;
-        } 
-        const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
+        // 3. 根據選擇的版面，設定容器的 class
+        container.className = productView.layout === 'grid' ? 'view-grid' : 'view-list';
+        document.getElementById('view-grid-btn').classList.toggle('active', productView.layout === 'grid');
+        document.getElementById('view-list-btn').classList.toggle('active', productView.layout === 'list');
+        
+        if (filteredProducts.length === 0) {
+            container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
+            return;
+        }
 
-        return `
-            <div class="product-card" data-product-id="${product.product_id}">
-                <img src="${imageUrl}" alt="${product.name}" class="product-image">
-                <div class="product-info">
-                    <h3 class="product-title">${product.name}</h3>
-                    <p class="product-price">${priceDisplay}</p>
+        // 4. 渲染 HTML
+        container.innerHTML = filteredProducts.map(product => {
+            let priceDisplay = '';
+            if (product.price_type === 'simple' && product.price != null) {
+                priceDisplay = `$${product.price}`;
+            } else {
+                priceDisplay = '價格洽詢';
+            }
+            const images = JSON.parse(product.images || '[]');
+            const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
+
+            return `
+                <div class="product-card" data-product-id="${product.product_id}">
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image">
+                    <div class="product-info">
+                        <h3 class="product-title">${product.name}</h3>
+                        <p class="product-price">${priceDisplay}</p>
+                    </div>
                 </div>
-            </div>
-        `;
-    }).join('');
-}
+            `;
+        }).join('');
+    }
 
     function populateFilters() {
         const filterContainer = document.getElementById('tag-filter-container');
@@ -803,9 +830,43 @@ function renderProducts() {
     }
 
     async function initializeProductsPage() {
+        // 讀取使用者上次的選擇
+        productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
+
         const container = document.getElementById('product-list-container');
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`;
+
+        const viewControls = document.getElementById('product-view-controls');
+        const layoutSwitcher = document.querySelector('.layout-switcher');
+        const sortSelect = document.getElementById('product-sort-select');
+
+        // 根據後台設定，決定是否顯示版面切換按鈕
+        if (CONFIG.FEATURES.ENABLE_PRODUCT_LAYOUT_SWITCH) {
+            layoutSwitcher.style.display = 'block';
+        } else {
+            layoutSwitcher.style.display = 'none';
+        }
+        viewControls.style.display = 'flex'; // 顯示整個控制區塊
+
+        // 綁定版面切換按鈕事件
+        document.getElementById('view-grid-btn').addEventListener('click', () => {
+            productView.layout = 'grid';
+            localStorage.setItem('product_layout_preference', 'grid');
+            renderProducts();
+        });
+        document.getElementById('view-list-btn').addEventListener('click', () => {
+            productView.layout = 'list';
+            localStorage.setItem('product_layout_preference', 'list');
+            renderProducts();
+        });
+        
+        // 綁定排序下拉選單事件
+        sortSelect.addEventListener('change', (e) => {
+            productView.sort = e.target.value;
+            renderProducts();
+        });
+
         try {
             if (allProducts.length === 0) {
                 const res = await fetch('/api/get-products');
@@ -813,7 +874,8 @@ function renderProducts() {
                 allProducts = await res.json();
             }
             populateFilters();
-            renderProducts();
+            renderProducts(); // 第一次渲染
+            
             document.getElementById('keyword-search').addEventListener('input', e => { 
                 activeFilters.keyword = e.target.value; 
                 renderProducts(); 

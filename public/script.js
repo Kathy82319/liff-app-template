@@ -1032,7 +1032,7 @@ async function handleBookingConfirmation(event) {
         alert('日期、時段、姓名與電話為必填！');
         return;
     }
-    
+     
     // 【新增 4】電話號碼格式驗證
     const phoneRegex = /^09\d{8}$/;
     if (!phoneRegex.test(bookingData.phone)) {

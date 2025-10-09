@@ -305,6 +305,36 @@
         color: white;
     }
 
+/* --- 【新增】動態欄位樣式 --- */
+    .dynamic-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+    }
+    .dynamic-input-group input {
+        flex-grow: 1;
+    }
+    .btn-remove-input {
+        padding: 5px 10px;
+        font-size: 1.2rem;
+        border: none;
+        background: none;
+        color: var(--color-danger);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .btn-add-input {
+        display: block;
+        margin-top: 10px;
+        padding: 5px 10px;
+        font-size: 0.9rem;
+        border: 1px dashed var(--color-secondary);
+        background: none;
+        color: var(--color-secondary);
+        cursor: pointer;
+    }
+
 </style>
 
 </head>
@@ -645,13 +675,12 @@
                         </div>
                         <div class="form-group">
                             <label>圖片網址 (最多5張)</label>
-                            <div class="edit-product-image-inputs">
-                                <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-2" placeholder="2. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-3" placeholder="3. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-4" placeholder="4. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-5" placeholder="5. 請貼上圖片網址">
+                            <div id="edit-product-image-inputs">
+                                <div class="dynamic-input-group">
+                                    <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址">
+                                    </div>
                             </div>
+                            <button type="button" id="add-image-input-btn" class="btn-add-input">⊕ 新增圖片網址</button>
                         </div>
                         <div class="form-group">
                             <label for="edit-product-description">詳細介紹</label>
@@ -678,26 +707,13 @@
                         <div class="form-group grid-span-2">
                             <hr>
                             <label>彈性通用規格 (選填，最多5組)</label>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-1-name" placeholder="規格1名稱 (例: 課程時長)">
-                                <input type="text" id="edit-spec-1-value" placeholder="規格1內容 (例: 2小時)">
+                            <div id="edit-product-spec-inputs">
+                                <div class="spec-input-group dynamic-input-group">
+                                    <input type="text" name="spec_name" placeholder="規格1名稱 (例: 課程時長)">
+                                    <input type="text" name="spec_value" placeholder="規格1內容 (例: 2小時)">
+                                </div>
                             </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-2-name" placeholder="規格2名稱 (例: 適合對象)">
-                                <input type="text" id="edit-spec-2-value" placeholder="規格2內容 (例: 初學者)">
-                            </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-3-name" placeholder="規格3名稱">
-                                <input type="text" id="edit-spec-3-value" placeholder="規格3內容">
-                            </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-4-name" placeholder="規格4名稱">
-                                <input type="text" id="edit-spec-4-value" placeholder="規格4內容">
-                            </div>
-                            <div class="sub-grid">
-                                <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
-                                <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
-                            </div>
+                            <button type="button" id="add-spec-input-btn" class="btn-add-input">⊕ 新增規格</button>
                         </div>
                     </div>
                 </div>

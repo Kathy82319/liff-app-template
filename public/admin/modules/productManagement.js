@@ -119,6 +119,10 @@ function openProductModal(product = null) {
     const form = document.getElementById('edit-product-form');
     form.reset();
 
+    // 清理舊的動態欄位
+    document.querySelectorAll('#edit-product-image-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
+    document.querySelectorAll('#edit-product-spec-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
+
     const modalTitle = document.getElementById('modal-product-title');
     const idInput = document.getElementById('edit-product-id');
     const idDisplay = document.getElementById('edit-product-id-display');
@@ -132,23 +136,46 @@ function openProductModal(product = null) {
         document.getElementById('edit-product-category').value = product.category || '';
         document.getElementById('edit-product-tags').value = product.tags || '';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
-        document.getElementById('edit-product-price').value = product.price || '';
-        // 直接為庫存數量和狀態賦值
-        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? ''; // 使用 ?? 確保 null 轉為空字串
+        document.getElementById('edit-product-price').value = product.price ?? '';
+        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? '';
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
+
+        // 動態填充圖片
         try {
             const images = JSON.parse(product.images || '[]');
-            for(let i=1; i<=5; i++) document.getElementById(`edit-product-image-${i}`).value = images[i-1] || '';
-        } catch(e) {}
-        for(let i=1; i<=5; i++) {
-            document.getElementById(`edit-spec-${i}-name`).value = product[`spec_${i}_name`] || '';
-            document.getElementById(`edit-spec-${i}-value`).value = product[`spec_${i}_value`] || '';
+            const imageInputsContainer = document.getElementById('edit-product-image-inputs');
+            const firstImageInput = imageInputsContainer.querySelector('input');
+            if (images.length > 0) firstImageInput.value = images[0];
+            for (let i = 1; i < images.length; i++) {
+                addImageInputField(images[i]);
+            }
+        } catch (e) { console.error("解析圖片JSON失敗:", e); }
+
+        // 動態填充規格
+        const specInputsContainer = document.getElementById('edit-product-spec-inputs');
+        const firstSpecGroup = specInputsContainer.querySelector('.spec-input-group');
+        let specCount = 0;
+        for (let i = 1; i <= 5; i++) {
+            const specName = product[`spec_${i}_name`];
+            const specValue = product[`spec_${i}_value`];
+            if (specName || specValue) {
+                specCount++;
+                if (specCount === 1) {
+                    firstSpecGroup.querySelector('[name="spec_name"]').value = specName || '';
+                    firstSpecGroup.querySelector('[name="spec_value"]').value = specValue || '';
+                } else {
+                    addSpecInputField(specName, specValue);
+                }
+            }
         }
+
     } else { // 新增模式
         modalTitle.textContent = '新增產品/服務';
         idInput.value = '';
         idDisplay.value = '(儲存後將自動生成)';
     }
+
+    updateDynamicButtonsState(); // 更新按鈕狀態
     ui.showModal('#edit-product-modal');
 }
 
@@ -163,17 +190,15 @@ async function handleFormSubmit(event) {
         return;
     }
 
-    const images = [];
-    for(let i = 1; i <= 5; i++) {
-        const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
-        if(imgUrl) images.push(imgUrl);
-    }
+    // 從所有圖片輸入框收集資料
+    const images = Array.from(document.querySelectorAll('#edit-product-image-inputs input'))
+        .map(input => input.value.trim())
+        .filter(url => url); // 過濾掉空字串
 
     const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value.trim();
     const stockStatusValue = document.getElementById('edit-product-stock-status').value.trim();
     const priceValue = document.getElementById('edit-product-price').value;
 
-    // 根據使用者輸入自動判斷庫存管理模式
     let inventoryManagementType = 'none';
     if (stockQuantityValue !== '') {
         inventoryManagementType = 'quantity';
@@ -195,9 +220,20 @@ async function handleFormSubmit(event) {
         price_type: 'simple',
         price_options: null
     };
-    for(let i = 1; i <= 5; i++) {
-        data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value || null;
-        data[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value || null;
+
+    // 從所有規格輸入框收集資料
+    const specGroups = document.querySelectorAll('#edit-product-spec-inputs .spec-input-group');
+    specGroups.forEach((group, index) => {
+        if (index < 5) {
+            const specIndex = index + 1;
+            data[`spec_${specIndex}_name`] = group.querySelector('[name="spec_name"]').value.trim() || null;
+            data[`spec_${specIndex}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
+        }
+    });
+    // 確保未使用的 spec 欄位為 null
+    for (let i = specGroups.length + 1; i <= 5; i++) {
+        data[`spec_${i}_name`] = null;
+        data[`spec_${i}_value`] = null;
     }
 
     try {
@@ -253,6 +289,47 @@ async function handleBatchDelete() {
     }
 }
 
+// --- 【新增】動態欄位輔助函式 ---
+
+function addImageInputField(value = '') {
+    const container = document.getElementById('edit-product-image-inputs');
+    const count = container.children.length;
+    if (count >= 5) return;
+
+    const newGroup = document.createElement('div');
+    newGroup.className = 'dynamic-input-group';
+    newGroup.innerHTML = `
+        <input type="url" placeholder="${count + 1}. 請貼上圖片網址" value="${value}">
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    container.appendChild(newGroup);
+    updateDynamicButtonsState();
+}
+
+function addSpecInputField(name = '', value = '') {
+    const container = document.getElementById('edit-product-spec-inputs');
+    const count = container.children.length;
+    if (count >= 5) return;
+
+    const newGroup = document.createElement('div');
+    newGroup.className = 'spec-input-group dynamic-input-group';
+    newGroup.innerHTML = `
+        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
+        <input type="text" name="spec_value" placeholder="規格${count + 1}內容" value="${value}">
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    container.appendChild(newGroup);
+    updateDynamicButtonsState();
+}
+
+function updateDynamicButtonsState() {
+    const imageCount = document.getElementById('edit-product-image-inputs').children.length;
+    const specCount = document.getElementById('edit-product-spec-inputs').children.length;
+
+    document.getElementById('add-image-input-btn').style.display = (imageCount < 5) ? 'block' : 'none';
+    document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
+}
+
 // --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
@@ -260,16 +337,27 @@ function setupEventListeners() {
 
     if (page.dataset.initialized === 'true') return;
 
+    // 使用事件委派處理動態新增的元素
     page.addEventListener('click', e => {
-        if (e.target.id === 'add-product-btn') openProductModal();
-        if (e.target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
-        if (e.target.id === 'batch-publish-btn') handleBatchUpdate(true);
-        if (e.target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
-        if (e.target.id === 'batch-delete-btn') handleBatchDelete();
-        const editButton = e.target.closest('.btn-edit-product');
+        const target = e.target;
+        if (target.id === 'add-product-btn') openProductModal();
+        if (target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
+        if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
+        if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
+        if (target.id === 'batch-delete-btn') handleBatchDelete();
+
+        const editButton = target.closest('.btn-edit-product');
         if (editButton) {
             const product = allProducts.find(p => p.product_id === editButton.dataset.productid);
-            if(product) openProductModal(product);
+            if (product) openProductModal(product);
+        }
+
+        // 動態欄位按鈕
+        if (target.id === 'add-image-input-btn') addImageInputField();
+        if (target.id === 'add-spec-input-btn') addSpecInputField();
+        if (target.classList.contains('btn-remove-input')) {
+            target.closest('.dynamic-input-group').remove();
+            updateDynamicButtonsState();
         }
     });
 
@@ -301,8 +389,6 @@ function setupEventListeners() {
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
-
-    // 移除舊的庫存管理模式事件監聽器
 
     page.dataset.initialized = 'true';
 }

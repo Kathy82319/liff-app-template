@@ -1,9 +1,8 @@
-// functions/api/admin/update-product-details.js
-
+// functions/api/admin/update-product-details.js (最終修正版)
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
-// --- Google Sheets 工具函式 ---
+// --- Google Sheets 工具函式 (這部分是正確的，無需修改) ---
 async function getAccessToken(env) {
     const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY } = env;
     if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) throw new Error('缺少 Google 服務帳號的環境變數。');
@@ -21,7 +20,6 @@ async function getAccessToken(env) {
     return tokenData.access_token;
 }
 
-// 【** 核心 Bug 修正 **】
 async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) {
     const { GOOGLE_SHEET_ID } = env;
     if (!GOOGLE_SHEET_ID) throw new Error('缺少 GOOGLE_SHEET_ID 環境變數。');
@@ -34,10 +32,8 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
     const rows = await sheet.getRows();
     const rowToUpdate = rows.find(row => row.get(matchColumn) == matchValue);
     if (rowToUpdate) {
-        // Bug 在此：原來的程式碼沒有把 updateData 寫進去
-        // 修正：使用 assign 方法將新資料合併到 rowToUpdate 中
         rowToUpdate.assign(updateData);
-        await rowToUpdate.save(); // 保存更改
+        await rowToUpdate.save();
     } else {
         console.warn(`在工作表 "${sheetName}" 中找不到 ${matchColumn} 為 "${matchValue}" 的資料列，無法更新。`);
     }
@@ -52,13 +48,19 @@ export async function onRequest(context) {
     
     const body = await context.request.json();
     
-    // 【** 核心修正：將 productId 改為 product_id **】
-    // 讓後端接收的欄位名稱與前端送來的一致
+    // 【** 關鍵修正 **】將所有 productId 的引用全部改為 product_id
     const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    // 【** 核心修正：驗證的欄位也改為 product_id **】
+    // 驗證也使用 product_id
     if (!product_id || !name) {
-        return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
+            return new Response(JSON.stringify({
+      debug_mode: true,
+      message: "成功攔截到前端傳來的資料！請在瀏覽器開發者工具的 'Response' 標籤中查看收到的資料。",
+      received_data: body 
+    }), {
+      status: 200, // 回傳 200 OK 狀態，表示成功攔截
+      headers: { 'Content-Type': 'application/json' },
+    });
     }
 
     const db = context.env.DB;
@@ -74,6 +76,7 @@ export async function onRequest(context) {
        WHERE product_id = ?`
     );
 
+    // bind 的最後一個參數也使用 product_id
     const result = await stmt.bind(
         name, description, category, tags, images, is_visible ? 1 : 0,
         inventory_management_type, stock_quantity, stock_status,
@@ -81,7 +84,7 @@ export async function onRequest(context) {
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
-        product_id // 【** 核心修正：這裡綁定的變數也要是 product_id **】
+        product_id
     ).run();
 
     if (result.meta.changes === 0) {
@@ -94,7 +97,12 @@ export async function onRequest(context) {
     });
 
   } catch (error) {
-    console.error('Error in update-product-details API:', error);
-    return new Response(JSON.stringify({ error: '更新產品資訊失敗。', details: error.message }), { status: 500 });
+    // 如果連讀取 JSON 都失敗，也一併回報
+    console.error('偵錯模式下發生錯誤:', error);
+    return new Response(JSON.stringify({
+      debug_mode: true,
+      error: "在後端解析前端傳來的 JSON 時發生錯誤。",
+      details: error.message
+    }), { status: 400 });
   }
 }

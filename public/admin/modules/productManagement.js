@@ -157,6 +157,7 @@ function openProductModal(product = null) {
 }
 
 // 【*** 核心修正 ***】
+>>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
@@ -174,6 +175,12 @@ async function handleFormSubmit(event) {
         const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
         if(imgUrl) images.push(imgUrl);
     }
+<<<<<<< HEAD
+
+    const priceValue = document.getElementById('edit-product-price').value;
+    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value;
+=======
+>>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
 
     const data = {
         name: name.trim(), // 使用已驗證的 name
@@ -181,10 +188,17 @@ async function handleFormSubmit(event) {
         category: document.getElementById('edit-product-category').value,
         tags: document.getElementById('edit-product-tags').value,
         is_visible: document.getElementById('edit-product-is-visible').checked,
+<<<<<<< HEAD
+        inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+        stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
+        stock_status: document.getElementById('edit-product-stock-status').value,
+        price: priceValue === '' ? null : Number(priceValue),
+=======
         inventory_management_type: document.getElementById('edit-product-inventory-type').value,
         stock_quantity: document.getElementById('edit-product-stock-quantity').value,
         stock_status: document.getElementById('edit-product-stock-status').value,
         price: document.getElementById('edit-product-price').value,
+>>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
         images: JSON.stringify(images),
     };
     for(let i = 1; i <= 5; i++) {

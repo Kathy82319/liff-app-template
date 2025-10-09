@@ -1,4 +1,4 @@
-// public/admin/modules/productManagement.js (最終修正版)
+// public/admin/modules/productManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -113,48 +113,40 @@ function handleCsvUpload(event) {
     reader.readAsText(file, 'UTF-8');
 }
 
-
 // --- Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
     const form = document.getElementById('edit-product-form');
     form.reset();
 
-    // 清理舊的動態欄位
     document.querySelectorAll('#edit-product-image-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
     document.querySelectorAll('#edit-product-spec-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
 
     const modalTitle = document.getElementById('modal-product-title');
     const idInput = document.getElementById('edit-product-id');
     const idDisplay = document.getElementById('edit-product-id-display');
-    // 【核心修改】動態生成篩選器下拉選單
+
     const filtersContainer = document.getElementById('edit-product-filters-container');
-    filtersContainer.innerHTML = ''; // 清空容器
+    filtersContainer.innerHTML = '';
     const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
 
     filterDefinitions.forEach(filterDef => {
         const formGroup = document.createElement('div');
         formGroup.className = 'form-group';
-
         const label = document.createElement('label');
         label.htmlFor = `edit-product-${filterDef.id}`;
         label.textContent = filterDef.name;
-
         const select = document.createElement('select');
         select.id = `edit-product-${filterDef.id}`;
         select.name = filterDef.id;
-
-        // 加入一個預設的空選項
         select.add(new Option(`-- 請選擇${filterDef.name} --`, ''));
-
         filterDef.options.forEach(option => {
             select.add(new Option(option, option));
         });
-
         formGroup.append(label, select);
         filtersContainer.appendChild(formGroup);
     });
 
-    if (product) { // 編輯模式
+    if (product) {
         modalTitle.textContent = `編輯產品：${product.name}`;
         idInput.value = product.product_id;
         idDisplay.value = product.product_id;
@@ -165,17 +157,15 @@ function openProductModal(product = null) {
         document.getElementById('edit-product-price').value = product.price ?? '';
         document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? '';
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
-        // 設定篩選器下拉選單的預設值
-    filterDefinitions.forEach(filterDef => {
-        const select = document.getElementById(`edit-product-${filterDef.id}`);
-        if (select) {
-            data[filterDef.id] = select.value || null;
-        }
-    });
-    for (let i = filterDefinitions.length + 1; i <= 3; i++) {
-        data[`filter_${i}`] = null;
-    }
-        // 動態填充圖片
+
+        filterDefinitions.forEach(filterDef => {
+            const select = document.getElementById(`edit-product-${filterDef.id}`);
+            if (select) {
+                // 【錯誤修正】這裡使用 `product` 變數，而不是 `data`
+                select.value = product[filterDef.id] || '';
+            }
+        });
+
         try {
             const images = JSON.parse(product.images || '[]');
             const imageInputsContainer = document.getElementById('edit-product-image-inputs');
@@ -186,7 +176,6 @@ function openProductModal(product = null) {
             }
         } catch (e) { console.error("解析圖片JSON失敗:", e); }
 
-        // 動態填充規格
         const specInputsContainer = document.getElementById('edit-product-spec-inputs');
         const firstSpecGroup = specInputsContainer.querySelector('.spec-input-group');
         let specCount = 0;
@@ -203,14 +192,13 @@ function openProductModal(product = null) {
                 }
             }
         }
-
-    } else { // 新增模式
+    } else {
         modalTitle.textContent = '新增產品/服務';
         idInput.value = '';
         idDisplay.value = '(儲存後將自動生成)';
     }
 
-    updateDynamicButtonsState(); // 更新按鈕狀態
+    updateDynamicButtonsState();
     ui.showModal('#edit-product-modal');
 }
 
@@ -225,7 +213,6 @@ async function handleFormSubmit(event) {
         return;
     }
 
-    // 從所有圖片輸入框收集資料
     const images = Array.from(document.querySelectorAll('#edit-product-image-inputs input'))
         .map(input => input.value.trim())
         .filter(url => url);
@@ -245,7 +232,6 @@ async function handleFormSubmit(event) {
         name: name.trim(),
         description: document.getElementById('edit-product-description').value,
         category: document.getElementById('edit-product-category').value,
-        // 移除舊的 tags 讀取
         is_visible: document.getElementById('edit-product-is-visible').checked,
         inventory_management_type: inventoryManagementType,
         stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
@@ -256,7 +242,17 @@ async function handleFormSubmit(event) {
         price_options: null
     };
 
-    // 從所有規格輸入框收集資料
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+    filterDefinitions.forEach(filterDef => {
+        const select = document.getElementById(`edit-product-${filterDef.id}`);
+        if (select) {
+            data[filterDef.id] = select.value || null;
+        }
+    });
+    for (let i = filterDefinitions.length + 1; i <= 3; i++) {
+        data[`filter_${i}`] = null;
+    }
+
     const specGroups = document.querySelectorAll('#edit-product-spec-inputs .spec-input-group');
     specGroups.forEach((group, index) => {
         if (index < 5) {
@@ -285,67 +281,7 @@ async function handleFormSubmit(event) {
     }
 }
 
-// --- 批次操作 ---
-function updateBatchToolbarState() {
-    const toolbar = document.getElementById('batch-actions-toolbar');
-    const countSpan = document.getElementById('batch-selected-count');
-    const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
-    if (toolbar && countSpan) {
-        if (selectedCheckboxes.length > 0) {
-            toolbar.classList.add('visible');
-            countSpan.textContent = `已選取 ${selectedCheckboxes.length} 項`;
-        } else {
-            toolbar.classList.remove('visible');
-        }
-    }
-}
-
-async function handleBatchUpdate(isVisible) {
-    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
-    try {
-        await api.batchUpdateProducts(selectedIds, isVisible);
-        alert(`成功更新 ${selectedIds.length} 個項目！`);
-        await init();
-    } catch (error) { alert(`錯誤：${error.message}`); }
-}
-
-async function handleBatchDelete() {
-    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
-    if (!confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`)) return;
-    try {
-        await api.deleteProducts(selectedIds);
-        alert('刪除成功！');
-        await init();
-    } catch (error) {
-        alert(`錯誤：${error.message}`);
-    }
-}
-
-// --- 【新增】更新"全選"核取方塊的狀態 ---
-function updateSelectAllCheckboxState() {
-    const selectAllCheckbox = document.getElementById('select-all-products');
-    const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
-    if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
-
-    const allChecked = Array.from(allProductCheckboxes).every(checkbox => checkbox.checked);
-    const someChecked = Array.from(allProductCheckboxes).some(checkbox => checkbox.checked);
-
-    if (allChecked) {
-        selectAllCheckbox.checked = true;
-        selectAllCheckbox.indeterminate = false;
-    } else if (someChecked) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = true; // 顯示部分選取的橫槓狀態
-    } else {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
-    }
-}
-
-// --- 【新增】動態欄位輔助函式 ---
-
+// --- 動態欄位輔助函式 ---
 function addImageInputField(value = '') {
     const container = document.getElementById('edit-product-image-inputs');
     const count = container.children.length;
@@ -380,19 +316,42 @@ function addSpecInputField(name = '', value = '') {
 function updateDynamicButtonsState() {
     const imageCount = document.getElementById('edit-product-image-inputs').children.length;
     const specCount = document.getElementById('edit-product-spec-inputs').children.length;
-
+    
     document.getElementById('add-image-input-btn').style.display = (imageCount < 5) ? 'block' : 'none';
     document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
 }
 
-// --- 【新增】批次設定庫存狀態 ---
+// --- 批次操作 ---
+function updateBatchToolbarState() {
+    const toolbar = document.getElementById('batch-actions-toolbar');
+    const countSpan = document.getElementById('batch-selected-count');
+    const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+    if (toolbar && countSpan) {
+        if (selectedCheckboxes.length > 0) {
+            toolbar.classList.add('visible');
+            countSpan.textContent = `已選取 ${selectedCheckboxes.length} 項`;
+        } else {
+            toolbar.classList.remove('visible');
+        }
+    }
+}
+
+async function handleBatchUpdate(isVisible) {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+    try {
+        await api.batchUpdateProducts(selectedIds, isVisible);
+        alert(`成功更新 ${selectedIds.length} 個項目！`);
+        await init();
+    } catch (error) { alert(`錯誤：${error.message}`); }
+}
+
 async function handleBatchSetStock() {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return alert('請至少選取一個項目！');
 
     const statusText = prompt('請輸入要為所有選取項目設定的庫存狀態文字：\n(例如：可預約、熱銷中、已售罄)', '可預約');
 
-    // 如果使用者按下取消或輸入空值，則不執行任何操作
     if (statusText === null || statusText.trim() === '') {
         return;
     }
@@ -402,18 +361,50 @@ async function handleBatchSetStock() {
     try {
         await api.batchUpdateStockStatus(selectedIds, statusText.trim());
         alert(`成功更新 ${selectedIds.length} 個項目！`);
-        await init(); // 重新載入列表以顯示變更
+        await init();
     } catch (error) {
         alert(`錯誤：${error.message}`);
     }
 }
 
-// --- 事件監聽器 (修正後) ---
+async function handleBatchDelete() {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+    if (!confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`)) return;
+    try {
+        await api.deleteProducts(selectedIds);
+        alert('刪除成功！');
+        await init();
+    } catch (error) {
+        alert(`錯誤：${error.message}`);
+    }
+}
+
+function updateSelectAllCheckboxState() {
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
+    if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
+
+    const allChecked = Array.from(allProductCheckboxes).every(checkbox => checkbox.checked);
+    const someChecked = Array.from(allProductCheckboxes).some(checkbox => checkbox.checked);
+
+    if (allChecked) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (someChecked) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+// --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // 1. 頁面級別的靜態事件 (例如：新增產品按鈕)
     page.addEventListener('click', e => {
         const target = e.target;
         if (target.id === 'add-product-btn') openProductModal();
@@ -426,19 +417,15 @@ function setupEventListeners() {
         }
     });
 
-    // 2. 跨越 page、modal、toolbar 的全域事件監聽 (使用 document)
     document.addEventListener('click', e => {
         const target = e.target;
-        // 確保只在產品管理頁面生效
         if (!document.getElementById('page-inventory').classList.contains('active')) return;
 
-        // 【修正】將批次操作按鈕的監聽移到這裡
         if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
         if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
         if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
         if (target.id === 'batch-delete-btn') handleBatchDelete();
 
-        // 彈窗內的動態欄位按鈕
         if (target.id === 'add-image-input-btn') addImageInputField();
         if (target.id === 'add-spec-input-btn') addSpecInputField();
         if (target.classList.contains('btn-remove-input')) {
@@ -450,14 +437,12 @@ function setupEventListeners() {
         }
     });
 
-
-    // 3. 其他靜態元素的監聽器保持不變
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {
             if (e.target.classList.contains('product-checkbox')) {
                 updateBatchToolbarState();
-                updateSelectAllCheckboxState(); // 【新增】當單一選項變更時，更新全選框的狀態
+                updateSelectAllCheckboxState();
             } else if (e.target.classList.contains('visibility-toggle')) {
                 const productId = e.target.dataset.productId;
                 const isVisible = e.target.checked;
@@ -475,7 +460,7 @@ function setupEventListeners() {
             }
         });
     }
-    // 【新增】為標題列的全選核取方塊綁定事件
+    
     const selectAllCheckbox = document.getElementById('select-all-products');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', (e) => {
@@ -483,7 +468,7 @@ function setupEventListeners() {
             document.querySelectorAll('.product-checkbox').forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
-            updateBatchToolbarState(); // 更新工具列的顯示狀態
+            updateBatchToolbarState();
         });
     }
 
@@ -491,9 +476,9 @@ function setupEventListeners() {
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
 
-    // 標記為已初始化，防止重複綁定
     page.dataset.initialized = 'true';
 }
+
 // --- 初始化 ---
 export const init = async () => {
     const tbody = document.getElementById('product-list-tbody');

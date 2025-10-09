@@ -1,4 +1,4 @@
-// public/admin/modules/productManagement.js (最終完整版)
+// public/admin/modules/productManagement.js (最終修正版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -101,7 +101,6 @@ function handleCsvUpload(event) {
             return;
         }
         try {
-            // 注意：這裡假設 api.js 中有名為 bulkCreateProducts 的 API 函式
             await api.bulkCreateProducts({ products: data });
             alert('匯入成功！');
             await init();
@@ -156,40 +155,44 @@ function openProductModal(product = null) {
     ui.showModal('#edit-product-modal');
 }
 
-// 【*** 核心修正 ***】
+// public/admin/modules/productManagement.js -> 清理後的 handleFormSubmit
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
     const name = document.getElementById('edit-product-name').value;
     const isCreating = !id;
 
-    // 檢查產品名稱是否為空
     if (!name || name.trim() === '') {
         alert('「產品/服務名稱」為必填欄位！');
-        return; // 中斷函式執行
+        return;
     }
-    
+
     const images = [];
     for(let i = 1; i <= 5; i++) {
         const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
         if(imgUrl) images.push(imgUrl);
     }
 
+    const priceValue = document.getElementById('edit-product-price').value;
+    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value;
+
     const data = {
-        name: name.trim(), // 使用已驗證的 name
+        name: name.trim(),
         description: document.getElementById('edit-product-description').value,
         category: document.getElementById('edit-product-category').value,
         tags: document.getElementById('edit-product-tags').value,
         is_visible: document.getElementById('edit-product-is-visible').checked,
         inventory_management_type: document.getElementById('edit-product-inventory-type').value,
-        stock_quantity: document.getElementById('edit-product-stock-quantity').value,
+        stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
         stock_status: document.getElementById('edit-product-stock-status').value,
-        price: document.getElementById('edit-product-price').value,
+        price: priceValue === '' ? null : Number(priceValue),
         images: JSON.stringify(images),
+        price_type: 'simple',
+        price_options: null
     };
     for(let i = 1; i <= 5; i++) {
-        data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
-        data[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value;
+        data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value || null;
+        data[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value || null;
     }
 
     try {
@@ -206,7 +209,6 @@ async function handleFormSubmit(event) {
         alert(`儲存失敗：${error.message}`);
     }
 }
-
 
 // --- 批次操作 ---
 function updateBatchToolbarState() {
@@ -251,7 +253,6 @@ function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page) return;
 
-    // 防止重複綁定
     if (page.dataset.initialized === 'true') return;
 
     page.addEventListener('click', e => {
@@ -316,7 +317,7 @@ export const init = async () => {
         allProducts = await api.getProducts();
         applyProductFiltersAndRender();
         initializeProductDragAndDrop();
-        setupEventListeners(); // 每次初始化都確保事件監聽器是最新的
+        setupEventListeners();
     } catch (error) {
         console.error('初始化產品頁失敗:', error);
         tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取失敗: ${error.message}</td></tr>`;

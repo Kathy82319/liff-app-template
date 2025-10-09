@@ -1,4 +1,4 @@
-// functions/api/admin/update-boardproduct-details.js
+// functions/api/admin/update-product-details.js (修正後)
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
@@ -40,7 +40,6 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
 }
 
 
-// functions/api/admin/update-product-details.js (修正後)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -48,9 +47,11 @@ export async function onRequest(context) {
     }
     
     const body = await context.request.json();
-    const { productId, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
+    // 【** 核心修正 **】將 productId 改為 product_id 來接收前端傳來的資料
+    const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    if (!productId || !name) {
+    // 【** 核心修正 **】驗證的欄位也改為 product_id
+    if (!product_id || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
 
@@ -74,11 +75,11 @@ export async function onRequest(context) {
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
-        productId
+        product_id // 【** 核心修正 **】綁定到 SQL 指令的也是 product_id
     ).run();
 
     if (result.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: `找不到產品 ID: ${productId}，無法更新。` }), { status: 404 });
+      return new Response(JSON.stringify({ error: `找不到產品 ID: ${product_id}，無法更新。` }), { status: 404 });
     }
     
     return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {

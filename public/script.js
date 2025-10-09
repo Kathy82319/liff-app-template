@@ -774,12 +774,10 @@ function renderProducts() {
             <div class="product-card" data-product-id="${product.product_id}">
                 <img src="${imageUrl}" alt="${product.name}" class="product-image">
                 <div class="product-info">
+                    {/* 【** 核心修正 **】h3 的 class 應為 product-title */}
                     <h3 class="product-title">${product.name}</h3>
-                    <p class="product-description">${(product.description || '').substring(0, 40)}...</p> 
-                    <div class="product-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                        <span style="font-size: 0.8rem; background-color: var(--color-bg); padding: 2px 8px; border-radius: 10px;">${product.category || '未分類'}</span>
-                        <span style="font-size: 1rem; font-weight: bold; color: var(--color-primary);">${priceDisplay}</span>
-                    </div>
+                    {/* 【** 核心修正 **】p 的 class 應為 product-price */}
+                    <p class="product-price">${priceDisplay}</p>
                 </div>
             </div>
         `;

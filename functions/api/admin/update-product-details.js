@@ -47,10 +47,10 @@ export async function onRequest(context) {
     }
     
     const body = await context.request.json();
-    // 【** 核心修正 **】將 productId 改為 product_id 來接收前端傳來的資料
+    // 【** 修正 4.1 **】接收 product_id 而不是 productId
     const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    // 【** 核心修正 **】驗證的欄位也改為 product_id
+    // 【** 修正 4.2 **】驗證的欄位也改為 product_id
     if (!product_id || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
@@ -68,6 +68,7 @@ export async function onRequest(context) {
        WHERE product_id = ?`
     );
 
+    // 【** 核心修正 4.3 **】調整 bind 的參數順序，將 product_id 放到最後
     const result = await stmt.bind(
         name, description, category, tags, images, is_visible ? 1 : 0,
         inventory_management_type, stock_quantity, stock_status,
@@ -75,7 +76,7 @@ export async function onRequest(context) {
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
-        product_id // 【** 核心修正 **】綁定到 SQL 指令的也是 product_id
+        product_id // 這個參數必須對應到 WHERE product_id = ?
     ).run();
 
     if (result.meta.changes === 0) {

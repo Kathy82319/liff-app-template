@@ -262,16 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 
-// 取消預約按鈕
-if (target.matches('.cancel-booking-btn')) {
-    const bookingId = target.dataset.bookingId;
-    if (!bookingId) return;
-    if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-        handleCancelBooking(bookingId);
-        }
+            // 取消預約按鈕
+            if (target.matches('.cancel-booking-btn')) {
+                const bookingId = target.dataset.bookingId;
+                if (!bookingId) return;
+                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+                    handleCancelBooking(bookingId);
+                }
+            }
+        });
     }
-    });
-}
 
 async function handleCancelBooking(bookingId) {
     const card = document.getElementById(`booking-card-${bookingId}`);
@@ -775,11 +775,7 @@ function renderProducts() {
                 <img src="${imageUrl}" alt="${product.name}" class="product-image">
                 <div class="product-info">
                     <h3 class="product-title">${product.name}</h3>
-                    <p class="product-description">${(product.description || '').substring(0, 40)}...</p> 
-                    <div class="product-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                        <span style="font-size: 0.8rem; background-color: var(--color-bg); padding: 2px 8px; border-radius: 10px;">${product.category || '未分類'}</span>
-                        <span style="font-size: 1rem; font-weight: bold; color: var(--color-primary);">${priceDisplay}</span>
-                    </div>
+                    <p class="product-price">${priceDisplay}</p>
                 </div>
             </div>
         `;
@@ -883,18 +879,26 @@ async function initializeBookingPage() {
     document.getElementById('view-my-bookings-btn').addEventListener('click', () => showPage('page-my-bookings'));
     document.getElementById('confirm-booking-btn').addEventListener('click', handleBookingConfirmation);
 
-     // 【修改】線上預約頁面初始化
+     // 【修改 5.1】修正 flatpickr 的 API 呼叫路徑和錯誤處理
         const cutoffDays = CONFIG.LOGIC.BOOKING_CUTOFF_DAYS || 0;
         const minDate = new Date();
         minDate.setDate(minDate.getDate() + cutoffDays);
 
-        // 【修改】先獲取可預約日期
         let enabledDates = [];
         try {
-            const response = await fetch('/api/admin/booking-settings');
-            enabledDates = await response.json();
+            // 原本是呼叫 /api/admin/booking-settings，應改為呼叫 bookings-check 帶參數
+            const response = await fetch('/api/bookings-check?month-init=true');
+            if (!response.ok) throw new Error('無法獲取可預約日期');
+            const data = await response.json();
+            // API 回傳的 key 是 enabledDates
+            enabledDates = data.enabledDates; 
         } catch(e) {
-            console.error('無法獲取可預約日期設定');
+            console.error('無法獲取可預約日期設定:', e);
+            // 即使獲取失敗，也要給 flatpickr 一個空陣列，避免崩潰
+            enabledDates = [];
+            if(datepickerContainer) {
+                datepickerContainer.innerHTML = `<p style="color:var(--color-danger)">無法載入可預約日期，請稍後再試。</p>`;
+            }
         }
     // 初始化日期選擇器
     flatpickr(datepickerContainer, {
@@ -902,14 +906,13 @@ async function initializeBookingPage() {
         minDate: minDate,
         dateFormat: "Y-m-d",
         locale: "zh_tw",
-        enable: enabledDates,
-        // 【**補上此處的關鍵邏輯**】
+        enable: enabledDates, // 現在能確保 enabledDates 是一個陣列
         onChange: (selectedDates, dateStr) => {
             if (dateStr) {
-                bookingData.date = dateStr; // 將選擇的日期存到 bookingData 中
+                bookingData.date = dateStr;
                 timeSlotContainer.style.display = 'block';
                 detailsForm.style.display = 'none';
-                renderTimeSlots(timeSlotSelect); // 呼叫 renderTimeSlots 來產生時間選項
+                renderTimeSlots(timeSlotSelect);
             } else {
                 bookingData.date = null;
                 timeSlotContainer.style.display = 'none';
@@ -1023,6 +1026,13 @@ async function handleBookingConfirmation(event) {
 
     if (!bookingData.date || !bookingData.timeSlot || !bookingData.name || !bookingData.phone) {
         alert('日期、時段、姓名與電話為必填！');
+        return;
+    }
+     
+    // 【新增 4】電話號碼格式驗證
+    const phoneRegex = /^09\d{8}$/;
+    if (!phoneRegex.test(bookingData.phone)) {
+        alert('請輸入正確的 10 位手機號碼 (必須為 09 開頭)。');
         return;
     }
 

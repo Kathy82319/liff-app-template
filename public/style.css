@@ -410,6 +410,42 @@ input:focus, select:focus, textarea:focus {
     border-radius: 4px;
 }
 
+/* 美化新的排序按鈕和箭頭 */
+.sort-button {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.sort-button .sort-arrow {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    transition: all 0.3s;
+}
+/* 箭頭樣式 */
+.sort-button[data-sort="default"] .sort-arrow {
+    border-top: 5px solid var(--color-text-secondary);
+    border-bottom: 5px solid var(--color-text-secondary);
+    height: 12px;
+    opacity: 0.5;
+}
+.sort-button[data-sort="price_asc"] .sort-arrow {
+    border-bottom: 7px solid var(--color-primary);
+}
+.sort-button[data-sort="price_desc"] .sort-arrow {
+    border-top: 7px solid var(--color-primary);
+}
+/* 啟用狀態的顏色 */
+.sort-button:not([data-sort="default"]) {
+    color: var(--color-primary);
+}
 
 /* --- 網格/卡片模式 (Grid View) --- */
 #product-list-container.view-grid {

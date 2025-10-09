@@ -749,7 +749,8 @@ function renderProductDetails(product) {
 
     function renderProducts() {
         const container = document.getElementById('product-list-container');
-        if(!container) return;
+        const sortButton = document.getElementById('price-sort-btn');
+        if(!container || !sortButton) return;
 
         // 1. 篩選
         let filteredProducts = allProducts.filter(p => p.is_visible === 1);
@@ -776,10 +777,11 @@ function renderProductDetails(product) {
                 break;
         }
 
-        // 3. 根據選擇的版面，設定容器的 class
+        // 3. 更新 UI 狀態
         container.className = productView.layout === 'grid' ? 'view-grid' : 'view-list';
         document.getElementById('view-grid-btn').classList.toggle('active', productView.layout === 'grid');
         document.getElementById('view-list-btn').classList.toggle('active', productView.layout === 'list');
+        sortButton.dataset.sort = productView.sort; // 更新按鈕的 data-sort 屬性以觸發 CSS 變化
         
         if (filteredProducts.length === 0) {
             container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
@@ -832,6 +834,7 @@ function renderProductDetails(product) {
     async function initializeProductsPage() {
         // 讀取使用者上次的選擇
         productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
+        productView.sort = 'default'; // 每次進入頁面時重置排序
 
         const container = document.getElementById('product-list-container');
         if (!container) return;
@@ -839,7 +842,7 @@ function renderProductDetails(product) {
 
         const viewControls = document.getElementById('product-view-controls');
         const layoutSwitcher = document.querySelector('.layout-switcher');
-        const sortSelect = document.getElementById('product-sort-select');
+        const sortButton = document.getElementById('price-sort-btn'); // 改為獲取按鈕
 
         // 根據後台設定，決定是否顯示版面切換按鈕
         if (CONFIG.FEATURES.ENABLE_PRODUCT_LAYOUT_SWITCH) {
@@ -861,9 +864,16 @@ function renderProductDetails(product) {
             renderProducts();
         });
         
-        // 綁定排序下拉選單事件
-        sortSelect.addEventListener('change', (e) => {
-            productView.sort = e.target.value;
+        // 【核心修改】綁定排序按鈕的點擊事件
+        sortButton.addEventListener('click', () => {
+            const currentSort = productView.sort;
+            if (currentSort === 'default') {
+                productView.sort = 'price_desc'; // 預設 -> 價高到低
+            } else if (currentSort === 'price_desc') {
+                productView.sort = 'price_asc'; // 價高到低 -> 價低到高
+            } else {
+                productView.sort = 'default'; // 價低到高 -> 預設
+            }
             renderProducts();
         });
 

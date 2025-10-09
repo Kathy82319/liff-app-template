@@ -126,6 +126,33 @@ function openProductModal(product = null) {
     const modalTitle = document.getElementById('modal-product-title');
     const idInput = document.getElementById('edit-product-id');
     const idDisplay = document.getElementById('edit-product-id-display');
+    // 【核心修改】動態生成篩選器下拉選單
+    const filtersContainer = document.getElementById('edit-product-filters-container');
+    filtersContainer.innerHTML = ''; // 清空容器
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+
+    filterDefinitions.forEach(filterDef => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+
+        const label = document.createElement('label');
+        label.htmlFor = `edit-product-${filterDef.id}`;
+        label.textContent = filterDef.name;
+
+        const select = document.createElement('select');
+        select.id = `edit-product-${filterDef.id}`;
+        select.name = filterDef.id;
+
+        // 加入一個預設的空選項
+        select.add(new Option(`-- 請選擇${filterDef.name} --`, ''));
+
+        filterDef.options.forEach(option => {
+            select.add(new Option(option, option));
+        });
+
+        formGroup.append(label, select);
+        filtersContainer.appendChild(formGroup);
+    });
 
     if (product) { // 編輯模式
         modalTitle.textContent = `編輯產品：${product.name}`;
@@ -134,12 +161,20 @@ function openProductModal(product = null) {
         document.getElementById('edit-product-name').value = product.name;
         document.getElementById('edit-product-description').value = product.description || '';
         document.getElementById('edit-product-category').value = product.category || '';
-        document.getElementById('edit-product-tags').value = product.tags || '';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
         document.getElementById('edit-product-price').value = product.price ?? '';
         document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? '';
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
-
+        // 設定篩選器下拉選單的預設值
+    filterDefinitions.forEach(filterDef => {
+        const select = document.getElementById(`edit-product-${filterDef.id}`);
+        if (select) {
+            data[filterDef.id] = select.value || null;
+        }
+    });
+    for (let i = filterDefinitions.length + 1; i <= 3; i++) {
+        data[`filter_${i}`] = null;
+    }
         // 動態填充圖片
         try {
             const images = JSON.parse(product.images || '[]');
@@ -193,7 +228,7 @@ async function handleFormSubmit(event) {
     // 從所有圖片輸入框收集資料
     const images = Array.from(document.querySelectorAll('#edit-product-image-inputs input'))
         .map(input => input.value.trim())
-        .filter(url => url); // 過濾掉空字串
+        .filter(url => url);
 
     const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value.trim();
     const stockStatusValue = document.getElementById('edit-product-stock-status').value.trim();
@@ -210,7 +245,7 @@ async function handleFormSubmit(event) {
         name: name.trim(),
         description: document.getElementById('edit-product-description').value,
         category: document.getElementById('edit-product-category').value,
-        tags: document.getElementById('edit-product-tags').value,
+        // 移除舊的 tags 讀取
         is_visible: document.getElementById('edit-product-is-visible').checked,
         inventory_management_type: inventoryManagementType,
         stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
@@ -230,7 +265,6 @@ async function handleFormSubmit(event) {
             data[`spec_${specIndex}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
         }
     });
-    // 確保未使用的 spec 欄位為 null
     for (let i = specGroups.length + 1; i <= 5; i++) {
         data[`spec_${i}_name`] = null;
         data[`spec_${i}_value`] = null;

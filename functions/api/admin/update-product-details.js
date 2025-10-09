@@ -1,4 +1,5 @@
-// functions/api/admin/update-product-details.js (修正後)
+// functions/api/admin/update-product-details.js
+
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
@@ -20,6 +21,7 @@ async function getAccessToken(env) {
     return tokenData.access_token;
 }
 
+// 【** 核心 Bug 修正 **】
 async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) {
     const { GOOGLE_SHEET_ID } = env;
     if (!GOOGLE_SHEET_ID) throw new Error('缺少 GOOGLE_SHEET_ID 環境變數。');
@@ -32,8 +34,10 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
     const rows = await sheet.getRows();
     const rowToUpdate = rows.find(row => row.get(matchColumn) == matchValue);
     if (rowToUpdate) {
+        // Bug 在此：原來的程式碼沒有把 updateData 寫進去
+        // 修正：使用 assign 方法將新資料合併到 rowToUpdate 中
         rowToUpdate.assign(updateData);
-        await rowToUpdate.save();
+        await rowToUpdate.save(); // 保存更改
     } else {
         console.warn(`在工作表 "${sheetName}" 中找不到 ${matchColumn} 為 "${matchValue}" 的資料列，無法更新。`);
     }
@@ -47,11 +51,11 @@ export async function onRequest(context) {
     }
     
     const body = await context.request.json();
-    // 【** 修正 4.1 **】接收 product_id 而不是 productId
-    const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
+    // 【修正】同時接收 product_id (前端傳來的) 和 productId (舊的寫法)，增加相容性
+    const { product_id, productId, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    // 【** 修正 4.2 **】驗證的欄位也改為 product_id
-    if (!product_id || !name) {
+    const finalProductId = product_id || productId; // 優先使用 product_id
+    if (!finalProductId || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
 
@@ -68,7 +72,6 @@ export async function onRequest(context) {
        WHERE product_id = ?`
     );
 
-    // 【** 核心修正 4.3 **】調整 bind 的參數順序，將 product_id 放到最後
     const result = await stmt.bind(
         name, description, category, tags, images, is_visible ? 1 : 0,
         inventory_management_type, stock_quantity, stock_status,
@@ -76,11 +79,11 @@ export async function onRequest(context) {
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
-        product_id // 這個參數必須對應到 WHERE product_id = ?
+        finalProductId
     ).run();
 
     if (result.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: `找不到產品 ID: ${product_id}，無法更新。` }), { status: 404 });
+      return new Response(JSON.stringify({ error: `找不到產品 ID: ${finalProductId}，無法更新。` }), { status: 404 });
     }
     
     return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {

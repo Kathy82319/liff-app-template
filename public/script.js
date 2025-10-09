@@ -774,9 +774,7 @@ function renderProducts() {
             <div class="product-card" data-product-id="${product.product_id}">
                 <img src="${imageUrl}" alt="${product.name}" class="product-image">
                 <div class="product-info">
-                    {/* 【** 核心修正 **】h3 的 class 應為 product-title */}
                     <h3 class="product-title">${product.name}</h3>
-                    {/* 【** 核心修正 **】p 的 class 應為 product-price */}
                     <p class="product-price">${priceDisplay}</p>
                 </div>
             </div>

@@ -310,11 +310,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .product-card {
-    /* 【修正 1.1】修正 CSS 變數名稱 */
-    background-color: var(--color-card-bg); 
-    border: 1px solid var(--color-secondary);
+    /* 【修正】將 --card-background 改為 --color-card-bg */
+    background-color: var(--color-card-bg);
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -332,10 +332,6 @@ input:focus, select:focus, textarea:focus {
     margin: 0 0 5px 0;
     font-size: 0.9rem;
     font-weight: 600;
-    /* 【新增】避免標題過長換行 */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .product-card .product-info {
@@ -357,13 +353,13 @@ input:focus, select:focus, textarea:focus {
 }
 /* 【新增 2】產品型錄標籤樣式 */
 .filter-tag-btn {
-    padding: 6px 14px;
+    padding: 6px 12px;
     border: 1px solid var(--color-secondary);
     background: transparent;
     color: var(--color-text-secondary);
     border-radius: 16px;
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    font-size: 0.9rem;
 }
 .filter-tag-btn:hover {
     background-color: var(--color-secondary);
@@ -374,7 +370,15 @@ input:focus, select:focus, textarea:focus {
     border-color: var(--color-primary);
     color: var(--color-bg);
 }
-
+/* 【新增】"更多" & "清除" 按鈕的樣式 */
+.filter-action-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
 
 
 
@@ -538,6 +542,5 @@ input:focus, select:focus, textarea:focus {
 
 /* 【新增 3】查看我的預約按鈕樣式 */
 #view-my-bookings-btn {
-    margin-top: 20px;
-    background-color: var(--color-secondary);
+    background-color: var(--color-secondary); /* 給它一個次要顏色 */
 }

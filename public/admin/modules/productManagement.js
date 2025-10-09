@@ -289,6 +289,27 @@ async function handleBatchDelete() {
     }
 }
 
+// --- 【新增】更新"全選"核取方塊的狀態 ---
+function updateSelectAllCheckboxState() {
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
+    if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
+
+    const allChecked = Array.from(allProductCheckboxes).every(checkbox => checkbox.checked);
+    const someChecked = Array.from(allProductCheckboxes).some(checkbox => checkbox.checked);
+
+    if (allChecked) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (someChecked) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true; // 顯示部分選取的橫槓狀態
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
 // --- 【新增】動態欄位輔助函式 ---
 
 function addImageInputField(value = '') {
@@ -356,20 +377,14 @@ async function handleBatchSetStock() {
 // --- 事件監聽器 (修正後) ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
-    // 如果頁面不存在，或已經初始化過，就直接返回
     if (!page || page.dataset.initialized === 'true') return;
 
-    // 1. 將頁面級別的靜態事件監聽器保留在 page 上
+    // 1. 頁面級別的靜態事件 (例如：新增產品按鈕)
     page.addEventListener('click', e => {
         const target = e.target;
         if (target.id === 'add-product-btn') openProductModal();
         if (target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
-        if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
-        if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
-        // 【新增】批次設定庫存狀態的事件監聽
-        if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
-        if (target.id === 'batch-delete-btn') handleBatchDelete();
-
+        
         const editButton = target.closest('.btn-edit-product');
         if (editButton) {
             const product = allProducts.find(p => p.product_id === editButton.dataset.productid);
@@ -377,10 +392,19 @@ function setupEventListeners() {
         }
     });
 
+    // 2. 跨越 page、modal、toolbar 的全域事件監聽 (使用 document)
     document.addEventListener('click', e => {
         const target = e.target;
+        // 確保只在產品管理頁面生效
         if (!document.getElementById('page-inventory').classList.contains('active')) return;
 
+        // 【修正】將批次操作按鈕的監聽移到這裡
+        if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
+        if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
+        if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
+        if (target.id === 'batch-delete-btn') handleBatchDelete();
+
+        // 彈窗內的動態欄位按鈕
         if (target.id === 'add-image-input-btn') addImageInputField();
         if (target.id === 'add-spec-input-btn') addSpecInputField();
         if (target.classList.contains('btn-remove-input')) {
@@ -393,11 +417,13 @@ function setupEventListeners() {
     });
 
 
+    // 3. 其他靜態元素的監聽器保持不變
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {
             if (e.target.classList.contains('product-checkbox')) {
                 updateBatchToolbarState();
+                updateSelectAllCheckboxState(); // 【新增】當單一選項變更時，更新全選框的狀態
             } else if (e.target.classList.contains('visibility-toggle')) {
                 const productId = e.target.dataset.productId;
                 const isVisible = e.target.checked;
@@ -415,7 +441,18 @@ function setupEventListeners() {
             }
         });
     }
-    
+    // 【新增】為標題列的全選核取方塊綁定事件
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateBatchToolbarState(); // 更新工具列的顯示狀態
+        });
+    }
+
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);

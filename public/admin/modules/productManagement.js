@@ -155,8 +155,7 @@ function openProductModal(product = null) {
     ui.showModal('#edit-product-modal');
 }
 
-// public/admin/modules/productManagement.js -> 修正後的 handleFormSubmit
-
+// public/admin/modules/productManagement.js -> 清理後的 handleFormSubmit
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
@@ -169,12 +168,11 @@ async function handleFormSubmit(event) {
     }
 
     const images = [];
-    for (let i = 1; i <= 5; i++) {
+    for(let i = 1; i <= 5; i++) {
         const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
-        if (imgUrl) images.push(imgUrl);
+        if(imgUrl) images.push(imgUrl);
     }
 
-    // 【*** 核心修正點：確保數字類型正確 ***】
     const priceValue = document.getElementById('edit-product-price').value;
     const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value;
 
@@ -185,26 +183,17 @@ async function handleFormSubmit(event) {
         tags: document.getElementById('edit-product-tags').value,
         is_visible: document.getElementById('edit-product-is-visible').checked,
         inventory_management_type: document.getElementById('edit-product-inventory-type').value,
-        // 如果值為空字串，傳送 null；否則轉換為數字
         stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
         stock_status: document.getElementById('edit-product-stock-status').value,
-        // 價格也做同樣處理
         price: priceValue === '' ? null : Number(priceValue),
         images: JSON.stringify(images),
-        // 確保 price_type 和 price_options 有預設值
         price_type: 'simple',
         price_options: null
     };
-
-    for (let i = 1; i <= 5; i++) {
+    for(let i = 1; i <= 5; i++) {
         data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value || null;
         data[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value || null;
     }
-
-    // --- 【前端偵錯日誌】 ---
-    // 在發送請求前，印出準備好的資料物件
-    console.log('【前端偵錯】準備發送到 API 的資料:', JSON.stringify(data, null, 2));
-    // --- 【偵錯結束】 ---
 
     try {
         if (isCreating) {
@@ -217,9 +206,6 @@ async function handleFormSubmit(event) {
         await init();
         alert('儲存成功！');
     } catch (error) {
-        // --- 【前端偵錯日誌】 ---
-        console.error('【前端偵錯】API 請求失敗:', error);
-        // --- 【偵錯結束】 ---
         alert(`儲存失敗：${error.message}`);
     }
 }

@@ -305,34 +305,49 @@
         color: white;
     }
 
-/* --- 【新增】動態欄位樣式 --- */
+/* --- 【修正】動態欄位樣式 --- */
     .dynamic-input-group {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 5px;
+        margin-bottom: 8px; /* 增加間距 */
     }
     .dynamic-input-group input {
         flex-grow: 1;
     }
-    .btn-remove-input {
-        padding: 5px 10px;
-        font-size: 1.2rem;
-        border: none;
-        background: none;
-        color: var(--color-danger);
+    /* "新增" 和 "移除" 按鈕的統一基礎樣式 */
+    .btn-add-input, .btn-remove-input {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+        border: 1px solid var(--color-border);
+        background-color: var(--color-sidebar-bg);
+        color: var(--color-text-light);
+        border-radius: var(--border-radius);
         cursor: pointer;
-        flex-shrink: 0;
+        transition: all 0.2s ease;
+        flex-shrink: 0; /* 防止按鈕被壓縮 */
     }
     .btn-add-input {
-        display: block;
+        width: 100%;
         margin-top: 10px;
-        padding: 5px 10px;
-        font-size: 0.9rem;
-        border: 1px dashed var(--color-secondary);
-        background: none;
-        color: var(--color-secondary);
-        cursor: pointer;
+        border-style: dashed;
+    }
+    .btn-remove-input {
+        font-weight: bold;
+        padding: 2px 10px; /* 讓圓形按鈕更精緻 */
+        line-height: 1.5;
+    }
+    
+    /* 滑鼠懸停效果 */
+    .btn-add-input:hover {
+        background-color: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    .btn-remove-input:hover {
+        background-color: var(--color-danger);
+        color: white;
+        border-color: var(--color-danger);
     }
 
 </style>

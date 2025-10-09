@@ -330,14 +330,13 @@ function updateDynamicButtonsState() {
     document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
 }
 
-// --- 事件監聽器 ---
+// --- 事件監聽器 (修正後) ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
-    if (!page) return;
+    // 如果頁面不存在，或已經初始化過，就直接返回
+    if (!page || page.dataset.initialized === 'true') return;
 
-    if (page.dataset.initialized === 'true') return;
-
-    // 使用事件委派處理動態新增的元素
+    // 1. 將頁面級別的靜態事件監聽器保留在 page 上
     page.addEventListener('click', e => {
         const target = e.target;
         if (target.id === 'add-product-btn') openProductModal();
@@ -351,32 +350,43 @@ function setupEventListeners() {
             const product = allProducts.find(p => p.product_id === editButton.dataset.productid);
             if (product) openProductModal(product);
         }
+    });
+
+    // 2. 將需要跨越 page 和 modal 的動態按鈕事件監聽，提升到 document 層級
+    document.addEventListener('click', e => {
+        const target = e.target;
+        // 確保只在產品管理頁面生效，避免影響其他頁面
+        if (!document.getElementById('page-inventory').classList.contains('active')) return;
 
         // 動態欄位按鈕
         if (target.id === 'add-image-input-btn') addImageInputField();
         if (target.id === 'add-spec-input-btn') addSpecInputField();
         if (target.classList.contains('btn-remove-input')) {
-            target.closest('.dynamic-input-group').remove();
-            updateDynamicButtonsState();
+            // 使用 .closest() 來找到要移除的整行群組
+            const groupToRemove = target.closest('.dynamic-input-group');
+            if (groupToRemove) {
+                groupToRemove.remove();
+                updateDynamicButtonsState(); // 更新按鈕狀態
+            }
         }
     });
 
+
+    // 3. 其他靜態元素的監聽器保持不變
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {
             if (e.target.classList.contains('product-checkbox')) {
                 updateBatchToolbarState();
-                return;
-            }
-            if (e.target.classList.contains('visibility-toggle')) {
+            } else if (e.target.classList.contains('visibility-toggle')) {
                 const productId = e.target.dataset.productId;
                 const isVisible = e.target.checked;
                 e.target.disabled = true;
                 try {
                     await api.toggleProductVisibility(productId, isVisible);
                     const product = allProducts.find(p => p.product_id === productId);
-                    if(product) product.is_visible = isVisible ? 1 : 0;
-                } catch(error) {
+                    if (product) product.is_visible = isVisible ? 1 : 0;
+                } catch (error) {
                     alert(`更新失敗: ${error.message}`);
                     e.target.checked = !isVisible;
                 } finally {
@@ -385,14 +395,14 @@ function setupEventListeners() {
             }
         });
     }
-
+    
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
 
+    // 標記為已初始化，防止重複綁定
     page.dataset.initialized = 'true';
 }
-
 // --- 初始化 ---
 export const init = async () => {
     const tbody = document.getElementById('product-list-tbody');

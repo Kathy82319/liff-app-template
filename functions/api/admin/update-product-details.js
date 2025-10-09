@@ -51,11 +51,13 @@ export async function onRequest(context) {
     }
     
     const body = await context.request.json();
-    // 【修正】同時接收 product_id (前端傳來的) 和 productId (舊的寫法)，增加相容性
-    const { product_id, productId, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
+    
+    // 【** 核心修正：將 productId 改為 product_id **】
+    // 讓後端接收的欄位名稱與前端送來的一致
+    const { product_id, name, description, category, tags, images, is_visible, inventory_management_type, stock_quantity, stock_status, price_type, price, price_options, spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value, spec_4_name, spec_4_value, spec_5_name, spec_5_value } = body;
   
-    const finalProductId = product_id || productId; // 優先使用 product_id
-    if (!finalProductId || !name) {
+    // 【** 核心修正：驗證的欄位也改為 product_id **】
+    if (!product_id || !name) {
         return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
     }
 
@@ -79,11 +81,11 @@ export async function onRequest(context) {
         spec_1_name, spec_1_value, spec_2_name, spec_2_value,
         spec_3_name, spec_3_value, spec_4_name, spec_4_value,
         spec_5_name, spec_5_value,
-        finalProductId
+        product_id // 【** 核心修正：這裡綁定的變數也要是 product_id **】
     ).run();
 
     if (result.meta.changes === 0) {
-      return new Response(JSON.stringify({ error: `找不到產品 ID: ${finalProductId}，無法更新。` }), { status: 404 });
+      return new Response(JSON.stringify({ error: `找不到產品 ID: ${product_id}，無法更新。` }), { status: 404 });
     }
     
     return new Response(JSON.stringify({ success: true, message: '成功更新產品資訊！' }), {

@@ -1,5 +1,5 @@
-// functions/api/admin/_middleware.js (修正後)
-//LIFF 環境(行動裝置)對於 Cookie 和跨網域請求更嚴格，因此這裡的修改只for Demo，讓Demo限制寬鬆(留意不要合併到main去了)
+// functions/api/admin/_middleware.js (最終版 - 適應 DEMO_SITE_URL)
+
 import * as jose from 'jose';
 
 async function authMiddleware(context) {
@@ -7,18 +7,30 @@ async function authMiddleware(context) {
     const url = new URL(request.url);
 
     // --- 【核心修正】---
-    // 檢查 Cloudflare 環境變數，如果是在 DEMO 模式，就直接跳過所有驗證
-    //DEMO_SITE_URL這個是我自己設定的
-    if (env.DEMO_SITE_URL === 'true') {
-        console.log('[Auth Middleware] DEMO mode is active. Bypassing authentication.');
-        // 將一個模擬的使用者物件放進 context，確保後續 API 能正常運作
-        context.data.user = { userId: 'demo_user', role: 'admin' };
-        return await next();
+    // 檢查 DEMO_SITE_URL 環境變數是否存在(這是我自己設定的變數)
+    if (env.DEMO_SITE_URL) {
+        try {
+            // 獲取當前請求的網址主機名稱 (e.g., "liff-app-template-demo.pages.dev")
+            const currentHostname = url.hostname;
+            
+            // 獲取您在環境變數中設定的 DEMO 網站的主機名稱
+            const demoHostname = new URL(env.DEMO_SITE_URL).hostname;
+
+            // 如果兩個主機名稱完全相同，就確認為 DEMO 模式
+            if (currentHostname === demoHostname) {
+                console.log(`[Auth Middleware] Hostname matches DEMO_SITE_URL. Bypassing authentication.`);
+                context.data.user = { userId: 'demo_user', role: 'admin' };
+                return await next(); // 放行請求
+            }
+        } catch (e) {
+            console.error("解析 DEMO_SITE_URL 時發生錯誤:", e);
+            // 如果 DEMO_SITE_URL 格式不正確，則繼續執行嚴格驗證以策安全
+        }
     }
     // --- 【修正結束】---
 
 
-    // --- 以下是正式環境 (main branch) 才會執行的嚴格驗證 ---
+    // --- 正式環境 (main branch) 或 DEMO 模式不匹配時，執行的嚴格驗證 ---
     if (url.pathname.startsWith('/api/admin/')) {
         const isAuthRoute = url.pathname.startsWith('/api/admin/auth/login') || url.pathname.startsWith('/api/admin/auth/logout');
         if (isAuthRoute) {

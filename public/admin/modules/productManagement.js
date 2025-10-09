@@ -330,6 +330,29 @@ function updateDynamicButtonsState() {
     document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
 }
 
+// --- 【新增】批次設定庫存狀態 ---
+async function handleBatchSetStock() {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+
+    const statusText = prompt('請輸入要為所有選取項目設定的庫存狀態文字：\n(例如：可預約、熱銷中、已售罄)', '可預約');
+
+    // 如果使用者按下取消或輸入空值，則不執行任何操作
+    if (statusText === null || statusText.trim() === '') {
+        return;
+    }
+
+    if (!confirm(`確定要將 ${selectedIds.length} 個項目的庫存狀態設定為「${statusText}」嗎？`)) return;
+
+    try {
+        await api.batchUpdateStockStatus(selectedIds, statusText.trim());
+        alert(`成功更新 ${selectedIds.length} 個項目！`);
+        await init(); // 重新載入列表以顯示變更
+    } catch (error) {
+        alert(`錯誤：${error.message}`);
+    }
+}
+
 // --- 事件監聽器 (修正後) ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
@@ -343,6 +366,8 @@ function setupEventListeners() {
         if (target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
         if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
         if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
+        // 【新增】批次設定庫存狀態的事件監聽
+        if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
         if (target.id === 'batch-delete-btn') handleBatchDelete();
 
         const editButton = target.closest('.btn-edit-product');
@@ -352,27 +377,22 @@ function setupEventListeners() {
         }
     });
 
-    // 2. 將需要跨越 page 和 modal 的動態按鈕事件監聽，提升到 document 層級
     document.addEventListener('click', e => {
         const target = e.target;
-        // 確保只在產品管理頁面生效，避免影響其他頁面
         if (!document.getElementById('page-inventory').classList.contains('active')) return;
 
-        // 動態欄位按鈕
         if (target.id === 'add-image-input-btn') addImageInputField();
         if (target.id === 'add-spec-input-btn') addSpecInputField();
         if (target.classList.contains('btn-remove-input')) {
-            // 使用 .closest() 來找到要移除的整行群組
             const groupToRemove = target.closest('.dynamic-input-group');
             if (groupToRemove) {
                 groupToRemove.remove();
-                updateDynamicButtonsState(); // 更新按鈕狀態
+                updateDynamicButtonsState();
             }
         }
     });
 
 
-    // 3. 其他靜態元素的監聽器保持不變
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {

@@ -1,4 +1,4 @@
-// public/admin/modules/productManagement.js (最終完整版)
+// public/admin/modules/productManagement.js (最終修正版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -101,7 +101,6 @@ function handleCsvUpload(event) {
             return;
         }
         try {
-            // 注意：這裡假設 api.js 中有名為 bulkCreateProducts 的 API 函式
             await api.bulkCreateProducts({ products: data });
             alert('匯入成功！');
             await init();
@@ -156,7 +155,6 @@ function openProductModal(product = null) {
     ui.showModal('#edit-product-modal');
 }
 
-// 【*** 核心修正 ***】
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
@@ -198,7 +196,6 @@ async function handleFormSubmit(event) {
         if (isCreating) {
             await api.createProduct(data);
         } else {
-            // 將 product_id 加入到 data 物件中
             data.product_id = id;
             await api.updateProductDetails(data);
         }
@@ -254,7 +251,6 @@ function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page) return;
 
-    // 防止重複綁定
     if (page.dataset.initialized === 'true') return;
 
     page.addEventListener('click', e => {
@@ -319,7 +315,7 @@ export const init = async () => {
         allProducts = await api.getProducts();
         applyProductFiltersAndRender();
         initializeProductDragAndDrop();
-        setupEventListeners(); // 每次初始化都確保事件監聽器是最新的
+        setupEventListeners();
     } catch (error) {
         console.error('初始化產品頁失敗:', error);
         tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取失敗: ${error.message}</td></tr>`;

@@ -163,10 +163,9 @@ async function handleFormSubmit(event) {
     const name = document.getElementById('edit-product-name').value;
     const isCreating = !id;
 
-    // 檢查產品名稱是否為空
     if (!name || name.trim() === '') {
         alert('「產品/服務名稱」為必填欄位！');
-        return; // 中斷函式執行
+        return;
     }
     
     const images = [];
@@ -176,7 +175,7 @@ async function handleFormSubmit(event) {
     }
 
     const data = {
-        name: name.trim(), // 使用已驗證的 name
+        name: name.trim(),
         description: document.getElementById('edit-product-description').value,
         category: document.getElementById('edit-product-category').value,
         tags: document.getElementById('edit-product-tags').value,
@@ -185,7 +184,10 @@ async function handleFormSubmit(event) {
         stock_quantity: document.getElementById('edit-product-stock-quantity').value,
         stock_status: document.getElementById('edit-product-stock-status').value,
         price: document.getElementById('edit-product-price').value,
-        images: JSON.stringify(images),
+        
+        // 【** 核心修正 **】
+        // 直接傳遞原始的 images 陣列，不要在這裡進行 JSON.stringify
+        images: images, 
     };
     for(let i = 1; i <= 5; i++) {
         data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
@@ -196,6 +198,7 @@ async function handleFormSubmit(event) {
         if (isCreating) {
             await api.createProduct(data);
         } else {
+            // 將 product_id 加入到 data 物件中
             data.product_id = id;
             await api.updateProductDetails(data);
         }

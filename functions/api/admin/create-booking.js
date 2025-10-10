@@ -1,4 +1,4 @@
-// functions/api/admin/create-booking.js
+// functions/api/admin/create-booking.js (v2 - 多項目支援版)
 
 // 輔助函式：正規表達式，用於驗證 YYYY-MM-DD 格式
 const isValidDate = (dateString) => /^\d{4}-\d{2}-\d{2}$/.test(dateString);
@@ -14,7 +14,7 @@ export async function onRequest(context) {
         const body = await context.request.json();
         const {
             userId, bookingDate, timeSlot, contactName, 
-            contactPhone, numOfPeople, item
+            contactPhone, numOfPeople, items, totalAmount, notes
         } = body;
 
         // --- 【安全強化：輸入驗證】 ---
@@ -22,11 +22,15 @@ export async function onRequest(context) {
         if (!userId || typeof userId !== 'string' || userId.length < 5) errors.push('無效的使用者 ID。');
         if (!bookingDate || !isValidDate(bookingDate)) errors.push('無效的日期格式，應為 YYYY-MM-DD。');
         if (!timeSlot || !isValidTime(timeSlot)) errors.push('無效的時間格式，應為 HH:MM。');
-        if (!contactName || typeof contactName !== 'string' || contactName.trim().length === 0 || contactName.length > 50) errors.push('聯絡姓名為必填，且長度不可超過 50 字。');
-        if (!contactPhone || typeof contactPhone !== 'string' || contactPhone.trim().length === 0 || contactPhone.length > 20) errors.push('聯絡電話為必填，且長度不可超過 20 字。');
+        if (!contactName || typeof contactName !== 'string' || contactName.trim().length === 0) errors.push('聯絡姓名為必填。');
+        if (!contactPhone || typeof contactPhone !== 'string' || contactPhone.trim().length === 0) errors.push('聯絡電話為必填。');
+        
         const people = Number(numOfPeople);
-        if (!Number.isInteger(people) || people <= 0 || people > 100) errors.push('人數必須是 1 到 100 之間的正整數。');
-        if (item && (typeof item !== 'string' || item.length > 100)) errors.push('預約項目長度不可超過 100 字。');
+        if (!Number.isInteger(people) || people <= 0) errors.push('人數必須是大於 0 的整數。');
+        
+        if (!Array.isArray(items) || items.length === 0) errors.push('預約必須至少包含一個項目。');
+        
+        if (notes && (typeof notes !== 'string' || notes.length > 500)) errors.push('備註長度不可超過 500 字。');
 
         if (errors.length > 0) {
             return new Response(JSON.stringify({ error: errors.join(' ') }), { status: 400 });
@@ -35,13 +39,34 @@ export async function onRequest(context) {
 
         const db = context.env.DB;
 
-        const insertStmt = db.prepare(
-            'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, item) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        // 1. 準備插入 Bookings 主表的指令
+        const bookingStmt = db.prepare(
+            `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, total_amount, notes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+             RETURNING booking_id`
         );
-        await insertStmt.bind(
+        const { booking_id } = await bookingStmt.bind(
             userId, contactName.trim(), contactPhone.trim(), bookingDate, 
-            timeSlot, people, item ? item.trim() : null
-        ).run();
+            timeSlot, people, totalAmount || null, notes || null
+        ).first();
+
+        if (!booking_id) {
+            throw new Error('無法建立預約主紀錄，請稍後再試。');
+        }
+
+        // 2. 準備批次插入 BookingItems 的指令
+        const itemStmt = db.prepare(
+            'INSERT INTO BookingItems (booking_id, item_name, quantity, price) VALUES (?, ?, ?, ?)'
+        );
+        const itemOperations = items.map(item => {
+            const itemName = item.name || '未命名項目';
+            const quantity = Number(item.qty) || 1;
+            const price = Number(item.price) || null;
+            return itemStmt.bind(booking_id, itemName, quantity, price);
+        });
+
+        // 3. 一次性執行所有 item 的插入
+        await db.batch(itemOperations);
         
         return new Response(JSON.stringify({ success: true, message: '預約已成功建立' }), {
             status: 201,

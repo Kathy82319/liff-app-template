@@ -818,18 +818,38 @@ function renderProducts() {
 }
 
 function populateFilters() {
+    console.log("偵錯 1: populateFilters() 函式已開始執行。");
+
     const container = document.getElementById('dynamic-filter-container');
-    if (!container) return;
-    container.innerHTML = ''; // 清空
+    if (!container) {
+        console.error("偵錯失敗: 找不到 ID 為 'dynamic-filter-container' 的 HTML 容器！");
+        return;
+    }
+    container.innerHTML = ''; 
 
-    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+    // 檢查 CONFIG 物件是否存在且包含所需資料
+    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.PRODUCT_FILTERS) {
+        console.warn("偵錯警告: window.CONFIG 物件中找不到 LOGIC.PRODUCT_FILTERS 設定。");
+        console.log("目前的 CONFIG.LOGIC 內容是:", window.CONFIG?.LOGIC);
+        return;
+    }
 
-    filterDefinitions.forEach(filterDef => {
+    const filterDefinitions = window.CONFIG.LOGIC.PRODUCT_FILTERS;
+    console.log("偵錯 2: 成功讀取到篩選器定義 (filterDefinitions)，內容如下：", filterDefinitions);
+
+    if (!Array.isArray(filterDefinitions) || filterDefinitions.length === 0) {
+        console.warn("偵錯警告: 篩選器定義不是一個有效的陣列，或內容為空。");
+        return;
+    }
+
+    console.log(`偵錯 3: 即將開始生成 ${filterDefinitions.length} 個下拉式選單...`);
+
+    filterDefinitions.forEach((filterDef, index) => {
         const select = document.createElement('select');
         select.id = `liff-${filterDef.id}`;
-        select.dataset.filterKey = filterDef.id; // 儲存對應的 key
+        select.dataset.filterKey = filterDef.id;
 
-        select.add(new Option(filterDef.name, '')); // 第一個選項是篩選器名稱
+        select.add(new Option(filterDef.name, '')); 
 
         filterDef.options.forEach(option => {
             select.add(new Option(option, option));
@@ -838,12 +858,15 @@ function populateFilters() {
         select.addEventListener('change', (e) => {
             const key = e.target.dataset.filterKey;
             const value = e.target.value;
-            activeFilters[key] = value || null; // 如果選擇空值，則設為 null
+            activeFilters[key] = value || null;
             renderProducts();
         });
 
         container.appendChild(select);
+        console.log(`偵錯 4.${index + 1}: 已成功生成並加入 "${filterDef.name}" 下拉選單到頁面中。`);
     });
+
+    console.log("偵錯 5: 所有下拉式選單已生成完畢。");
 }
 async function initializeProductsPage() {
         productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
@@ -925,7 +948,7 @@ async function initializeProductsPage() {
             container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
         }
     }
-    
+
     function showBookingStep(stepId) {
         document.querySelectorAll('#booking-wizard-container .booking-step').forEach(step => step.classList.remove('active'));
         const targetStep = document.getElementById(stepId);

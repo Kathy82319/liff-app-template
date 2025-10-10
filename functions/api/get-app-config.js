@@ -11,51 +11,36 @@ export async function onRequest(context) {
         const config = {
             FEATURES: {},
             TERMS: {},
-            LOGIC: {} // 確保 LOGIC 物件存在
+            LOGIC: {}
         };
 
         results.forEach(item => {
             let parsedValue = item.value;
             switch (item.type) {
-                case 'boolean':
-                    parsedValue = (item.value === 'true');
-                    break;
-                case 'number':
-                    parsedValue = Number(item.value);
-                    break;
+                case 'boolean': parsedValue = (item.value === 'true'); break;
+                case 'number': parsedValue = Number(item.value); break;
                 case 'json':
-                    try {
-                        parsedValue = JSON.parse(item.value);
-                    } catch (e) {
-                        console.error(`無法解析 JSON 設定 (key: ${item.key}):`, e);
-                        parsedValue = {};
-                    }
+                    try { parsedValue = JSON.parse(item.value); } catch (e) { parsedValue = {}; }
                     break;
-                default:
-                    parsedValue = item.value;
-                    break;
+                default: parsedValue = item.value; break;
             }
 
             const parts = item.key.split('_');
             const mainKey = parts[0]; 
             const subKey = parts.slice(1).join('_');
 
-            if (mainKey === 'FEATURES') {
-                config.FEATURES[subKey] = parsedValue;
-            } else if (mainKey === 'TERMS') {
-                config.TERMS[subKey] = parsedValue;
-            } 
-            // 【核心修正】補上處理 LOGIC 的區塊
-            else if (mainKey === 'LOGIC') {
-                config.LOGIC[subKey] = parsedValue;
-            }
+            if (mainKey === 'FEATURES') config.FEATURES[subKey] = parsedValue;
+            else if (mainKey === 'TERMS') config.TERMS[subKey] = parsedValue;
+            else if (mainKey === 'LOGIC') config.LOGIC[subKey] = parsedValue;
         });
+
+        // 【偵錯用】手動加入一個版本號，用來確認 API 是否為最新版
+        config.API_VERSION = '2.0_with_logic_fix';
 
         return new Response(JSON.stringify(config), {
             status: 200,
             headers: { 
                 'Content-Type': 'application/json',
-                // 暫時移除快取，方便偵錯
                 'Cache-Control': 'no-cache'
             },
         });

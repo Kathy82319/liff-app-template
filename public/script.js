@@ -72,13 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 非同步主函式 (程式啟動點)
     // =================================================================
-    async function main() {
+async function main() {
         try {
             const response = await fetch('/api/get-app-config');
             if (!response.ok) {
-                // 如果 API 回應 404 或 500 等錯誤，response.ok 會是 false
                 const errorText = await response.text();
-                // 嘗試解析錯誤內容，如果失敗就顯示原始文字
                 try {
                     const errorJson = JSON.parse(errorText);
                     throw new Error(errorJson.error || `伺服器錯誤 ${response.status}`);
@@ -87,6 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             const configData = await response.json();
+            
+            // 【偵錯用】在這裡印出從後端收到的完整 config 物件
+            console.log('載入的 CONFIG 物件:', configData);
+
             if(!configData || !configData.FEATURES){
                  throw new Error('獲取到的設定檔格式不正確。');
             }
@@ -103,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================

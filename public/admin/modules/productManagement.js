@@ -53,6 +53,33 @@ function applyProductFiltersAndRender() {
     const searchInput = document.getElementById('product-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const filtered = searchTerm ? allProducts.filter(p => (p.name || '').toLowerCase().includes(searchTerm)) : [...allProducts];
+    // 【新增】獲取當前啟用的篩選器狀態
+    const visibilityFilter = document.querySelector('#inventory-visibility-filter .active')?.dataset.filter || 'all';
+    const stockFilter = document.querySelector('#inventory-stock-filter .active')?.dataset.filter || 'all';
+
+    let filtered = [...allProducts]; // 從所有產品開始篩選
+
+    // 【新增】套用「上架狀態」篩選
+    if (visibilityFilter === 'visible') {
+        filtered = filtered.filter(p => p.is_visible);
+    } else if (visibilityFilter === 'hidden') {
+        filtered = filtered.filter(p => !p.is_visible);
+    }
+
+    // 【新增】套用「庫存狀態」篩選 (根據您的邏輯)
+    if (stockFilter === 'in_stock') {
+        // 庫存數量不是 0 的所有項目 (包含 null 或 > 0)
+        filtered = filtered.filter(p => p.stock_quantity !== 0);
+    } else if (stockFilter === 'out_of_stock') {
+        // 庫存數量明確為 0 的項目
+        filtered = filtered.filter(p => p.stock_quantity === 0);
+    }
+
+    // 【修改】最後才套用「關鍵字搜尋」
+    if (searchTerm) {
+        filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
+    }
+
     renderProductList(filtered);
 }
 
@@ -430,6 +457,26 @@ function setupEventListeners() {
             if (product) openProductModal(product);
         }
     });
+
+    // 監聽篩選器按鈕的點擊事件
+    function addFilterGroupListener(groupId) {
+        const filterGroup = document.getElementById(groupId);
+        if (filterGroup) {
+            filterGroup.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    // 移除同組按鈕的 active 狀態
+                    filterGroup.querySelector('.active')?.classList.remove('active');
+                    // 為被點擊的按鈕加上 active 狀態
+                    e.target.classList.add('active');
+                    // 重新套用所有篩選並渲染列表
+                    applyProductFiltersAndRender();
+                }
+            });
+        }
+    }
+
+    addFilterGroupListener('inventory-stock-filter');
+    addFilterGroupListener('inventory-visibility-filter');
 
     document.addEventListener('click', e => {
         const target = e.target;

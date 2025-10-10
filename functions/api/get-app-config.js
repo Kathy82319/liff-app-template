@@ -11,12 +11,11 @@ export async function onRequest(context) {
         const config = {
             FEATURES: {},
             TERMS: {},
-            LOGIC: {}
+            LOGIC: {} // 確保 LOGIC 物件存在
         };
 
         results.forEach(item => {
             let parsedValue = item.value;
-            // 根據資料庫中的 type 欄位來解析數值
             switch (item.type) {
                 case 'boolean':
                     parsedValue = (item.value === 'true');
@@ -29,25 +28,25 @@ export async function onRequest(context) {
                         parsedValue = JSON.parse(item.value);
                     } catch (e) {
                         console.error(`無法解析 JSON 設定 (key: ${item.key}):`, e);
-                        parsedValue = {}; // 解析失敗時給予預設空物件
+                        parsedValue = {};
                     }
                     break;
-                // 'string' or default
                 default:
                     parsedValue = item.value;
                     break;
             }
 
-            // 將 flat key (例如 FEATURES_ENABLE_MEMBERSHIP_SYSTEM) 轉換為巢狀物件
             const parts = item.key.split('_');
-            const mainKey = parts[0]; // FEATURES, TERMS, or LOGIC
-            const subKey = parts.slice(1).join('_'); // ENABLE_MEMBERSHIP_SYSTEM
+            const mainKey = parts[0]; 
+            const subKey = parts.slice(1).join('_');
 
             if (mainKey === 'FEATURES') {
                 config.FEATURES[subKey] = parsedValue;
             } else if (mainKey === 'TERMS') {
                 config.TERMS[subKey] = parsedValue;
-            } else if (mainKey === 'LOGIC') {
+            } 
+            // 【核心修正】補上處理 LOGIC 的區塊
+            else if (mainKey === 'LOGIC') {
                 config.LOGIC[subKey] = parsedValue;
             }
         });
@@ -56,8 +55,7 @@ export async function onRequest(context) {
             status: 200,
             headers: { 
                 'Content-Type': 'application/json',
-                // 增加快取，減少資料庫讀取
-                'Cache-Control': 'public, max-age=60' // 快取 1 分鐘
+                'Cache-Control': 'public, max-age=60'
             },
         });
 

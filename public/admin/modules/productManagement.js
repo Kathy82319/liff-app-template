@@ -415,47 +415,6 @@ async function handleFormSubmit(event) {
     }
 }
 
-
-// --- 動態欄位輔助函式 ---
-function addImageInputField(value = '') {
-    const container = document.getElementById('edit-product-image-inputs');
-    const count = container.children.length;
-    if (count >= 5) return;
-
-    const newGroup = document.createElement('div');
-    newGroup.className = 'dynamic-input-group';
-    newGroup.innerHTML = `
-        <input type="url" placeholder="${count + 1}. 請貼上圖片網址" value="${value}">
-        <button type="button" class="btn-remove-input">⊖</button>
-    `;
-    container.appendChild(newGroup);
-    updateDynamicButtonsState();
-}
-
-function addSpecInputField(name = '', value = '') {
-    const container = document.getElementById('edit-product-spec-inputs');
-    const count = container.children.length;
-    if (count >= 5) return;
-
-    const newGroup = document.createElement('div');
-    newGroup.className = 'spec-input-group dynamic-input-group';
-    newGroup.innerHTML = `
-        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
-        <input type="text" name="spec_value" placeholder="規格${count + 1}內容" value="${value}">
-        <button type="button" class="btn-remove-input">⊖</button>
-    `;
-    container.appendChild(newGroup);
-    updateDynamicButtonsState();
-}
-
-function updateDynamicButtonsState() {
-    const imageCount = document.getElementById('edit-product-image-inputs').children.length;
-    const specCount = document.getElementById('edit-product-spec-inputs').children.length;
-    
-    document.getElementById('add-image-input-btn').style.display = (imageCount < 5) ? 'block' : 'none';
-    document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
-}
-
 // --- 批次操作 ---
 function updateBatchToolbarState() {
     const toolbar = document.getElementById('batch-actions-toolbar');

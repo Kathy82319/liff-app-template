@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
     const tabBar = document.getElementById('tab-bar');
+    let activeTemplate = null; // 當前啟用的樣板
     
     let CONFIG; 
     
@@ -72,47 +73,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 非同步主函式 (程式啟動點)
     // =================================================================
-async function main() {
+    async function main() {
         try {
             const response = await fetch('/api/get-app-config');
-            if (!response.ok) {
-                const errorText = await response.text();
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(errorJson.error || `伺服器錯誤 ${response.status}`);
-                } catch (e) {
-                    throw new Error(`無法從伺服器獲取設定檔，回應內容非預期格式。狀態碼: ${response.status}`);
-                }
-            }
+            if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
             const configData = await response.json();
-
             if(!configData || !configData.FEATURES){
                  throw new Error('獲取到的設定檔格式不正確。');
             }
             
-            // 【核心修正】直接賦值給 window.CONFIG，確保全域可見性
             window.CONFIG = configData;
-            CONFIG = configData; // 同時也賦值給我們自己的變數
+            CONFIG = configData;
+
+            // 【新增】在啟動時就決定要用哪個樣板
+            const activeTemplateKey = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+            activeTemplate = CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+            if (!activeTemplate) {
+                throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+            }
 
             await initializeLiff();
 
         } catch (error) {
             console.error("初始化失敗:", error);
-            if (appContent) {
-                appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                    <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常後，再試一次。</p>
-                </div>`;
-            }
+            appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
+                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常後，再試一次。</p>
+            </div>`;
         }
     }
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================
     function applyConfiguration() {
-        try {
-            // 【錯誤修正】移除 CONFIG = window.APP_CONFIG; 這一行
-            if (typeof CONFIG === 'undefined' || !CONFIG) {
-                console.error("嚴重錯誤：CONFIG 設定檔不存在！"); return;
+      try {
+            if (!CONFIG || !activeTemplate) {
+                console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
             }
             const { FEATURES, TERMS } = CONFIG;
             
@@ -130,6 +125,11 @@ async function main() {
 
             document.title = TERMS.BUSINESS_NAME;
             const businessNameHeader = document.getElementById('business-name-header');
+            if (productTab) {
+                const title = activeTemplate.entityNamePlural || TERMS.PRODUCT_CATALOG_TITLE;
+                productTab.innerHTML = `${title.substring(0,2)}<br>${title.substring(2)}`;
+            }            
+            
             if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
 
             if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
@@ -139,6 +139,15 @@ async function main() {
             if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
 
             if (pageTemplates) {
+                const productPageTitle = pageTemplates.querySelector('#page-products .page-main-title');
+                if (productPageTitle) {
+                    productPageTitle.textContent = activeTemplate.entityNamePlural || TERMS.PRODUCT_CATALOG_TITLE;
+                }
+                const productSearch = pageTemplates.querySelector('#page-products #keyword-search');
+                if (productSearch) {
+                    const placeholderText = activeTemplate.entityName || TERMS.PRODUCT_NAME;
+                    productSearch.setAttribute('placeholder', `搜尋${placeholderText}關鍵字...`);
+                }                
                 pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE; 
                 pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE;
                 pageTemplates.querySelector('#page-checkout .page-main-title').textContent = TERMS.CHECKOUT_PAGE_TITLE;
@@ -707,29 +716,27 @@ function renderBookings(bookings, container, isPast = false) {
     }
 
 
-function renderProductDetails(product) {
-    if (!product) return;
-    const imageContainer = appContent.querySelector('.details-gallery');
-    const detailsTitle = appContent.querySelector('.details-title');
-    const tagsContainer = appContent.querySelector('#product-tags-container');
-    const introContent = appContent.querySelector('#product-intro-content');
-    const priceContent = appContent.querySelector('#product-price-content');
-    const mainImage = imageContainer.querySelector('.details-image-main');
-    const thumbnails = imageContainer.querySelector('.details-image-thumbnails');
-    appContent.querySelector('.details-title').textContent = product.name;
-    appContent.querySelector('#product-intro-content').textContent = product.description || '暫無介紹。';
-    appContent.querySelector('#product-price-content').innerHTML = `<p class="price-value">$${product.price || '洽詢'}</p>`;    
- 
-    detailsTitle.textContent = product.name;
+    function renderProductDetails(product) {
+        if (!product || !activeTemplate) return;
 
-    try {
+        const detailsTitle = appContent.querySelector('.details-title');
+        const gallery = appContent.querySelector('.details-gallery');
+        const mainImage = gallery.querySelector('.details-image-main');
+        const thumbnails = gallery.querySelector('.details-image-thumbnails');
+        const contentContainer = appContent.querySelector('#product-details-content');
+
+        detailsTitle.textContent = product.name;
+        contentContainer.innerHTML = ''; // 清空內容
+
+        // 1. 處理圖片
+        try {
             const images = JSON.parse(product.images || '[]');
             if (images.length > 0) {
                 mainImage.src = images[0];
                 thumbnails.innerHTML = images.map((img, index) => 
                     `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`
                 ).join('');
-                imageContainer.style.display = 'block';
+                gallery.style.display = 'block';
 
                 thumbnails.addEventListener('click', e => {
                     if (e.target.tagName === 'IMG') {
@@ -739,18 +746,34 @@ function renderProductDetails(product) {
                     }
                 });
             } else {
-                imageContainer.style.display = 'none';
+                gallery.style.display = 'none';
             }
-        } catch(e) { imageContainer.style.display = 'none'; }
+        } catch(e) { gallery.style.display = 'none'; }
 
-        const specsContainer = appContent.querySelector('#product-specs-container');
-        let specsHTML = '';
-        for(let i = 1; i <= 5; i++) {
-            if (product[`spec_${i}_name`] && product[`spec_${i}_value`]) {
-                specsHTML += `<div class="spec-item"><strong>${product[`spec_${i}_name`]}</strong>: <span>${product[`spec_${i}_value`]}</span></div>`;
+        // 2. 根據藍圖動態生成內容
+        activeTemplate.fields.forEach(field => {
+            // 跳過 'name' (已顯示在標題) 和 'images' (已處理) 和 'is_visible' (不需顯示)
+            if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible') return;
+
+            const value = product[field.key];
+            if (value) { // 只顯示有值的欄位
+                const section = document.createElement('div');
+                section.className = 'detail-field-section';
+                
+                const label = document.createElement('h3');
+                label.textContent = field.label;
+                
+                const content = document.createElement('p');
+                if (field.key === 'price') {
+                    content.innerHTML = `<span class="price-value">$${value}</span>`;
+                } else {
+                    content.textContent = value;
+                }
+                
+                section.append(label, content);
+                contentContainer.appendChild(section);
             }
-        }
-        specsContainer.innerHTML = specsHTML;
+        });
     }
 
 function renderProducts() {
@@ -802,20 +825,22 @@ function renderProducts() {
     }
 
     // 4. 渲染 HTML (邏輯不變)
-    container.innerHTML = filteredProducts.map(product => {
-        let priceDisplay = product.price != null ? `$${product.price}` : '價格洽詢';
-        const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
-        return `
-            <div class="product-card" data-product-id="${product.product_id}">
-                <img src="${imageUrl}" alt="${product.name}" class="product-image">
-                <div class="product-info">
-                    <h3 class="product-title">${product.name}</h3>
-                    <p class="product-price">${priceDisplay}</p>
+        container.innerHTML = filteredProducts.map(product => {
+            let priceDisplay = product.price != null ? `$${product.price}` : '價格洽詢';
+            const images = JSON.parse(product.images || '[]');
+            // 如果有圖片就用第一張，沒有就用預設圖
+            const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150x150/112240/ccd6f6?text=Image';
+            
+            return `
+                <div class="product-card" data-product-id="${product.product_id}">
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image">
+                    <div class="product-info">
+                        <h3 class="product-title">${product.name}</h3>
+                        <p class="product-price">${priceDisplay}</p>
+                    </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
 }
 
 function populateFilters() {

@@ -39,6 +39,7 @@ async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateD
     }
 }
 
+// functions/api/admin/update-product-details.js (v3 - 動態更新版)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -46,45 +47,62 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json();
-    const { 
-        product_id, name, description, category, images, is_visible, 
-        inventory_management_type, stock_quantity, stock_status, 
-        price_type, price, price_options, 
-        spec_1_name, spec_1_value, spec_2_name, spec_2_value, 
-        spec_3_name, spec_3_value, spec_4_name, spec_4_value, 
-        spec_5_name, spec_5_value,
-        filter_1, filter_2, filter_3 // 【新增】
-    } = body;
+    const { product_id } = body;
 
-    if (!product_id || !name) {
-        return new Response(JSON.stringify({ error: '產品 ID 和名稱為必填項。' }), { status: 400 });
+    if (!product_id) {
+        return new Response(JSON.stringify({ error: '缺少 product_id' }), { status: 400 });
+    }
+    
+    // --- 【核心修改】動態建立 UPDATE 指令 ---
+
+    // 1. 定義一個允許被更新的欄位白名單 (基於資料庫結構，安全性考量)
+    const allowedFields = [
+      'name', 'description', 'category', 'images', 'is_visible',
+      'inventory_management_type', 'stock_quantity', 'stock_status',
+      'price_type', 'price', 'price_options',
+      'spec_1_name', 'spec_1_value', 'spec_2_name', 'spec_2_value',
+      'spec_3_name', 'spec_3_value', 'spec_4_name', 'spec_4_value',
+      'spec_5_name', 'spec_5_value',
+      'filter_1', 'filter_2', 'filter_3'
+    ];
+
+    const updates = [];
+    const values = [];
+
+    // 2. 遍歷前端送來的所有資料
+    for (const key in body) {
+      // 只有在白名單內，且不是 product_id 的欄位，才加入到更新列表中
+      if (allowedFields.includes(key) && key !== 'product_id') {
+        updates.push(`${key} = ?`); // 例如: name = ?
+        
+        // 對布林值做特別處理
+        if (typeof body[key] === 'boolean') {
+            values.push(body[key] ? 1 : 0);
+        } else {
+            values.push(body[key]);
+        }
+      }
     }
 
+    if (updates.length === 0) {
+      return new Response(JSON.stringify({ error: '沒有提供任何可更新的資料' }), { status: 400 });
+    }
+
+    // 3. 組合最終的 SQL 指令
+    const sql = `
+      UPDATE Products 
+      SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP 
+      WHERE product_id = ?
+    `;
+    
+    // 將 product_id 加到綁定值的最後一個
+    values.push(product_id);
+
+    // --- 動態建立結束 ---
+
     const db = context.env.DB;
-
-    const stmt = db.prepare(
-      `UPDATE Products SET
-         name = ?, description = ?, category = ?, images = ?, is_visible = ?,
-         inventory_management_type = ?, stock_quantity = ?, stock_status = ?,
-         price_type = ?, price = ?, price_options = ?,
-         spec_1_name = ?, spec_1_value = ?, spec_2_name = ?, spec_2_value = ?,
-         spec_3_name = ?, spec_3_value = ?, spec_4_name = ?, spec_4_value = ?,
-         spec_5_name = ?, spec_5_value = ?,
-         filter_1 = ?, filter_2 = ?, filter_3 = ?,
-         updated_at = CURRENT_TIMESTAMP
-       WHERE product_id = ?`
-    );
-
-    const result = await stmt.bind(
-        name, description, category, images, is_visible ? 1 : 0,
-        inventory_management_type, stock_quantity, stock_status,
-        price_type, price, price_options,
-        spec_1_name, spec_1_value, spec_2_name, spec_2_value,
-        spec_3_name, spec_3_value, spec_4_name, spec_4_value,
-        spec_5_name, spec_5_value,
-        filter_1, filter_2, filter_3, // 【新增】
-        product_id
-    ).run();
+    const stmt = db.prepare(sql);
+    const result = await stmt.bind(...values).run();
 
     if (result.meta.changes === 0) {
       return new Response(JSON.stringify({ error: `找不到產品 ID: ${product_id}，無法更新。` }), { status: 404 });
@@ -97,6 +115,7 @@ export async function onRequest(context) {
 
   } catch (error) {
     console.error('Error in update-product-details API:', error);
+    // 在回傳的錯誤中包含更詳細的訊息，方便偵錯
     return new Response(JSON.stringify({ error: '更新產品資訊失敗。', details: error.message }), { status: 500 });
   }
 }

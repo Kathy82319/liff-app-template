@@ -85,14 +85,14 @@ async function main() {
                 }
             }
             const configData = await response.json();
-            
-            // 【偵錯用】在這裡印出從後端收到的完整 config 物件
-            console.log('載入的 CONFIG 物件:', configData);
 
             if(!configData || !configData.FEATURES){
                  throw new Error('獲取到的設定檔格式不正確。');
             }
-            CONFIG = configData;
+            
+            // 【核心修正】直接賦值給 window.CONFIG，確保全域可見性
+            window.CONFIG = configData;
+            CONFIG = configData; // 同時也賦值給我們自己的變數
 
             await initializeLiff();
 
@@ -819,56 +819,39 @@ function renderProducts() {
 }
 
 function populateFilters() {
-    console.log("偵錯 1: populateFilters() 函式已開始執行。");
-
-    const container = document.getElementById('dynamic-filter-container');
-    if (!container) {
-        console.error("偵錯失敗: 找不到 ID 為 'dynamic-filter-container' 的 HTML 容器！");
-        return;
-    }
-    container.innerHTML = ''; 
-
-    // 檢查 CONFIG 物件是否存在且包含所需資料
-    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.PRODUCT_FILTERS) {
-        console.warn("偵錯警告: window.CONFIG 物件中找不到 LOGIC.PRODUCT_FILTERS 設定。");
-        console.log("目前的 CONFIG.LOGIC 內容是:", window.CONFIG?.LOGIC);
-        return;
-    }
-
-    const filterDefinitions = window.CONFIG.LOGIC.PRODUCT_FILTERS;
-    console.log("偵錯 2: 成功讀取到篩選器定義 (filterDefinitions)，內容如下：", filterDefinitions);
-
-    if (!Array.isArray(filterDefinitions) || filterDefinitions.length === 0) {
-        console.warn("偵錯警告: 篩選器定義不是一個有效的陣列，或內容為空。");
-        return;
-    }
-
-    console.log(`偵錯 3: 即將開始生成 ${filterDefinitions.length} 個下拉式選單...`);
-
-    filterDefinitions.forEach((filterDef, index) => {
-        const select = document.createElement('select');
-        select.id = `liff-${filterDef.id}`;
-        select.dataset.filterKey = filterDef.id;
-
-        select.add(new Option(filterDef.name, '')); 
-
-        filterDef.options.forEach(option => {
-            select.add(new Option(option, option));
+        const container = document.getElementById('dynamic-filter-container');
+        if (!container) return;
+        container.innerHTML = '';
+    
+        // 直接使用全域 CONFIG 變數
+        const filterDefinitions = CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+    
+        if (filterDefinitions.length === 0) {
+            return; // 如果沒有定義篩選器，就直接結束，不做任何事
+        }
+    
+        filterDefinitions.forEach(filterDef => {
+            const select = document.createElement('select');
+            select.id = `liff-${filterDef.id}`;
+            select.dataset.filterKey = filterDef.id;
+    
+            select.add(new Option(filterDef.name, ''));
+    
+            filterDef.options.forEach(option => {
+                select.add(new Option(option, option));
+            });
+    
+            select.addEventListener('change', (e) => {
+                const key = e.target.dataset.filterKey;
+                const value = e.target.value;
+                activeFilters[key] = value || null;
+                renderProducts();
+            });
+    
+            container.appendChild(select);
         });
-
-        select.addEventListener('change', (e) => {
-            const key = e.target.dataset.filterKey;
-            const value = e.target.value;
-            activeFilters[key] = value || null;
-            renderProducts();
-        });
-
-        container.appendChild(select);
-        console.log(`偵錯 4.${index + 1}: 已成功生成並加入 "${filterDef.name}" 下拉選單到頁面中。`);
-    });
-
-    console.log("偵錯 5: 所有下拉式選單已生成完畢。");
-}
+    }
+    
 async function initializeProductsPage() {
         productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
         productView.sort = 'default';

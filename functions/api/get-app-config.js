@@ -34,14 +34,12 @@ export async function onRequest(context) {
             else if (mainKey === 'LOGIC') config.LOGIC[subKey] = parsedValue;
         });
 
-        // 【偵錯用】手動加入一個版本號，用來確認 API 是否為最新版
-        config.API_VERSION = '2.0_with_logic_fix';
-
         return new Response(JSON.stringify(config), {
             status: 200,
             headers: { 
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
+                // 【還原】將 Cache-Control 改回正式環境的設定
+                'Cache-Control': 'public, max-age=60'
             },
         });
 

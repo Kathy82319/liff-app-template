@@ -166,17 +166,17 @@ async function loadAndBindMessageDrafts(userId) {
     // 使用 .onclick 確保每次打開 Modal 都綁定到正確的 userId
     sendBtn.onclick = async () => {
         const message = content.value.trim();
-        if (!message) { alert('訊息內容不可為空！'); return; }
+        if (!message) { ui.toast.error('訊息內容不可為空！'); return; }
         if (!confirm(`確定要發送以下訊息給 ${userId} 嗎？\n\n${message}`)) return;
         try {
             sendBtn.textContent = '發送中...';
             sendBtn.disabled = true;
             await api.sendMessage(userId, message);
-            alert('訊息發送成功！');
+            ui.toast.success('訊息發送成功！');
             content.value = '';
             select.value = '';
         } catch (error) {
-            alert(`錯誤：${error.message}`);
+            ui.toast.error(`錯誤：${error.message}`);
         } finally {
             sendBtn.textContent = '確認發送';
             sendBtn.disabled = false;
@@ -276,23 +276,6 @@ function setupEventListeners() {
     const userSearchInput = document.getElementById('user-search-input');
     userSearchInput.oninput = handleUserSearch;
 
-    // 同步按鈕
-    const syncD1ToSheetBtn = document.getElementById('sync-d1-to-sheet-btn');
-    syncD1ToSheetBtn.onclick = async () => {
-        if (!confirm('確定要將所有 D1 使用者資料完整同步至 Google Sheet 嗎？\n這將會覆蓋 Sheet 上的現有資料。')) return;
-        try {
-            syncD1ToSheetBtn.textContent = '同步中...';
-            syncD1ToSheetBtn.disabled = true;
-            const result = await api.syncD1ToSheet();
-            alert(result.message);
-        } catch (error) {
-            alert(`錯誤：${error.message}`);
-        } finally {
-            syncD1ToSheetBtn.textContent = '同步至 Google Sheet';
-            syncD1ToSheetBtn.disabled = false;
-        }
-    };
-
     // 事件委派：監聽整個 tbody 的點擊
     const userListTbody = document.getElementById('user-list-tbody');
     userListTbody.onclick = (event) => {
@@ -335,7 +318,7 @@ function setupEventListeners() {
             // 重新載入列表以顯示更新後的資料
             init(); 
         } catch (error) {
-            alert(`錯誤：${error.message}`);
+            ui.toast.error(`錯誤：${error.message}`);
         }
     };
 }

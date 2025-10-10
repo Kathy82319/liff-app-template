@@ -27,11 +27,11 @@ const setupEventListeners = () => {
                     resetDemoDataBtn.textContent = '正在清空中...';
                     resetDemoDataBtn.disabled = true;
                     await api.resetDemoData();
-                    alert('展示資料已成功清空！');
+                    ui.toast.success('展示資料已成功清空！');
                     // 重新載入數據
                     await init();
                 } catch (error) {
-                    alert(`錯誤：${error.message}`);
+                    ui.toast.error(`錯誤：${error.message}`);
                 } finally {
                     resetDemoDataBtn.textContent = '清空所有展示資料';
                     resetDemoDataBtn.disabled = false;

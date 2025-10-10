@@ -30,9 +30,9 @@ function setupEventListeners() {
                 submitButton.textContent = '儲存中...';
                 submitButton.disabled = true;
                 await api.updateStoreInfo(formData);
-                alert('店家資訊更新成功！');
+                ui.toast.success('店家資訊更新成功！');
             } catch (error) {
-                alert(`錯誤：${error.message}`);
+                ui.toast.error(`錯誤：${error.message}`);
             } finally {
                 submitButton.textContent = '儲存變更';
                 submitButton.disabled = false;
@@ -56,7 +56,7 @@ export const init = async () => {
             storeInfoForm.dataset.initialized = 'true';
         }
     } catch (error) {
-        alert(`載入店家資訊失敗: ${error.message}`);
+        ui.toast.error(`載入店家資訊失敗: ${error.message}`);
         console.error('載入店家資訊失敗:', error);
     }
 };

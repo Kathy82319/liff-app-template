@@ -72,18 +72,18 @@ async function handleCreateBookingSubmit(e) {
     };
 
     if (!formData.userId || !formData.bookingDate || !formData.timeSlot) {
-        alert('會員、預約日期和時段為必填！');
+        ui.toast.success('會員、預約日期和時段為必填！');
         return;
     }
 
     try {
         await api.createBooking(formData);
-        alert('預約建立成功！');
+        ui.toast.success('預約建立成功！');
         ui.hideModal('#create-booking-modal');
         document.getElementById('create-booking-form').reset();
         fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today');
     } catch (error) {
-        alert(`建立失敗: ${error.message}`);
+        ui.toast..error(`建立失敗: ${error.message}`);
     }
 }
 
@@ -209,12 +209,12 @@ async function handleSaveBookingSettings() {
 
         await Promise.all(promises);
 
-        alert('可預約日期已成功儲存！');
+        ui.toast.success('可預約日期已成功儲存！');
         ui.hideModal('#booking-settings-modal');
         // 更新快取的日期
         enabledDates = newEnabledDates;
     } catch (error) {
-        alert("儲存失敗: " + error.message);
+        ui.toast.error("儲存失敗: " + error.message);
     } finally {
         saveButton.disabled = false;
         saveButton.textContent = '儲存變更';
@@ -255,12 +255,12 @@ function setupEventListeners() {
 
             if (target.classList.contains('btn-check-in')) {
                 if (confirm('確定要將此預約標示為「已報到」嗎？')) {
-                    await api.updateBookingStatus(Number(bookingId), 'checked-in').catch(err => alert(`錯誤：${err.message}`));
+                    await api.updateBookingStatus(Number(bookingId), 'checked-in').catch(err => ui.toast.success(`錯誤：${err.message}`));
                     fetchDataAndRender(currentFilter);
                 }
             } else if (target.classList.contains('btn-cancel-booking')) {
                 if (confirm('確定要取消此預約嗎？')) {
-                     await api.updateBookingStatus(Number(bookingId), 'cancelled').catch(err => alert(`錯誤：${err.message}`));
+                     await api.updateBookingStatus(Number(bookingId), 'cancelled').catch(err => ui.toast.success(`錯誤：${err.message}`));
                     fetchDataAndRender(currentFilter);
                 }
             }
@@ -283,7 +283,7 @@ function setupEventListeners() {
                 });
                 ui.showModal('#booking-settings-modal');
             } catch (error) {
-                alert("初始化公休日設定失敗: " + error.message);
+                ui.toast.success("初始化公休日設定失敗: " + error.message);
             }
         }
     });

@@ -144,9 +144,9 @@ function setupEventListeners() {
                 submitButton.textContent = '儲存中...';
                 submitButton.disabled = true;
                 await api.updateSettings(payload); // 假設 api.js 有這個函式
-                alert('系統設定已成功更新！');
+                ui.toast.success('系統設定已成功更新！');
             } catch (error) {
-                alert(`儲存失敗：${error.message}`);
+                ui.toast.error(`儲存失敗：${error.message}`);
             } finally {
                 submitButton.textContent = '儲存所有變更';
                 submitButton.disabled = false;

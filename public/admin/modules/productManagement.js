@@ -58,7 +58,7 @@ function initializeProductDragAndDrop() {
                     });
                     allProducts.sort((a, b) => a.display_order - b.display_order);
                     applyProductFiltersAndRender();
-                } catch (error) { alert(error.message); init(); }
+                } catch (error) { ui.toast.error(error.message); init(); }
             }
         });
     }
@@ -84,7 +84,7 @@ function handleCsvUpload(event) {
     reader.onload = async (e) => {
         const text = e.target.result;
         const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
-        if (lines.length < 2) return alert('CSV 檔案中沒有可匯入的資料。');
+        if (lines.length < 2) return ui.toast.error('CSV 檔案中沒有可匯入的資料。');
 
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = lines.slice(1).map(line => {
@@ -102,10 +102,10 @@ function handleCsvUpload(event) {
         }
         try {
             await api.bulkCreateProducts({ products: data });
-            alert('匯入成功！');
+            ui.toast.success('匯入成功！');
             await init();
         } catch (error) {
-            alert(`匯入失敗：${error.message}`);
+            ui.toast.error(`匯入失敗：${error.message}`);
         } finally {
              event.target.value = '';
         }
@@ -209,7 +209,7 @@ async function handleFormSubmit(event) {
     const isCreating = !id;
 
     if (!name || name.trim() === '') {
-        alert('「產品/服務名稱」為必填欄位！');
+        ui.toast.error('「產品/服務名稱」為必填欄位！');
         return;
     }
 
@@ -275,9 +275,9 @@ async function handleFormSubmit(event) {
         }
         ui.hideModal('#edit-product-modal');
         await init();
-        alert('儲存成功！');
+        ui.toast.success('儲存成功！');
     } catch (error) {
-        alert(`儲存失敗：${error.message}`);
+        ui.toast.error(`儲存失敗：${error.message}`);
     }
 }
 
@@ -338,17 +338,17 @@ function updateBatchToolbarState() {
 
 async function handleBatchUpdate(isVisible) {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
     try {
         await api.batchUpdateProducts(selectedIds, isVisible);
-        alert(`成功更新 ${selectedIds.length} 個項目！`);
+        ui.toast.success(`成功更新 ${selectedIds.length} 個項目！`);
         await init();
-    } catch (error) { alert(`錯誤：${error.message}`); }
+    } catch (error) { ui.toast.error(`錯誤：${error.message}`); }
 }
 
 async function handleBatchSetStock() {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
 
     const statusText = prompt('請輸入要為所有選取項目設定的庫存狀態文字：\n(例如：可預約、熱銷中、已售罄)', '可預約');
 
@@ -360,10 +360,10 @@ async function handleBatchSetStock() {
 
     try {
         await api.batchUpdateStockStatus(selectedIds, statusText.trim());
-        alert(`成功更新 ${selectedIds.length} 個項目！`);
+        ui.toast.success(`成功更新 ${selectedIds.length} 個項目！`);
         await init();
     } catch (error) {
-        alert(`錯誤：${error.message}`);
+        ui.toast.error(`錯誤：${error.message}`);
     }
 }
 
@@ -452,7 +452,7 @@ function setupEventListeners() {
                     const product = allProducts.find(p => p.product_id === productId);
                     if (product) product.is_visible = isVisible ? 1 : 0;
                 } catch (error) {
-                    alert(`更新失敗: ${error.message}`);
+                    ui.toast.error(`更新失敗: ${error.message}`);
                     e.target.checked = !isVisible;
                 } finally {
                     e.target.disabled = false;

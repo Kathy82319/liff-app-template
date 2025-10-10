@@ -108,15 +108,15 @@ function startQrScanner() {
                     name: user.nickname || user.line_display_name
                 });
             } else {
-                alert('在資料庫中找不到此使用者！');
+                ui.toast.error('在資料庫中找不到此使用者！');
             }
         } catch (error) {
-            alert(`查詢使用者時發生錯誤: ${error.message}`);
+            ui.toast.error(`查詢使用者時發生錯誤: ${error.message}`);
         }
     };
 
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
-        .catch(err => alert('無法啟動相機，請檢查權限設定。'));
+        .catch(err => ui.toast.error('無法啟動相機，請檢查權限設定。'));
 }
 
 // 綁定事件監聽器
@@ -160,7 +160,7 @@ function setupEventListeners() {
     if (submitExpBtn) {
         submitExpBtn.addEventListener('click', async () => {
             if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
-                alert('錯誤：尚未選取顧客！');
+                ui.toast.error('錯誤：尚未選取顧客！');
                 return;
             }
 

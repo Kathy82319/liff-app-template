@@ -88,10 +88,10 @@ async function handleDeleteDraft(draftId) {
 
     try {
         await api.deleteMessageDraft(Number(draftId));
-        alert('刪除成功！');
+        ui.toast.success('刪除成功！');
         await init(); // 重新載入列表
     } catch (error) {
-        alert(`錯誤：${error.message}`);
+        ui.toast.error(`錯誤：${error.message}`);
     }
 }
 
@@ -113,11 +113,11 @@ async function handleFormSubmit(event) {
             // 新增
             await api.createMessageDraft(draftData);
         }
-        alert('草稿儲存成功！');
+        ui.toast.success('草稿儲存成功！');
         ui.hideModal('#edit-draft-modal');
         await init(); // 重新載入列表
     } catch (error) {
-        alert(`錯誤： ${error.message}`);
+        ui.toast.error(`錯誤： ${error.message}`);
     }
 }
 

@@ -305,6 +305,51 @@
         color: white;
     }
 
+/* --- 【修正】動態欄位樣式 --- */
+    .dynamic-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px; /* 增加間距 */
+    }
+    .dynamic-input-group input {
+        flex-grow: 1;
+    }
+    /* "新增" 和 "移除" 按鈕的統一基礎樣式 */
+    .btn-add-input, .btn-remove-input {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+        border: 1px solid var(--color-border);
+        background-color: var(--color-sidebar-bg);
+        color: var(--color-text-light);
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0; /* 防止按鈕被壓縮 */
+    }
+    .btn-add-input {
+        width: 100%;
+        margin-top: 10px;
+        border-style: dashed;
+    }
+    .btn-remove-input {
+        font-weight: bold;
+        padding: 2px 10px; /* 讓圓形按鈕更精緻 */
+        line-height: 1.5;
+    }
+    
+    /* 滑鼠懸停效果 */
+    .btn-add-input:hover {
+        background-color: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    .btn-remove-input:hover {
+        background-color: var(--color-danger);
+        color: white;
+        border-color: var(--color-danger);
+    }
+
 </style>
 
 </head>
@@ -553,6 +598,7 @@
         <div class="filter-group">
             <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架</button>
             <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架</button>
+            <button id="batch-set-stock-btn" class="action-btn" style="background-color: var(--info-color);">設定庫存狀態</button>
             <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
         </div>
     </div>
@@ -638,40 +684,29 @@
                                 <label for="edit-product-category">分類</label>
                                 <input type="text" id="edit-product-category" placeholder="例如: 課程, 餐飲, 服務">
                             </div>
-                            <div class="form-group">
-                                <label for="edit-product-tags">標籤 (以逗號分隔)</label>
-                                <input type="text" id="edit-product-tags" placeholder="例如: 入門, 攝影, VIP限定">
-                            </div>
+                        <div id="edit-product-filters-container" class="sub-grid">
+                        </div>
                         </div>
                         <div class="form-group">
                             <label>圖片網址 (最多5張)</label>
-                            <div class="edit-product-image-inputs">
-                                <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-2" placeholder="2. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-3" placeholder="3. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-4" placeholder="4. 請貼上圖片網址" style="margin-bottom: 5px;">
-                                <input type="url" id="edit-product-image-5" placeholder="5. 請貼上圖片網址">
+                            <div id="edit-product-image-inputs">
+                                <div class="dynamic-input-group">
+                                    <input type="url" id="edit-product-image-1" placeholder="1. 請貼上圖片網址">
+                                    </div>
                             </div>
+                            <button type="button" id="add-image-input-btn" class="btn-add-input">⊕ 新增圖片網址</button>
                         </div>
                         <div class="form-group">
                             <label for="edit-product-description">詳細介紹</label>
                             <textarea id="edit-product-description" rows="5"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="edit-product-inventory-type">庫存管理模式</label>
-                            <select id="edit-product-inventory-type">
-                                <option value="none">無庫存管理</option>
-                                <option value="quantity">依數量管理</option>
-                                <option value="status">依狀態管理</option>
-                            </select>
-                        </div>
-                        <div id="stock-quantity-group" class="form-group" style="display: none;">
                             <label for="edit-product-stock-quantity">庫存數量</label>
-                            <input type="number" id="edit-product-stock-quantity" min="0">
+                            <input type="number" id="edit-product-stock-quantity" min="0" placeholder="若管理庫存，請填寫數字 (選填)">
                         </div>
-                        <div id="stock-status-group" class="form-group" style="display: none;">
+                        <div class="form-group">
                             <label for="edit-product-stock-status">庫存狀態</label>
-                            <input type="text" id="edit-product-stock-status" placeholder="例如: 可預約, 已售罄">
+                            <input type="text" id="edit-product-stock-status" placeholder="若管理狀態，請填寫文字，如：可預約 (選填)">
                         </div>
                         <div class="form-group">
                             <label for="edit-product-price">價格</label>
@@ -686,26 +721,13 @@
                         <div class="form-group grid-span-2">
                             <hr>
                             <label>彈性通用規格 (選填，最多5組)</label>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-1-name" placeholder="規格1名稱 (例: 課程時長)">
-                                <input type="text" id="edit-spec-1-value" placeholder="規格1內容 (例: 2小時)">
+                            <div id="edit-product-spec-inputs">
+                                <div class="spec-input-group dynamic-input-group">
+                                    <input type="text" name="spec_name" placeholder="規格1名稱 (例: 課程時長)">
+                                    <input type="text" name="spec_value" placeholder="規格1內容 (例: 2小時)">
+                                </div>
                             </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-2-name" placeholder="規格2名稱 (例: 適合對象)">
-                                <input type="text" id="edit-spec-2-value" placeholder="規格2內容 (例: 初學者)">
-                            </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-3-name" placeholder="規格3名稱">
-                                <input type="text" id="edit-spec-3-value" placeholder="規格3內容">
-                            </div>
-                            <div class="sub-grid" style="margin-bottom: 10px;">
-                                <input type="text" id="edit-spec-4-name" placeholder="規格4名稱">
-                                <input type="text" id="edit-spec-4-value" placeholder="規格4內容">
-                            </div>
-                            <div class="sub-grid">
-                                <input type="text" id="edit-spec-5-name" placeholder="規格5名稱">
-                                <input type="text" id="edit-spec-5-value" placeholder="規格5內容">
-                            </div>
+                            <button type="button" id="add-spec-input-btn" class="btn-add-input">⊕ 新增規格</button>
                         </div>
                     </div>
                 </div>

@@ -31,7 +31,7 @@ export const api = {
     batchUpdateProducts: (productIds, isVisible) => request('/api/admin/batch-update-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds, isVisible }) }),
     createProduct: (data) => request('/api/admin/create-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     deleteProducts: (productIds) => request('/api/admin/delete-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds }) }),
-    // 【新增】CSV 匯入 API
+    batchUpdateStockStatus: (productIds, stockStatus) => request('/api/admin/batch-update-stock-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds, stockStatus }) }),
     bulkCreateProducts: (data) => request('/api/admin/bulk-create-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
 
 

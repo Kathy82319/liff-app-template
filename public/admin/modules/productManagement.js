@@ -1,4 +1,4 @@
-// public/admin/modules/productManagement.js (最終完整版)
+// public/admin/modules/productManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -101,7 +101,6 @@ function handleCsvUpload(event) {
             return;
         }
         try {
-            // 注意：這裡假設 api.js 中有名為 bulkCreateProducts 的 API 函式
             await api.bulkCreateProducts({ products: data });
             alert('匯入成功！');
             await init();
@@ -114,96 +113,157 @@ function handleCsvUpload(event) {
     reader.readAsText(file, 'UTF-8');
 }
 
-
 // --- Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
     const form = document.getElementById('edit-product-form');
     form.reset();
-    
+
+    document.querySelectorAll('#edit-product-image-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
+    document.querySelectorAll('#edit-product-spec-inputs .dynamic-input-group:not(:first-child)').forEach(el => el.remove());
+
     const modalTitle = document.getElementById('modal-product-title');
     const idInput = document.getElementById('edit-product-id');
     const idDisplay = document.getElementById('edit-product-id-display');
-    const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
 
-    if (product) { // 編輯模式
+    const filtersContainer = document.getElementById('edit-product-filters-container');
+    filtersContainer.innerHTML = '';
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+
+    filterDefinitions.forEach(filterDef => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        const label = document.createElement('label');
+        label.htmlFor = `edit-product-${filterDef.id}`;
+        label.textContent = filterDef.name;
+        const select = document.createElement('select');
+        select.id = `edit-product-${filterDef.id}`;
+        select.name = filterDef.id;
+        select.add(new Option(`-- 請選擇${filterDef.name} --`, ''));
+        filterDef.options.forEach(option => {
+            select.add(new Option(option, option));
+        });
+        formGroup.append(label, select);
+        filtersContainer.appendChild(formGroup);
+    });
+
+    if (product) {
         modalTitle.textContent = `編輯產品：${product.name}`;
         idInput.value = product.product_id;
         idDisplay.value = product.product_id;
         document.getElementById('edit-product-name').value = product.name;
         document.getElementById('edit-product-description').value = product.description || '';
         document.getElementById('edit-product-category').value = product.category || '';
-        document.getElementById('edit-product-tags').value = product.tags || '';
         document.getElementById('edit-product-is-visible').checked = !!product.is_visible;
-        document.getElementById('edit-product-price').value = product.price || '';
-        inventoryTypeSelect.value = product.inventory_management_type || 'none';
-        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity || 0;
+        document.getElementById('edit-product-price').value = product.price ?? '';
+        document.getElementById('edit-product-stock-quantity').value = product.stock_quantity ?? '';
         document.getElementById('edit-product-stock-status').value = product.stock_status || '';
+
+        filterDefinitions.forEach(filterDef => {
+            const select = document.getElementById(`edit-product-${filterDef.id}`);
+            if (select) {
+                // 【錯誤修正】這裡使用 `product` 變數，而不是 `data`
+                select.value = product[filterDef.id] || '';
+            }
+        });
+
         try {
             const images = JSON.parse(product.images || '[]');
-            for(let i=1; i<=5; i++) document.getElementById(`edit-product-image-${i}`).value = images[i-1] || '';
-        } catch(e) {}
-        for(let i=1; i<=5; i++) {
-            document.getElementById(`edit-spec-${i}-name`).value = product[`spec_${i}_name`] || '';
-            document.getElementById(`edit-spec-${i}-value`).value = product[`spec_${i}_value`] || '';
+            const imageInputsContainer = document.getElementById('edit-product-image-inputs');
+            const firstImageInput = imageInputsContainer.querySelector('input');
+            if (images.length > 0) firstImageInput.value = images[0];
+            for (let i = 1; i < images.length; i++) {
+                addImageInputField(images[i]);
+            }
+        } catch (e) { console.error("解析圖片JSON失敗:", e); }
+
+        const specInputsContainer = document.getElementById('edit-product-spec-inputs');
+        const firstSpecGroup = specInputsContainer.querySelector('.spec-input-group');
+        let specCount = 0;
+        for (let i = 1; i <= 5; i++) {
+            const specName = product[`spec_${i}_name`];
+            const specValue = product[`spec_${i}_value`];
+            if (specName || specValue) {
+                specCount++;
+                if (specCount === 1) {
+                    firstSpecGroup.querySelector('[name="spec_name"]').value = specName || '';
+                    firstSpecGroup.querySelector('[name="spec_value"]').value = specValue || '';
+                } else {
+                    addSpecInputField(specName, specValue);
+                }
+            }
         }
-    } else { // 新增模式
+    } else {
         modalTitle.textContent = '新增產品/服務';
         idInput.value = '';
         idDisplay.value = '(儲存後將自動生成)';
-        inventoryTypeSelect.value = 'none';
     }
-    inventoryTypeSelect.dispatchEvent(new Event('change'));
+
+    updateDynamicButtonsState();
     ui.showModal('#edit-product-modal');
 }
 
-// 【*** 核心修正 ***】
->>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('edit-product-id').value;
     const name = document.getElementById('edit-product-name').value;
     const isCreating = !id;
 
-    // 檢查產品名稱是否為空
     if (!name || name.trim() === '') {
         alert('「產品/服務名稱」為必填欄位！');
-        return; // 中斷函式執行
+        return;
     }
-    
-    const images = [];
-    for(let i = 1; i <= 5; i++) {
-        const imgUrl = document.getElementById(`edit-product-image-${i}`).value.trim();
-        if(imgUrl) images.push(imgUrl);
-    }
-<<<<<<< HEAD
 
+    const images = Array.from(document.querySelectorAll('#edit-product-image-inputs input'))
+        .map(input => input.value.trim())
+        .filter(url => url);
+
+    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value.trim();
+    const stockStatusValue = document.getElementById('edit-product-stock-status').value.trim();
     const priceValue = document.getElementById('edit-product-price').value;
-    const stockQuantityValue = document.getElementById('edit-product-stock-quantity').value;
-=======
->>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
+
+    let inventoryManagementType = 'none';
+    if (stockQuantityValue !== '') {
+        inventoryManagementType = 'quantity';
+    } else if (stockStatusValue !== '') {
+        inventoryManagementType = 'status';
+    }
 
     const data = {
-        name: name.trim(), // 使用已驗證的 name
+        name: name.trim(),
         description: document.getElementById('edit-product-description').value,
         category: document.getElementById('edit-product-category').value,
-        tags: document.getElementById('edit-product-tags').value,
         is_visible: document.getElementById('edit-product-is-visible').checked,
-<<<<<<< HEAD
-        inventory_management_type: document.getElementById('edit-product-inventory-type').value,
+        inventory_management_type: inventoryManagementType,
         stock_quantity: stockQuantityValue === '' ? null : Number(stockQuantityValue),
-        stock_status: document.getElementById('edit-product-stock-status').value,
+        stock_status: stockStatusValue === '' ? null : stockStatusValue,
         price: priceValue === '' ? null : Number(priceValue),
-=======
-        inventory_management_type: document.getElementById('edit-product-inventory-type').value,
-        stock_quantity: document.getElementById('edit-product-stock-quantity').value,
-        stock_status: document.getElementById('edit-product-stock-status').value,
-        price: document.getElementById('edit-product-price').value,
->>>>>>> 8c10332efa489509535f701f6688b57076a1fe98
         images: JSON.stringify(images),
+        price_type: 'simple',
+        price_options: null
     };
-    for(let i = 1; i <= 5; i++) {
-        data[`spec_${i}_name`] = document.getElementById(`edit-spec-${i}-name`).value;
-        data[`spec_${i}_value`] = document.getElementById(`edit-spec-${i}-value`).value;
+
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+    filterDefinitions.forEach(filterDef => {
+        const select = document.getElementById(`edit-product-${filterDef.id}`);
+        if (select) {
+            data[filterDef.id] = select.value || null;
+        }
+    });
+    for (let i = filterDefinitions.length + 1; i <= 3; i++) {
+        data[`filter_${i}`] = null;
+    }
+
+    const specGroups = document.querySelectorAll('#edit-product-spec-inputs .spec-input-group');
+    specGroups.forEach((group, index) => {
+        if (index < 5) {
+            const specIndex = index + 1;
+            data[`spec_${specIndex}_name`] = group.querySelector('[name="spec_name"]').value.trim() || null;
+            data[`spec_${specIndex}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
+        }
+    });
+    for (let i = specGroups.length + 1; i <= 5; i++) {
+        data[`spec_${i}_name`] = null;
+        data[`spec_${i}_value`] = null;
     }
 
     try {
@@ -221,6 +281,45 @@ async function handleFormSubmit(event) {
     }
 }
 
+// --- 動態欄位輔助函式 ---
+function addImageInputField(value = '') {
+    const container = document.getElementById('edit-product-image-inputs');
+    const count = container.children.length;
+    if (count >= 5) return;
+
+    const newGroup = document.createElement('div');
+    newGroup.className = 'dynamic-input-group';
+    newGroup.innerHTML = `
+        <input type="url" placeholder="${count + 1}. 請貼上圖片網址" value="${value}">
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    container.appendChild(newGroup);
+    updateDynamicButtonsState();
+}
+
+function addSpecInputField(name = '', value = '') {
+    const container = document.getElementById('edit-product-spec-inputs');
+    const count = container.children.length;
+    if (count >= 5) return;
+
+    const newGroup = document.createElement('div');
+    newGroup.className = 'spec-input-group dynamic-input-group';
+    newGroup.innerHTML = `
+        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
+        <input type="text" name="spec_value" placeholder="規格${count + 1}內容" value="${value}">
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    container.appendChild(newGroup);
+    updateDynamicButtonsState();
+}
+
+function updateDynamicButtonsState() {
+    const imageCount = document.getElementById('edit-product-image-inputs').children.length;
+    const specCount = document.getElementById('edit-product-spec-inputs').children.length;
+    
+    document.getElementById('add-image-input-btn').style.display = (imageCount < 5) ? 'block' : 'none';
+    document.getElementById('add-spec-input-btn').style.display = (specCount < 5) ? 'block' : 'none';
+}
 
 // --- 批次操作 ---
 function updateBatchToolbarState() {
@@ -247,6 +346,27 @@ async function handleBatchUpdate(isVisible) {
     } catch (error) { alert(`錯誤：${error.message}`); }
 }
 
+async function handleBatchSetStock() {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
+
+    const statusText = prompt('請輸入要為所有選取項目設定的庫存狀態文字：\n(例如：可預約、熱銷中、已售罄)', '可預約');
+
+    if (statusText === null || statusText.trim() === '') {
+        return;
+    }
+
+    if (!confirm(`確定要將 ${selectedIds.length} 個項目的庫存狀態設定為「${statusText}」嗎？`)) return;
+
+    try {
+        await api.batchUpdateStockStatus(selectedIds, statusText.trim());
+        alert(`成功更新 ${selectedIds.length} 個項目！`);
+        await init();
+    } catch (error) {
+        alert(`錯誤：${error.message}`);
+    }
+}
+
 async function handleBatchDelete() {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return alert('請至少選取一個項目！');
@@ -260,24 +380,60 @@ async function handleBatchDelete() {
     }
 }
 
+function updateSelectAllCheckboxState() {
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
+    if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
+
+    const allChecked = Array.from(allProductCheckboxes).every(checkbox => checkbox.checked);
+    const someChecked = Array.from(allProductCheckboxes).some(checkbox => checkbox.checked);
+
+    if (allChecked) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (someChecked) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
 // --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
-    if (!page) return;
-
-    // 防止重複綁定
-    if (page.dataset.initialized === 'true') return;
+    if (!page || page.dataset.initialized === 'true') return;
 
     page.addEventListener('click', e => {
-        if (e.target.id === 'add-product-btn') openProductModal();
-        if (e.target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
-        if (e.target.id === 'batch-publish-btn') handleBatchUpdate(true);
-        if (e.target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
-        if (e.target.id === 'batch-delete-btn') handleBatchDelete();
-        const editButton = e.target.closest('.btn-edit-product');
+        const target = e.target;
+        if (target.id === 'add-product-btn') openProductModal();
+        if (target.id === 'download-csv-template-btn') handleDownloadCsvTemplate();
+        
+        const editButton = target.closest('.btn-edit-product');
         if (editButton) {
             const product = allProducts.find(p => p.product_id === editButton.dataset.productid);
-            if(product) openProductModal(product);
+            if (product) openProductModal(product);
+        }
+    });
+
+    document.addEventListener('click', e => {
+        const target = e.target;
+        if (!document.getElementById('page-inventory').classList.contains('active')) return;
+
+        if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
+        if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
+        if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
+        if (target.id === 'batch-delete-btn') handleBatchDelete();
+
+        if (target.id === 'add-image-input-btn') addImageInputField();
+        if (target.id === 'add-spec-input-btn') addSpecInputField();
+        if (target.classList.contains('btn-remove-input')) {
+            const groupToRemove = target.closest('.dynamic-input-group');
+            if (groupToRemove) {
+                groupToRemove.remove();
+                updateDynamicButtonsState();
+            }
         }
     });
 
@@ -286,17 +442,16 @@ function setupEventListeners() {
         tbody.addEventListener('change', async (e) => {
             if (e.target.classList.contains('product-checkbox')) {
                 updateBatchToolbarState();
-                return;
-            }
-            if (e.target.classList.contains('visibility-toggle')) {
+                updateSelectAllCheckboxState();
+            } else if (e.target.classList.contains('visibility-toggle')) {
                 const productId = e.target.dataset.productId;
                 const isVisible = e.target.checked;
                 e.target.disabled = true;
                 try {
                     await api.toggleProductVisibility(productId, isVisible);
                     const product = allProducts.find(p => p.product_id === productId);
-                    if(product) product.is_visible = isVisible ? 1 : 0;
-                } catch(error) {
+                    if (product) product.is_visible = isVisible ? 1 : 0;
+                } catch (error) {
                     alert(`更新失敗: ${error.message}`);
                     e.target.checked = !isVisible;
                 } finally {
@@ -306,17 +461,20 @@ function setupEventListeners() {
         });
     }
     
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateBatchToolbarState();
+        });
+    }
+
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
-
-    const inventoryTypeSelect = document.getElementById('edit-product-inventory-type');
-    if(inventoryTypeSelect) {
-        inventoryTypeSelect.addEventListener('change', (e) => {
-            document.getElementById('stock-quantity-group').style.display = (e.target.value === 'quantity') ? 'block' : 'none';
-            document.getElementById('stock-status-group').style.display = (e.target.value === 'status') ? 'block' : 'none';
-        });
-    }
 
     page.dataset.initialized = 'true';
 }
@@ -330,7 +488,7 @@ export const init = async () => {
         allProducts = await api.getProducts();
         applyProductFiltersAndRender();
         initializeProductDragAndDrop();
-        setupEventListeners(); // 每次初始化都確保事件監聽器是最新的
+        setupEventListeners();
     } catch (error) {
         console.error('初始化產品頁失敗:', error);
         tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取失敗: ${error.message}</td></tr>`;

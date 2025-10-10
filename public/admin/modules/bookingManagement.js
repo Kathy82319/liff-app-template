@@ -83,7 +83,7 @@ async function handleCreateBookingSubmit(e) {
         document.getElementById('create-booking-form').reset();
         fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today');
     } catch (error) {
-        ui.toast..error(`建立失敗: ${error.message}`);
+        ui.toast.error(`建立失敗: ${error.message}`);
     }
 }
 

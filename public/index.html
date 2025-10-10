@@ -57,27 +57,25 @@
         <div id="news-list-container"><p>正在載入最新情報...</p></div>
     </div>
 
-<div id="page-products">
-        <h1 class="page-main-title">產品型錄</h1>
-        
-        <div id="product-view-controls">
-            <div class="layout-switcher">
-                <button id="view-list-btn">列表</button>
-                <button id="view-grid-btn" class="active">網格</button>
+        <div id="page-products">
+            <h1 class="page-main-title">產品型錄</h1>
+            <div id="filter-controls">
+                <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
+                <div id="dynamic-filter-container" class="filter-group">
+                    </div>
+                <button id="clear-filters" class="filter-action-btn">清除所有篩選</button>
+            </div>            
+            <div id="product-view-controls">
+                <div class="layout-switcher">
+                    <button id="view-list-btn">列表</button>
+                    <button id="view-grid-btn" class="active">網格</button>
+                </div>
+                <button id="price-sort-btn" class="sort-button" data-sort="default">
+                    $ 價格 <span class="sort-arrow"></span>
+                </button>
             </div>
-            <button id="price-sort-btn" class="sort-button" data-sort="default">
-                $ 價格 <span class="sort-arrow"></span>
-            </button>
+            <div id="product-list-container" class="view-grid"><p>正在載入資料...</p></div>
         </div>
-
-        <div id="filter-controls">
-            <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
-            <div id="dynamic-filter-container" class="filter-group">
-            </div>
-            <button id="clear-filters" class="filter-action-btn"></button>
-        </div>
-        <div id="product-list-container" class="view-grid"><p>正在載入資料...</p></div>
-    </div>
 
     <div id="page-my-exp-history">
         <h1 class="page-main-title">我的消費紀錄</h1>

@@ -10,8 +10,8 @@
     --color-header-bg: rgba(17, 34, 64, 0.85); /* 頁首/導覽列背景 - 半透明 */
     --color-primary: #58a6ff;          /* 主要顏色 - 亮藍色 (用於標題、邊框) */
     --color-accent: #6076d4;           /* 強調色 - 青色 (用於按鈕、活動狀態) */
-    --color-text-primary: #ccd6f6;     /* 主要文字 - 淡藍灰色 */
-    --color-text-secondary: #8892b0;   /* 次要文字 - 石板灰色 */
+    --color-text-primary: #041036;     /* 主要文字 - 淡藍灰色 */
+    --color-text-secondary: #051649;   /* 次要文字 - 石板灰色 */
     --color-danger: #ff5858;           /* 警告色 */
 
     /* 字體設定 */

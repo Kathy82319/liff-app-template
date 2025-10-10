@@ -55,7 +55,8 @@ export async function onRequest(context) {
             status: 200,
             headers: { 
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=60'
+                // 暫時移除快取，方便偵錯
+                'Cache-Control': 'no-cache'
             },
         });
 

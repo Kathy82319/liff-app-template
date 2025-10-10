@@ -110,11 +110,11 @@ function setupEventListeners() {
                 } else {
                     await api.createNews(formData);
                 }
-                alert('儲存成功！');
+                ui.toast.success('儲存成功！');
                 ui.hideModal('#edit-news-modal');
                 await init(); // 重新載入列表
             } catch (error) {
-                alert(`錯誤：${error.message}`);
+                ui.toast.error(`建立失敗: ${error.message}`);
             }
         };
     }
@@ -125,11 +125,11 @@ function setupEventListeners() {
             if (!newsId || !confirm('確定要刪除這則情報嗎？此操作無法復原。')) return;
             try {
                 await api.deleteNews(newsId);
-                alert('刪除成功！');
+                ui.toast.success('刪除成功！');
                 ui.hideModal('#edit-news-modal');
                 await init(); // 重新載入列表
             } catch (error) {
-                alert(`錯誤：${error.message}`);
+                ui.toast.error(`錯誤：${error.message}`);
             }
         };
     }

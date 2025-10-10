@@ -368,16 +368,16 @@ async function handleBatchSetStock() {
 }
 
 async function handleBatchDelete() {
-    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return alert('請至少選取一個項目！');
-    if (!confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`)) return;
-    try {
-        await api.deleteProducts(selectedIds);
-        alert('刪除成功！');
-        await init();
-    } catch (error) {
-        alert(`錯誤：${error.message}`);
-    }
+const confirmed = await ui.confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`);
+if (!confirmed) return; // 如果使用者按了取消，就結束函式
+
+try {
+    await api.deleteProducts(selectedIds);
+    ui.toast.success('刪除成功！'); // 同時換成 toast
+    await init();
+} catch (error) {
+    ui.toast.error(`錯誤：${error.message}`); // 同時換成 toast
+}
 }
 
 function updateSelectAllCheckboxState() {

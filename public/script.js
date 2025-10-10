@@ -13,10 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 狀態變數 ---
     let allProducts = [];
     let allNews = [];
-    let activeFilters = { keyword: '', tag: null };
+    let activeFilters = { 
+    keyword: '', 
+    filter_1: null, 
+    filter_2: null, 
+    filter_3: null 
+    };
     let productView = {
-        layout: 'grid', // 'grid' 或 'list'
-        sort: 'default' // 'default', 'price_desc', 'price_asc'
+    layout: 'grid', 
+    sort: 'default' 
     };
     let bookingData = {};
     let bookingHistoryStack = [];
@@ -747,162 +752,172 @@ function renderProductDetails(product) {
         specsContainer.innerHTML = specsHTML;
     }
 
-    function renderProducts() {
-        const container = document.getElementById('product-list-container');
-        const sortButton = document.getElementById('price-sort-btn');
-        if(!container || !sortButton) return;
+function renderProducts() {
+    const container = document.getElementById('product-list-container');
+    const sortButton = document.getElementById('price-sort-btn');
+    if(!container || !sortButton) return;
 
-        // 1. 篩選
-        let filteredProducts = allProducts.filter(p => p.is_visible === 1);
-        const keyword = activeFilters.keyword.toLowerCase().trim();
-        if (keyword) { 
-            filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(keyword)); 
+    // 1. 篩選
+    let filteredProducts = allProducts.filter(p => p.is_visible === 1);
+
+    // 關鍵字篩選
+    const keyword = activeFilters.keyword.toLowerCase().trim();
+    if (keyword) { 
+        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(keyword)); 
+    }
+
+    // 【核心修改】新的動態篩選器邏輯
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+    filterDefinitions.forEach(filterDef => {
+        const filterKey = filterDef.id; // e.g., 'filter_1'
+        const selectedValue = activeFilters[filterKey];
+        if (selectedValue) {
+            filteredProducts = filteredProducts.filter(p => p[filterKey] === selectedValue);
         }
-        if (activeFilters.tag) { 
-            filteredProducts = filteredProducts.filter(p => (p.tags || '').split(',').map(t => t.trim()).includes(activeFilters.tag)); 
-        }
+    });
 
-        // 2. 排序
-        switch (productView.sort) {
-            case 'price_desc':
-                filteredProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
-                break;
-            case 'price_asc':
-                filteredProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
-                break;
-            case 'default':
-            default:
-                // 維持後台設定的 display_order 順序
-                filteredProducts.sort((a, b) => a.display_order - b.display_order);
-                break;
-        }
+    // 2. 排序 (邏輯不變)
+    switch (productView.sort) {
+        case 'price_desc':
+            filteredProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
+            break;
+        case 'price_asc':
+            filteredProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
+            break;
+        default:
+            filteredProducts.sort((a, b) => a.display_order - b.display_order);
+            break;
+    }
 
-        // 3. 更新 UI 狀態
-        container.className = productView.layout === 'grid' ? 'view-grid' : 'view-list';
-        document.getElementById('view-grid-btn').classList.toggle('active', productView.layout === 'grid');
-        document.getElementById('view-list-btn').classList.toggle('active', productView.layout === 'list');
-        sortButton.dataset.sort = productView.sort; // 更新按鈕的 data-sort 屬性以觸發 CSS 變化
-        
-        if (filteredProducts.length === 0) {
-            container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
-            return;
-        }
+    // 3. 更新 UI 狀態 (邏輯不變)
+    container.className = productView.layout === 'grid' ? 'view-grid' : 'view-list';
+    document.getElementById('view-grid-btn').classList.toggle('active', productView.layout === 'grid');
+    document.getElementById('view-list-btn').classList.toggle('active', productView.layout === 'list');
+    sortButton.dataset.sort = productView.sort;
 
-        // 4. 渲染 HTML
-        container.innerHTML = filteredProducts.map(product => {
-            let priceDisplay = '';
-            if (product.price_type === 'simple' && product.price != null) {
-                priceDisplay = `$${product.price}`;
-            } else {
-                priceDisplay = '價格洽詢';
-            }
-            const images = JSON.parse(product.images || '[]');
-            const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
+    if (filteredProducts.length === 0) {
+        container.innerHTML = `<p>找不到符合條件的${CONFIG.TERMS.PRODUCT_NAME}。</p>`;
+        return;
+    }
 
-            return `
-                <div class="product-card" data-product-id="${product.product_id}">
-                    <img src="${imageUrl}" alt="${product.name}" class="product-image">
-                    <div class="product-info">
-                        <h3 class="product-title">${product.name}</h3>
-                        <p class="product-price">${priceDisplay}</p>
-                    </div>
+    // 4. 渲染 HTML (邏輯不變)
+    container.innerHTML = filteredProducts.map(product => {
+        let priceDisplay = product.price != null ? `$${product.price}` : '價格洽詢';
+        const images = JSON.parse(product.images || '[]');
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150';
+        return `
+            <div class="product-card" data-product-id="${product.product_id}">
+                <img src="${imageUrl}" alt="${product.name}" class="product-image">
+                <div class="product-info">
+                    <h3 class="product-title">${product.name}</h3>
+                    <p class="product-price">${priceDisplay}</p>
                 </div>
-            `;
-        }).join('');
-    }
+            </div>
+        `;
+    }).join('');
+}
 
-    function populateFilters() {
-        const filterContainer = document.getElementById('tag-filter-container');
-        if(!filterContainer) return;
-        const allTags = [...new Set(allProducts.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
-        filterContainer.innerHTML = allTags.map(tag => `<button class="filter-tag-btn" data-tag="${tag}">${tag}</button>`).join('');
-        filterContainer.querySelectorAll('.filter-tag-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const currentActive = filterContainer.querySelector('.filter-tag-btn.active');
-                if (currentActive) currentActive.classList.remove('active');
-                if (activeFilters.tag === btn.dataset.tag) {
-                    activeFilters.tag = null;
-                } else {
-                    activeFilters.tag = btn.dataset.tag;
-                    btn.classList.add('active');
-                }
-                renderProducts();
-            });
+function populateFilters() {
+    const container = document.getElementById('dynamic-filter-container');
+    if (!container) return;
+    container.innerHTML = ''; // 清空
+
+    const filterDefinitions = window.CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
+
+    filterDefinitions.forEach(filterDef => {
+        const select = document.createElement('select');
+        select.id = `liff-${filterDef.id}`;
+        select.dataset.filterKey = filterDef.id; // 儲存對應的 key
+
+        select.add(new Option(filterDef.name, '')); // 第一個選項是篩選器名稱
+
+        filterDef.options.forEach(option => {
+            select.add(new Option(option, option));
         });
+
+        select.addEventListener('change', (e) => {
+            const key = e.target.dataset.filterKey;
+            const value = e.target.value;
+            activeFilters[key] = value || null; // 如果選擇空值，則設為 null
+            renderProducts();
+        });
+
+        container.appendChild(select);
+    });
+}
+async function initializeProductsPage() {
+    productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
+    productView.sort = 'default';
+
+    const container = document.getElementById('product-list-container');
+    if (!container) return;
+    container.innerHTML = `<p>載入中...</p>`;
+
+    const viewControls = document.getElementById('product-view-controls');
+    const layoutSwitcher = document.querySelector('.layout-switcher');
+    const sortButton = document.getElementById('price-sort-btn');
+
+    if (CONFIG.FEATURES.ENABLE_PRODUCT_LAYOUT_SWITCH) {
+        layoutSwitcher.style.display = 'block';
+    } else {
+        layoutSwitcher.style.display = 'none';
     }
+    viewControls.style.display = 'flex';
 
-    async function initializeProductsPage() {
-        // 讀取使用者上次的選擇
-        productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
-        productView.sort = 'default'; // 每次進入頁面時重置排序
+    document.getElementById('view-grid-btn').addEventListener('click', () => {
+        productView.layout = 'grid';
+        localStorage.setItem('product_layout_preference', 'grid');
+        renderProducts();
+    });
+    document.getElementById('view-list-btn').addEventListener('click', () => {
+        productView.layout = 'list';
+        localStorage.setItem('product_layout_preference', 'list');
+        renderProducts();
+    });
 
-        const container = document.getElementById('product-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
+    sortButton.addEventListener('click', () => {
+        const currentSort = productView.sort;
+        if (currentSort === 'default') productView.sort = 'price_desc';
+        else if (currentSort === 'price_desc') productView.sort = 'price_asc';
+        else productView.sort = 'default';
+        renderProducts();
+    });
 
-        const viewControls = document.getElementById('product-view-controls');
-        const layoutSwitcher = document.querySelector('.layout-switcher');
-        const sortButton = document.getElementById('price-sort-btn'); // 改為獲取按鈕
-
-        // 根據後台設定，決定是否顯示版面切換按鈕
-        if (CONFIG.FEATURES.ENABLE_PRODUCT_LAYOUT_SWITCH) {
-            layoutSwitcher.style.display = 'block';
-        } else {
-            layoutSwitcher.style.display = 'none';
+    try {
+        if (allProducts.length === 0) {
+            const res = await fetch('/api/get-products');
+            if (!res.ok) throw new Error('API 請求失敗');
+            allProducts = await res.json();
         }
-        viewControls.style.display = 'flex'; // 顯示整個控制區塊
 
-        // 綁定版面切換按鈕事件
-        document.getElementById('view-grid-btn').addEventListener('click', () => {
-            productView.layout = 'grid';
-            localStorage.setItem('product_layout_preference', 'grid');
-            renderProducts();
-        });
-        document.getElementById('view-list-btn').addEventListener('click', () => {
-            productView.layout = 'list';
-            localStorage.setItem('product_layout_preference', 'list');
-            renderProducts();
-        });
-        
-        // 【核心修改】綁定排序按鈕的點擊事件
-        sortButton.addEventListener('click', () => {
-            const currentSort = productView.sort;
-            if (currentSort === 'default') {
-                productView.sort = 'price_desc'; // 預設 -> 價高到低
-            } else if (currentSort === 'price_desc') {
-                productView.sort = 'price_asc'; // 價高到低 -> 價低到高
-            } else {
-                productView.sort = 'default'; // 價低到高 -> 預設
-            }
-            renderProducts();
+        // 呼叫新的 populateFilters
+        populateFilters();
+        renderProducts();
+
+        document.getElementById('keyword-search').addEventListener('input', e => { 
+            activeFilters.keyword = e.target.value; 
+            renderProducts(); 
         });
 
-        try {
-            if (allProducts.length === 0) {
-                const res = await fetch('/api/get-products');
-                if (!res.ok) throw new Error('API 請求失敗');
-                allProducts = await res.json();
-            }
-            populateFilters();
-            renderProducts(); // 第一次渲染
-            
-            document.getElementById('keyword-search').addEventListener('input', e => { 
-                activeFilters.keyword = e.target.value; 
-                renderProducts(); 
+        document.getElementById('clear-filters').addEventListener('click', () => {
+            // 重置所有篩選條件
+            activeFilters.keyword = '';
+            activeFilters.filter_1 = null;
+            activeFilters.filter_2 = null;
+            activeFilters.filter_3 = null;
+
+            document.getElementById('keyword-search').value = '';
+            // 重置所有下拉選單
+            document.querySelectorAll('#dynamic-filter-container select').forEach(select => {
+                select.selectedIndex = 0;
             });
-            document.getElementById('clear-filters').addEventListener('click', () => {
-                activeFilters.keyword = '';
-                activeFilters.tag = null;
-                document.getElementById('keyword-search').value = '';
-                const currentActive = document.querySelector('#tag-filter-container .filter-tag-btn.active');
-                if (currentActive) currentActive.classList.remove('active');
-                renderProducts();
-            });
-        } catch (error) {
-            console.error('初始化產品型錄失敗:', error);
-            container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
-        }
+            renderProducts();
+        });
+    } catch (error) {
+        console.error('初始化產品型錄失敗:', error);
+        container.innerHTML = `<p style="color: var(--color-danger);">讀取${CONFIG.TERMS.PRODUCT_NAME}資料失敗。</p>`;
     }
+}
 
     function showBookingStep(stepId) {
         document.querySelectorAll('#booking-wizard-container .booking-step').forEach(step => step.classList.remove('active'));

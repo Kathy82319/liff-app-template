@@ -2,6 +2,7 @@
 
 import { api } from './api.js';
 import { ui } from './ui.js';
+import { hideBatchToolbar } from './modules/productManagement.js';
 
 const App = {
     // 路由表：將頁面 ID 映射到對應的模組路徑
@@ -22,6 +23,8 @@ const App = {
     async handleRouteChange() {
         // 從 URL hash 獲取當前頁面 ID，預設為 'dashboard'
         const pageId = window.location.hash.substring(1) || 'dashboard';
+        
+        hideBatchToolbar();//隱藏產品頁的工具列
         
         ui.setActiveNav(pageId);
         ui.showPage(pageId);

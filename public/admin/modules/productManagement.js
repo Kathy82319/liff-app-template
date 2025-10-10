@@ -5,6 +5,20 @@ import { ui } from '../ui.js';
 let allProducts = [];
 let sortableProducts = null;
 
+// 建立一個可以從外部呼叫的函式來隱藏工具列
+export function hideBatchToolbar() {
+    const toolbar = document.getElementById('batch-actions-toolbar');
+    if (toolbar) {
+        toolbar.classList.remove('visible');
+    }
+    // 同時取消全選的勾選狀態
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
 // --- 渲染與篩選函式 ---
 function renderProductList(products) {
     const productListTbody = document.getElementById('product-list-tbody');

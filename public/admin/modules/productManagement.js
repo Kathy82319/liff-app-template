@@ -52,7 +52,7 @@ function renderProductList(products) {
 function applyProductFiltersAndRender() {
     const searchInput = document.getElementById('product-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const filtered = searchTerm ? allProducts.filter(p => (p.name || '').toLowerCase().includes(searchTerm)) : [...allProducts];
+
     // 【新增】獲取當前啟用的篩選器狀態
     const visibilityFilter = document.querySelector('#inventory-visibility-filter .active')?.dataset.filter || 'all';
     const stockFilter = document.querySelector('#inventory-stock-filter .active')?.dataset.filter || 'all';

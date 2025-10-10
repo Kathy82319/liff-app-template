@@ -254,7 +254,10 @@ async function main() {
         return response.json();
     })
     .then(data => {
-        if (data.magicLink) {
+            if (data.magicLink) {
+            // 【新增】在開啟新視窗前，加入提示
+            alert('提醒：您即將進入 DEMO 體驗模式，所有操作均為模擬，不會影響真實資料。');
+
             // 使用 LIFF 的 API 在外部瀏覽器開啟，體驗最好
             liff.openWindow({
                 url: data.magicLink,

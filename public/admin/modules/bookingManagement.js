@@ -403,7 +403,7 @@ function renderBookingList(bookings) {
             <td><span class="status-tag ${statusClass}">${statusText}</span></td>
             <td class="actions-cell">
                 <button class="action-btn btn-edit-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--color-primary);">編輯</button>
-                <button class="action-btn btn-quick-cancel" data-booking-id="${booking.booking_id}" ${booking.status === 'cancelled' ? 'disabled' : ''}>取消</button>
+                <button class="action-btn btn-quick-cancel" data-booking-id="${booking.booking_id}"style="background-color: var(--color-danger); ${booking.status === 'cancelled' ? 'disabled' : ''}>取消</button>
             </td>
         `;
     });

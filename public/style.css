@@ -635,22 +635,44 @@ input:focus, select:focus, textarea:focus {
 .profile-actions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* D. 線上預約 */
-/* Flatpickr 日曆樣式覆蓋 */
+/* public/style.css */
+
+/* --- Flatpickr 日曆樣式覆蓋 (v2 - 修正版) --- */
 .flatpickr-calendar {
     background: var(--color-card-bg) !important;
     border: 1px solid var(--color-primary) !important;
     border-radius: var(--border-radius) !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
-.flatpickr-month, .flatpickr-weekday, .numInputWrapper, .flatpickr-day {
-    color: var(--color-header-bg) !important;
+.flatpickr-month, .flatpickr-weekday, .numInputWrapper {
+    color: var(--color-text-primary) !important;
 }
+.flatpickr-day {
+    color: var(--color-text-primary) !important;
+    border: 1px solid transparent;
+}
+/* 當月日期 Hover 效果 */
+.flatpickr-day:not(.flatpickr-disabled):not(.selected):hover {
+    background: rgba(88, 166, 255, 0.3) !important;
+    border-color: rgba(88, 166, 255, 0.5);
+}
+/* 已選中日期 */
 .flatpickr-day.selected {
     background: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
     color: var(--color-bg) !important;
 }
-.flatpickr-day:hover {
-    background: rgba(88, 166, 255, 0.3) !important;
+/* 【新增】非本月日期 (變暗) */
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+    color: rgba(204, 214, 246, 0.3) !important;
+}
+/* 【新增】已被禁用的日期 (例如過去日期) */
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover {
+    color: rgba(204, 214, 246, 0.2) !important;
+    background: none !important;
+    cursor: not-allowed;
 }
 
 #booking-slots-container {

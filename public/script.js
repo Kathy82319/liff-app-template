@@ -856,11 +856,22 @@ function populateFilters() {
         }
     
         filterDefinitions.forEach(filterDef => {
-            const select = document.createElement('select');
-            select.id = `liff-${filterDef.id}`;
-            select.dataset.filterKey = filterDef.id;
+    // 建立下拉式選單
+    const select = document.createElement('select');
+    select.className = 'booking-item-select'; // class 從 -name 改為 -select
+    select.style.flexGrow = '1';
     
-            select.add(new Option(filterDef.name, ''));
+    // 加入預設選項
+    select.add(new Option('-- 請選擇服務項目 --', ''));
+
+    // 從 allProducts 陣列中篩選出已上架的項目，並產生選項
+    const visibleProducts = allProducts.filter(p => p.is_visible);
+    visibleProducts.forEach(product => {
+        select.add(new Option(`${product.name} - $${product.price}`, product.name));
+    });    
+
+    // 如果是編輯模式，設定預設值
+    select.value = name;    
     
             filterDef.options.forEach(option => {
                 select.add(new Option(option, option));
@@ -992,28 +1003,26 @@ async function initializeProductsPage() {
     // =================================================================
 
     // 【全新】輔助函式：新增一列預約項目
-    function addBookingItemRow(name = '', qty = 1) {
-        const container = document.getElementById('booking-items-container');
-        if (!container || container.children.length >= 5) {
-            // 最多 5 組
-            if (container.children.length >= 5) {
-                document.getElementById('add-booking-item-btn').style.display = 'none';
-            }
-            return;
+function addBookingItemRow(name = '', qty = 1) {
+    const container = document.getElementById('booking-items-container');
+    if (!container || container.children.length >= 5) {
+        if (container.children.length >= 5) {
+            document.getElementById('add-booking-item-btn').style.display = 'none';
         }
+        return;
+    }
 
-        const itemRow = document.createElement('div');
-        itemRow.className = 'booking-item-row';
-        itemRow.style.display = 'flex';
-        itemRow.style.gap = '10px';
-        itemRow.style.marginBottom = '10px';
+    const itemRow = document.createElement('div');
+    itemRow.className = 'booking-item-row';
+    itemRow.style.display = 'flex';
+    itemRow.style.gap = '10px';
+    itemRow.style.marginBottom = '10px';
         
-        itemRow.innerHTML = `
-            <input type="text" class="booking-item-name" placeholder="服務項目名稱" value="${name}" style="flex-grow: 1;">
-            <input type="number" class="booking-item-qty" value="${qty}" min="1" style="width: 70px;">
-            <button type="button" class="remove-booking-item-btn" style="background: var(--color-danger); padding: 5px 10px; border: none; color: white; border-radius: 4px; cursor: pointer;">-</button>
-        `;
-
+    itemRow.innerHTML = `
+        <input type="number" class="booking-item-qty" value="${qty}" min="1" style="width: 70px;">
+        <button type="button" class="remove-booking-item-btn" style="background: var(--color-danger); padding: 5px 10px; border: none; color: white; border-radius: 4px; cursor: pointer;">-</button>
+    `;
+    itemRow.prepend(select); // 用 prepend 將 select 放在最前面
         container.appendChild(itemRow);
         
         // 為移除按鈕綁定事件
@@ -1031,7 +1040,20 @@ async function initializeProductsPage() {
         }
     }
 
-    async function initializeBookingPage() {
+async function initializeBookingPage() {
+    // --- 【新增】在函式最開頭，先獲取所有服務項目 ---
+    try {
+        if (allProducts.length === 0) {
+            const res = await fetch('/api/get-products');
+            if (!res.ok) throw new Error('無法獲取服務項目列表');
+            allProducts = await res.json();
+        }
+    } catch (error) {
+        console.error(error);
+        const itemsContainer = document.getElementById('booking-items-container');
+        if(itemsContainer) itemsContainer.innerHTML = `<p style="color:red">無法載入服務項目，請稍後再試。</p>`;
+    }
+    // --- 新增結束 ---
         const datepickerContainer = document.getElementById('booking-datepicker-container');
         const timeSlotContainer = document.getElementById('booking-time-slot-container');
         const detailsForm = document.getElementById('booking-details-form');
@@ -1046,9 +1068,9 @@ async function initializeProductsPage() {
         }
         
         // 清空並加入預設項目
-        const itemsContainer = document.getElementById('booking-items-container');
-        if (itemsContainer) itemsContainer.innerHTML = '';
-        addBookingItemRow(); // 預設顯示一欄
+    const itemsContainer = document.getElementById('booking-items-container');
+    if (itemsContainer) itemsContainer.innerHTML = '';
+    addBookingItemRow(); // 預設顯示一欄 (現在會是下拉選單)
 
         // 日期選擇器的邏輯 (不變)
         const cutoffDays = CONFIG.LOGIC.BOOKING_CUTOFF_DAYS || 0;
@@ -1177,21 +1199,23 @@ function renderTimeSlots(selectElement) {
         const confirmBtn = event.target;
         if (confirmBtn.dataset.isSubmitting === 'true') return;
 
-        // 1. 收集所有預約項目
-        const items = [];
-        const itemRows = document.querySelectorAll('.booking-item-row');
-        itemRows.forEach(row => {
-            const name = row.querySelector('.booking-item-name').value.trim();
-            const qty = row.querySelector('.booking-item-qty').value;
-            if (name) { // 只收集有填寫名稱的項目
-                items.push({ name, qty });
-            }
-        });
-
-        if (items.length === 0) {
-            alert('請至少填寫一個預約項目！');
-            return;
+    // 1. 收集所有預約項目
+    const items = [];
+    const itemRows = document.querySelectorAll('.booking-item-row');
+    itemRows.forEach(row => {
+        // 【修改】從 .booking-item-select 讀取 value
+        const name = row.querySelector('.booking-item-select').value;
+        const qty = row.querySelector('.booking-item-qty').value;
+        if (name) {
+            items.push({ name, qty });
         }
+    });
+
+    if (items.length === 0) {
+        // 【修改】提示文字
+        alert('請至少選擇一個預約項目！');
+        return;
+    }
 
         // 2. 收集其他基本資料
         bookingData.timeSlot = document.getElementById('time-slot-select').value;

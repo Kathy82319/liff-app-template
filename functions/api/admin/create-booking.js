@@ -23,7 +23,9 @@ export async function onRequest(context) {
         if (!bookingDate || !isValidDate(bookingDate)) errors.push('無效的日期格式，應為 YYYY-MM-DD。');
         if (!timeSlot || !isValidTime(timeSlot)) errors.push('無效的時間格式，應為 HH:MM。');
         if (!contactName || typeof contactName !== 'string' || contactName.trim().length === 0) errors.push('聯絡姓名為必填。');
-        if (!contactPhone || typeof contactPhone !== 'string' || contactPhone.trim().length === 0) errors.push('聯絡電話為必填。');
+        
+        // ▼▼▼ 修改點：電話變成非必填 ▼▼▼
+        if (contactPhone && (typeof contactPhone !== 'string' || contactPhone.length > 20)) errors.push('電話號碼格式不正確或過長。');
         
         const people = Number(numOfPeople);
         if (!Number.isInteger(people) || people <= 0) errors.push('人數必須是大於 0 的整數。');
@@ -39,14 +41,14 @@ export async function onRequest(context) {
 
         const db = context.env.DB;
 
-        // 1. 準備插入 Bookings 主表的指令
         const bookingStmt = db.prepare(
             `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, total_amount, notes) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
              RETURNING booking_id`
         );
+        // ▼▼▼ 修改點：將 contactPhone 傳入資料庫 ▼▼▼
         const { booking_id } = await bookingStmt.bind(
-            userId, contactName.trim(), contactPhone.trim(), bookingDate, 
+            userId, contactName.trim(), contactPhone.trim() || null, bookingDate, 
             timeSlot, people, totalAmount || null, notes || null
         ).first();
 
@@ -54,7 +56,6 @@ export async function onRequest(context) {
             throw new Error('無法建立預約主紀錄，請稍後再試。');
         }
 
-        // 2. 準備批次插入 BookingItems 的指令
         const itemStmt = db.prepare(
             'INSERT INTO BookingItems (booking_id, item_name, quantity, price) VALUES (?, ?, ?, ?)'
         );
@@ -65,7 +66,6 @@ export async function onRequest(context) {
             return itemStmt.bind(booking_id, itemName, quantity, price);
         });
 
-        // 3. 一次性執行所有 item 的插入
         await db.batch(itemOperations);
         
         return new Response(JSON.stringify({ success: true, message: '預約已成功建立' }), {

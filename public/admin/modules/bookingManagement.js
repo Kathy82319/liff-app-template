@@ -133,15 +133,11 @@ function resetCreateBookingModal() {
 
 
 async function initializeCreateBookingModal() {
-    // 防止重複初始化
     if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
-
     try {
         if(allProducts.length === 0) allProducts = await api.getProducts();
     } catch(e) { console.error("無法載入產品列表供預約使用"); }
-
     createBookingDatepicker = flatpickr("#booking-date-input", { dateFormat: "Y-m-d" });
-
     const slotSelect = document.getElementById('booking-slot-select');
     slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
     for (let hour = 8; hour <= 22; hour++) {
@@ -150,18 +146,14 @@ async function initializeCreateBookingModal() {
             slotSelect.add(new Option(time, time));
         });
     }
-
     const userSearchInput = document.getElementById('booking-user-search');
     const userSelect = document.getElementById('booking-user-select');
-
-    // 當使用者在搜尋框輸入文字時 (邏輯不變)
     userSearchInput.addEventListener('input', async (e) => {
         const query = e.target.value;
         if (query.length < 1) {
             userSelect.style.display = 'none';
             return;
         }
-
         try {
             const users = await api.searchUsers(query);
             userSelect.innerHTML = '';
@@ -170,6 +162,8 @@ async function initializeCreateBookingModal() {
                     const displayName = u.nickname || u.line_display_name;
                     const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
                     option.dataset.userName = displayName;
+                    // ▼▼▼ 修改點：將會員電話存入 data attribute ▼▼▼
+                    option.dataset.userPhone = u.phone || '';
                     userSelect.add(option);
                 });
                 userSelect.style.display = 'block';
@@ -181,59 +175,57 @@ async function initializeCreateBookingModal() {
             userSelect.style.display = 'none';
         }
     });
-
-    // 當使用者從下拉選單選擇一位會員時 (邏輯不變)
     userSelect.addEventListener('change', () => {
         const selectedValue = userSelect.value;
         if (selectedValue) {
             const selectedOption = userSelect.options[userSelect.selectedIndex];
             setSelectedUser(selectedValue, selectedOption.dataset.userName);
+            // ▼▼▼ 修改點：自動填入會員電話 ▼▼▼
+            document.getElementById('booking-phone-input').value = selectedOption.dataset.userPhone || '';
             userSelect.style.display = 'none';
         }
     });
-    
-    // 【移除】不再需要 blur 事件監聽器
-    // userSearchInput.addEventListener('blur', ...);
-
-    // 「更換」按鈕的邏輯 (不變)
+    userSearchInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
+            const inputText = userSearchInput.value.trim();
+            if (userSelect.style.display === 'block' || isUserSelected || !inputText) {
+                return;
+            }
+            const tempUserId = `walk-in-${Date.now()}`;
+            setSelectedUser(tempUserId, inputText);
+            // ▼▼▼ 修改點：清空電話欄位給臨時顧客 ▼▼▼
+            document.getElementById('booking-phone-input').value = '';
+        }, 200);
+    });
     document.getElementById('change-user-btn').addEventListener('click', () => {
         document.getElementById('selected-user-id').value = '';
         document.getElementById('selected-user-view').style.display = 'none';
         document.getElementById('user-selection-container').style.display = 'block';
         userSearchInput.value = '';
+        // ▼▼▼ 修改點：清空電話欄位 ▼▼▼
+        document.getElementById('booking-phone-input').value = '';
         userSearchInput.focus();
     });
-
-    // 「新增項目」按鈕的邏輯 (不變)
     document.getElementById('admin-add-booking-item-btn').addEventListener('click', () => addAdminBookingItemRow());
-    
-    // 標記為已初始化
     userSearchInput.dataset.initialized = 'true';
 }
 
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
-
-    // --- ▼▼▼ 從這裡開始是新的核心邏輯 ▼▼▼ ---
     let finalUserId = document.getElementById('selected-user-id').value;
     let finalContactName = '';
-
     const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
-
     if (isUserSelected) {
-        // 情況1：已經透過選單或 blur 選好顧客了
         finalUserId = document.getElementById('selected-user-id').value;
         finalContactName = document.getElementById('selected-user-display').textContent;
     } else {
-        // 情況2：使用者直接輸入完名字就按送出
         const searchInputText = document.getElementById('booking-user-search').value.trim();
         if (searchInputText) {
             finalUserId = `walk-in-${Date.now()}`;
             finalContactName = searchInputText;
         }
     }
-    // --- ▲▲▲ 新的核心邏輯結束 ▲▲▲ ---
-
     const items = [];
     document.querySelectorAll('.admin-booking-item-row').forEach(row => {
         const select = row.querySelector('.booking-item-select');
@@ -245,29 +237,26 @@ async function handleCreateBookingSubmit(e) {
         const price = row.querySelector('.booking-item-price').value;
         if (name) items.push({ name, qty, price });
     });
-
     if (items.length === 0) {
         ui.toast.error('請至少填寫一個預約項目！');
         return;
     }
-    
     const formData = {
-        userId: finalUserId, // 使用我們最終確認的 ID
+        userId: finalUserId,
         bookingDate: document.getElementById('booking-date-input').value,
         timeSlot: document.getElementById('booking-slot-select').value,
         numOfPeople: document.getElementById('booking-people-input').value,
+        // ▼▼▼ 修改點：收集電話號碼 ▼▼▼
+        contactPhone: document.getElementById('booking-phone-input').value,
         totalAmount: document.getElementById('booking-total-amount-input').value,
         notes: document.getElementById('booking-notes-input').value,
-        contactName: finalContactName, // 使用我們最終確認的 Name
-        contactPhone: 'N/A',
+        contactName: finalContactName, 
         items: items,
     };
-
     if (!formData.userId || !formData.bookingDate || !formData.timeSlot) {
         ui.toast.error('顧客、預約日期和時段為必填！');
         return;
     }
-
     try {
         await api.createBooking(formData);
         ui.toast.success('預約建立成功！');

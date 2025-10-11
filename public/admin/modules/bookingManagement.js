@@ -435,8 +435,10 @@ function setupEventListeners() {
     document.getElementById('create-booking-form')?.addEventListener('submit', handleCreateBookingSubmit);
     document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings); // 確保監聽器在這裡
     
-    document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { /*...*/ });
-    document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { /*...*/ });
+    // 日曆月份切換
+    document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });
+    document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); });
+
 
     page.dataset.initialized = 'true';
 }

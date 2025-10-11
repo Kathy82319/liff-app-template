@@ -106,45 +106,31 @@ function setSelectedUser(userId, userName) {
 }
 
 function resetCreateBookingModal() {
-    document.getElementById('create-booking-form').reset();
-    document.getElementById('admin-booking-items-container').innerHTML = '';
-    addAdminBookingItemRow();
+    const form = document.getElementById('create-booking-form');
+    if (form) form.reset();
 
-    document.getElementById('selected-user-id').value = '';
-    document.getElementById('selected-user-view').style.display = 'none';
-    document.getElementById('user-selection-container').style.display = 'block';
-    document.getElementById('booking-user-select').style.display = 'none';
-    document.getElementById('booking-user-select').innerHTML = '';
-    document.getElementById('new-user-container').style.display = 'none';
-    document.getElementById('new-user-name-input').value = '';
-}
-
-async function handleSaveNewUser() {
-    const newUserNameInput = document.getElementById('new-user-name-input');
-    const newUserName = newUserNameInput.value.trim();
-    if (!newUserName) {
-        ui.toast.error('請輸入新顧客的名稱');
-        return;
+    const itemsContainer = document.getElementById('admin-booking-items-container');
+    if (itemsContainer) {
+        itemsContainer.innerHTML = '';
+        addAdminBookingItemRow();
     }
 
-    try {
-        const tempUserId = 'W' + Date.now(); // 'W' for Walk-in
-        await api.updateUserDetails({
-            userId: tempUserId,
-            nickname: newUserName,
-            line_display_name: newUserName,
-            level: 1,
-            current_exp: 0,
-            user_class: '無',
-            tag: '非會員'
-        });
-        setSelectedUser(tempUserId, newUserName);
-        ui.toast.success(`已建立新顧客：${newUserName}`);
-        document.getElementById('new-user-container').style.display = 'none';
-    } catch(error) {
-        ui.toast.error(`建立新顧客失敗：${error.message}`);
+    const selectedUserId = document.getElementById('selected-user-id');
+    if (selectedUserId) selectedUserId.value = '';
+
+    const selectedUserView = document.getElementById('selected-user-view');
+    if (selectedUserView) selectedUserView.style.display = 'none';
+    
+    const userSelectionContainer = document.getElementById('user-selection-container');
+    if (userSelectionContainer) userSelectionContainer.style.display = 'block';
+
+    const userSelect = document.getElementById('booking-user-select');
+    if (userSelect) {
+        userSelect.style.display = 'none';
+        userSelect.innerHTML = '';
     }
 }
+
 
 async function initializeCreateBookingModal() {
     if (createBookingDatepicker) return;
@@ -221,6 +207,7 @@ async function initializeCreateBookingModal() {
     document.getElementById('admin-add-booking-item-btn').addEventListener('click', () => addAdminBookingItemRow());
 }
 
+
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
     const items = [];
@@ -294,6 +281,7 @@ async function handleSaveBookingSettings() {
         saveButton.textContent = '儲存所有變更';
     }
 }
+
 
 
 

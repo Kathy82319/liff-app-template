@@ -297,6 +297,80 @@ async function handleSaveBookingSettings() {
 
 
 
+// ▼▼▼ 請將此函式新增到檔案中 ▼▼▼
+async function openBookingDetailsModal(bookingId) {
+    const modal = document.getElementById('booking-details-modal');
+    const contentEl = document.getElementById('booking-details-content');
+    if (!modal || !contentEl) return;
+
+    ui.showModal('#booking-details-modal');
+    contentEl.innerHTML = '<p>正在載入預約資料...</p>';
+
+    try {
+        // 從快取的預約列表中找到對應的 booking 物件
+        const booking = allBookings.find(b => b.booking_id == bookingId);
+        if (!booking) {
+            throw new Error('在 App 中找不到這筆預約資料。');
+        }
+
+        let userProfile = null;
+        // 判斷是否為正式會員 (user_id 不是以 'walk-in-' 開頭)
+        if (booking.user_id && !booking.user_id.startsWith('walk-in-')) {
+            // 是會員，就去後端撈取完整的 CRM 資料
+            const userDetails = await api.getUserDetails(booking.user_id);
+            userProfile = userDetails.profile;
+        }
+
+        // --- 開始組合 HTML ---
+        let html = `
+            <h4>預約資訊</h4>
+            <div class="details-grid-container">
+                <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                <div><strong>預約日期:</strong> ${booking.booking_date}</div>
+                <div><strong>預約時段:</strong> ${booking.time_slot}</div>
+                <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
+                <div><strong>預估總金額:</strong> ${booking.total_amount || '未設定'}</div>
+                <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
+            </div>
+            <div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>
+            
+            <h4>預約項目</h4>
+            <table class="items-table">
+                <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
+                <tbody>
+        `;
+
+        booking.items.forEach(item => {
+            html += `<tr><td>${item.item_name}</td><td>${item.quantity}</td><td>${item.price || 'N/A'}</td></tr>`;
+        });
+
+        html += '</tbody></table>';
+
+        // 如果是會員，才顯示 CRM 資訊區塊
+        if (userProfile) {
+            html += `
+                <hr>
+                <h4>顧客資訊 (會員)</h4>
+                <div class="details-grid-container">
+                    <div><strong>顧客姓名:</strong> ${userProfile.nickname || userProfile.line_display_name}</div>
+                    <div><strong>會員等級:</strong> ${userProfile.level}</div>
+                    <div><strong>會員方案:</strong> ${userProfile.class || '無'}</div>
+                </div>
+            `;
+        } else {
+            html += `
+                <hr>
+                <h4>顧客資訊 (臨時顧客)</h4>
+                <p><strong>顧客姓名:</strong> ${booking.contact_name}</p>
+            `;
+        }
+
+        contentEl.innerHTML = html;
+
+    } catch (error) {
+        contentEl.innerHTML = `<p style="color: red;">讀取資料失敗：${error.message}</p>`;
+    }
+}
 
 
 // --- 列表與日曆渲染函式 (【Bug 修復】) ---
@@ -311,18 +385,37 @@ function renderBookingList(bookings) {
     }
     bookings.forEach(booking => {
         const row = bookingListTbody.insertRow();
+        // 讓整列都可以被點擊
+        row.dataset.bookingId = booking.booking_id;
+        row.style.cursor = 'pointer';
+
         let statusText = '未知';
-        if (booking.status === 'confirmed') statusText = '預約成功';
-        if (booking.status === 'checked-in') statusText = '已報到';
-        if (booking.status === 'cancelled') statusText = '已取消';
+        let statusClass = '';
+        if (booking.status === 'confirmed') {
+            statusText = '預約成功';
+            statusClass = 'status-confirmed';
+        }
+        if (booking.status === 'checked-in') {
+            statusText = '已報到';
+            statusClass = 'status-checked-in';
+        }
+        if (booking.status === 'cancelled') {
+            statusText = '已取消';
+            statusClass = 'status-cancelled';
+        }
+
+        // 組合預約項目摘要
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
+
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot}</div></td>
             <td class="compound-cell"><div class="main-info">${booking.contact_name}</div><div class="sub-info">${itemSummary}</div></td>
             <td>${booking.num_of_people}</td>
             <td>${booking.total_amount || 'N/A'}</td>
-            <td>${statusText}</td>
-            <td class="actions-cell"><button class="action-btn btn-cancel-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--danger-color);" ${booking.status === 'cancelled' ? 'disabled' : ''}>取消</button></td>
+            <td><span class="status-tag ${statusClass}">${statusText}</span></td>
+            <td class="actions-cell">
+                <button class="action-btn btn-edit-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--color-primary);">編輯</button>
+            </td>
         `;
     });
 }
@@ -390,8 +483,17 @@ function setupEventListeners() {
     page.addEventListener('click', async e => {
         const target = e.target;
         
+        // --- 點擊列表中的一列或 "編輯" 按鈕 ---
+        const bookingRow = target.closest('tr[data-booking-id]');
+        if (bookingRow) {
+            const bookingId = bookingRow.dataset.bookingId;
+            openBookingDetailsModal(bookingId);
+            return; // 結束後續判斷
+        }
+        
         // 切換日曆/列表
         if(target.id === 'switch-to-calendar-view-btn') {
+            // ... (此部分邏輯不變)
             const listView = document.getElementById('list-view-container');
             const calendarView = document.getElementById('calendar-view-container');
             const isListVisible = listView.style.display !== 'none';
@@ -403,32 +505,23 @@ function setupEventListeners() {
         
         // 篩選按鈕
         else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
+            // ... (此部分邏輯不變)
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             target.classList.add('active');
             fetchDataAndRender(target.dataset.filter);
         }
 
-        // 取消按鈕
-        else if (target.closest('.actions-cell')?.querySelector('.btn-cancel-booking')) {
-            const bookingId = target.dataset.bookingId;
-            if (!bookingId) return;
-            const confirmed = await ui.confirm('確定要取消此預約嗎？');
-            if (confirmed) {
-                try {
-                    await api.updateBookingStatus(Number(bookingId), 'cancelled');
-                    ui.toast.success('預約已取消');
-                    await fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
-                } catch(err) {
-                    ui.toast.error(`錯誤：${err.message}`);
-                }
-            }
-        }
+        // 【舊的】取消按鈕邏輯 (暫時先移除，未來會放到 Modal 內)
+        // else if (target.closest('.actions-cell')?.querySelector('.btn-cancel-booking')) { ... }
         
         // 手動建立預約按鈕
         else if(target.id === 'create-booking-btn') {
             resetCreateBookingModal();
             ui.showModal('#create-booking-modal');
-        } else if (target.id === 'manage-booking-dates-btn') {
+        } 
+        
+        // 管理公休日按鈕
+        else if (target.id === 'manage-booking-dates-btn') {
             try {
                 enabledDates = await api.getBookingSettings();
                 if (bookingDatepicker) bookingDatepicker.destroy();
@@ -442,17 +535,11 @@ function setupEventListeners() {
         }
     });
 
-    // 只需初始化一次的 Modal 內部事件
     initializeCreateBookingModal(); 
-
-    // Modal 內的儲存/提交按鈕
     document.getElementById('create-booking-form')?.addEventListener('submit', handleCreateBookingSubmit);
-    document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings); // 確保監聽器在這裡
-    
-    // 日曆月份切換
+    document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings);
     document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });
     document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); });
-
 
     page.dataset.initialized = 'true';
 }

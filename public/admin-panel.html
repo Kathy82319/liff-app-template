@@ -706,12 +706,15 @@
             <div class="form-group">
                 <label for="booking-user-search">顧客</label>
                 <div id="user-selection-container">
-                    <input type="text" id="booking-user-search" placeholder="搜尋姓名/暱稱/ID...">
+                    <input type="text" id="booking-user-search" placeholder="點擊此處或輸入文字以搜尋顧客...">
                     <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
                 </div>
                 <div id="new-user-container" style="display: none; margin-top: 10px;">
                     <input type="text" id="new-user-name-input" placeholder="請輸入新顧客的名稱">
-                    <button type="button" id="save-new-user-btn" style="margin-top: 5px; width: 100%; padding: 6px;">儲存新顧客</button>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                       <button type="button" id="save-new-user-btn" style="width: 100%; padding: 6px; background-color: var(--color-success);">儲存新顧客</button>
+                       <button type="button" id="cancel-new-user-btn" style="width: 100%; padding: 6px; background-color: var(--color-secondary);">取消</button>
+                    </div>
                 </div>
                 <div id="selected-user-view" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
                     <p id="selected-user-display" style="margin: 0; font-weight: bold; flex-grow: 1;"></p>
@@ -726,19 +729,16 @@
                 <div class="form-group"><label for="booking-date-input">日期</label><input type="text" id="booking-date-input" required></div>
                 <div class="form-group"><label for="booking-slot-select">時段</label><select id="booking-slot-select" required></select></div>
             </div>
-            
             <div class="form-group">
                 <label>預約項目</label>
                 <div id="admin-booking-items-container"></div>
                 <button type="button" id="admin-add-booking-item-btn" class="cta-button" style="margin-top: 10px; background-color: var(--color-secondary); font-size: 0.9rem; padding: 8px;">⊕ 新增項目</button>
                 <p id="items-subtotal" style="text-align: right; font-weight: bold; margin-top: 10px;"></p>
             </div>
-            
             <div class="sub-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
                 <div class="form-group"><label for="booking-people-input">總人數</label><input type="number" id="booking-people-input" value="1" min="1" required></div>
                 <div class="form-group"><label for="booking-total-amount-input">預估總金額</label><input type="number" id="booking-total-amount-input" min="0" placeholder="會自動帶入小計"></div>
             </div>
-            
             <div class="form-group"><label for="booking-notes-input">內部備註 (選填)</label><textarea id="booking-notes-input" rows="3" placeholder="此備註不會顯示給顧客"></textarea></div>
             
             <div class="form-actions">

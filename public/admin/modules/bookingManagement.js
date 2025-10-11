@@ -20,7 +20,7 @@ function updateItemsSubtotal() {
     const subtotalEl = document.getElementById('items-subtotal');
     const totalAmountInput = document.getElementById('booking-total-amount-input');
     if (subtotalEl) subtotalEl.textContent = `項目小計: $${subtotal}`;
-    if (totalAmountInput) totalAmountInput.value = subtotal; // 自動帶入總金額
+    if (totalAmountInput) totalAmountInput.value = subtotal;
 }
 
 // --- 手動建立預約 Modal 的核心邏輯 ---
@@ -132,7 +132,7 @@ async function handleSaveNewUser() {
         await api.updateUserDetails({
             userId: tempUserId,
             nickname: newUserName,
-            line_display_name: newUserName, // 讓主列表能顯示
+            line_display_name: newUserName,
             level: 1,
             current_exp: 0,
             user_class: '無',
@@ -168,11 +168,21 @@ async function initializeCreateBookingModal() {
     const userSelect = document.getElementById('booking-user-select');
     const newUserContainer = document.getElementById('new-user-container');
     
+    // 優化：點擊輸入框時就顯示預設選項
+    const showInitialSelect = () => {
+        userSelect.innerHTML = '<option value="new_user">+ 新增顧客...</option>';
+        userSelect.style.display = 'block';
+    };
+    userSearchInput.addEventListener('click', showInitialSelect);
+    userSearchInput.addEventListener('focus', showInitialSelect);
+
     userSearchInput.addEventListener('input', async (e) => {
         const query = e.target.value;
         newUserContainer.style.display = 'none';
-        userSelect.style.display = 'none';
-        if (query.length < 1) return;
+        if (query.length < 1) {
+            showInitialSelect();
+            return;
+        }
 
         try {
             const users = await api.searchUsers(query);
@@ -200,6 +210,11 @@ async function initializeCreateBookingModal() {
     });
     
     document.getElementById('save-new-user-btn').addEventListener('click', handleSaveNewUser);
+    document.getElementById('cancel-new-user-btn').addEventListener('click', () => {
+        newUserContainer.style.display = 'none';
+        userSearchInput.value = '';
+        showInitialSelect();
+    });
     
     document.getElementById('change-user-btn').addEventListener('click', () => {
         document.getElementById('selected-user-id').value = '';
@@ -207,6 +222,7 @@ async function initializeCreateBookingModal() {
         document.getElementById('user-selection-container').style.display = 'block';
         userSearchInput.value = '';
         userSearchInput.focus();
+        showInitialSelect();
     });
 
     document.getElementById('admin-add-booking-item-btn').addEventListener('click', () => addAdminBookingItemRow());
@@ -254,7 +270,6 @@ async function handleCreateBookingSubmit(e) {
     }
 }
 
-// --- 【錯誤修復】將 handleSaveBookingSettings 函式加回來 ---
 async function handleSaveBookingSettings() {
     if (!bookingDatepicker) return;
     const saveButton = document.getElementById('save-booking-settings-btn');

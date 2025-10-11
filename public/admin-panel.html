@@ -404,19 +404,29 @@
     justify-content: space-between;
     align-items: center;
 }
+/* --- 美化取消按鈕 --- */
 .btn-quick-cancel {
-    background: none;
-    border: none;
+    background-color: var(--color-danger);
     color: white;
+    border: none;
+    border-radius: 50%; /* 圓形 */
+    width: 22px;
+    height: 22px;
+    line-height: 22px; /* 垂直置中 */
+    text-align: center;
     font-weight: bold;
     cursor: pointer;
-    padding: 0 5px;
-    font-size: 1.2rem;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    font-size: 1rem; /* 讓叉叉更清晰 */
+    opacity: 0.8;
+    transition: all 0.2s;
 }
 .btn-quick-cancel:hover {
     opacity: 1;
+    transform: scale(1.1);
+}
+.actions-cell {
+    display: flex;
+    gap: 8px; /* 讓按鈕之間有空隙 */
 }
 
 </style>

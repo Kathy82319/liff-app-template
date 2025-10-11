@@ -385,28 +385,17 @@ function renderBookingList(bookings) {
     }
     bookings.forEach(booking => {
         const row = bookingListTbody.insertRow();
-        // 讓整列都可以被點擊
         row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
-        let statusText = '未知';
-        let statusClass = '';
-        if (booking.status === 'confirmed') {
-            statusText = '預約成功';
-            statusClass = 'status-confirmed';
-        }
-        if (booking.status === 'checked-in') {
-            statusText = '已報到';
-            statusClass = 'status-checked-in';
-        }
-        if (booking.status === 'cancelled') {
-            statusText = '已取消';
-            statusClass = 'status-cancelled';
-        }
+        let statusText = '未知', statusClass = '';
+        if (booking.status === 'confirmed') { statusText = '預約成功'; statusClass = 'status-confirmed'; }
+        if (booking.status === 'checked-in') { statusText = '已報到'; statusClass = 'status-checked-in'; }
+        if (booking.status === 'cancelled') { statusText = '已取消'; statusClass = 'status-cancelled'; }
 
-        // 組合預約項目摘要
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
 
+        // ▼▼▼ 修改點：在 actions-cell 中加入取消按鈕 ▼▼▼
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot}</div></td>
             <td class="compound-cell"><div class="main-info">${booking.contact_name}</div><div class="sub-info">${itemSummary}</div></td>
@@ -415,10 +404,12 @@ function renderBookingList(bookings) {
             <td><span class="status-tag ${statusClass}">${statusText}</span></td>
             <td class="actions-cell">
                 <button class="action-btn btn-edit-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--color-primary);">編輯</button>
+                <button class="btn-quick-cancel" data-booking-id="${booking.booking_id}" ${booking.status === 'cancelled' ? 'disabled' : ''}>&times;</button>
             </td>
         `;
     });
 }
+
 
 function updateCalendar() {
     const calendarGrid = document.getElementById('calendar-grid');
@@ -496,24 +487,26 @@ function setupEventListeners() {
     page.addEventListener('click', async e => {
         const target = e.target;
         
-        // --- ▼▼▼ 新增：日曆點擊事件處理 ▼▼▼ ---
+        // --- ▼▼▼ 修改點：將取消邏輯統一處理 ▼▼▼ ---
         const quickCancelBtn = target.closest('.btn-quick-cancel');
-        const calendarBooking = target.closest('.calendar-booking');
-
         if (quickCancelBtn) {
             e.stopPropagation(); // 防止觸發外層的 "看詳情" 事件
             const bookingId = quickCancelBtn.dataset.bookingId;
             const confirmed = await ui.confirm('確定要取消此預約嗎？');
             if (confirmed) {
                 try {
+                    // 禁用按鈕防止重複點擊
+                    quickCancelBtn.disabled = true; 
                     await api.updateBookingStatus(Number(bookingId), 'cancelled');
                     ui.toast.success('預約已取消');
+                    // 重新載入資料以更新畫面
                     await fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
                 } catch(err) {
                     ui.toast.error(`錯誤：${err.message}`);
+                    quickCancelBtn.disabled = false; // 如果失敗，重新啟用按鈕
                 }
             }
-            return;
+            return; // 結束後續判斷
         }
 
         if (calendarBooking) {
@@ -523,13 +516,13 @@ function setupEventListeners() {
         }
         // --- ▲▲▲ 日曆事件處理結束 ▲▲▲ ---
         
-
-        // --- 點擊列表中的一列或 "編輯" 按鈕 ---
+        // --- 點擊看詳情 (日曆或列表) ---
+        const calendarBooking = target.closest('.calendar-booking');
         const bookingRow = target.closest('tr[data-booking-id]');
-        if (bookingRow) {
-            const bookingId = bookingRow.dataset.bookingId;
+        if (calendarBooking || bookingRow) {
+            const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
             openBookingDetailsModal(bookingId);
-            return; // 結束後續判斷
+            return;
         }
         
         // 切換日曆/列表
@@ -549,10 +542,7 @@ function setupEventListeners() {
             target.classList.add('active');
             fetchDataAndRender(target.dataset.filter);
         }
-
-        // 【舊的】取消按鈕邏輯 (暫時先移除，未來會放到 Modal 內)
-        // else if (target.closest('.actions-cell')?.querySelector('.btn-cancel-booking')) { ... }
-        
+      
         // 手動建立預約按鈕
         else if(target.id === 'create-booking-btn') {
             resetCreateBookingModal();

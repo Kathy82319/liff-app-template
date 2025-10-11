@@ -7,6 +7,22 @@ let currentCalendarDate = new Date();
 let createBookingDatepicker = null;
 let enabledDates = [];
 
+
+// --- 小計功能 ---
+function updateItemsSubtotal() {
+    let subtotal = 0;
+    document.querySelectorAll('.admin-booking-item-row').forEach(row => {
+        const qty = parseFloat(row.querySelector('.booking-item-qty').value) || 0;
+        const price = parseFloat(row.querySelector('.booking-item-price').value) || 0;
+        subtotal += qty * price;
+    });
+    const subtotalEl = document.getElementById('items-subtotal');
+    const totalAmountInput = document.getElementById('booking-total-amount-input');
+    if (subtotalEl) subtotalEl.textContent = `項目小計: $${subtotal}`;
+    if (totalAmountInput) totalAmountInput.value = subtotal;
+}
+
+
 // --- 手動建立預約 Modal 的核心邏輯 ---
 
 function addAdminBookingItemRow(name = '', qty = 1, price = '') {
@@ -63,21 +79,28 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     itemRow.append(nameContainer, qtyInput, priceInput, removeBtn);
     container.appendChild(itemRow);
 
-    // 監聽下拉選單變化
+    // 為數量和價格輸入框加上事件監聽
+    qtyInput.addEventListener('input', updateItemsSubtotal);
+    priceInput.addEventListener('input', updateItemsSubtotal);
+
     select.addEventListener('change', () => {
         nameInput.style.display = select.value === 'other' ? 'block' : 'none';
         if (select.value !== 'other' && select.value !== '') {
             const selectedProduct = allProducts.find(p => p.name === select.value);
             if (selectedProduct) priceInput.value = selectedProduct.price;
         }
+        updateItemsSubtotal(); // 選擇項目後也更新小計
     });
+
     
     removeBtn.addEventListener('click', () => {
         itemRow.remove();
         if (container.children.length < 5) document.getElementById('admin-add-booking-item-btn').style.display = 'block';
+        updateItemsSubtotal(); // 移除項目後也更新小計
     });
 
     if (container.children.length >= 5) document.getElementById('admin-add-booking-item-btn').style.display = 'none';
+    updateItemsSubtotal(); // 新增時也更新一次
 }
 
 function setSelectedUser(userId, userName) {
@@ -121,6 +144,29 @@ async function handleCreateNewUser() {
     }
 }
 
+async function handleSaveNewUser() {
+    const newUserNameInput = document.getElementById('new-user-name-input');
+    const newUserName = newUserNameInput.value.trim();
+    if (!newUserName) {
+        ui.toast.error('請輸入新顧客的名稱');
+        return;
+    }
+
+    try {
+        const tempUserId = 'U' + Date.now(); 
+        await api.updateUserDetails({
+            userId: tempUserId, nickname: newUserName, level: 1, current_exp: 0, user_class: '無', isNewUser: true
+        });
+        setSelectedUser(tempUserId, newUserName);
+        ui.toast.success(`已建立新顧客：${newUserName}`);
+        document.getElementById('new-user-container').style.display = 'none';
+        newUserNameInput.value = '';
+    } catch(error) {
+        ui.toast.error(`建立新顧客失敗：${error.message}`);
+    }
+}
+
+
 async function initializeCreateBookingModal() {
     if (createBookingDatepicker) return;
 
@@ -141,6 +187,7 @@ async function initializeCreateBookingModal() {
 
     const userSearchInput = document.getElementById('booking-user-search');
     const userSelect = document.getElementById('booking-user-select');
+    const newUserContainer = document.getElementById('new-user-container');
     
     userSearchInput.addEventListener('input', async (e) => {
         const query = e.target.value;
@@ -163,12 +210,17 @@ async function initializeCreateBookingModal() {
 
     userSelect.addEventListener('change', async () => {
         if (userSelect.value === 'new_user') {
-            await handleCreateNewUser();
+            // 不再跳出 prompt，而是顯示 inline 輸入框
+            newUserContainer.style.display = 'block';
+            document.getElementById('new-user-name-input').focus();
+            userSelect.style.display = 'none'; // 隱藏下拉選單
         } else if (userSelect.value) {
             const selectedOption = userSelect.options[userSelect.selectedIndex];
             setSelectedUser(userSelect.value, selectedOption.dataset.userName);
         }
     });
+
+    document.getElementById('save-new-user-btn').addEventListener('click', handleSaveNewUser);
     
     document.getElementById('change-user-btn').addEventListener('click', () => {
         document.getElementById('selected-user-id').value = '';
@@ -227,6 +279,37 @@ async function handleCreateBookingSubmit(e) {
         ui.toast.error(`建立失敗: ${error.message}`);
     }
 }
+
+// --- 【錯誤修復】將 handleSaveBookingSettings 函式加回來 ---
+async function handleSaveBookingSettings() {
+    if (!bookingDatepicker) return;
+    const saveButton = document.getElementById('save-booking-settings-btn');
+    try {
+        saveButton.disabled = true;
+        saveButton.textContent = '儲存中...';
+        const newEnabledDates = bookingDatepicker.selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
+        const originalDates = new Set(enabledDates);
+        const newDates = new Set(newEnabledDates);
+        const datesToAdd = newEnabledDates.filter(d => !originalDates.has(d));
+        const datesToRemove = enabledDates.filter(d => !newDates.has(d));
+        
+        const promises = [];
+        datesToAdd.forEach(date => promises.push(api.saveBookingSettings({ action: 'add', date: date })));
+        datesToRemove.forEach(date => promises.push(api.saveBookingSettings({ action: 'remove', date: date })));
+        await Promise.all(promises);
+
+        ui.toast.success('可預約日期已成功儲存！');
+        ui.hideModal('#booking-settings-modal');
+        enabledDates = newEnabledDates;
+    } catch (error) {
+        ui.toast.error("儲存失敗: " + error.message);
+    } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = '儲存所有變更';
+    }
+}
+
+
 
 // --- 列表與日曆渲染函式 (【Bug 修復】) ---
 
@@ -329,7 +412,6 @@ function setupEventListeners() {
     const page = document.getElementById('page-bookings');
     if(!page || page.dataset.initialized) return;
 
-    // 頁面級別的點擊事件委派
     page.addEventListener('click', async e => {
         const target = e.target;
         
@@ -371,11 +453,8 @@ function setupEventListeners() {
         else if(target.id === 'create-booking-btn') {
             resetCreateBookingModal();
             ui.showModal('#create-booking-modal');
-        }
-
-        // 管理公休日按鈕
-        else if (target.id === 'manage-booking-dates-btn') {
-             try {
+        } else if (target.id === 'manage-booking-dates-btn') {
+            try {
                 enabledDates = await api.getBookingSettings();
                 if (bookingDatepicker) bookingDatepicker.destroy();
                 bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
@@ -383,7 +462,7 @@ function setupEventListeners() {
                 });
                 ui.showModal('#booking-settings-modal');
             } catch (error) {
-                alert("初始化公休日設定失敗: " + error.message);
+                ui.toast.error("初始化公休日設定失敗: " + error.message);
             }
         }
     });
@@ -392,18 +471,16 @@ function setupEventListeners() {
     initializeCreateBookingModal(); 
 
     // Modal 內的儲存/提交按鈕
-    document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings);
     document.getElementById('create-booking-form')?.addEventListener('submit', handleCreateBookingSubmit);
-
-    // 日曆月份切換
-    document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });
-    document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); });
+    document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings); // 確保監聽器在這裡
+    
+    document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { /*...*/ });
+    document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { /*...*/ });
 
     page.dataset.initialized = 'true';
 }
 
-// 模組初始化函式
 export const init = async () => {
     setupEventListeners();
-    fetchDataAndRender('today');
+    await fetchDataAndRender('today');
 };

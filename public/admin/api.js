@@ -40,7 +40,7 @@ export const api = {
     getBookingSettings: () => request('/api/admin/booking-settings'),
     saveBookingSettings: (body) => request('/api/admin/booking-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
     createBooking: (data) => request('/api/admin/create-booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-
+    updateBookingDetails: (data) => request('/api/admin/update-booking-details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     getExpHistory: () => request('/api/admin/exp-history-list'),
     addPoints: (data) => request('/api/add-points', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
 

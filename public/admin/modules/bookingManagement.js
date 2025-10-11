@@ -443,14 +443,27 @@ function updateCalendar() {
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr && b.status !== 'cancelled');
+        
+        // ▼▼▼ 從這裡開始是修改重點 ▼▼▼
         let dayHtml = `<div class="calendar-day"><span class="day-number">${day}</span>`;
         bookingsForDay.forEach(b => {
-            dayHtml += `<div class="calendar-booking status-${b.status}">${b.time_slot} ${b.contact_name}</div>`;
+            let statusClass = '';
+            if (b.status === 'confirmed') statusClass = 'status-confirmed';
+            if (b.status === 'checked-in') statusClass = 'status-checked-in';
+
+            dayHtml += `
+                <div class="calendar-booking ${statusClass}" data-booking-id="${b.booking_id}" style="cursor: pointer;">
+                    <span>${b.time_slot} ${b.contact_name}</span>
+                    <button class="btn-quick-cancel" data-booking-id="${b.booking_id}">&times;</button>
+                </div>
+            `;
         });
         dayHtml += `</div>`;
         calendarGrid.innerHTML += dayHtml;
+        // ▲▲▲ 修改重點結束 ▲▲▲
     }
 }
+
 
 async function fetchDataAndRender(filter = 'today') {
     const bookingListTbody = document.getElementById('booking-list-tbody');
@@ -475,7 +488,6 @@ async function fetchDataAndRender(filter = 'today') {
 }
 
 
-// --- 綁定事件監聽器 (大幅修改) ---
 function setupEventListeners() {
     const page = document.getElementById('page-bookings');
     if(!page || page.dataset.initialized) return;
@@ -483,17 +495,41 @@ function setupEventListeners() {
     page.addEventListener('click', async e => {
         const target = e.target;
         
-        // --- 點擊列表中的一列或 "編輯" 按鈕 ---
+        // --- ▼▼▼ 新增：日曆點擊事件處理 ▼▼▼ ---
+        const quickCancelBtn = target.closest('.btn-quick-cancel');
+        const calendarBooking = target.closest('.calendar-booking');
+
+        if (quickCancelBtn) {
+            e.stopPropagation(); // 防止觸發外層的 "看詳情" 事件
+            const bookingId = quickCancelBtn.dataset.bookingId;
+            const confirmed = await ui.confirm('確定要取消此預約嗎？');
+            if (confirmed) {
+                try {
+                    await api.updateBookingStatus(Number(bookingId), 'cancelled');
+                    ui.toast.success('預約已取消');
+                    await fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
+                } catch(err) {
+                    ui.toast.error(`錯誤：${err.message}`);
+                }
+            }
+            return;
+        }
+
+        if (calendarBooking) {
+            const bookingId = calendarBooking.dataset.bookingId;
+            openBookingDetailsModal(bookingId);
+            return;
+        }
+        // --- ▲▲▲ 日曆事件處理結束 ▲▲▲ ---
+        
         const bookingRow = target.closest('tr[data-booking-id]');
         if (bookingRow) {
             const bookingId = bookingRow.dataset.bookingId;
             openBookingDetailsModal(bookingId);
-            return; // 結束後續判斷
+            return;
         }
         
-        // 切換日曆/列表
         if(target.id === 'switch-to-calendar-view-btn') {
-            // ... (此部分邏輯不變)
             const listView = document.getElementById('list-view-container');
             const calendarView = document.getElementById('calendar-view-container');
             const isListVisible = listView.style.display !== 'none';
@@ -503,24 +539,17 @@ function setupEventListeners() {
             fetchDataAndRender();
         }
         
-        // 篩選按鈕
         else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
-            // ... (此部分邏輯不變)
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             target.classList.add('active');
             fetchDataAndRender(target.dataset.filter);
         }
-
-        // 【舊的】取消按鈕邏輯 (暫時先移除，未來會放到 Modal 內)
-        // else if (target.closest('.actions-cell')?.querySelector('.btn-cancel-booking')) { ... }
         
-        // 手動建立預約按鈕
         else if(target.id === 'create-booking-btn') {
             resetCreateBookingModal();
             ui.showModal('#create-booking-modal');
         } 
         
-        // 管理公休日按鈕
         else if (target.id === 'manage-booking-dates-btn') {
             try {
                 enabledDates = await api.getBookingSettings();
@@ -544,7 +573,3 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-export const init = async () => {
-    setupEventListeners();
-    await fetchDataAndRender('today');
-};

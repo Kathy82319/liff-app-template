@@ -705,23 +705,18 @@
         <form id="create-booking-form">
             <div class="form-group">
                 <label for="booking-user-search">顧客</label>
+                
                 <div id="user-selection-container">
-                    <input type="text" id="booking-user-search" placeholder="點擊此處或輸入文字以搜尋顧客...">
+                    <input type="text" id="booking-user-search" placeholder="輸入文字搜尋，或直接輸入新顧客名稱...">
                     <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
                 </div>
-                <div id="new-user-container" style="display: none; margin-top: 10px;">
-                    <input type="text" id="new-user-name-input" placeholder="請輸入新顧客的名稱">
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                       <button type="button" id="save-new-user-btn" style="width: 100%; padding: 6px; background-color: var(--color-success);">儲存新顧客</button>
-                       <button type="button" id="cancel-new-user-btn" style="width: 100%; padding: 6px; background-color: var(--color-secondary);">取消</button>
-                    </div>
-                </div>
+                
                 <div id="selected-user-view" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
                     <p id="selected-user-display" style="margin: 0; font-weight: bold; flex-grow: 1;"></p>
                     <button type="button" id="change-user-btn" style="padding: 4px 8px; font-size: 0.8rem;">更換</button>
                 </div>
                 <input type="hidden" id="selected-user-id">
-            </div>
+                </div>
             <hr style="border-color: var(--border-color); margin: 20px 0;">
 
             <label>預約細節</label>

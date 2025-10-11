@@ -166,19 +166,17 @@ async function initializeCreateBookingModal() {
 
     const userSearchInput = document.getElementById('booking-user-search');
     const userSelect = document.getElementById('booking-user-select');
-    const newUserContainer = document.getElementById('new-user-container');
-    
-    // 優化：點擊輸入框時就顯示預設選項
+
     const showInitialSelect = () => {
-        userSelect.innerHTML = '<option value="new_user">+ 新增顧客...</option>';
+        userSelect.innerHTML = '<option value="new_user">+ 新增顧客 (直接輸入姓名)</option>';
         userSelect.style.display = 'block';
     };
+
     userSearchInput.addEventListener('click', showInitialSelect);
     userSearchInput.addEventListener('focus', showInitialSelect);
 
     userSearchInput.addEventListener('input', async (e) => {
         const query = e.target.value;
-        newUserContainer.style.display = 'none';
         if (query.length < 1) {
             showInitialSelect();
             return;
@@ -193,27 +191,22 @@ async function initializeCreateBookingModal() {
                 option.dataset.userName = displayName;
                 userSelect.add(option);
             });
-            userSelect.add(new Option('+ 新增顧客...', 'new_user'));
+            userSelect.add(new Option('+ 新增顧客 (直接輸入姓名)', 'new_user'));
             userSelect.style.display = 'block';
         } catch (error) { console.error('搜尋使用者失敗:', error); }
     });
 
-    userSelect.addEventListener('change', async () => {
-        if (userSelect.value === 'new_user') {
-            newUserContainer.style.display = 'block';
-            document.getElementById('new-user-name-input').focus();
+    userSelect.addEventListener('change', () => {
+        const selectedValue = userSelect.value;
+        if (selectedValue === 'new_user') {
+            const tempUserId = `walk-in-${Date.now()}`;
+            const newUserName = userSearchInput.value.trim() || '現場顧客';
+            setSelectedUser(tempUserId, newUserName);
             userSelect.style.display = 'none';
-        } else if (userSelect.value) {
+        } else if (selectedValue) {
             const selectedOption = userSelect.options[userSelect.selectedIndex];
-            setSelectedUser(userSelect.value, selectedOption.dataset.userName);
+            setSelectedUser(selectedValue, selectedOption.dataset.userName);
         }
-    });
-    
-    document.getElementById('save-new-user-btn').addEventListener('click', handleSaveNewUser);
-    document.getElementById('cancel-new-user-btn').addEventListener('click', () => {
-        newUserContainer.style.display = 'none';
-        userSearchInput.value = '';
-        showInitialSelect();
     });
     
     document.getElementById('change-user-btn').addEventListener('click', () => {
@@ -245,6 +238,10 @@ async function handleCreateBookingSubmit(e) {
         ui.toast.error('請至少填寫一個預約項目！');
         return;
     }
+    
+    // 從顯示的名稱直接抓取，無論是選的還是手動輸入的
+    const contactName = document.getElementById('selected-user-display').textContent;
+
     const formData = {
         userId: document.getElementById('selected-user-id').value,
         bookingDate: document.getElementById('booking-date-input').value,
@@ -252,7 +249,7 @@ async function handleCreateBookingSubmit(e) {
         numOfPeople: document.getElementById('booking-people-input').value,
         totalAmount: document.getElementById('booking-total-amount-input').value,
         notes: document.getElementById('booking-notes-input').value,
-        contactName: document.getElementById('selected-user-display').textContent,
+        contactName: contactName,
         contactPhone: 'N/A', // 後續可擴充
         items: items,
     };
@@ -297,6 +294,7 @@ async function handleSaveBookingSettings() {
         saveButton.textContent = '儲存所有變更';
     }
 }
+
 
 
 

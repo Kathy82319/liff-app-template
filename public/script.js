@@ -856,21 +856,18 @@ function populateFilters() {
         }
     
         filterDefinitions.forEach(filterDef => {
-    // 建立下拉式選單
     const select = document.createElement('select');
     select.className = 'booking-item-select'; // class 從 -name 改為 -select
     select.style.flexGrow = '1';
     
-    // 加入預設選項
-    select.add(new Option('-- 請選擇服務項目 --', ''));
+            select.add(new Option('-- 請選擇服務項目 --', ''));
 
     // 從 allProducts 陣列中篩選出已上架的項目，並產生選項
     const visibleProducts = allProducts.filter(p => p.is_visible);
     visibleProducts.forEach(product => {
         select.add(new Option(`${product.name} - $${product.price}`, product.name));
-    });    
-
-    // 如果是編輯模式，設定預設值
+    });          
+    
     select.value = name;    
     
             filterDef.options.forEach(option => {
@@ -1012,18 +1009,19 @@ function addBookingItemRow(name = '', qty = 1) {
         return;
     }
 
-    const itemRow = document.createElement('div');
-    itemRow.className = 'booking-item-row';
-    itemRow.style.display = 'flex';
-    itemRow.style.gap = '10px';
-    itemRow.style.marginBottom = '10px';
+        const itemRow = document.createElement('div');
+        itemRow.className = 'booking-item-row';
+        itemRow.style.display = 'flex';
+        itemRow.style.gap = '10px';
+        itemRow.style.marginBottom = '10px';
         
     itemRow.innerHTML = `
         <input type="number" class="booking-item-qty" value="${qty}" min="1" style="width: 70px;">
         <button type="button" class="remove-booking-item-btn" style="background: var(--color-danger); padding: 5px 10px; border: none; color: white; border-radius: 4px; cursor: pointer;">-</button>
     `;
     itemRow.prepend(select); // 用 prepend 將 select 放在最前面
-        container.appendChild(itemRow);
+
+    container.appendChild(itemRow);
         
         // 為移除按鈕綁定事件
         itemRow.querySelector('.remove-booking-item-btn').addEventListener('click', (e) => {
@@ -1050,7 +1048,6 @@ async function initializeBookingPage() {
         }
     } catch (error) {
         console.error(error);
-        const itemsContainer = document.getElementById('booking-items-container');
         if(itemsContainer) itemsContainer.innerHTML = `<p style="color:red">無法載入服務項目，請稍後再試。</p>`;
     }
     // --- 新增結束 ---
@@ -1068,6 +1065,7 @@ async function initializeBookingPage() {
         }
         
         // 清空並加入預設項目
+    // 清空並加入預設項目
     const itemsContainer = document.getElementById('booking-items-container');
     if (itemsContainer) itemsContainer.innerHTML = '';
     addBookingItemRow(); // 預設顯示一欄 (現在會是下拉選單)
@@ -1198,7 +1196,7 @@ function renderTimeSlots(selectElement) {
     async function handleBookingConfirmation(event) {
         const confirmBtn = event.target;
         if (confirmBtn.dataset.isSubmitting === 'true') return;
-
+        
     // 1. 收集所有預約項目
     const items = [];
     const itemRows = document.querySelectorAll('.booking-item-row');

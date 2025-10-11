@@ -133,7 +133,8 @@ function resetCreateBookingModal() {
 
 
 async function initializeCreateBookingModal() {
-    if (createBookingDatepicker) return;
+    // 防止重複初始化
+    if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
 
     try {
         if(allProducts.length === 0) allProducts = await api.getProducts();
@@ -153,58 +154,78 @@ async function initializeCreateBookingModal() {
     const userSearchInput = document.getElementById('booking-user-search');
     const userSelect = document.getElementById('booking-user-select');
 
-    const showInitialSelect = () => {
-        userSelect.innerHTML = '<option value="new_user">+ 新增顧客 (直接輸入姓名)</option>';
-        userSelect.style.display = 'block';
-    };
-
-    userSearchInput.addEventListener('click', showInitialSelect);
-    userSearchInput.addEventListener('focus', showInitialSelect);
-
+    // 當使用者在搜尋框輸入文字時
     userSearchInput.addEventListener('input', async (e) => {
         const query = e.target.value;
         if (query.length < 1) {
-            showInitialSelect();
+            userSelect.style.display = 'none';
             return;
         }
 
         try {
             const users = await api.searchUsers(query);
-            userSelect.innerHTML = '';
-            users.forEach(u => {
-                const displayName = u.nickname || u.line_display_name;
-                const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
-                option.dataset.userName = displayName;
-                userSelect.add(option);
-            });
-            userSelect.add(new Option('+ 新增顧客 (直接輸入姓名)', 'new_user'));
-            userSelect.style.display = 'block';
-        } catch (error) { console.error('搜尋使用者失敗:', error); }
-    });
-
-    userSelect.addEventListener('change', () => {
-        const selectedValue = userSelect.value;
-        if (selectedValue === 'new_user') {
-            const tempUserId = `walk-in-${Date.now()}`;
-            const newUserName = userSearchInput.value.trim() || '現場顧客';
-            setSelectedUser(tempUserId, newUserName);
+            userSelect.innerHTML = ''; // 清空舊的搜尋結果
+            if (users.length > 0) {
+                users.forEach(u => {
+                    const displayName = u.nickname || u.line_display_name;
+                    const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
+                    option.dataset.userName = displayName;
+                    userSelect.add(option);
+                });
+                userSelect.style.display = 'block';
+            } else {
+                userSelect.style.display = 'none';
+            }
+        } catch (error) { 
+            console.error('搜尋使用者失敗:', error);
             userSelect.style.display = 'none';
-        } else if (selectedValue) {
-            const selectedOption = userSelect.options[userSelect.selectedIndex];
-            setSelectedUser(selectedValue, selectedOption.dataset.userName);
         }
     });
+
+    // 當使用者從下拉選單選擇一位會員時
+    userSelect.addEventListener('change', () => {
+        const selectedValue = userSelect.value;
+        if (selectedValue) {
+            const selectedOption = userSelect.options[userSelect.selectedIndex];
+            setSelectedUser(selectedValue, selectedOption.dataset.userName);
+            userSelect.style.display = 'none'; // 選擇後隱藏下拉選單
+        }
+    });
+
+    // 【核心邏輯】當使用者離開搜尋框時 (blur event)
+    userSearchInput.addEventListener('blur', () => {
+        // 使用 setTimeout 來延遲執行，確保 'change' 事件能先觸發
+        setTimeout(() => {
+            const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
+            const inputText = userSearchInput.value.trim();
+
+            // 如果下拉選單是可見的 (代表還在選擇中)，或者已經選好使用者了，或者輸入框是空的，就什麼都不做
+            if (userSelect.style.display === 'block' || isUserSelected || !inputText) {
+                return;
+            }
+
+            // 走到這裡，代表使用者輸入了文字、但沒有從下拉選單選擇任何會員
+            // 我們將輸入的文字視為「臨時訪客」
+            const tempUserId = `walk-in-${Date.now()}`;
+            setSelectedUser(tempUserId, inputText);
+
+        }, 200); // 200毫秒的延遲足夠了
+    });
     
+    // 「更換」按鈕的邏輯 (不變)
     document.getElementById('change-user-btn').addEventListener('click', () => {
         document.getElementById('selected-user-id').value = '';
         document.getElementById('selected-user-view').style.display = 'none';
         document.getElementById('user-selection-container').style.display = 'block';
         userSearchInput.value = '';
         userSearchInput.focus();
-        showInitialSelect();
     });
 
+    // 「新增項目」按鈕的邏輯 (不變)
     document.getElementById('admin-add-booking-item-btn').addEventListener('click', () => addAdminBookingItemRow());
+    
+    // 標記為已初始化
+    userSearchInput.dataset.initialized = 'true';
 }
 
 

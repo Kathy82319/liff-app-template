@@ -488,6 +488,7 @@ async function fetchDataAndRender(filter = 'today') {
 }
 
 
+// --- 綁定事件監聽器 (大幅修改) ---
 function setupEventListeners() {
     const page = document.getElementById('page-bookings');
     if(!page || page.dataset.initialized) return;
@@ -522,13 +523,16 @@ function setupEventListeners() {
         }
         // --- ▲▲▲ 日曆事件處理結束 ▲▲▲ ---
         
+
+        // --- 點擊列表中的一列或 "編輯" 按鈕 ---
         const bookingRow = target.closest('tr[data-booking-id]');
         if (bookingRow) {
             const bookingId = bookingRow.dataset.bookingId;
             openBookingDetailsModal(bookingId);
-            return;
+            return; // 結束後續判斷
         }
         
+        // 切換日曆/列表
         if(target.id === 'switch-to-calendar-view-btn') {
             const listView = document.getElementById('list-view-container');
             const calendarView = document.getElementById('calendar-view-container');
@@ -539,17 +543,23 @@ function setupEventListeners() {
             fetchDataAndRender();
         }
         
+        // 篩選按鈕
         else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             target.classList.add('active');
             fetchDataAndRender(target.dataset.filter);
         }
+
+        // 【舊的】取消按鈕邏輯 (暫時先移除，未來會放到 Modal 內)
+        // else if (target.closest('.actions-cell')?.querySelector('.btn-cancel-booking')) { ... }
         
+        // 手動建立預約按鈕
         else if(target.id === 'create-booking-btn') {
             resetCreateBookingModal();
             ui.showModal('#create-booking-modal');
         } 
         
+        // 管理公休日按鈕
         else if (target.id === 'manage-booking-dates-btn') {
             try {
                 enabledDates = await api.getBookingSettings();
@@ -573,3 +583,7 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
+export const init = async () => {
+    setupEventListeners();
+    await fetchDataAndRender('today');
+};

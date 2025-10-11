@@ -395,7 +395,6 @@ function renderBookingList(bookings) {
 
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
 
-        // ▼▼▼ 修改點：在 actions-cell 中加入取消按鈕 ▼▼▼
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot}</div></td>
             <td class="compound-cell"><div class="main-info">${booking.contact_name}</div><div class="sub-info">${itemSummary}</div></td>
@@ -404,7 +403,7 @@ function renderBookingList(bookings) {
             <td><span class="status-tag ${statusClass}">${statusText}</span></td>
             <td class="actions-cell">
                 <button class="action-btn btn-edit-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--color-primary);">編輯</button>
-                <button class="btn-quick-cancel" data-booking-id="${booking.booking_id}" ${booking.status === 'cancelled' ? 'disabled' : ''}>&times;</button>
+                <button class="action-btn btn-quick-cancel" data-booking-id="${booking.booking_id}" ${booking.status === 'cancelled' ? 'disabled' : ''}>取消</button>
             </td>
         `;
     });
@@ -508,7 +507,7 @@ function setupEventListeners() {
             }
             return; // 結束後續判斷
         }
-               
+
         // --- 點擊看詳情 (日曆或列表) ---
         const calendarBooking = target.closest('.calendar-booking');
         const bookingRow = target.closest('tr[data-booking-id]');

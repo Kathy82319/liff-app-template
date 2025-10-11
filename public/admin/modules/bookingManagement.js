@@ -508,14 +508,7 @@ function setupEventListeners() {
             }
             return; // 結束後續判斷
         }
-
-        if (calendarBooking) {
-            const bookingId = calendarBooking.dataset.bookingId;
-            openBookingDetailsModal(bookingId);
-            return;
-        }
-        // --- ▲▲▲ 日曆事件處理結束 ▲▲▲ ---
-        
+               
         // --- 點擊看詳情 (日曆或列表) ---
         const calendarBooking = target.closest('.calendar-booking');
         const bookingRow = target.closest('tr[data-booking-id]');

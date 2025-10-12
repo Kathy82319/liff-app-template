@@ -1,6 +1,25 @@
-// public/admin/app.js
+// public/admin/app.js (v2 - 修正競爭條件)
 
+import { api } from './api.js';
 import { ui } from './ui.js';
+import { hideBatchToolbar } from './modules/productManagement.js';
+
+function hideDemoMenuItems() {
+    const downloadCsvBtn = document.getElementById('download-csv-template-btn');
+    const uploadCsvLabel = document.querySelector('label[for="csv-upload-input"]');
+    if (downloadCsvBtn) downloadCsvBtn.style.display = 'none';
+    if (uploadCsvLabel) uploadCsvLabel.style.display = 'none';
+
+    const dangerZone = document.getElementById('dashboard-danger-zone');
+    if (dangerZone) dangerZone.style.display = 'none';
+    
+    const demoBanner = document.createElement('div');
+    demoBanner.id = 'demo-mode-banner';
+    demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
+    demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
+    document.getElementById('admin-panel').prepend(demoBanner);
+}
+
 
 const App = {
     api: null, // API 物件將在此處動態載入
@@ -20,25 +39,24 @@ const App = {
         'settings': './modules/systemSettings.js',
     },
 
-    // 處理路由變更的核心函式
     async handleRouteChange() {
         const pageId = window.location.hash.substring(1) || 'dashboard';
-        
+        hideBatchToolbar();
         ui.setActiveNav(pageId);
         ui.showPage(pageId);
-
         const modulePath = this.router[pageId];
         if (modulePath) {
             try {
-                // 動態載入的模組會自動使用 App.api
                 const pageModule = await import(modulePath);
                 if (pageModule.init) {
-                    // 將 api 物件傳遞給模組
-                    pageModule.init(this.api);
+                    await pageModule.init(); // 確保模組初始化完成
                 }
             } catch (error) {
                 console.error(`載入模組 ${modulePath} 失敗:`, error);
-                document.getElementById(`page-${pageId}`).innerHTML = `<p style="color:red;">載入頁面功能時發生錯誤。</p>`;
+                const pageElement = document.getElementById(`page-${pageId}`);
+                if (pageElement) {
+                    pageElement.innerHTML = `<p style="color:red;">載入頁面功能時發生錯誤。</p>`;
+                }
             }
         }
     },
@@ -85,25 +103,20 @@ function hideDemoMenuItems() {
 
 
     async init() {
-        // ▼▼▼ 【核心修改】在這裡加入 DEMO 模式的判斷與處理 ▼▼▼
         const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
         if (isDemoMode) {
             console.log("偵測到 DEMO 模式，正在載入模擬 API...");
-            // 動態載入 api-mock.js
             const mockScript = document.createElement('script');
             mockScript.type = 'module';
-            // 重要：請確保您的 api-mock.js 檔案確實存在於 /public/admin/ 目錄下
             mockScript.src = './api-mock.js';
             document.head.appendChild(mockScript);
             
-            // 呼叫我們新增的函式來隱藏 DEMO 項目
-            hideDemoMenuItems();
+            // 等待 DOMContentLoaded 後再隱藏元素，確保元素已存在
+            document.addEventListener('DOMContentLoaded', hideDemoMenuItems);
             
-            // 給一點時間讓 mock API 生效
             await new Promise(resolve => setTimeout(resolve, 100)); 
             console.log("模擬 API 已載入。");
         }
-        // ▲▲▲ 【修改結束】 ▲▲▲
         
         try {
             const response = await fetch('/api/get-app-config');
@@ -117,21 +130,36 @@ function hideDemoMenuItems() {
             console.error("初始化失敗:", error);
             document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常。</p></div>`;
             return;
-        }
-
-        ui.initSharedEventListeners();
-        window.addEventListener('hashchange', () => this.handleRouteChange());
-        document.querySelector('.nav-tabs').addEventListener('click', (event) => {
-            if (event.target.tagName === 'A') {
-                event.preventDefault();
-                const newHash = event.target.getAttribute('href');
-                if (window.location.hash !== newHash) {
-                    window.location.hash = newHash;
+        }            
+            // ▼▼▼ 【核心修正】將路由相關的程式碼移到這裡 ▼▼▼
+            // 確保必須在 CONFIG 載入成功後，才開始處理頁面渲染和路由
+            
+            ui.initSharedEventListeners();
+            
+            window.addEventListener('hashchange', () => this.handleRouteChange());
+            
+            document.querySelector('.nav-tabs').addEventListener('click', (event) => {
+                if (event.target.tagName === 'A') {
+                    event.preventDefault();
+                    const newHash = event.target.getAttribute('href');
+                    if (window.location.hash !== newHash) {
+                        window.location.hash = newHash;
+                    }
                 }
-            }
-        });
-        this.handleRouteChange();
+            });
+
+            // 第一次載入時，手動觸發一次路由處理
+            this.handleRouteChange();
+            // ▲▲▲ 【修正結束】 ▲▲▲
+
+        } catch (error) {
+            console.error("初始化失敗:", error);
+            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 是否運作正常。</p></div>`;
+            // 發生嚴重錯誤時，不再繼續執行後續程式碼
+            return; 
+        }
     }
 };
 
+// 【小幅修正】確保 App.init() 在 DOMContentLoaded 事件後才執行
 document.addEventListener('DOMContentLoaded', () => App.init());

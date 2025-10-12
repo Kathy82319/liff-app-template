@@ -542,30 +542,44 @@ function updateSelectAllCheckboxState() {
         selectAllCheckbox.indeterminate = false;
     }
 }
+
 // 事件監聽器 (最終修正版)
+// --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
-    page.addEventListener('click', e => {
-        const target = e.target;
-        if (target.id === 'add-product-btn') {
-            openProductModal();
-        } else if (target.id === 'download-csv-template-btn') {
-            handleDownloadCsvTemplate();
-        } else if (target.closest('.btn-edit-product')) {
-            const product = allProducts.find(p => p.product_id === target.closest('.btn-edit-product').dataset.productid);
-            if (product) openProductModal(product);
-        } else if (target.id === 'add-image-input-btn') {
-            addImageInputField(document.getElementById('edit-product-image-inputs'));
-        } else if (target.id === 'add-spec-input-btn') {
-            addSpecInputField(document.getElementById('edit-product-spec-inputs'));
-        } else if (target.classList.contains('btn-remove-input')) {
-            target.closest('.dynamic-input-group').remove();
-            updateDynamicButtonsState();
+    // 【核心修正】將事件監聽器掛載到 document 層級，確保能捕捉到 Modal 中的點擊
+    document.addEventListener('click', e => {
+        const modal = document.getElementById('edit-product-modal');
+        if (!modal) return;
+        
+        // 判斷點擊是否發生在 Modal 內部
+        if (modal.contains(e.target)) {
+            if (e.target.id === 'add-image-input-btn') {
+                addImageInputField(document.getElementById('edit-product-image-inputs'));
+            } else if (e.target.id === 'add-spec-input-btn') {
+                addSpecInputField(document.getElementById('edit-product-spec-inputs'));
+            } else if (e.target.classList.contains('btn-remove-input')) {
+                e.target.closest('.dynamic-input-group').remove();
+                updateDynamicButtonsState();
+            }
+        }
+
+        // 判斷點擊是否發生在主頁面內部
+        if (page.contains(e.target)) {
+             if (e.target.id === 'add-product-btn') {
+                openProductModal();
+            } else if (e.target.id === 'download-csv-template-btn') {
+                handleDownloadCsvTemplate();
+            } else if (e.target.closest('.btn-edit-product')) {
+                const product = allProducts.find(p => p.product_id === e.target.closest('.btn-edit-product').dataset.productid);
+                if (product) openProductModal(product);
+            }
         }
     });
 
+    // 其他不涉及點擊的事件監聽器 (保持原樣)
     function addFilterGroupListener(groupId) {
         const filterGroup = document.getElementById(groupId);
         if (filterGroup) {

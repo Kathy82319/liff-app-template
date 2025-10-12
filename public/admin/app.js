@@ -13,29 +13,15 @@ function hideDemoMenuItems() {
     const dangerZone = document.getElementById('dashboard-danger-zone');
     if (dangerZone) dangerZone.style.display = 'none';
     
-        const banner = document.createElement('div');
-        banner.innerHTML = `您目前正在 DEMO 體驗模式中。所有操作都只會暫存在您的瀏覽器，不會影響真實資料。 <button id="reset-demo-btn" style="margin-left: 15px; padding: 2px 8px; cursor: pointer;">重設體驗資料</button>`;
-        banner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
-        
-        const header = document.querySelector('.header');
-        header.parentNode.insertBefore(banner, header.nextSibling);
-
-        document.getElementById('reset-demo-btn').addEventListener('click', async () => {
-            if (confirm('確定要重設所有體驗資料，恢復到初始範例狀態嗎？')) {
-                await this.api.resetDemoData();
-                alert('DEMO 資料已重設！頁面將重新整理。');
-                window.location.reload();
-            }
-        });
+    const demoBanner = document.createElement('div');
+    demoBanner.id = 'demo-mode-banner';
+    demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
+    demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
+    document.getElementById('admin-panel').prepend(demoBanner);
 }
 
 
-
 const App = {
-    api: null, // API 物件將在此處動態載入
-    isDemoMode: false, // 是否為 DEMO 模式
-
-    // 路由表：將頁面 ID 映射到對應的模組路徑
     router: {
         'dashboard': './modules/dashboard.js',
         'users': './modules/userManagement.js',
@@ -71,8 +57,6 @@ const App = {
         }
     },
 
-
-
     async init() {
         const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
         if (isDemoMode) {
@@ -97,11 +81,7 @@ const App = {
             }
             window.CONFIG = await response.json();
             console.log('App config loaded:', window.CONFIG);
-        } catch (error) {
-            console.error("初始化失敗:", error);
-            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常。</p></div>`;
-            return;
-        }            
+            
             // ▼▼▼ 【核心修正】將路由相關的程式碼移到這裡 ▼▼▼
             // 確保必須在 CONFIG 載入成功後，才開始處理頁面渲染和路由
             

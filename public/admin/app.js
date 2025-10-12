@@ -26,6 +26,7 @@ function hideDemoMenuItems() {
                 alert('DEMO 資料已重設！頁面將重新整理。');
                 window.location.reload();
             }
+        });
 }
 
 

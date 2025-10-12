@@ -152,33 +152,3 @@ export const init = async () => {
         }
     }
 };
-
-// 【新增】載入並渲染最新動態的函式
-async function loadAndRenderActivities() {
-    const container = document.getElementById('activity-feed-container');
-    const badge = document.getElementById('activity-count-badge');
-    if (!container || !badge) return;
-
-    try {
-        const activities = await api.getActivities();
-
-        if (activities.length > 0) {
-            badge.textContent = `${activities.length} 則未讀`;
-            badge.style.display = 'inline-block';
-            container.innerHTML = activities.map(act => `
-                <div class="activity-item" data-id="${act.activity_id}" style="padding: 0.8rem 0.5rem; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 1rem;">
-                    <input type="checkbox" class="mark-activity-read" title="標示為已讀">
-                    <div class="activity-content">
-                        <p style="margin: 0; font-weight: 500;">${act.message}</p>
-                        <small style="color: var(--color-text-light);">${new Date(act.created_at).toLocaleString()}</small>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            badge.style.display = 'none';
-            container.innerHTML = '<p style="text-align: center; color: var(--color-text-light);">沒有未讀的動態消息</p>';
-        }
-    } catch (error) {
-        container.innerHTML = `<p style="color: var(--color-danger);">載入動態失敗: ${error.message}</p>`;
-    }
-}

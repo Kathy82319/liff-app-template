@@ -64,88 +64,86 @@ export function hideBatchToolbar() {
 function createFormField(field) {
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
-
     const label = document.createElement('label');
     label.htmlFor = `edit-product-${field.key}`;
-    label.textContent = field.label;
-    if (field.required) {
-        label.textContent += ' (必填)';
-    }
+    label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
-    let inputElement;
-    switch (field.type) {
-        case 'textarea':
-            inputElement = document.createElement('textarea');
-            inputElement.rows = 5;
-            break;
-        case 'boolean':
-            // 為了樣式統一，布林值也用 div 包起來
-            const switchWrapper = document.createElement('div');
-            switchWrapper.style.marginTop = '10px';
-            inputElement = document.createElement('input');
-            inputElement.type = 'checkbox';
-            const switchLabel = document.createElement('label');
-            switchLabel.className = 'switch';
-            const slider = document.createElement('span');
-            slider.className = 'slider';
-            switchLabel.append(inputElement, slider);
-            switchWrapper.appendChild(switchLabel);
-            formGroup.appendChild(switchWrapper);
-            break;
-        default: // 'text', 'number', 'url' 等
-            inputElement = document.createElement('input');
-            inputElement.type = field.type;
-            if (field.placeholder) {
-                inputElement.placeholder = field.placeholder;
-            }
-            break;
+    // 【核心修改】處理代表圖片
+    if (field.type === 'image_url') {
+        const fileInputId = `image-upload-${field.key}-${Date.now()}`;
+        const imageGroup = document.createElement('div');
+        imageGroup.className = 'dynamic-input-group';
+        imageGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+        imageGroup.innerHTML = `
+            <input type="url" id="edit-product-${field.key}" name="${field.key}" placeholder="請貼上網址或點擊右側上傳" style="flex-grow: 1;">
+            <input type="file" id="${fileInputId}" accept="image/*" style="display: none;">
+            <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
+        `;
+        const fileInput = imageGroup.querySelector('input[type="file"]');
+        const urlInput = imageGroup.querySelector('input[type="url"]');
+        const uploadButton = imageGroup.querySelector('.btn-upload-image');
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
+        });
+        formGroup.appendChild(imageGroup);
+    } else { // 其他欄位類型保持不變
+        let inputElement;
+        switch (field.type) {
+            case 'textarea':
+                inputElement = document.createElement('textarea');
+                inputElement.rows = 5;
+                break;
+            case 'boolean':
+                const switchWrapper = document.createElement('div');
+                switchWrapper.style.marginTop = '10px';
+                inputElement = document.createElement('input');
+                inputElement.type = 'checkbox';
+                const switchLabel = document.createElement('label');
+                switchLabel.className = 'switch';
+                const slider = document.createElement('span');
+                slider.className = 'slider';
+                switchLabel.append(inputElement, slider);
+                switchWrapper.appendChild(switchLabel);
+                formGroup.appendChild(switchWrapper);
+                break;
+            default:
+                inputElement = document.createElement('input');
+                inputElement.type = field.type;
+                if (field.placeholder) inputElement.placeholder = field.placeholder;
+                break;
+        }
+        if (field.type !== 'boolean') {
+            formGroup.appendChild(inputElement);
+        }
+        inputElement.id = `edit-product-${field.key}`;
+        inputElement.name = field.key;
     }
-
-    if (field.type !== 'boolean') {
-        formGroup.appendChild(inputElement);
-    }
-    
-    inputElement.id = `edit-product-${field.key}`;
-    inputElement.name = field.key;
-
     return formGroup;
 }
 
+
+// 動態欄位輔助函式 (升級版)
 function addImageInputField(container, value = '') {
     const count = container.children.length;
     if (count >= 5) return;
-
     const newGroup = document.createElement('div');
     newGroup.className = 'dynamic-input-group';
-    newGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
-    
-    // 產生一個唯一的 ID 給 file input 和 label
+    newGroup.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 8px;';
     const fileInputId = `image-upload-input-${Date.now()}`;
-
     newGroup.innerHTML = `
         <input type="url" name="images" placeholder="${count + 1}. 請貼上網址或點擊右側上傳" value="${value}" style="flex-grow: 1;">
-        
         <input type="file" id="${fileInputId}" class="image-upload-input" accept="image/*" style="display: none;">
-        
         <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
-        
         <button type="button" class="btn-remove-input" style="flex-shrink: 0;">⊖</button>
     `;
     container.appendChild(newGroup);
-
-    // 為新的上傳按鈕旁的 file input 加上事件監聽
     const fileInput = newGroup.querySelector('.image-upload-input');
     const urlInput = newGroup.querySelector('input[name="images"]');
     const uploadButton = newGroup.querySelector('.btn-upload-image');
-    
-    fileInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            handleImageUpload(file, urlInput, uploadButton);
-        }
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
     });
-
     updateDynamicButtonsState();
 }
 
@@ -163,12 +161,16 @@ function addSpecInputField(container, name = '', value = '') {
     updateDynamicButtonsState();
 }
 
+// 請確保以下函式在您的檔案中也存在且內容正確
 function updateDynamicButtonsState() {
     const imageContainer = document.getElementById('edit-product-image-inputs');
+    if(imageContainer) {
+        document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
+    }
     const specContainer = document.getElementById('edit-product-spec-inputs');
-    if (!imageContainer || !specContainer) return;
-    document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
-    document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
+    if(specContainer) {
+       document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
+    }
 }
 
 
@@ -557,40 +559,44 @@ function updateSelectAllCheckboxState() {
     }
 }
 
-// --- 事件監聽器 ---
-// --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // 頁面級別的事件委派 (正確版本)
+    // 對整個頁面進行事件監聽，處理靜態和動態產生的元素
     page.addEventListener('click', e => {
         const target = e.target;
+
+        // 新增產品按鈕
         if (target.id === 'add-product-btn') {
             openProductModal();
         }
-        if (target.id === 'download-csv-template-btn') { 
-            handleDownloadCsvTemplate(); // 補上函式呼叫
+        // 下載 CSV 模板
+        else if (target.id === 'download-csv-template-btn') {
+            handleDownloadCsvTemplate();
         }
-        
-        const editButton = target.closest('.btn-edit-product');
-        if (editButton) {
-            const product = allProducts.find(p => p.product_id === editButton.dataset.productid);
+        // 編輯按鈕 (在表格中)
+        else if (target.closest('.btn-edit-product')) {
+            const product = allProducts.find(p => p.product_id === target.closest('.btn-edit-product').dataset.productid);
             if (product) openProductModal(product);
         }
-
-        // 處理動態新增/移除按鈕的邏輯
-        if (target.id === 'add-image-input-btn') {
-            addImageInputField(document.getElementById('edit-product-image-inputs'));
+        // 新增額外圖片欄位按鈕
+        else if (target.id === 'add-image-input-btn') {
+            const container = document.getElementById('edit-product-image-inputs');
+            if (container) addImageInputField(container);
         }
-        if (target.id === 'add-spec-input-btn') {
-            addSpecInputField(document.getElementById('edit-product-spec-inputs'));
+        // 新增規格欄位按鈕
+        else if (target.id === 'add-spec-input-btn') {
+            const container = document.getElementById('edit-product-spec-inputs');
+            if(container) addSpecInputField(container);
         }
-        if (target.classList.contains('btn-remove-input')) {
+        // 移除動態欄位按鈕 (圖片或規格)
+        else if (target.classList.contains('btn-remove-input')) {
             target.closest('.dynamic-input-group').remove();
             updateDynamicButtonsState();
         }
     });
+    
 
     // 監聽篩選器按鈕的點擊事件
     function addFilterGroupListener(groupId) {

@@ -28,12 +28,20 @@ function createFieldRow(field = {}) {
 
     row.querySelector('[name="key"]').value = field.key || '';
     row.querySelector('[name="label"]').value = field.label || '';
-    row.querySelector('[name="type"]').value = field.type || 'text';
+    
+    const typeSelect = row.querySelector('[name="type"]');
+    typeSelect.value = field.type || 'text';
+    // 【新增】如果類型是 image_url，就選中它
+    if (field.type === 'image_url') {
+        typeSelect.value = 'image_url';
+    } else {
+        typeSelect.value = field.type || 'text';
+    }
+
     row.querySelector('[name="required"]').checked = field.required || false;
 
     return row;
 }
-
 // 從 UI 收集資料並重組成 JSON
 function reconstructTemplatesFromUI() {
     const currentTemplateKey = document.getElementById('template-selector').value;

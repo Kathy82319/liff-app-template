@@ -1,4 +1,4 @@
-// public/admin/app.js (v3 - 最終修正版)
+// public/admin/app.js (v5 - 最終修正版)
 
 import { api } from './api.js';
 import { ui } from './ui.js';
@@ -10,13 +10,15 @@ function hideDemoMenuItems() {
     if (downloadCsvBtn) downloadCsvBtn.style.display = 'none';
     if (uploadCsvLabel) uploadCsvLabel.style.display = 'none';
 
-    // 【修正】現在 reset 按鈕應該要能用，所以我們只隱藏 "危險操作區" 的標題和描述，保留按鈕
+    // 修改儀表板的危險操作區，使其在 DEMO 模式下功能明確
     const dangerZone = document.getElementById('dashboard-danger-zone');
     if (dangerZone) {
         dangerZone.querySelector('h4').textContent = 'DEMO 資料管理';
-        dangerZone.querySelector('p').innerHTML = '此按鈕將會清除您在 DEMO 模式中新增的所有資料，並恢復為初始範例。<br>此操作只會影響您自己的瀏覽器。';
+        dangerZone.querySelector('p').innerHTML = '此按鈕將會清除您在 DEMO 模式中新增/修改的所有資料，並恢復為初始範例。<br>此操作只會影響您自己的瀏覽器。';
+        dangerZone.style.display = 'block'; // 確保區塊可見
     }
     
+    // 加上 DEMO 提示橫幅
     const demoBanner = document.createElement('div');
     demoBanner.id = 'demo-mode-banner';
     demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
@@ -60,27 +62,30 @@ const App = {
         }
     },
 
-async init() {
+    async init() {
         const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+
+        // 【核心修正】將 DEMO 相關操作放在 try...catch 之外的最前面
+        // 確保不論後續 API 是否成功，DEMO 模式都能被正確初始化
         if (isDemoMode) {
             console.log("偵測到 DEMO 模式，正在載入模擬 API...");
             const mockScript = document.createElement('script');
             mockScript.type = 'module';
-            mockScript.src = './api-mock.js';
+            mockScript.src = './api-mock.js'; 
             document.head.appendChild(mockScript);
             
-            document.addEventListener('DOMContentLoaded', hideDemoMenuItems);
+            // 直接呼叫，因為 App.init() 本身已在 DOMContentLoaded 中
+            hideDemoMenuItems(); 
             
-            await new Promise(resolve => setTimeout(resolve, 100)); 
+            // 給予 mock script 一個極短的載入時間
+            await new Promise(resolve => setTimeout(resolve, 50)); 
             console.log("模擬 API 已載入。");
         }
         
         try {
-            // 現在，無論是否為 DEMO 模式，這段程式碼都能正常運作
-            // 因為 DEMO 模式下，fetch('/api/get-app-config') 會被 api-mock.js 攔截並回傳假資料
             const response = await fetch('/api/get-app-config');
             if (!response.ok) {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({ error: '無法解析錯誤訊息' }));
                 throw new Error(`獲取設定檔失敗: ${errorData.error}`);
             }
             window.CONFIG = await response.json();

@@ -726,77 +726,65 @@ function renderBookings(bookings, container, isPast = false) {
     }
 
 
-// public/script.js
+    function renderProductDetails(product) {
+        if (!product || !activeTemplate) return;
 
-function renderProductDetails(product) {
-    if (!product || !activeTemplate) return;
+        const detailsTitle = appContent.querySelector('.details-title');
+        const gallery = appContent.querySelector('.details-gallery');
+        const mainImage = gallery.querySelector('.details-image-main');
+        const thumbnails = gallery.querySelector('.details-image-thumbnails');
+        const contentContainer = appContent.querySelector('#product-details-content');
 
-    const detailsTitle = appContent.querySelector('.details-title');
-    const gallery = appContent.querySelector('.details-gallery');
-    const mainImage = gallery.querySelector('.details-image-main');
-    const thumbnails = gallery.querySelector('.details-image-thumbnails');
-    const contentContainer = appContent.querySelector('#product-details-content');
+        detailsTitle.textContent = product.name;
+        contentContainer.innerHTML = ''; // 清空內容
 
-    if (detailsTitle) detailsTitle.textContent = product.name;
-    if (!contentContainer) return;
-    
-    contentContainer.innerHTML = ''; // 清空內容
-
-    // 1. 處理圖片
-    try {
-        const images = JSON.parse(product.images || '[]');
-        if (images.length > 0) {
-            if(mainImage) mainImage.src = images[0];
-            if(thumbnails) {
+        // 1. 處理圖片
+        try {
+            const images = JSON.parse(product.images || '[]');
+            if (images.length > 0) {
+                mainImage.src = images[0];
                 thumbnails.innerHTML = images.map((img, index) => 
                     `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`
                 ).join('');
-            }
-            if(gallery) gallery.style.display = 'block';
+                gallery.style.display = 'block';
 
-            thumbnails.addEventListener('click', e => {
-                if (e.target.tagName === 'IMG') {
-                    mainImage.src = e.target.dataset.src;
-                    thumbnails.querySelector('.active')?.classList.remove('active');
-                    e.target.classList.add('active');
-                }
-            });
-        } else {
-            if(gallery) gallery.style.display = 'none';
-        }
-    } catch(e) { if(gallery) gallery.style.display = 'none'; }
-
-    // 2. 根據藍圖動態生成內容
-    let contentRendered = false; // 【新增】一個旗標來判斷是否有渲染任何內容
-    activeTemplate.fields.forEach(field => {
-        if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible') return;
-
-        const value = product[field.key];
-        if (value) {
-            contentRendered = true; // 【新增】
-            const section = document.createElement('div');
-            section.className = 'detail-field-section';
-            
-            const label = document.createElement('h3');
-            label.textContent = field.label;
-            
-            const content = document.createElement('p');
-            if (field.key === 'price') {
-                content.innerHTML = `<span class="price-value">$${value}</span>`;
+                thumbnails.addEventListener('click', e => {
+                    if (e.target.tagName === 'IMG') {
+                        mainImage.src = e.target.dataset.src;
+                        thumbnails.querySelector('.active')?.classList.remove('active');
+                        e.target.classList.add('active');
+                    }
+                });
             } else {
-                content.textContent = value;
+                gallery.style.display = 'none';
             }
-            
-            section.append(label, content);
-            contentContainer.appendChild(section);
-        }
-    });
+        } catch(e) { gallery.style.display = 'none'; }
 
-    // 【新增】如果沒有任何內容被渲染，顯示提示訊息
-    if (!contentRendered) {
-        contentContainer.innerHTML = '<p>此項目沒有提供更多詳細資訊。<br>(DEMO 模式提示：請檢查 api-mock.js 中的產品假資料是否包含 description, price 等欄位)</p>';
+        // 2. 根據藍圖動態生成內容
+        activeTemplate.fields.forEach(field => {
+            // 跳過 'name' (已顯示在標題) 和 'images' (已處理) 和 'is_visible' (不需顯示)
+            if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible') return;
+
+            const value = product[field.key];
+            if (value) { // 只顯示有值的欄位
+                const section = document.createElement('div');
+                section.className = 'detail-field-section';
+                
+                const label = document.createElement('h3');
+                label.textContent = field.label;
+                
+                const content = document.createElement('p');
+                if (field.key === 'price') {
+                    content.innerHTML = `<span class="price-value">$${value}</span>`;
+                } else {
+                    content.textContent = value;
+                }
+                
+                section.append(label, content);
+                contentContainer.appendChild(section);
+            }
+        });
     }
-}
 
 function renderProducts() {
     const container = document.getElementById('product-list-container');

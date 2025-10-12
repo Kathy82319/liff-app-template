@@ -82,6 +82,10 @@ export async function onRequest(context) {
       await db.prepare(
         'INSERT INTO Users (user_id, line_display_name, line_picture_url, real_name, class, level, current_exp, perk) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(newUser.user_id, newUser.line_display_name, newUser.line_picture_url, newUser.real_name, newUser.class, newUser.level, newUser.current_exp, newUser.perk).run();
+ 
+      // 【新增】紀錄新使用者活動
+      const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
+      context.waitUntil(activityStmt.bind('new_user', `新顧客 ${newUser.line_display_name} 已加入`, '#users').run());
       
       const sheetData = { ...newUser };
       delete sheetData.user_id;

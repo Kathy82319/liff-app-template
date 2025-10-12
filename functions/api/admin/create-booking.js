@@ -68,6 +68,10 @@ export async function onRequest(context) {
 
         await db.batch(itemOperations);
         
+          // 【新增】紀錄由後台建立的新預約活動
+        const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
+        context.waitUntil(activityStmt.bind('new_booking_admin', `管理者為 ${contactName.trim()}建立了 ${bookingDate} 的預約`, '#bookings').run());
+      
         return new Response(JSON.stringify({ success: true, message: '預約已成功建立' }), {
             status: 201,
             headers: { 'Content-Type': 'application/json' },

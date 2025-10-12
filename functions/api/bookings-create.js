@@ -55,7 +55,10 @@ export async function onRequest(context) {
     
     // 背景同步至 Google Sheet 的邏輯可以先暫時移除或註解，因為格式已經改變
     // context.waitUntil(...) 
-
+    
+    // 【新增】紀錄新預約活動
+    const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
+    context.waitUntil(activityStmt.bind('new_booking', `顧客 ${contactName} 預約了 ${bookingDate} 的服務`, '#bookings').run());
     // 準備回傳給顧客的確認訊息
     const itemSummary = items.map(item => `${item.name} x${item.qty}`).join(', ');
     const message = `您已成功預約 ${bookingDate} ${timeSlot}，預約項目：${itemSummary}。此訊息僅為通知，若有問題請聯絡店家。`;

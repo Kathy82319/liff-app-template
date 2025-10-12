@@ -62,53 +62,65 @@ const App = {
     },
 
     // 【*** 隱藏的項目，可以一併寫在這裡 ***】
-    hideDemoMenuItems() {
-        // 選取 href 為 #settings 的導覽列按鈕
-        const settingsTab = document.querySelector('.nav-tabs a[href="#settings"]');
-        if (settingsTab) {
-            settingsTab.style.display = 'none'; 
-        }
+function hideDemoMenuItems() {
+    // 隱藏產品頁的 CSV 功能按鈕
+    const downloadCsvBtn = document.getElementById('download-csv-template-btn');
+    const uploadCsvLabel = document.querySelector('label[for="csv-upload-input"]');
+    if (downloadCsvBtn) downloadCsvBtn.style.display = 'none';
+    if (uploadCsvLabel) uploadCsvLabel.style.display = 'none';
 
-    },
+    // 隱藏儀表板的危險操作區
+    const dangerZone = document.getElementById('dashboard-danger-zone');
+    if (dangerZone) dangerZone.style.display = 'none';
+    
+    // 【新增】顯示 DEMO 模式的提示橫幅
+    const demoBanner = document.createElement('div');
+    demoBanner.id = 'demo-mode-banner';
+    demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
+    demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
+    document.getElementById('admin-panel').prepend(demoBanner);
+}
 
 
 
-    // 應用程式初始化函式
+
     async init() {
-        // 【*** 核心修正區塊 ***】
-        const urlParams = new URLSearchParams(window.location.search);
-        this.isDemoMode = urlParams.get('demo') === 'true';
-
-        try {
-            if (this.isDemoMode) {
-                console.log("正在啟用 DEMO 模式...");
-                const { api } = await import('./api-mock.js');
-                this.api = api;
-                this.showDemoBanner();
-                this.hideDemoMenuItems(); 
-            } else {
-                console.log("正在啟用標準模式...");
-                const { api } = await import('./api.js');
-                this.api = api;
-                // 在非 DEMO 模式下，才檢查登入狀態
-                await this.api.checkAuthStatus();
-            }
-        } catch (error) {
-             if (!this.isDemoMode) {
-                console.error('未授權，正在重導向到登入頁面...');
-                window.location.href = '/admin-login.html';
-                return; // 中斷後續所有程式碼的執行
-             }
+        // ▼▼▼ 【核心修改】在這裡加入 DEMO 模式的判斷與處理 ▼▼▼
+        const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+        if (isDemoMode) {
+            console.log("偵測到 DEMO 模式，正在載入模擬 API...");
+            // 動態載入 api-mock.js
+            const mockScript = document.createElement('script');
+            mockScript.type = 'module';
+            // 重要：請確保您的 api-mock.js 檔案確實存在於 /public/admin/ 目錄下
+            mockScript.src = './api-mock.js';
+            document.head.appendChild(mockScript);
+            
+            // 呼叫我們新增的函式來隱藏 DEMO 項目
+            hideDemoMenuItems();
+            
+            // 給一點時間讓 mock API 生效
+            await new Promise(resolve => setTimeout(resolve, 100)); 
+            console.log("模擬 API 已載入。");
         }
+        // ▲▲▲ 【修改結束】 ▲▲▲
         
-        // 將 api 物件掛載到全域，方便模組引用
-        // 雖然不是最佳實踐，但為了最小化改動現有模組，暫時這樣處理
-        window.api = this.api;
+        try {
+            const response = await fetch('/api/get-app-config');
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`獲取設定檔失敗: ${errorText}`);
+            }
+            window.CONFIG = await response.json();
+            console.log('App config loaded:', window.CONFIG);
+        } catch (error) {
+            console.error("初始化失敗:", error);
+            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常。</p></div>`;
+            return;
+        }
 
         ui.initSharedEventListeners();
-        
         window.addEventListener('hashchange', () => this.handleRouteChange());
-        
         document.querySelector('.nav-tabs').addEventListener('click', (event) => {
             if (event.target.tagName === 'A') {
                 event.preventDefault();
@@ -118,7 +130,6 @@ const App = {
                 }
             }
         });
-
         this.handleRouteChange();
     }
 };

@@ -270,93 +270,90 @@ async function openUserDetailsModal(userId) {
 }
 
 
+
+
 // 綁定此頁面所有事件監聽器
 function setupEventListeners() {
-    // 搜尋框
+    // 【修正】在函式開頭就重新獲取一次元素，確保它們存在
     const userSearchInput = document.getElementById('user-search-input');
-    userSearchInput.oninput = handleUserSearch;
-
-    // 同步按鈕
-    const syncD1ToSheetBtn = document.getElementById('sync-d1-to-sheet-btn');
-    syncD1ToSheetBtn.onclick = async () => {
-        if (!confirm('確定要將所有 D1 使用者資料完整同步至 Google Sheet 嗎？\n這將會覆蓋 Sheet 上的現有資料。')) return;
-        try {
-            syncD1ToSheetBtn.textContent = '同步中...';
-            syncD1ToSheetBtn.disabled = true;
-            const result = await api.syncD1ToSheet();
-            alert(result.message);
-        } catch (error) {
-            alert(`錯誤：${error.message}`);
-        } finally {
-            syncD1ToSheetBtn.textContent = '同步至 Google Sheet';
-            syncD1ToSheetBtn.disabled = false;
-        }
-    };
-
-    // 事件委派：監聽整個 tbody 的點擊
     const userListTbody = document.getElementById('user-list-tbody');
-    userListTbody.onclick = (event) => {
-        const target = event.target;
-        const row = target.closest('tr');
-        if (!row || !row.dataset.userId) return;
-        const userId = row.dataset.userId;
-        
-        if (target.classList.contains('btn-edit-user')) {
-            openEditUserModal(userId);
-        } else {
-            openUserDetailsModal(userId);
-        }
-    };
-    
-    // 編輯使用者表單提交
     const editUserForm = document.getElementById('edit-user-form');
-    editUserForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const userId = document.getElementById('edit-user-id').value;
-        
-        let newClass = document.getElementById('edit-class-select').value;
-        if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
-        let newTag = document.getElementById('edit-tag-select').value;
-        if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
 
-        const updatedData = {
-            userId: userId,
-            level: document.getElementById('edit-level-input').value,
-            current_exp: document.getElementById('edit-exp-input').value,
-            tag: newTag,
-            user_class: newClass,
-            perk: document.getElementById('edit-perk-input').value.trim(),
-            notes: document.getElementById('edit-notes-textarea').value
+    // 【修正】加上保護，如果元素不存在就不綁定事件
+    if (userSearchInput) {
+        userSearchInput.oninput = handleUserSearch;
+    }
+
+    if (userListTbody) {
+        userListTbody.onclick = (event) => {
+            const target = event.target;
+            const row = target.closest('tr');
+            if (!row || !row.dataset.userId) return;
+            const userId = row.dataset.userId;
+            
+            if (target.classList.contains('btn-edit-user')) {
+                openEditUserModal(userId);
+            } else {
+                openUserDetailsModal(userId);
+            }
         };
+    }
+    
+    if (editUserForm) {
+        editUserForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('edit-user-id').value;
+            
+            let newClass = document.getElementById('edit-class-select').value;
+            if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
+            let newTag = document.getElementById('edit-tag-select').value;
+            if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
 
-        try {
-            await api.updateUserDetails(updatedData);
-            ui.hideModal('#edit-user-modal');
-            // 重新載入列表以顯示更新後的資料
-            init(); 
-        } catch (error) {
-            alert(`錯誤：${error.message}`);
-        }
-    };
+            const updatedData = {
+                userId: userId,
+                level: document.getElementById('edit-level-input').value,
+                current_exp: document.getElementById('edit-exp-input').value,
+                tag: newTag,
+                user_class: newClass,
+                perk: document.getElementById('edit-perk-input').value.trim(),
+                notes: document.getElementById('edit-notes-textarea').value
+            };
+
+            try {
+                await api.updateUserDetails(updatedData);
+                ui.hideModal('#edit-user-modal');
+                // 【修正】呼叫 init() 而不是 fetchDataAndRender() 來確保資料一致
+                await init(); 
+            } catch (error) {
+                ui.toast.error(`錯誤：${error.message}`);
+            }
+        };
+    }
 }
 
 // 模組初始化函式
 export const init = async () => {
     const userListTbody = document.getElementById('user-list-tbody');
-    if (!userListTbody) return;
+    const page = document.getElementById('page-users'); // 【新增】獲取 page 元素
+    if (!userListTbody || !page) return;
     
     userListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在載入顧客資料...</td></tr>';
     
     try {
-        // 優化：如果快取中沒有資料，才重新從 API 獲取
         if (allSettings.length === 0) {
             allSettings = await api.getSettings();
         }
-        // 使用者資料通常需要保持最新，所以每次都重新獲取
         allUsers = await api.getUsers();
         
+        // 【修正】在渲染完列表後，才去綁定事件
         renderUserList(allUsers);
-        setupEventListeners();
+        
+        // 【修正】確保事件只在第一次初始化時綁定
+        if (!page.dataset.initialized) {
+            setupEventListeners();
+            page.dataset.initialized = 'true';
+        }
+
     } catch (error) {
         console.error('獲取使用者列表失敗:', error);
         userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取使用者資料失敗: ${error.message}</td></tr>`;

@@ -60,7 +60,7 @@ const App = {
         }
     },
 
-sync init() {
+async init() {
         const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
         if (isDemoMode) {
             console.log("偵測到 DEMO 模式，正在載入模擬 API...");

@@ -475,7 +475,15 @@
                             <li>讀取中...</li>
                         </ol>
                     </div>
-                    
+                <div id="activity-feed-section" style="margin-top: 2rem;">
+                    <h2 class="page-header" style="justify-content: flex-start; gap: 1rem; align-items: center;">
+                        <span>最新動態</span>
+                        <span id="activity-count-badge" style="font-size: 0.9rem; background-color: var(--color-primary); color: white; padding: 4px 10px; border-radius: 12px; display: none;"></span>
+                    </h2>
+                    <div id="activity-feed-container" style="max-height: 400px; overflow-y: auto; background-color: var(--color-sidebar-bg); padding: 1rem; border-radius: var(--border-radius); box-shadow: var(--box-shadow);">
+                        <p>正在載入動態...</p>
+                    </div>
+                </div>                    
                     <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #f7b2b2; grid-column: 1 / -1;">
                           <h4 style="color: var(--danger-color); margin-top: 0;">危險操作區</h4>
                           <p>此按鈕將會清空所有預約、租借、消費紀錄等展示資料，讓系統恢復初始狀態。此操作無法復原。</p>

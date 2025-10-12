@@ -18,7 +18,9 @@ async function request(url, options = {}) {
 export const api = {
     checkAuthStatus: () => request('/api/admin/auth/status'),
     getDashboardStats: () => request('/api/admin/dashboard-stats'),
-    
+        // 【新增這兩行】
+    getActivities: () => request('/api/admin/activities'),
+    markActivityAsRead: (activity_id) => request('/api/admin/activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activity_id }) }),
     getUsers: () => request('/api/get-users'),
     updateUserDetails: (data) => request('/api/update-user-details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
     getUserDetails: (userId) => request(`/api/admin/user-details?userId=${userId}`),

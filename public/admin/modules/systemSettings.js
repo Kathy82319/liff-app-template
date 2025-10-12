@@ -1,177 +1,178 @@
 // public/admin/modules/systemSettings.js
 import { api } from '../api.js';
+import { ui } from '../ui.js';
 
-let allSettings = []; // 快取設定資料
+let allSettings = []; // 快取所有設定資料
+let templateDefinitions = {}; // 快取樣板定義
 
-// 建立一個布林值的滑動開關
-function createToggleSwitch(setting) {
-    const formGroup = document.createElement('div');
-    formGroup.className = 'form-group';
-    formGroup.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border);';
-    
-    const label = document.createElement('label');
-    label.htmlFor = setting.key;
-    label.textContent = setting.description;
-    label.style.marginBottom = '0';
+// 渲染指定樣板的欄位編輯器
+function renderFieldsEditor(templateKey) {
+    const container = document.getElementById('fields-editor-container');
+    if (!container) return;
 
-    const switchLabel = document.createElement('label');
-    switchLabel.className = 'switch';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.id = setting.key;
-    input.name = setting.key;
-    input.checked = (setting.value === 'true');
-    const slider = document.createElement('span');
-    slider.className = 'slider';
+    container.innerHTML = ''; // 清空現有欄位
+    const template = templateDefinitions[templateKey];
+    if (!template || !template.fields) return;
 
-    switchLabel.append(input, slider);
-    formGroup.append(label, switchLabel);
-    
-    // 監聽變化，連動顯示/隱藏相關設定
-    input.addEventListener('change', (e) => {
-        const isEnabled = e.target.checked;
-        document.querySelectorAll(`[data-dependency="${setting.key}"]`).forEach(el => {
-            el.style.display = isEnabled ? 'block' : 'none';
-        });
+    template.fields.forEach(field => {
+        const row = createFieldRow(field);
+        container.appendChild(row);
     });
-
-    return formGroup;
 }
 
-// 建立一個通用的輸入框 (text, number, json)
-function createGenericInput(setting) {
-    const formGroup = document.createElement('div');
-    formGroup.className = 'form-group';
+// 根據欄位資料建立一個 DOM 元素
+function createFieldRow(field = {}) {
+    const template = document.getElementById('field-editor-template');
+    const clone = template.content.cloneNode(true);
+    const row = clone.querySelector('.field-editor-row');
 
-    const label = document.createElement('label');
-    label.htmlFor = setting.key;
-    label.textContent = setting.description || setting.key;
+    row.querySelector('[name="key"]').value = field.key || '';
+    row.querySelector('[name="label"]').value = field.label || '';
+    row.querySelector('[name="type"]').value = field.type || 'text';
+    row.querySelector('[name="required"]').checked = field.required || false;
+
+    return row;
+}
+
+// 從 UI 收集資料並重組成 JSON
+function reconstructTemplatesFromUI() {
+    const currentTemplateKey = document.getElementById('template-selector').value;
     
-    let inputElement;
-    if (setting.type === 'json') {
-        inputElement = document.createElement('textarea');
-        inputElement.rows = 5;
-        try {
-            // 美化 JSON 格式方便閱讀
-            inputElement.value = JSON.stringify(JSON.parse(setting.value), null, 2);
-        } catch (e) {
-            inputElement.value = setting.value; // 如果解析失敗，顯示原始字串
+    // 更新當前正在編輯的樣板
+    const fields = [];
+    document.querySelectorAll('#fields-editor-container .field-editor-row').forEach(row => {
+        const key = row.querySelector('[name="key"]').value.trim();
+        const label = row.querySelector('[name="label"]').value.trim();
+        if (key && label) { // 確保 key 和 label 都有值才加入
+            fields.push({
+                key: key,
+                label: label,
+                type: row.querySelector('[name="type"]').value,
+                required: row.querySelector('[name="required"]').checked,
+            });
         }
-    } else {
-        inputElement = document.createElement('input');
-        inputElement.type = setting.type === 'number' ? 'number' : 'text';
-        inputElement.value = setting.value;
-    }
-    
-    inputElement.id = setting.key;
-    inputElement.name = setting.key;
-    formGroup.append(label, inputElement);
-    return formGroup;
+    });
+    templateDefinitions[currentTemplateKey].fields = fields;
+
+    // 回傳完整的樣板定義物件
+    return templateDefinitions;
 }
 
-// 尋找設定項目的依賴關係
-function findRelatedFeatureKey(key) {
-    if (key.includes('BOOKING')) return 'FEATURES_ENABLE_BOOKING_SYSTEM';
-    if (key.includes('MEMBERSHIP') || key.includes('POINTS')) return 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM';
-    return null;
-}
-
-// 渲染整個設定表單
-function renderSettingsForm(settings) {
-    const settingsContainer = document.getElementById('settings-container');
-    if (!settingsContainer) return;
+// 渲染「其他系統參數」
+function renderOtherSettings() {
+    const settingsContainer = document.getElementById('other-settings-container');
     settingsContainer.innerHTML = '';
 
-    const groupedSettings = {
-        FEATURES: { title: '⚙️ 功能開關', items: [] },
-        TERMS: { title: '🏷️ 商業術語', items: [] },
-        LOGIC: { title: '🧠 業務邏輯', items: [] }
-    };
+    const otherSettings = allSettings.filter(s => !s.key.includes('INDUSTRY_TEMPLATE_DEFINITIONS'));
 
-    settings.forEach(setting => {
-        const groupKey = setting.key.split('_')[0];
-        if (groupedSettings[groupKey]) {
-            groupedSettings[groupKey].items.push(setting);
-        }
-    });
-
-    Object.values(groupedSettings).forEach(group => {
-        if (group.items.length === 0) return;
-
-        const groupWrapper = document.createElement('div');
-        groupWrapper.className = 'setting-group';
-        groupWrapper.innerHTML = `<h4>${group.title}</h4>`;
-        
-        const groupBody = document.createElement('div');
-        groupBody.className = 'setting-group-body';
-
-        group.items.forEach(setting => {
-            const formGroup = (setting.type === 'boolean') ? createToggleSwitch(setting) : createGenericInput(setting);
-            
-            // 處理依賴關係
-            const dependency = findRelatedFeatureKey(setting.key);
-            if (dependency) {
-                formGroup.dataset.dependency = dependency;
-                const feature = settings.find(s => s.key === dependency);
-                if (feature && feature.value !== 'true') {
-                    formGroup.style.display = 'none';
-                }
-            }
-            groupBody.appendChild(formGroup);
-        });
-        groupWrapper.appendChild(groupBody);
-        settingsContainer.appendChild(groupWrapper);
+    otherSettings.forEach(setting => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.innerHTML = `
+            <label for="setting-${setting.key}">${setting.description || setting.key}</label>
+            <input type="text" id="setting-${setting.key}" name="${setting.key}" value='${setting.value}'>
+        `;
+        settingsContainer.appendChild(formGroup);
     });
 }
 
-// 綁定事件監聽器
+// 綁定所有事件監聽器
 function setupEventListeners() {
+    const page = document.getElementById('page-settings');
+    if (page.dataset.initialized) return;
+
+    const templateSelector = document.getElementById('template-selector');
+    const addFieldBtn = document.getElementById('add-field-btn');
+    const fieldsContainer = document.getElementById('fields-editor-container');
     const settingsForm = document.getElementById('settings-form');
-    if (settingsForm) {
-        settingsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitButton = settingsForm.querySelector('button[type="submit"]');
+
+    // 樣板選擇器變更時，重新渲染欄位編輯器
+    templateSelector.addEventListener('change', () => {
+        // 在切換前，先儲存當前編輯中的樣板狀態
+        reconstructTemplatesFromUI();
+        renderFieldsEditor(templateSelector.value);
+    });
+
+    // 新增欄位按鈕
+    addFieldBtn.addEventListener('click', () => {
+        const newRow = createFieldRow();
+        fieldsContainer.appendChild(newRow);
+    });
+
+    // 刪除欄位按鈕 (事件委派)
+    fieldsContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-remove-field')) {
+            e.target.closest('.field-editor-row').remove();
+        }
+    });
+
+    // 表單提交事件
+    settingsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitButton = settingsForm.querySelector('button[type="submit"]');
+        
+        try {
+            submitButton.textContent = '儲存中...';
+            submitButton.disabled = true;
+
             const payload = [];
-            const inputs = settingsForm.querySelectorAll('input, textarea');
-            
-            inputs.forEach(input => {
-                const key = input.name;
-                let value = (input.type === 'checkbox') ? input.checked.toString() : input.value;
-                payload.push({ key, value });
+
+            // 1. 處理樣板定義
+            const updatedTemplates = reconstructTemplatesFromUI();
+            payload.push({
+                key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
+                value: JSON.stringify(updatedTemplates, null, 2) // 格式化 JSON 以利閱讀
             });
 
-            try {
-                submitButton.textContent = '儲存中...';
-                submitButton.disabled = true;
-                await api.updateSettings(payload); // 假設 api.js 有這個函式
-                ui.toast.success('系統設定已成功更新！');
-            } catch (error) {
-                ui.toast.error(`儲存失敗：${error.message}`);
-            } finally {
-                submitButton.textContent = '儲存所有變更';
-                submitButton.disabled = false;
-            }
-        });
-    }
+            // 2. 處理其他設定
+            const inputs = settingsForm.querySelectorAll('#other-settings-container input');
+            inputs.forEach(input => {
+                payload.push({ key: input.name, value: input.value });
+            });
+
+            await api.updateSettings(payload);
+            ui.toast.success('系統設定已成功更新！');
+
+            // 更新後重新載入，以確保資料同步
+            await init();
+
+        } catch (error) {
+            ui.toast.error(`儲存失敗：${error.message}`);
+        } finally {
+            submitButton.textContent = '儲存所有變更';
+            submitButton.disabled = false;
+        }
+    });
+
+    page.dataset.initialized = 'true';
 }
 
 // 模組初始化函式
 export const init = async () => {
-    const settingsContainer = document.getElementById('settings-container');
-    if (!settingsContainer) return;
-    
-    settingsContainer.innerHTML = '<p>正在載入設定...</p>';
-    
     try {
         allSettings = await api.getSettings();
-        renderSettingsForm(allSettings);
-
-        if (!document.getElementById('page-settings').dataset.initialized) {
-            setupEventListeners();
-            document.getElementById('page-settings').dataset.initialized = 'true';
+        
+        // 解析樣板定義
+        const definitionsSetting = allSettings.find(s => s.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
+        if (definitionsSetting) {
+            templateDefinitions = JSON.parse(definitionsSetting.value);
         }
+
+        // 填充樣板選擇器
+        const templateSelector = document.getElementById('template-selector');
+        templateSelector.innerHTML = '';
+        Object.keys(templateDefinitions).forEach(key => {
+            templateSelector.add(new Option(templateDefinitions[key].name, key));
+        });
+
+        // 渲染第一個樣板的編輯器和「其他設定」
+        renderFieldsEditor(templateSelector.value);
+        renderOtherSettings();
+        
+        setupEventListeners();
+
     } catch (error) {
-        console.error('獲取設定失敗:', error);
-        settingsContainer.innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
+        console.error('獲取或解析設定失敗:', error);
+        document.getElementById('page-settings').innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;
     }
 };

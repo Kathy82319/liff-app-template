@@ -641,18 +641,52 @@
                 </form>
             </div>
 
-            <div id="page-settings" class="page">
+<div id="page-settings" class="page">
                 <div class="page-header">
                     <h2>系統設定</h2>
                 </div>
+
+                <div id="template-editor-section" style="margin-bottom: 2rem;">
+                    <h4>商業樣板藍圖編輯器</h4>
+                    <div class="form-group">
+                        <label for="template-selector">選擇要編輯的樣板：</label>
+                        <select id="template-selector"></select>
+                    </div>
+                    <div id="fields-editor-container">
+                        </div>
+                    <button type of="button" id="add-field-btn" class="action-btn" style="margin-top: 1rem; background-color: var(--color-info);">⊕ 新增欄位</button>
+                </div>
+
+                <hr style="border-color: var(--color-border); margin: 2rem 0;">
+
                 <form id="settings-form">
-                    <div id="settings-container">
+                    <h4>其他系統參數</h4>
+                    <div id="other-settings-container">
                         <p>正在載入設定...</p>
                     </div>
                     <div class="form-actions" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <button type="submit" class="action-btn btn-save">儲存所有變更</button>
                     </div>
                 </form>
+
+                <template id="field-editor-template">
+                    <div class="field-editor-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr 100px 50px; gap: 10px; padding: 10px; border: 1px solid var(--color-border); border-radius: 5px; margin-bottom: 10px; align-items: center;">
+                        <input type="text" name="key" placeholder="欄位 ID (英文)" required>
+                        <input type="text" name="label" placeholder="顯示名稱 (中文)" required>
+                        <select name="type">
+                            <option value="text">文字</option>
+                            <option value="textarea">多行文字</option>
+                            <option value="number">數字</option>
+                            <option value="boolean">是/否 開關</option>
+                        </select>
+                        <div>
+                            <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
+                                <input type="checkbox" name="required" style="width: auto;"> 必填
+                            </label>
+                        </div>
+                        <button type="button" class="btn-remove-field" style="background: var(--color-danger); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">-</button>
+                    </div>
+                </template>
             </div>
 
             <div id="page-points" class="page">

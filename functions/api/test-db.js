@@ -9,15 +9,22 @@ export const onRequest = async (context) => {
     
     const db = context.env.DB;
     
-    // 執行一個最簡單、絕對不會出錯的查詢
-    const stmt = db.prepare("SELECT name FROM sqlite_schema WHERE type='table'");
-    const { results } = await stmt.all();
+    // 執行兩個查詢：一個查所有資料表，另一個查 Bookings 的內容
+    const tablesStmt = db.prepare("SELECT name FROM sqlite_schema WHERE type='table'");
+    const bookingsStmt = db.prepare("SELECT * FROM Bookings LIMIT 15");
 
-    // 如果成功，回傳一個成功的 JSON 物件，內容是您資料庫中所有的資料表名稱
+    // 使用 batch 一次執行
+    const [tablesResult, bookingsResult] = await db.batch([
+        tablesStmt,
+        bookingsStmt
+    ]);
+
+    // 如果成功，回傳一個包含所有資料的 JSON 物件
     return new Response(JSON.stringify({
       success: true,
       message: "Database connection is successful!",
-      tables: results.map(t => t.name)
+      tables: tablesResult.results.map(t => t.name),
+      bookings_data: bookingsResult.results 
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +37,6 @@ export const onRequest = async (context) => {
       success: false,
       message: "Database connection failed.",
       error: error.message,
-      stack: error.stack, // 包含堆疊追蹤以便偵錯
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

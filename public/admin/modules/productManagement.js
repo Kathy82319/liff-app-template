@@ -6,6 +6,46 @@ let allProducts = [];
 let sortableProducts = null;
 let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
+// 【新增】圖片上傳核心邏輯
+async function handleImageUpload(file, inputElement, buttonElement) {
+    if (!file) return;
+
+    const originalButtonText = buttonElement.textContent;
+    buttonElement.textContent = '上傳中...';
+    buttonElement.disabled = true;
+
+    try {
+        // 1. 向我們的後端請求一個一次性上傳 URL
+        const { uploadURL } = await api.generateImageUploadUrl();
+
+        // 2. 建立 FormData 並直接將圖片檔案 POST 到 Cloudflare 回傳的 URL
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(uploadURL, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.errors[0]?.message || '上傳至圖片服務失敗');
+        }
+
+        // 3. 上傳成功後，Cloudflare 會回傳公開圖片網址，我們將它填入輸入框
+        const publicUrl = result.result.variants[0]; // 使用第一個公開的 variant URL
+        inputElement.value = publicUrl;
+        ui.toast.success('圖片上傳成功！');
+
+    } catch (error) {
+        ui.toast.error(`上傳失敗：${error.message}`);
+    } finally {
+        buttonElement.textContent = originalButtonText;
+        buttonElement.disabled = false;
+    }
+}
+
 // 建立一個可以從外部呼叫的函式來隱藏工具列
 export function hideBatchToolbar() {
     const toolbar = document.getElementById('batch-actions-toolbar');
@@ -72,17 +112,40 @@ function createFormField(field) {
     return formGroup;
 }
 
-// --- 【全新】動態欄位輔助函式 ---
 function addImageInputField(container, value = '') {
     const count = container.children.length;
     if (count >= 5) return;
+
     const newGroup = document.createElement('div');
     newGroup.className = 'dynamic-input-group';
+    newGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+    
+    // 產生一個唯一的 ID 給 file input 和 label
+    const fileInputId = `image-upload-input-${Date.now()}`;
+
     newGroup.innerHTML = `
-        <input type="url" name="images" placeholder="${count + 1}. 請貼上圖片網址" value="${value}">
-        <button type="button" class="btn-remove-input">⊖</button>
+        <input type="url" name="images" placeholder="${count + 1}. 請貼上網址或點擊右側上傳" value="${value}" style="flex-grow: 1;">
+        
+        <input type="file" id="${fileInputId}" class="image-upload-input" accept="image/*" style="display: none;">
+        
+        <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
+        
+        <button type="button" class="btn-remove-input" style="flex-shrink: 0;">⊖</button>
     `;
     container.appendChild(newGroup);
+
+    // 為新的上傳按鈕旁的 file input 加上事件監聽
+    const fileInput = newGroup.querySelector('.image-upload-input');
+    const urlInput = newGroup.querySelector('input[name="images"]');
+    const uploadButton = newGroup.querySelector('.btn-upload-image');
+    
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            handleImageUpload(file, urlInput, uploadButton);
+        }
+    });
+
     updateDynamicButtonsState();
 }
 

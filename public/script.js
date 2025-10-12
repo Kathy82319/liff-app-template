@@ -78,26 +78,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/get-app-config');
             if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
             const configData = await response.json();
-            if(!configData || !configData.FEATURES){
-                 throw new Error('獲取到的設定檔格式不正確。');
+            
+            // 增加對 LOGIC 的檢查，確保設定檔基本結構存在
+            if(!configData || !configData.FEATURES || !configData.LOGIC){
+                 throw new Error('獲取到的設定檔格式不正確或不完整。');
             }
             
             window.CONFIG = configData;
             CONFIG = configData;
 
-            // 【新增】在啟動時就決定要用哪個樣板
+            // 【修正】加入防錯機制，避免 DEMO 的假資料不完整時崩潰
             const activeTemplateKey = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-            activeTemplate = CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
-            if (!activeTemplate) {
-                throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+            
+            // 檢查所需的所有物件和鍵是否存在
+            if (!activeTemplateKey || !CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS || !CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]) {
+                // 拋出更詳細的錯誤，引導您去檢查 DEMO 用的假資料
+                throw new Error(`在設定檔中找不到名為 "${activeTemplateKey}" 的商業樣板定義。請檢查 DEMO 用的 api-mock.js 是否有提供完整的 LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS 資料。`);
             }
 
+            activeTemplate = CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+            
             await initializeLiff();
 
         } catch (error) {
             console.error("初始化失敗:", error);
+            // 在畫面上顯示更友善的錯誤訊息
             appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常後，再試一次。</p>
+                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常，或檢查 DEMO 用的假資料是否完整。</p>
             </div>`;
         }
     }

@@ -7,43 +7,34 @@ let sortableProducts = null;
 let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
 // 【新增】圖片上傳核心邏輯
+// 圖片上傳核心邏輯 (已修改為暫時停用狀態)
 async function handleImageUpload(file, inputElement, buttonElement) {
+    ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
+    // 以下為未來啟用時的程式碼，暫時註解
+    /*
     if (!file) return;
-
     const originalButtonText = buttonElement.textContent;
     buttonElement.textContent = '上傳中...';
     buttonElement.disabled = true;
-
     try {
-        // 1. 向我們的後端請求一個一次性上傳 URL
         const { uploadURL } = await api.generateImageUploadUrl();
-
-        // 2. 建立 FormData 並直接將圖片檔案 POST 到 Cloudflare 回傳的 URL
         const formData = new FormData();
         formData.append('file', file);
-
-        const response = await fetch(uploadURL, {
-            method: 'POST',
-            body: formData,
-        });
-
+        const response = await fetch(uploadURL, { method: 'POST', body: formData });
         const result = await response.json();
-
         if (!result.success) {
             throw new Error(result.errors[0]?.message || '上傳至圖片服務失敗');
         }
-
-        // 3. 上傳成功後，Cloudflare 會回傳公開圖片網址，我們將它填入輸入框
-        const publicUrl = result.result.variants[0]; // 使用第一個公開的 variant URL
+        const publicUrl = result.result.variants[0];
         inputElement.value = publicUrl;
         ui.toast.success('圖片上傳成功！');
-
     } catch (error) {
         ui.toast.error(`上傳失敗：${error.message}`);
     } finally {
         buttonElement.textContent = originalButtonText;
         buttonElement.disabled = false;
     }
+    */
 }
 
 // 建立一個可以從外部呼叫的函式來隱藏工具列
@@ -60,7 +51,7 @@ export function hideBatchToolbar() {
     }
 }
 
-// --- 根據藍圖生成表單欄位 ---
+// 根據藍圖生成表單欄位 (新版)
 function createFormField(field) {
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
@@ -69,8 +60,7 @@ function createFormField(field) {
     label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
-    // 【核心修改】處理代表圖片
-    if (field.type === 'image_url') {
+    if (field.type === 'image_url') { // 處理代表圖片
         const fileInputId = `image-upload-${field.key}-${Date.now()}`;
         const imageGroup = document.createElement('div');
         imageGroup.className = 'dynamic-input-group';
@@ -87,7 +77,7 @@ function createFormField(field) {
             if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
         });
         formGroup.appendChild(imageGroup);
-    } else { // 其他欄位類型保持不變
+    } else { // 其他欄位類型
         let inputElement;
         switch (field.type) {
             case 'textarea':
@@ -161,27 +151,23 @@ function addSpecInputField(container, name = '', value = '') {
     updateDynamicButtonsState();
 }
 
-// 請確保以下函式在您的檔案中也存在且內容正確
 function updateDynamicButtonsState() {
     const imageContainer = document.getElementById('edit-product-image-inputs');
-    if(imageContainer) {
+    if (imageContainer) {
         document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
     }
     const specContainer = document.getElementById('edit-product-spec-inputs');
-    if(specContainer) {
+    if (specContainer) {
        document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
     }
 }
 
-
-// --- 渲染與篩選函式 ---
-// 【小幅修改】 renderProductList，以符合藍圖
+// 渲染列表函式 (保持不變)
 function renderProductList(products) {
     const productListTbody = document.getElementById('product-list-tbody');
     const productListThead = document.querySelector('#page-inventory thead tr');
     if (!productListTbody || !productListThead) return;
 
-    // 動態生成表頭
     let headerHTML = `
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
         <th style="width: 50px;">順序</th>
@@ -195,13 +181,11 @@ function renderProductList(products) {
     `;
     productListThead.innerHTML = headerHTML;
 
-    // 生成內容
     productListTbody.innerHTML = '';
     products.forEach(p => {
         const row = productListTbody.insertRow();
         row.className = 'draggable-row';
         row.dataset.productId = p.product_id;
-
         let rowHTML = `
             <td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>
             <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>
@@ -558,47 +542,30 @@ function updateSelectAllCheckboxState() {
         selectAllCheckbox.indeterminate = false;
     }
 }
-
+// 事件監聽器 (最終修正版)
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // 對整個頁面進行事件監聽，處理靜態和動態產生的元素
     page.addEventListener('click', e => {
         const target = e.target;
-
-        // 新增產品按鈕
         if (target.id === 'add-product-btn') {
             openProductModal();
-        }
-        // 下載 CSV 模板
-        else if (target.id === 'download-csv-template-btn') {
+        } else if (target.id === 'download-csv-template-btn') {
             handleDownloadCsvTemplate();
-        }
-        // 編輯按鈕 (在表格中)
-        else if (target.closest('.btn-edit-product')) {
+        } else if (target.closest('.btn-edit-product')) {
             const product = allProducts.find(p => p.product_id === target.closest('.btn-edit-product').dataset.productid);
             if (product) openProductModal(product);
-        }
-        // 新增額外圖片欄位按鈕
-        else if (target.id === 'add-image-input-btn') {
-            const container = document.getElementById('edit-product-image-inputs');
-            if (container) addImageInputField(container);
-        }
-        // 新增規格欄位按鈕
-        else if (target.id === 'add-spec-input-btn') {
-            const container = document.getElementById('edit-product-spec-inputs');
-            if(container) addSpecInputField(container);
-        }
-        // 移除動態欄位按鈕 (圖片或規格)
-        else if (target.classList.contains('btn-remove-input')) {
+        } else if (target.id === 'add-image-input-btn') {
+            addImageInputField(document.getElementById('edit-product-image-inputs'));
+        } else if (target.id === 'add-spec-input-btn') {
+            addSpecInputField(document.getElementById('edit-product-spec-inputs'));
+        } else if (target.classList.contains('btn-remove-input')) {
             target.closest('.dynamic-input-group').remove();
             updateDynamicButtonsState();
         }
     });
-    
 
-    // 監聽篩選器按鈕的點擊事件
     function addFilterGroupListener(groupId) {
         const filterGroup = document.getElementById(groupId);
         if (filterGroup) {
@@ -614,13 +581,11 @@ function setupEventListeners() {
     addFilterGroupListener('inventory-stock-filter');
     addFilterGroupListener('inventory-visibility-filter');
 
-    // 批次操作工具列的事件監聽
     document.getElementById('batch-publish-btn')?.addEventListener('click', () => handleBatchUpdate(true));
     document.getElementById('batch-unpublish-btn')?.addEventListener('click', () => handleBatchUpdate(false));
     document.getElementById('batch-set-stock-btn')?.addEventListener('click', handleBatchSetStock);
     document.getElementById('batch-delete-btn')?.addEventListener('click', handleBatchDelete);
 
-    // 表格 Tbody 的事件監聽 (Checkbox 和上架開關)
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {
@@ -645,19 +610,11 @@ function setupEventListeners() {
         });
     }
     
-    // 全選 Checkbox 的事件監聽
-    const selectAllCheckbox = document.getElementById('select-all-products');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
-                checkbox.checked = isChecked;
-            });
-            updateBatchToolbarState();
-        });
-    }
+    document.getElementById('select-all-products')?.addEventListener('change', (e) => {
+        document.querySelectorAll('.product-checkbox').forEach(checkbox => checkbox.checked = e.target.checked);
+        updateBatchToolbarState();
+    });
     
-    // 其他靜態元件的事件監聽
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);

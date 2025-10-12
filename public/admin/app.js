@@ -13,15 +13,6 @@ function hideDemoMenuItems() {
     const dangerZone = document.getElementById('dashboard-danger-zone');
     if (dangerZone) dangerZone.style.display = 'none';
     
-    const demoBanner = document.createElement('div');
-    demoBanner.id = 'demo-mode-banner';
-    demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
-    demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
-    document.getElementById('admin-panel').prepend(demoBanner);
-}
-
-    // 顯示 DEMO 模式的提示橫幅
-    showDemoBanner() {
         const banner = document.createElement('div');
         banner.innerHTML = `您目前正在 DEMO 體驗模式中。所有操作都只會暫存在您的瀏覽器，不會影響真實資料。 <button id="reset-demo-btn" style="margin-left: 15px; padding: 2px 8px; cursor: pointer;">重設體驗資料</button>`;
         banner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
@@ -35,8 +26,8 @@ function hideDemoMenuItems() {
                 alert('DEMO 資料已重設！頁面將重新整理。');
                 window.location.reload();
             }
-        });
-    },
+}
+
 
 
 const App = {

@@ -79,27 +79,6 @@ const App = {
         });
     },
 
-    // 【*** 隱藏的項目，可以一併寫在這裡 ***】
-function hideDemoMenuItems() {
-    // 隱藏產品頁的 CSV 功能按鈕
-    const downloadCsvBtn = document.getElementById('download-csv-template-btn');
-    const uploadCsvLabel = document.querySelector('label[for="csv-upload-input"]');
-    if (downloadCsvBtn) downloadCsvBtn.style.display = 'none';
-    if (uploadCsvLabel) uploadCsvLabel.style.display = 'none';
-
-    // 隱藏儀表板的危險操作區
-    const dangerZone = document.getElementById('dashboard-danger-zone');
-    if (dangerZone) dangerZone.style.display = 'none';
-    
-    // 【新增】顯示 DEMO 模式的提示橫幅
-    const demoBanner = document.createElement('div');
-    demoBanner.id = 'demo-mode-banner';
-    demoBanner.style.cssText = 'background-color: var(--color-warning); color: #000; text-align: center; padding: 10px; font-weight: bold;';
-    demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
-    document.getElementById('admin-panel').prepend(demoBanner);
-}
-
-
 
 
     async init() {

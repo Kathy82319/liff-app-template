@@ -1,4 +1,4 @@
-// public/admin/app.js (v2 - 修正競爭條件)
+// public/admin/app.js (v3 - 最終修正版)
 
 import { api } from './api.js';
 import { ui } from './ui.js';
@@ -10,8 +10,12 @@ function hideDemoMenuItems() {
     if (downloadCsvBtn) downloadCsvBtn.style.display = 'none';
     if (uploadCsvLabel) uploadCsvLabel.style.display = 'none';
 
+    // 【修正】現在 reset 按鈕應該要能用，所以我們只隱藏 "危險操作區" 的標題和描述，保留按鈕
     const dangerZone = document.getElementById('dashboard-danger-zone');
-    if (dangerZone) dangerZone.style.display = 'none';
+    if (dangerZone) {
+        dangerZone.querySelector('h4').textContent = 'DEMO 資料管理';
+        dangerZone.querySelector('p').innerHTML = '此按鈕將會清除您在 DEMO 模式中新增的所有資料，並恢復為初始範例。<br>此操作只會影響您自己的瀏覽器。';
+    }
     
     const demoBanner = document.createElement('div');
     demoBanner.id = 'demo-mode-banner';
@@ -19,7 +23,6 @@ function hideDemoMenuItems() {
     demoBanner.innerHTML = '您目前正在 DEMO 體驗模式中。所有操作都只是暫存，不會影響真實資料。';
     document.getElementById('admin-panel').prepend(demoBanner);
 }
-
 
 const App = {
     router: {
@@ -45,7 +48,7 @@ const App = {
             try {
                 const pageModule = await import(modulePath);
                 if (pageModule.init) {
-                    await pageModule.init(); // 確保模組初始化完成
+                    await pageModule.init();
                 }
             } catch (error) {
                 console.error(`載入模組 ${modulePath} 失敗:`, error);
@@ -57,7 +60,7 @@ const App = {
         }
     },
 
-    async init() {
+sync init() {
         const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
         if (isDemoMode) {
             console.log("偵測到 DEMO 模式，正在載入模擬 API...");
@@ -66,7 +69,6 @@ const App = {
             mockScript.src = './api-mock.js';
             document.head.appendChild(mockScript);
             
-            // 等待 DOMContentLoaded 後再隱藏元素，確保元素已存在
             document.addEventListener('DOMContentLoaded', hideDemoMenuItems);
             
             await new Promise(resolve => setTimeout(resolve, 100)); 
@@ -74,21 +76,17 @@ const App = {
         }
         
         try {
+            // 現在，無論是否為 DEMO 模式，這段程式碼都能正常運作
+            // 因為 DEMO 模式下，fetch('/api/get-app-config') 會被 api-mock.js 攔截並回傳假資料
             const response = await fetch('/api/get-app-config');
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`獲取設定檔失敗: ${errorText}`);
+                const errorData = await response.json();
+                throw new Error(`獲取設定檔失敗: ${errorData.error}`);
             }
             window.CONFIG = await response.json();
-            console.log('App config loaded:', window.CONFIG);
-            
-            // ▼▼▼ 【核心修正】將路由相關的程式碼移到這裡 ▼▼▼
-            // 確保必須在 CONFIG 載入成功後，才開始處理頁面渲染和路由
             
             ui.initSharedEventListeners();
-            
             window.addEventListener('hashchange', () => this.handleRouteChange());
-            
             document.querySelector('.nav-tabs').addEventListener('click', (event) => {
                 if (event.target.tagName === 'A') {
                     event.preventDefault();
@@ -99,18 +97,14 @@ const App = {
                 }
             });
 
-            // 第一次載入時，手動觸發一次路由處理
             this.handleRouteChange();
-            // ▲▲▲ 【修正結束】 ▲▲▲
 
         } catch (error) {
             console.error("初始化失敗:", error);
-            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 是否運作正常。</p></div>`;
-            // 發生嚴重錯誤時，不再繼續執行後續程式碼
+            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API 是否運作正常，或檢查 DEMO 用的假資料是否完整。</p></div>`;
             return; 
         }
     }
 };
 
-// 【小幅修正】確保 App.init() 在 DOMContentLoaded 事件後才執行
 document.addEventListener('DOMContentLoaded', () => App.init());

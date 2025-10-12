@@ -558,16 +558,20 @@ function updateSelectAllCheckboxState() {
 }
 
 // --- 事件監聽器 ---
+// --- 事件監聽器 ---
 function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
+    // 頁面級別的事件委派 (正確版本)
     page.addEventListener('click', e => {
         const target = e.target;
         if (target.id === 'add-product-btn') {
             openProductModal();
         }
-        if (target.id === 'download-csv-template-btn') { /* ... */ }
+        if (target.id === 'download-csv-template-btn') { 
+            handleDownloadCsvTemplate(); // 補上函式呼叫
+        }
         
         const editButton = target.closest('.btn-edit-product');
         if (editButton) {
@@ -575,7 +579,7 @@ function setupEventListeners() {
             if (product) openProductModal(product);
         }
 
-        // 【新增】處理動態新增/移除按鈕的邏輯
+        // 處理動態新增/移除按鈕的邏輯
         if (target.id === 'add-image-input-btn') {
             addImageInputField(document.getElementById('edit-product-image-inputs'));
         }
@@ -594,40 +598,23 @@ function setupEventListeners() {
         if (filterGroup) {
             filterGroup.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON') {
-                    // 移除同組按鈕的 active 狀態
                     filterGroup.querySelector('.active')?.classList.remove('active');
-                    // 為被點擊的按鈕加上 active 狀態
                     e.target.classList.add('active');
-                    // 重新套用所有篩選並渲染列表
                     applyProductFiltersAndRender();
                 }
             });
         }
     }
-
     addFilterGroupListener('inventory-stock-filter');
     addFilterGroupListener('inventory-visibility-filter');
 
-    document.addEventListener('click', e => {
-        const target = e.target;
-        if (!document.getElementById('page-inventory').classList.contains('active')) return;
+    // 批次操作工具列的事件監聽
+    document.getElementById('batch-publish-btn')?.addEventListener('click', () => handleBatchUpdate(true));
+    document.getElementById('batch-unpublish-btn')?.addEventListener('click', () => handleBatchUpdate(false));
+    document.getElementById('batch-set-stock-btn')?.addEventListener('click', handleBatchSetStock);
+    document.getElementById('batch-delete-btn')?.addEventListener('click', handleBatchDelete);
 
-        if (target.id === 'batch-publish-btn') handleBatchUpdate(true);
-        if (target.id === 'batch-unpublish-btn') handleBatchUpdate(false);
-        if (target.id === 'batch-set-stock-btn') handleBatchSetStock();
-        if (target.id === 'batch-delete-btn') handleBatchDelete();
-
-        if (target.id === 'add-image-input-btn') addImageInputField();
-        if (target.id === 'add-spec-input-btn') addSpecInputField();
-        if (target.classList.contains('btn-remove-input')) {
-            const groupToRemove = target.closest('.dynamic-input-group');
-            if (groupToRemove) {
-                groupToRemove.remove();
-                updateDynamicButtonsState();
-            }
-        }
-    });
-
+    // 表格 Tbody 的事件監聽 (Checkbox 和上架開關)
     const tbody = document.getElementById('product-list-tbody');
     if (tbody) {
         tbody.addEventListener('change', async (e) => {
@@ -652,6 +639,7 @@ function setupEventListeners() {
         });
     }
     
+    // 全選 Checkbox 的事件監聽
     const selectAllCheckbox = document.getElementById('select-all-products');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', (e) => {
@@ -662,7 +650,8 @@ function setupEventListeners() {
             updateBatchToolbarState();
         });
     }
-
+    
+    // 其他靜態元件的事件監聽
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);

@@ -1,84 +1,99 @@
-// functions/api/admin/dashboard-stats.js
+// public/admin/modules/dashboard.js
+import { api } from '../api.js';
+import { ui } from '../ui.js';
 
-export async function onRequest(context) {
-  try {
-    if (context.request.method !== 'GET') {
-      return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
-    }
-
-    const db = context.env.DB;
-    const today = new Date().toISOString().split('T')[0];
-
-    const statements = [
-      // 1. 今日預約總人數 (已驗證正常)
-      db.prepare("SELECT SUM(num_of_people) as total_people FROM Bookings WHERE booking_date = ? AND status IN ('confirmed', 'checked-in')").bind(today),
-      
-      // 2. 待處理的預約數 (已驗證正常)
-      db.prepare("SELECT COUNT(booking_id) as count FROM Bookings WHERE status = 'confirmed' AND booking_date >= ?").bind(today),
-
-      // 3. 本月營業額 (已驗證正常)
-      db.prepare("SELECT SUM(total_amount) as total_revenue FROM Bookings WHERE strftime('%Y-%m', booking_date) = strftime('%Y-%m', 'now', 'localtime') AND status != 'cancelled'"),
-
-      // 4. 【關鍵修正】熱門服務排行 - 改用 JOIN 寫法
-      db.prepare(`
-        SELECT
-            bi.item_name,
-            SUM(bi.quantity) as total_quantity
-        FROM
-            BookingItems AS bi
-        JOIN
-            Bookings AS b ON bi.booking_id = b.booking_id
-        WHERE
-            strftime('%Y-%m', b.booking_date) = strftime('%Y-%m', 'now', 'localtime')
-            AND b.status != 'cancelled'
-        GROUP BY
-            bi.item_name
-        ORDER BY
-            total_quantity DESC
-        LIMIT 3
-      `),
-      
-      // 後續的查詢保持不變
-      db.prepare("SELECT SUM(num_of_people) as total_room_nights FROM Bookings WHERE strftime('%Y-%m', booking_date) = strftime('%Y-%m', 'now', 'localtime') AND status != 'cancelled'"),
-      db.prepare("SELECT value FROM AppSettings WHERE key = 'LOGIC_TOTAL_ROOMS'")
-    ];
-
-    const results = await db.batch(statements);
-
-    // --- 數據整理與計算 (此部分完全不變) ---
-    const today_total_guests = results[0].results[0]?.total_people || 0;
-    const pending_bookings = results[1].results[0]?.count || 0;
-    const monthly_revenue = results[2].results[0]?.total_revenue || 0;
-    const top_services = results[3].results || [];
-
-    let monthly_occupancy_rate = 0;
-    let average_daily_rate = 0;
-    const totalRoomNights = results[4].results[0]?.total_room_nights || 0;
-    const totalRoomsSetting = results[5].results[0]?.value;
-    const totalRooms = totalRoomsSetting ? Number(totalRoomsSetting) : 0;
-    
-    if (totalRooms > 0) {
-        const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        monthly_occupancy_rate = (totalRoomNights / (totalRooms * daysInMonth)) * 100;
-        average_daily_rate = monthly_revenue > 0 && totalRoomNights > 0 ? monthly_revenue / totalRoomNights : 0;
-    }
-
-    const stats = {
-      today_total_guests,
-      pending_bookings,
-      monthly_revenue,
-      top_services,
-      monthly_occupancy_rate: monthly_occupancy_rate.toFixed(1),
-      average_daily_rate: average_daily_rate.toFixed(0)
+// 渲染儀表板數據
+const renderStats = (stats) => {
+    // 輔助函式，用於安全地更新 DOM 內容
+    const updateText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
     };
 
-    return new Response(JSON.stringify(stats), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    updateText('stat-today-guests', stats.today_total_guests || 0);
+    updateText('stat-pending-bookings', stats.pending_bookings || 0);
+    
+    // 格式化為貨幣
+    const formattedRevenue = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(stats.monthly_revenue || 0);
+    updateText('stat-monthly-revenue', formattedRevenue);
 
-  } catch (error) {
-    console.error('Error in dashboard-stats API:', error);
-    return new Response(JSON.stringify({ error: '獲取儀表板數據失敗。', details: error.message }), { status: 500 });
-  }
-}
+    // 渲染熱門服務列表
+    const topServicesEl = document.getElementById('stat-top-services');
+    if (topServicesEl) {
+        if (stats.top_services && stats.top_services.length > 0) {
+            topServicesEl.innerHTML = stats.top_services
+                .map(service => `<li>${service.item_name} (${service.total_quantity} 次)</li>`)
+                .join('');
+        } else {
+            topServicesEl.innerHTML = '<li>本月尚無服務紀錄</li>';
+        }
+    }
+};
+
+// 綁定儀表板頁面上的事件監聽器
+const setupEventListeners = () => {
+    // 重設展示資料按鈕的監聽
+    const resetDemoDataBtn = document.getElementById('reset-demo-data-btn');
+    if (resetDemoDataBtn) {
+        if (!resetDemoDataBtn.dataset.listenerAttached) {
+            resetDemoDataBtn.addEventListener('click', async () => {
+                const confirmed = await ui.confirm('【警告】您真的確定要清空所有展示資料嗎？\n\n此操作將會刪除所有預約和消費紀錄，且無法復原！');
+                if (!confirmed) return;
+                
+                try {
+                    resetDemoDataBtn.textContent = '正在清空中...';
+                    resetDemoDataBtn.disabled = true;
+                    await api.resetDemoData();
+                    ui.toast.success('展示資料已成功清空！');
+                    await init(); // 重新載入數據
+                } catch (error) {
+                    ui.toast.error(`錯誤：${error.message}`);
+                } finally {
+                    resetDemoDataBtn.textContent = '清空所有展示資料';
+                    resetDemoDataBtn.disabled = false;
+                }
+            });
+            resetDemoDataBtn.dataset.listenerAttached = 'true';
+        }
+    }
+
+    // 【新】為儀表板卡片新增點擊事件
+    const dashboardGrid = document.getElementById('dashboard-grid');
+    if (dashboardGrid && !dashboardGrid.dataset.listenerAttached) {
+        dashboardGrid.addEventListener('click', (e) => {
+            const card = e.target.closest('.stat-card');
+            if (!card || !card.dataset.target) return;
+
+            const targetPage = card.dataset.target;
+            if (targetPage === 'bookings') {
+                // 模擬點擊導覽列，跳轉到訂位管理頁面
+                window.location.hash = '#bookings';
+            }
+            // 未來可以為其他卡片增加跳轉目標
+        });
+        dashboardGrid.dataset.listenerAttached = 'true';
+    }
+};
+
+// 模組的初始化函式，由 app.js 呼叫
+export const init = async () => {
+    const page = document.getElementById('page-dashboard');
+    if (!page) return;
+
+    const guestsEl = document.getElementById('stat-today-guests');
+    if (guestsEl) {
+        guestsEl.textContent = '讀取中...';
+    }
+
+    try {
+        const stats = await api.getDashboardStats();
+        renderStats(stats);
+        setupEventListeners();
+    } catch (error) {
+        console.error('獲取儀表板數據失敗:', error);
+        if (guestsEl) {
+            guestsEl.textContent = '讀取失敗';
+            guestsEl.style.color = 'var(--color-danger)';
+        }
+    }
+};

@@ -191,7 +191,12 @@ function setupEventListeners() {
     });
 
     tabsContainer.addEventListener('click', (e) => {
-        if (e.target.matches('.settings-tab')) { /* ... 內容不變 ... */ }
+        if (e.target.matches('.settings-tab')) {
+            tabsContainer.querySelector('.active')?.classList.remove('active');
+            document.querySelector('.settings-tab-content.active')?.classList.remove('active');
+            e.target.classList.add('active');
+            document.getElementById(e.target.dataset.target)?.classList.add('active');
+        }
     });
 
     // --- 啟用並整合儲存功能 ---

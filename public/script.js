@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- 核心變數 ---
-    const myLiffId = "2008032417-3yJQGaO6";
+    const myLiffId = "2008032417-3yJQGaO6"; // 請確認這是您的 LIFF ID
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -38,14 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId](data);
             }
-            // 根據 pageId 更新 Tab Bar 的高亮狀態
             const isMainTab = Array.from(document.querySelectorAll('.tab-button')).some(btn => btn.dataset.target === pageId);
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
             });
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
-            renderPage('page-home'); // 安全回退到首頁
+            renderPage('page-home');
         }
     }
 
@@ -58,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.state && event.state.page) {
             renderPage(event.state.page, event.state.data);
         } else {
-            // 處理瀏覽器歷史記錄最開始的狀態
             const initialPageId = window.location.hash.substring(1) || 'home';
             renderPage(`page-${initialPageId}`);
         }
@@ -96,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =================================================================
-    // 【核心升級】設定檔應用函式
+    // 設定檔應用函式
     // =================================================================
     function applyConfiguration() {
       try {
@@ -137,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 setContent('#page-checkout .page-main-title', terms.CHECKOUT_PAGE_TITLE);
                 setContent('#page-profile .page-main-title', "會員中心");
                 setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || `${terms.BOOKING_NAME}服務`);
-                
                 setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
             }
 
@@ -157,16 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             userProfile = await liff.getProfile();
-
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
-
             applyConfiguration(); 
             setupGlobalEventListeners();
-
-            // 根據 URL hash 渲染初始頁面，如果沒有則渲染首頁
             const initialPageId = window.location.hash.substring(1);
             renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
-
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
@@ -218,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
     async function handleCancelBooking(bookingId) {
         const card = document.getElementById(`booking-card-${bookingId}`);
         if (!card) return; // 增加保護，以防找不到元素

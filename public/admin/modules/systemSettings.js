@@ -1,10 +1,12 @@
-// public/admin/modules/systemSettings.js (修正後)
+// public/admin/modules/systemSettings.js (最終功能版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
+let allSettings = []; // 用來存放從 API 獲取的所有原始設定
 let templateDefinitions = {};
 let sortableNav = null;
 
+// (createSettingRow 和 createNavBarModule 函式維持不變)
 function createSettingRow(setting) {
     const row = document.createElement('div');
     row.className = 'setting-row';
@@ -27,36 +29,26 @@ function createNavBarModule(navBarConfig, availablePages) {
     container.className = 'setting-visual-guide';
     container.innerHTML = `
         <h5>底部導覽列設定 (可拖曳排序)</h5>
-        <img src="https://i.imgur.com/g19w3Oa.png" alt="nav-bar-schematic" class="nav-bar-schematic">
+        <img src="/assets/images/nav-bar-schematic.png" alt="nav-bar-schematic" class="nav-bar-schematic">
         <div id="nav-items-container"></div>
     `;
-
     const navItemsContainer = container.querySelector('#nav-items-container');
     const itemTemplate = document.getElementById('nav-item-template');
-
     navBarConfig.forEach(item => {
         const clone = itemTemplate.content.cloneNode(true);
         const row = clone.querySelector('.nav-item-row');
-        
         row.querySelector('[name="nav_label"]').value = item.label;
         row.querySelector('[name="nav_enabled"]').checked = item.enabled;
-        
         const select = row.querySelector('[name="nav_target"]');
         select.innerHTML = '';
         availablePages.forEach(page => {
             select.add(new Option(page.name, page.id));
         });
         select.value = item.target;
-
         navItemsContainer.appendChild(row);
     });
-
     if (sortableNav) sortableNav.destroy();
-    sortableNav = new Sortable(navItemsContainer, {
-        animation: 150,
-        handle: '.drag-handle'
-    });
-
+    sortableNav = new Sortable(navItemsContainer, { animation: 150, handle: '.drag-handle' });
     return container;
 }
 
@@ -66,7 +58,6 @@ function createGlobalSettingsModule(template) {
     const accordionItem = clone.querySelector('.accordion-item');
     accordionItem.querySelector('h4').textContent = '全域設定 (導覽列、功能開關)';
     const content = accordionItem.querySelector('.accordion-content');
-
     content.appendChild(createSettingRow({
         label: '會員系統', hint: '啟用後，顧客才能註冊會員、累積點數。',
         key: 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM', value: template.features.ENABLE_MEMBERSHIP_SYSTEM, type: 'toggle'
@@ -87,39 +78,70 @@ function createGlobalSettingsModule(template) {
         label: '點數/積分名稱', hint: '例如：會員點數、購物金、住宿積分。',
         key: 'TERMS_POINTS_NAME', value: template.terms.POINTS_NAME, type: 'text'
     }));
-    
     if (template.logic.navBar && template.logic.availablePages) {
-        const navBarModule = createNavBarModule(template.logic.navBar, template.logic.availablePages);
-        content.appendChild(navBarModule);
+        content.appendChild(createNavBarModule(template.logic.navBar, template.logic.availablePages));
     }
-    
     accordionItem.querySelector('.accordion-header').addEventListener('click', () => {
         content.classList.toggle('open');
     });
-
     return accordionItem;
 }
 
+/**
+ * 【核心新增】從 UI 收集所有設定值，並重組成一個樣板物件
+ * @returns {object} - 重組後的樣板物件
+ */
+function reconstructTemplateFromUI() {
+    const selectedKey = document.getElementById('template-selector').value;
+    const currentTemplate = JSON.parse(JSON.stringify(templateDefinitions[selectedKey])); // 深拷貝一份以防修改到快取
+
+    const liffSettingsContainer = document.getElementById('liff-app-settings');
+
+    // 1. 讀取「全域設定」中的文字輸入框和開關
+    liffSettingsContainer.querySelectorAll('[data-key]').forEach(input => {
+        const keyParts = input.dataset.key.split('_');
+        const mainKey = keyParts[0].toLowerCase(); // 'features' or 'terms'
+        const subKey = keyParts.slice(1).join('_');
+        
+        if (currentTemplate[mainKey]) {
+            if (input.type === 'checkbox') {
+                currentTemplate[mainKey][subKey] = input.checked;
+            } else {
+                currentTemplate[mainKey][subKey] = input.value;
+            }
+        }
+    });
+
+    // 2. 讀取並重組「導覽列」設定
+    const navBar = [];
+    document.querySelectorAll('#nav-items-container .nav-item-row').forEach(row => {
+        navBar.push({
+            label: row.querySelector('[name="nav_label"]').value,
+            target: row.querySelector('[name="nav_target"]').value,
+            enabled: row.querySelector('[name="nav_enabled"]').checked
+        });
+    });
+    currentTemplate.logic.navBar = navBar;
+
+    return { [selectedKey]: currentTemplate };
+}
+
+
 function renderTemplateSettings(templateKey) {
     const template = templateDefinitions[templateKey];
-    if (!template) {
-        console.error(`找不到樣板: ${templateKey}`);
-        return;
-    }
+    if (!template) return;
     const liffSettingsContainer = document.getElementById('liff-app-settings');
     const adminSettingsContainer = document.getElementById('admin-panel-settings');
     liffSettingsContainer.innerHTML = ''; 
     adminSettingsContainer.innerHTML = ''; 
-    
-    const globalSettingsModule = createGlobalSettingsModule(template);
-    liffSettingsContainer.appendChild(globalSettingsModule);
+    liffSettingsContainer.appendChild(createGlobalSettingsModule(template));
     liffSettingsContainer.querySelector('.accordion-content')?.classList.add('open');
     adminSettingsContainer.innerHTML = `<p>這裡是 "${template.name}" 的後台設定區塊。</p>`;
 }
 
 function setupEventListeners() {
     const page = document.getElementById('page-settings');
-    if (!page || page.dataset.initialized) return;
+    if (page.dataset.initialized) return;
 
     const templateSelector = document.getElementById('template-selector');
     const saveButton = document.getElementById('save-settings-btn');
@@ -138,8 +160,40 @@ function setupEventListeners() {
         }
     });
 
+    // --- 【核心啟用】儲存按鈕功能 ---
     saveButton.addEventListener('click', async () => {
-        ui.toast.info('儲存功能將在後續步驟中實作。');
+        const confirmed = await ui.confirm('您確定要儲存對目前樣板的所有變更嗎？');
+        if (!confirmed) return;
+
+        saveButton.disabled = true;
+        saveButton.textContent = '儲存中...';
+
+        try {
+            // 1. 從 UI 收集當前正在編輯的樣板資料
+            const updatedTemplatePart = reconstructTemplateFromUI();
+            
+            // 2. 將修改後的樣板與其他未修改的樣板合併
+            const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
+
+            // 3. 準備 API 需要的 payload
+            const payload = [{
+                key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
+                value: JSON.stringify(finalDefinitions, null, 2) // 格式化 JSON 以利閱讀
+            }];
+
+            // 4. 呼叫 API 更新設定
+            await api.updateSettings(payload);
+            
+            // 5. 更新快取並提示成功
+            templateDefinitions = finalDefinitions;
+            ui.toast.success('樣板設定已成功儲存！');
+
+        } catch (error) {
+            ui.toast.error(`儲存失敗：${error.message}`);
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = '儲存所有變更';
+        }
     });
 
     page.dataset.initialized = 'true';
@@ -147,8 +201,8 @@ function setupEventListeners() {
 
 export const init = async () => {
     try {
-        // 【核心修正】拿掉多餘的減號，使用正確的 key
-        const definitionsSetting = await api.getSettings().then(s => s.find(i => i.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS'));
+        allSettings = await api.getSettings();
+        const definitionsSetting = allSettings.find(i => i.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
         
         if (definitionsSetting && definitionsSetting.value) {
             templateDefinitions = JSON.parse(definitionsSetting.value);
@@ -167,11 +221,9 @@ export const init = async () => {
             renderTemplateSettings(initialTemplateKey);
         }
         
-        // 確保 setupEventListeners 只在第一次 init 時呼叫
         if (!document.getElementById('page-settings').dataset.initialized) {
             setupEventListeners();
         }
-
     } catch (error) {
         console.error('初始化系統設定頁面失敗:', error);
         document.getElementById('page-settings').innerHTML = `<p style="color:red;">讀取設定失敗: ${error.message}</p>`;

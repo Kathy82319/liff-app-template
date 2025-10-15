@@ -424,6 +424,37 @@
     font-size: 0.8rem;
     border-radius: var(--border-radius);
 }
+
+    .settings-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: var(--color-sidebar-bg);
+        border-radius: var(--border-radius);
+    }
+    .settings-tabs {
+        display: flex;
+        border-bottom: 2px solid var(--color-border);
+        margin-bottom: 1.5rem;
+    }
+    .settings-tab {
+        padding: 0.8rem 1.5rem;
+        cursor: pointer;
+        background: none;
+        border: none;
+        font-size: 1rem;
+        color: var(--color-text-light);
+        border-bottom: 3px solid transparent;
+    }
+    .settings-tab.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+        font-weight: 500;
+    }
+    .settings-tab-content { display: none; }
+    .settings-tab-content.active { display: block; }
 </style>
 
 </head>
@@ -642,53 +673,34 @@
             </div>
 
 <div id="page-settings" class="page">
-                <div class="page-header">
-                    <h2>系統設定</h2>
-                </div>
+    <div class="page-header">
+        <h2>超級系統設定</h2>
+    </div>
 
-                <div id="template-editor-section" style="margin-bottom: 2rem;">
-                    <h4>商業樣板藍圖編輯器</h4>
-                    <div class="form-group">
-                        <label for="template-selector">選擇要編輯的樣板：</label>
-                        <select id="template-selector"></select>
-                    </div>
-                    <div id="fields-editor-container">
-                        </div>
-                    <button type of="button" id="add-field-btn" class="action-btn" style="margin-top: 1rem; background-color: var(--color-info);">⊕ 新增欄位</button>
-                </div>
+    <div class="settings-toolbar">
+        <div class="form-group">
+            <label for="template-selector">請選擇要設定的商業樣板：</label>
+            <select id="template-selector">
+                <option>載入中...</option>
+            </select>
+        </div>
+        <div class="form-actions">
+            <button type="button" id="save-settings-btn" class="action-btn btn-save">儲存所有變更</button>
+        </div>
+    </div>
+    
+    <div class="settings-tabs">
+        <button class="settings-tab active" data-target="liff-app-settings">客戶端 (LIFF App) 設定</button>
+        <button class="settings-tab" data-target="admin-panel-settings">商家後台 (Admin Panel) 設定</button>
+    </div>
 
-                <hr style="border-color: var(--color-border); margin: 2rem 0;">
-
-                <form id="settings-form">
-                    <h4>其他系統參數</h4>
-                    <div id="other-settings-container">
-                        <p>正在載入設定...</p>
-                    </div>
-                    <div class="form-actions" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                        <button type="submit" class="action-btn btn-save">儲存所有變更</button>
-                    </div>
-                </form>
-
-                <template id="field-editor-template">
-                    <div class="field-editor-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr 100px 50px; gap: 10px; padding: 10px; border: 1px solid var(--color-border); border-radius: 5px; margin-bottom: 10px; align-items: center;">
-                        <input type="text" name="key" placeholder="欄位 ID (英文)" required>
-                        <input type="text" name="label" placeholder="顯示名稱 (中文)" required>
-                        <select name="type">
-                            <option value="text">文字</option>
-                            <option value="textarea">多行文字</option>
-                            <option value="number">數字</option>
-                            <option value="boolean">是/否 開關</option>
-                            <option value="image_url">代表圖片</option>
-                        </select>
-                        <div>
-                            <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
-                                <input type="checkbox" name="required" style="width: auto;"> 必填
-                            </label>
-                        </div>
-                        <button type="button" class="btn-remove-field" style="background: var(--color-danger); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">-</button>
-                    </div>
-                </template>
+    <div class="settings-content-area">
+        <div id="liff-app-settings" class="settings-tab-content active">
             </div>
+        <div id="admin-panel-settings" class="settings-tab-content">
+            </div>
+    </div>
+</div>
 
             <div id="page-points" class="page">
                 <div class="page-header"><h2>點數發放中心</h2></div>

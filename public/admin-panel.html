@@ -455,6 +455,54 @@
     }
     .settings-tab-content { display: none; }
     .settings-tab-content.active { display: block; }
+
+    .accordion-item {
+    background: var(--color-sidebar-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+.accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    background: #fdfdff;
+}
+.accordion-header h4 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+.accordion-content {
+    padding: 0 1.5rem 1.5rem;
+    display: none; /* 預設隱藏 */
+    border-top: 1px solid var(--color-border);
+}
+.accordion-content.open {
+    display: block;
+}
+.setting-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+.setting-row:last-child {
+    border-bottom: none;
+}
+.setting-label {
+    font-weight: 500;
+    color: var(--color-text-dark);
+}
+.setting-label small {
+    display: block;
+    font-weight: normal;
+    color: var(--color-text-light);
+}
 </style>
 
 </head>
@@ -1007,6 +1055,16 @@
             </div>
         </div>
     </div>
+
+    <template id="accordion-template">
+        <div class="accordion-item">
+            <div class="accordion-header">
+                <h4></h4>
+                <span>▼</span>
+            </div>
+            <div class="accordion-content"></div>
+        </div>
+    </template>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

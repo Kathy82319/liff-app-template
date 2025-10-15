@@ -104,61 +104,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================
-    function applyConfiguration() {
-      try {
-            if (!CONFIG || !activeTemplate) {
-                console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
-            }
-            const { FEATURES, TERMS } = CONFIG;
-            
-            const homeTab = document.querySelector('.tab-button[data-target="page-home"]');
-            const productTab = document.querySelector('.tab-button[data-target="page-products"]');
-            const checkoutTab = document.querySelector('.tab-button[data-target="page-checkout"]');
-            const profileTab = document.querySelector('.tab-button[data-target="page-profile"]');
-            const bookingTab = document.querySelector('.tab-button[data-target="page-booking"]');
-            const infoTab = document.querySelector('.tab-button[data-target="page-info"]');
-
-            if (productTab) productTab.style.display = FEATURES.ENABLE_SHOPPING_CART ? 'block' : 'none';
-            if (checkoutTab) checkoutTab.style.display = FEATURES.ENABLE_PAYMENT_GATEWAY ? 'block' : 'none';
-            if (profileTab) profileTab.style.display = (FEATURES.ENABLE_MEMBERSHIP_SYSTEM || FEATURES.ENABLE_BOOKING_SYSTEM || FEATURES.ENABLE_RENTAL_SYSTEM) ? 'block' : 'none';
-            if (bookingTab) bookingTab.style.display = FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-
-            document.title = TERMS.BUSINESS_NAME;
-            const businessNameHeader = document.getElementById('business-name-header');
-            if (productTab) {
-                const title = activeTemplate.entityNamePlural || TERMS.PRODUCT_CATALOG_TITLE;
-                productTab.innerHTML = `${title.substring(0,2)}<br>${title.substring(2)}`;
-            }            
-            
-            if (businessNameHeader) businessNameHeader.textContent = TERMS.BUSINESS_NAME;
-
-            if (homeTab) homeTab.innerHTML = `${TERMS.NEWS_PAGE_TITLE.substring(0,2)}<br>${TERMS.NEWS_PAGE_TITLE.substring(2)}`;
-            if (productTab) productTab.innerHTML = `${TERMS.PRODUCT_CATALOG_TITLE.substring(0,2)}<br>${TERMS.PRODUCT_CATALOG_TITLE.substring(2)}`;
-            if (checkoutTab) checkoutTab.innerHTML = `${TERMS.CHECKOUT_PAGE_TITLE.substring(0,2)}<br>${TERMS.CHECKOUT_PAGE_TITLE.substring(2)}`;
-            if (profileTab) profileTab.innerHTML = `${TERMS.MEMBER_PROFILE_TITLE.substring(0,2)}<br>${TERMS.MEMBER_PROFILE_TITLE.substring(2)}`;
-            if (bookingTab) bookingTab.innerHTML = `${TERMS.BOOKING_NAME}<br>服務`;
-
-            if (pageTemplates) {
-                const productPageTitle = pageTemplates.querySelector('#page-products .page-main-title');
-                if (productPageTitle) {
-                    productPageTitle.textContent = activeTemplate.entityNamePlural || TERMS.PRODUCT_CATALOG_TITLE;
-                }
-                const productSearch = pageTemplates.querySelector('#page-products #keyword-search');
-                if (productSearch) {
-                    const placeholderText = activeTemplate.entityName || TERMS.PRODUCT_NAME;
-                    productSearch.setAttribute('placeholder', `搜尋${placeholderText}關鍵字...`);
-                }                
-                pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE; 
-                pageTemplates.querySelector('#page-products .page-main-title').textContent = TERMS.PRODUCT_CATALOG_TITLE;
-                pageTemplates.querySelector('#page-checkout .page-main-title').textContent = TERMS.CHECKOUT_PAGE_TITLE;
-                pageTemplates.querySelector('#page-profile .page-main-title').textContent = TERMS.MEMBER_PROFILE_TITLE;
-                pageTemplates.querySelector('#page-booking .page-main-title').textContent = TERMS.BOOKING_PAGE_TITLE;
-                pageTemplates.querySelector('#page-products #keyword-search').setAttribute('placeholder', `搜尋${TERMS.PRODUCT_NAME}關鍵字...`);
-            }
-        } catch (e) {
-            console.error("套用設定檔時發生錯誤:", e);
+function applyConfiguration() {
+    try {
+        if (!CONFIG || !activeTemplate) {
+            console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！");
+            return;
         }
+
+        const { TERMS } = CONFIG;
+        const navBarConfig = activeTemplate.logic.navBar || [];
+
+        // --- 1. 動態設定底部導覽列 ---
+        const allTabs = document.querySelectorAll('.tab-button');
+        allTabs.forEach(tab => {
+            const targetPage = tab.dataset.target;
+            const config = navBarConfig.find(item => item.target === targetPage);
+
+            if (config && config.enabled) {
+                // 根據設定更新文字 (並加上換行)
+                const label = config.label;
+                tab.innerHTML = `${label.substring(0, 2)}<br>${label.substring(2)}`;
+                // 確保按鈕可見
+                tab.style.display = 'block';
+            } else {
+                // 如果在設定中找不到或被禁用，則隱藏按鈕
+                tab.style.display = 'none';
+            }
+        });
+        
+        // --- 2. 動態設定頁面標題和術語 (這部分邏輯不變，但放在一起更清晰) ---
+        document.title = TERMS.BUSINESS_NAME;
+
+        // 更新各頁面內的標題與文字
+        if (pageTemplates) {
+            const setContent = (selector, content) => {
+                const el = pageTemplates.querySelector(selector);
+                if (el) el.textContent = content;
+            };
+            const setPlaceholder = (selector, content) => {
+                const el = pageTemplates.querySelector(selector);
+                if (el) el.setAttribute('placeholder', content);
+            };
+
+            setContent('#page-home .page-main-title', TERMS.NEWS_PAGE_TITLE);
+            setContent('#page-products .page-main-title', TERMS.PRODUCT_CATALOG_TITLE);
+            setContent('#page-checkout .page-main-title', TERMS.CHECKOUT_PAGE_TITLE);
+            setContent('#page-profile .page-main-title', TERMS.MEMBER_PROFILE_TITLE);
+            setContent('#page-booking .page-main-title', TERMS.BOOKING_PAGE_TITLE || `${TERMS.BOOKING_NAME}服務`);
+            
+            setPlaceholder('#page-products #keyword-search', `搜尋${TERMS.PRODUCT_NAME || '項目'}關鍵字...`);
+        }
+
+    } catch (e) {
+        console.error("套用設定檔時發生錯誤:", e);
     }
+}
 
     // =================================================================
     // 頁面切換邏輯

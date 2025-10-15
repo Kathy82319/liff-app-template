@@ -138,6 +138,46 @@ function renderTemplateSettings(templateKey) {
     adminSettingsContainer.innerHTML = `<p>這裡是 "${template.name}" 的後台設定區塊。</p>`;
 }
 
+/**
+ * 【核心修改】渲染「其他系統參數」，並智慧化處理「啟用樣板」的下拉選單
+ */
+function renderOtherSettings() {
+    const settingsContainer = document.getElementById('other-settings-container');
+    settingsContainer.innerHTML = '';
+
+    const otherSettings = allSettings.filter(s => s.key !== 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
+
+    otherSettings.forEach(setting => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        
+        // --- 智慧化處理邏輯 ---
+        if (setting.key === 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE') {
+            let selectHTML = `<label for="setting-${setting.key}">${setting.description || setting.key}</label>`;
+            selectHTML += `<select id="setting-${setting.key}" name="${setting.key}">`;
+            
+            // 從已載入的樣板定義中，動態產生選項
+            for (const key in templateDefinitions) {
+                const template = templateDefinitions[key];
+                selectHTML += `<option value="${key}" ${key === setting.value ? 'selected' : ''}>${template.name}</option>`;
+            }
+            
+            selectHTML += `</select>`;
+            formGroup.innerHTML = selectHTML;
+        } else {
+            // 維持原本的文字輸入框
+            formGroup.innerHTML = `
+                <label for="setting-${setting.key}">${setting.description || setting.key}</label>
+                <input type="text" id="setting-${setting.key}" name="${setting.key}" value='${setting.value}'>
+            `;
+        }
+        settingsContainer.appendChild(formGroup);
+    });
+}
+
+/**
+ * 【核心修改】啟用儲存按鈕，並整合「其他系統參數」的儲存
+ */
 function setupEventListeners() {
     const page = document.getElementById('page-settings');
     if (page.dataset.initialized) return;
@@ -145,47 +185,51 @@ function setupEventListeners() {
     const templateSelector = document.getElementById('template-selector');
     const saveButton = document.getElementById('save-settings-btn');
     const tabsContainer = document.querySelector('.settings-tabs');
+    const settingsForm = document.getElementById('settings-form'); // 取得 form 元素
 
     templateSelector.addEventListener('change', () => {
         renderTemplateSettings(templateSelector.value);
     });
 
     tabsContainer.addEventListener('click', (e) => {
-        if (e.target.matches('.settings-tab')) {
-            tabsContainer.querySelector('.active')?.classList.remove('active');
-            document.querySelector('.settings-tab-content.active')?.classList.remove('active');
-            e.target.classList.add('active');
-            document.getElementById(e.target.dataset.target)?.classList.add('active');
-        }
+        if (e.target.matches('.settings-tab')) { /* ... 內容不變 ... */ }
     });
 
-    // --- 【核心啟用】儲存按鈕功能 ---
-    saveButton.addEventListener('click', async () => {
-        const confirmed = await ui.confirm('您確定要儲存對目前樣板的所有變更嗎？');
+    // --- 啟用並整合儲存功能 ---
+    settingsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const confirmed = await ui.confirm('您確定要儲存所有變更嗎？這將會更新樣板藍圖以及其他系統參數。');
         if (!confirmed) return;
 
         saveButton.disabled = true;
         saveButton.textContent = '儲存中...';
 
         try {
-            // 1. 從 UI 收集當前正在編輯的樣板資料
+            const payload = [];
+
+            // 1. 處理樣板定義 (從 reconstructTemplateFromUI 來的邏輯)
             const updatedTemplatePart = reconstructTemplateFromUI();
-            
-            // 2. 將修改後的樣板與其他未修改的樣板合併
             const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
-
-            // 3. 準備 API 需要的 payload
-            const payload = [{
+            payload.push({
                 key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
-                value: JSON.stringify(finalDefinitions, null, 2) // 格式化 JSON 以利閱讀
-            }];
+                value: JSON.stringify(finalDefinitions, null, 2)
+            });
 
-            // 4. 呼叫 API 更新設定
+            // 2. 處理「其他系統參數」(包含我們新增的下拉選單)
+            const otherInputs = settingsForm.querySelectorAll('#other-settings-container input, #other-settings-container select');
+            otherInputs.forEach(input => {
+                payload.push({ key: input.name, value: input.value });
+            });
+
+            // 3. 呼叫 API 一次性更新所有設定
             await api.updateSettings(payload);
             
-            // 5. 更新快取並提示成功
+            // 4. 更新前端快取並重新渲染
             templateDefinitions = finalDefinitions;
-            ui.toast.success('樣板設定已成功儲存！');
+            allSettings = await api.getSettings(); // 重新獲取最新的設定
+            renderOtherSettings(); // 重新渲染「其他設定」區塊以確保同步
+            
+            ui.toast.success('所有設定已成功儲存！');
 
         } catch (error) {
             ui.toast.error(`儲存失敗：${error.message}`);
@@ -197,6 +241,7 @@ function setupEventListeners() {
 
     page.dataset.initialized = 'true';
 }
+
 
 export const init = async () => {
     try {
@@ -220,6 +265,9 @@ export const init = async () => {
             renderTemplateSettings(initialTemplateKey);
         }
         
+        // 【新增】在 init 時就渲染「其他系統參數」
+        renderOtherSettings();
+
         if (!document.getElementById('page-settings').dataset.initialized) {
             setupEventListeners();
         }

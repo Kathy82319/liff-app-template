@@ -78,16 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/get-app-config');
             if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
             const configData = await response.json();
-            if(!configData || !configData.FEATURES){
+            if(!configData || !configData.LOGIC){
                  throw new Error('獲取到的設定檔格式不正確。');
             }
             
-            window.CONFIG = configData;
             CONFIG = configData;
 
-            // 【新增】在啟動時就決定要用哪個樣板
+            // 根據後台設定，決定要用哪個樣板
             const activeTemplateKey = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
             activeTemplate = CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+            
             if (!activeTemplate) {
                 throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
             }
@@ -97,68 +97,62 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("初始化失敗:", error);
             appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常後，再試一次。</p>
+                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常，且已在「系統設定」中儲存並啟用一個樣板。</p>
             </div>`;
         }
     }
     // =================================================================
     // 設定檔應用函式 (Template Engine)
     // =================================================================
-function applyConfiguration() {
-    try {
-        if (!CONFIG || !activeTemplate) {
-            console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！");
-            return;
-        }
-
-        const { TERMS } = CONFIG;
-        const navBarConfig = activeTemplate.logic.navBar || [];
-
-        // --- 1. 動態設定底部導覽列 ---
-        const allTabs = document.querySelectorAll('.tab-button');
-        allTabs.forEach(tab => {
-            const targetPage = tab.dataset.target;
-            const config = navBarConfig.find(item => item.target === targetPage);
-
-            if (config && config.enabled) {
-                // 根據設定更新文字 (並加上換行)
-                const label = config.label;
-                tab.innerHTML = `${label.substring(0, 2)}<br>${label.substring(2)}`;
-                // 確保按鈕可見
-                tab.style.display = 'block';
-            } else {
-                // 如果在設定中找不到或被禁用，則隱藏按鈕
-                tab.style.display = 'none';
+    function applyConfiguration() {
+      try {
+            if (!CONFIG || !activeTemplate) {
+                console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
             }
-        });
-        
-        // --- 2. 動態設定頁面標題和術語 (這部分邏輯不變，但放在一起更清晰) ---
-        document.title = TERMS.BUSINESS_NAME;
 
-        // 更新各頁面內的標題與文字
-        if (pageTemplates) {
-            const setContent = (selector, content) => {
-                const el = pageTemplates.querySelector(selector);
-                if (el) el.textContent = content;
-            };
-            const setPlaceholder = (selector, content) => {
-                const el = pageTemplates.querySelector(selector);
-                if (el) el.setAttribute('placeholder', content);
-            };
+            const { TERMS } = activeTemplate;
+            const navBarConfig = activeTemplate.logic.navBar || [];
 
-            setContent('#page-home .page-main-title', TERMS.NEWS_PAGE_TITLE);
-            setContent('#page-products .page-main-title', TERMS.PRODUCT_CATALOG_TITLE);
-            setContent('#page-checkout .page-main-title', TERMS.CHECKOUT_PAGE_TITLE);
-            setContent('#page-profile .page-main-title', TERMS.MEMBER_PROFILE_TITLE);
-            setContent('#page-booking .page-main-title', TERMS.BOOKING_PAGE_TITLE || `${TERMS.BOOKING_NAME}服務`);
+            // --- 1. 動態設定底部導覽列 ---
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                const targetPage = tab.dataset.target;
+                const config = navBarConfig.find(item => item.target === targetPage);
+
+                if (config && config.enabled) {
+                    const label = config.label;
+                    tab.innerHTML = `${label.substring(0, 2)}<br>${label.substring(2)}`;
+                    tab.style.display = 'flex'; // 使用 flex 以確保對齊
+                } else {
+                    tab.style.display = 'none';
+                }
+            });
             
-            setPlaceholder('#page-products #keyword-search', `搜尋${TERMS.PRODUCT_NAME || '項目'}關鍵字...`);
-        }
+            // --- 2. 動態設定頁面標題和術語 ---
+            document.title = TERMS.BUSINESS_NAME;
 
-    } catch (e) {
-        console.error("套用設定檔時發生錯誤:", e);
+            if (pageTemplates) {
+                const setContent = (selector, content) => {
+                    const el = pageTemplates.querySelector(selector);
+                    if (el) el.textContent = content;
+                };
+                const setPlaceholder = (selector, content) => {
+                    const el = pageTemplates.querySelector(selector);
+                    if (el) el.setAttribute('placeholder', content);
+                };
+
+                setContent('#page-home .page-main-title', TERMS.NEWS_PAGE_TITLE);
+                setContent('#page-products .page-main-title', TERMS.PRODUCT_CATALOG_TITLE);
+                setContent('#page-checkout .page-main-title', TERMS.CHECKOUT_PAGE_TITLE);
+                setContent('#page-profile .page-main-title', "會員中心"); // 會員中心通常固定
+                setContent('#page-booking .page-main-title', TERMS.BOOKING_PAGE_TITLE || `${TERMS.BOOKING_NAME}服務`);
+                
+                setPlaceholder('#page-products #keyword-search', `搜尋${TERMS.PRODUCT_NAME || '項目'}關鍵字...`);
+            }
+
+        } catch (e) {
+            console.error("套用設定檔時發生錯誤:", e);
+        }
     }
-}
 
     // =================================================================
     // 頁面切換邏輯
@@ -204,84 +198,111 @@ function applyConfiguration() {
         }
     });    
 
+// =================================================================
+    // LIFF 初始化 & 全域事件 (整合修正版)
     // =================================================================
-    // 全域事件監聽 (請確保這也是最新版本)
-    // =================================================================
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: myLiffId });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return; // login() 會重新導向頁面，後續代碼不會執行
+            }
+            userProfile = await liff.getProfile();
+
+            // 設置 App 啟動時的初始歷史狀態
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+
+            // 應用後台設定來產生 UI
+            applyConfiguration(); 
+            // 綁定所有互動事件
+            setupGlobalEventListeners();
+
+            // 渲染初始頁面
+            renderPage('page-home');
+
+        } catch (err) {
+            console.error("LIFF 初始化失敗", err);
+            // 即使 LIFF 失敗，也嘗試渲染頁面 (便於桌面端測試)
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+            applyConfiguration();
+            setupGlobalEventListeners();
+            renderPage('page-home');
+        }
+    }
+
     function setupGlobalEventListeners() {
+        // 監聽主要內容區域的點擊事件 (事件委派)
         appContent.addEventListener('click', (event) => {
             const target = event.target;
 
-            // 返回按鈕：現在只呼叫 history.back()，剩下的交給 popstate 監聽器處理
+            // 1. 返回按鈕
             if (target.closest('.details-back-button')) {
                 history.back();
                 return;
             }
 
-            // 產品卡片點擊
+            // 2. 產品/服務卡片點擊
             const productCard = target.closest('.product-card');
             if (productCard && productCard.dataset.productId) {
-                const productId = productCard.dataset.productId;
-                const productItem = allProducts.find(p => p.product_id == productId);
-                if (productItem) {
-                    showPage('page-product-details', { product: productItem });
-                }
+                const product = allProducts.find(p => p.product_id == productCard.dataset.productId);
+                if (product) showPage('page-product-details', { product });
                 return;
             }
             
-            // 情報卡片點擊
+            // 3. 情報卡片點擊
             const newsCard = target.closest('.news-card');
             if (newsCard && newsCard.dataset.newsId) {
-                const newsId = parseInt(newsCard.dataset.newsId, 10);
-                const newsItem = allNews.find(n => n.id === newsId);
-                if (newsItem) {
-                    showPage('page-news-details', { news: newsItem });
-                }
+                const news = allNews.find(n => n.id == newsCard.dataset.newsId);
+                if (news) showPage('page-news-details', { news });
                 return;
             }
 
-            // 其他按鈕點擊
-            const targetId = target.id;
-            if (targetId === 'my-bookings-btn') showPage('page-my-bookings');
-            else if (targetId === 'my-exp-history-btn') showPage('page-my-exp-history');
-            else if (targetId === 'edit-profile-btn') showPage('page-edit-profile');
-            else if (targetId === 'toggle-past-bookings-btn') togglePastView('bookings', 'past-bookings-container', target);
-            else if (target.id === 'experience-backend-btn') {if (!userProfile || !userProfile.userId) {alert('無法獲取您的 LINE 資料，請稍後再試。');
-            return;
+            // 4. 會員中心內的按鈕點擊
+            const pageButton = target.closest('[data-page]');
+             if(pageButton) {
+                showPage(pageButton.dataset.page);
+                return;
             }
-    target.disabled = true;
-    target.textContent = '正在產生連結...';
+            
+            // 5. 其他獨立按鈕 (例如：體驗後台、切換過往紀錄)
+            if (target.id === 'toggle-past-bookings-btn') {
+                togglePastView('bookings', 'past-bookings-container', target);
+                return;
+            }
+            
+            if (target.id === 'experience-backend-btn') {
+                if (!userProfile || !userProfile.userId) {
+                    alert('無法獲取您的 LINE 資料，請稍後再試。');
+                    return;
+                }
+                target.disabled = true;
+                target.textContent = '正在產生連結...';
+                fetch('/api/generate-admin-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userProfile.userId })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || '產生連結失敗') });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.link) { // 後端回傳的 key 應為 link
+                        liff.openWindow({ url: data.link, external: true });
+                    }
+                })
+                .catch(error => alert(error.message))
+                .finally(() => {
+                    target.disabled = false;
+                    target.textContent = '一鍵體驗後台 (Magic Link)';
+                });
+                return;
+            }
 
-    fetch('/api/generate-admin-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userProfile.userId })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.error || '產生連結失敗') });
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.magicLink) {
-            // 使用 LIFF 的 API 在外部瀏覽器開啟，體驗最好
-            liff.openWindow({
-                url: data.magicLink,
-                external: true
-            });
-        }
-    })
-    .catch(error => {
-        alert(error.message);
-    })
-    .finally(() => {
-        target.disabled = false;
-        target.textContent = '一鍵體驗後台 (Magic Link)';
-    });
-}
-
-
-            // 取消預約按鈕
+            // 6. 取消預約按鈕
             if (target.matches('.cancel-booking-btn')) {
                 const bookingId = target.dataset.bookingId;
                 if (!bookingId) return;
@@ -290,37 +311,50 @@ function applyConfiguration() {
                 }
             }
         });
-    }
 
-async function handleCancelBooking(bookingId) {
-    const card = document.getElementById(`booking-card-${bookingId}`);
-    const button = card.querySelector('.cancel-booking-btn');
-
-    try {
-        button.disabled = true;
-        button.textContent = '處理中...';
-
-        const response = await fetch('/api/cancel-booking', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookingId: Number(bookingId), userId: userProfile.userId })
+        // 【核心升級】監聽整個底部導覽列的點擊
+        document.getElementById('tab-bar').addEventListener('click', (event) => {
+            const button = event.target.closest('.tab-button');
+            // 檢查按鈕是否存在、是否可見、以及是否有目標頁面
+            if (button && button.style.display !== 'none' && button.dataset.target) {
+                showPage(button.dataset.target);
+            }
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || '取消失敗，請稍後再試');
-        }
-
-        alert('預約已成功取消！');
-        // 重新載入預約列表
-        initializeMyBookingsPage();
-
-    } catch (error) {
-        alert(error.message);
-        button.disabled = false;
-        button.textContent = '取消預約';
     }
-}
+
+    async function handleCancelBooking(bookingId) {
+        const card = document.getElementById(`booking-card-${bookingId}`);
+        if (!card) return; // 增加保護，以防找不到元素
+        const button = card.querySelector('.cancel-booking-btn');
+
+        try {
+            button.disabled = true;
+            button.textContent = '處理中...';
+
+            const response = await fetch('/api/cancel-booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: Number(bookingId), userId: userProfile.userId })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || '取消失敗，請稍後再試');
+            }
+
+            alert('預約已成功取消！');
+            // 重新載入預約列表以更新狀態
+            initializeMyBookingsPage();
+
+        } catch (error) {
+            alert(error.message);
+            // 只有在按鈕還存在時才恢復它
+            if (button) {
+                button.disabled = false;
+                button.textContent = '取消預約';
+            }
+        }
+    }
     // =================================================================
     // 輔助函式
     // =================================================================
@@ -392,19 +426,16 @@ function renderBookings(bookings, container, isPast = false) {
             }
             userProfile = await liff.getProfile();
 
-            // 【最終修正】設定 App 啟動時的初始歷史狀態
-            // replaceState 不會觸發 popstate，它只是替換當前的歷史紀錄點
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
 
             applyConfiguration(); 
             setupGlobalEventListeners();
 
-            // 第一次載入時，直接使用渲染核心，不建立新的歷史紀錄
             renderPage('page-home');
 
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            // 即使 LIFF 失敗，也要嘗試渲染頁面
+            // 即使 LIFF 失敗，也要嘗試渲染頁面 (用於桌面端測試)
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
             applyConfiguration();
             setupGlobalEventListeners();

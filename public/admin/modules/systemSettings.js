@@ -185,7 +185,6 @@ function setupEventListeners() {
     const templateSelector = document.getElementById('template-selector');
     const saveButton = document.getElementById('save-settings-btn');
     const tabsContainer = document.querySelector('.settings-tabs');
-    const settingsForm = document.getElementById('settings-form'); // 取得 form 元素
 
     templateSelector.addEventListener('change', () => {
         renderTemplateSettings(templateSelector.value);
@@ -209,6 +208,8 @@ function setupEventListeners() {
 
             // 1. 處理樣板定義 (從 reconstructTemplateFromUI 來的邏輯)
             const updatedTemplatePart = reconstructTemplateFromUI();
+            
+            // 2. 將修改後的樣板與其他未修改的樣板合併
             const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
             payload.push({
                 key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',

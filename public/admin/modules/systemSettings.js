@@ -192,6 +192,12 @@ function setupEventListeners() {
                 key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
                 value: JSON.stringify(finalDefinitions, null, 2)
             });
+            const selectedTemplateKey = document.getElementById('template-selector').value;
+            payload.push({
+                key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE',
+                value: selectedTemplateKey
+            });
+            
             const otherInputs = settingsForm.querySelectorAll('#other-settings-container input, #other-settings-container select');
             otherInputs.forEach(input => {
                 payload.push({ key: input.name, value: input.value });

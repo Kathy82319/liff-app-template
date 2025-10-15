@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (config && config.enabled) {
                     const label = config.label;
-                    tab.innerHTML = `${label.substring(0, 2)}<br>${label.substring(2)}`;
+                    tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
                     tab.style.display = 'flex';
                 } else {
                     tab.style.display = 'none';

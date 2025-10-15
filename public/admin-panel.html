@@ -734,29 +734,40 @@
         <h2>超級系統設定</h2>
     </div>
 
-    <div class="settings-toolbar">
-        <div class="form-group">
-            <label for="template-selector">請選擇要設定的商業樣板：</label>
-            <select id="template-selector">
-                <option>載入中...</option>
-            </select>
+    <form id="settings-form">
+        <div class="settings-toolbar">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="template-selector" style="margin-bottom: 5px;">請選擇要編輯的商業樣板：</label>
+                <select id="template-selector">
+                    <option>載入中...</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" id="save-settings-btn" class="action-btn btn-save">儲存所有變更</button>
+            </div>
         </div>
-        <div class="form-actions">
-            <button type="button" id="save-settings-btn" class="action-btn btn-save">儲存所有變更</button>
-        </div>
-    </div>
-    
-    <div class="settings-tabs">
-        <button class="settings-tab active" data-target="liff-app-settings">客戶端 (LIFF App) 設定</button>
-        <button class="settings-tab" data-target="admin-panel-settings">商家後台 (Admin Panel) 設定</button>
-    </div>
 
-    <div class="settings-content-area">
-        <div id="liff-app-settings" class="settings-tab-content active">
+        <div class="settings-tabs">
+            <button type="button" class="settings-tab active" data-target="liff-app-settings">客戶端 (LIFF App) 設定</button>
+            <button type="button" class="settings-tab" data-target="admin-panel-settings">商家後台 (Admin Panel) 設定</button>
+        </div>
+
+        <div class="settings-content-area">
+            <div id="liff-app-settings" class="settings-tab-content active">
+                </div>
+            <div id="admin-panel-settings" class="settings-tab-content">
+                </div>
+        </div>
+        
+        <hr style="border-color: var(--color-border); margin: 2rem 0;">
+
+        <div id="other-settings-section">
+             <h4>其他系統參數</h4>
+            <div id="other-settings-container">
+                <p>正在載入設定...</p>
             </div>
-        <div id="admin-panel-settings" class="settings-tab-content">
-            </div>
-    </div>
+        </div>
+    </form>
 </div>
 
             <div id="page-points" class="page">

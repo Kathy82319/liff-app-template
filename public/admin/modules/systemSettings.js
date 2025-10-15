@@ -29,7 +29,6 @@ function createNavBarModule(navBarConfig, availablePages) {
     container.className = 'setting-visual-guide';
     container.innerHTML = `
         <h5>底部導覽列設定 (可拖曳排序)</h5>
-        <img src="/assets/images/nav-bar-schematic.png" alt="nav-bar-schematic" class="nav-bar-schematic">
         <div id="nav-items-container"></div>
     `;
     const navItemsContainer = container.querySelector('#nav-items-container');

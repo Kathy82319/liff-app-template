@@ -1,4 +1,4 @@
-// functions/api/admin/update-settings.js
+// functions/api/admin/update-settings.js (修正後)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -11,9 +11,9 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ error: '無效的資料格式，預期應為一個陣列。' }), { status: 400 });
     }
 
-    // --- 【安全強化：輸入驗證】 ---
     const MAX_KEY_LENGTH = 100;
-    const MAX_VALUE_LENGTH = 5000; // 給 JSON 格式較大的空間
+    // 【核心修正】將最大長度限制從 5000 提升到 20000
+    const MAX_VALUE_LENGTH = 20000; 
 
     for (const setting of settings) {
         if (typeof setting.key !== 'string' || typeof setting.value === 'undefined') {
@@ -22,18 +22,24 @@ export async function onRequest(context) {
         if (setting.key.length === 0 || setting.key.length > MAX_KEY_LENGTH) {
             return new Response(JSON.stringify({ error: `設定的鍵(key)長度無效: ${setting.key}` }), { status: 400 });
         }
-        const valueStr = String(setting.value);
+        
+        // 確保 value 在轉換為字串後進行長度檢查
+        const valueStr = (typeof setting.value === 'object' && setting.value !== null) 
+            ? JSON.stringify(setting.value) 
+            : String(setting.value);
+
         if (valueStr.length > MAX_VALUE_LENGTH) {
             return new Response(JSON.stringify({ error: `設定的值(value)過長 (key: ${setting.key})` }), { status: 400 });
         }
     }
-    // --- 【驗證結束】 ---
 
     const db = context.env.DB;
     const stmt = db.prepare('UPDATE AppSettings SET value = ? WHERE key = ?');
 
     const operations = settings.map(setting => {
-        const valueToStore = typeof setting.value === 'boolean' ? String(setting.value) : (typeof setting.value === 'object' ? JSON.stringify(setting.value) : setting.value);
+        const valueToStore = (typeof setting.value === 'object' && setting.value !== null) 
+            ? JSON.stringify(setting.value) 
+            : String(setting.value);
         return stmt.bind(valueToStore, setting.key);
     });
 

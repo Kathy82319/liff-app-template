@@ -503,6 +503,25 @@
     font-weight: normal;
     color: var(--color-text-light);
 }
+.setting-visual-guide {
+    margin: 1.5rem 0;
+}
+.setting-visual-guide h5 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-light);
+    font-weight: normal;
+}
+.nav-bar-schematic {
+    width: 100%;
+    max-width: 400px;
+    display: block;
+    margin: 0 auto 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8f9fa;
+}
 </style>
 
 </head>
@@ -1065,6 +1084,20 @@
             <div class="accordion-content"></div>
         </div>
     </template>
+
+<template id="nav-item-template">
+    <div class="nav-item-row" style="display: grid; grid-template-columns: 30px 1fr 1fr 50px; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--color-border); border-radius: 5px; margin-bottom: 8px; background: #fff;">
+        <span class="drag-handle" style="cursor: move; font-size: 1.5rem; color: #999;">⠿</span>
+        <input type="text" name="nav_label" placeholder="按鈕文字">
+        <select name="nav_target"></select>
+        <div style="text-align: center;">
+            <label class="switch">
+                <input type="checkbox" name="nav_enabled" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+</template>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

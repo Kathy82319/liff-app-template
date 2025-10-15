@@ -1219,16 +1219,7 @@ async function handleBookingConfirmation(event) {
     // =================================================================
     // Tab Bar 主導航
     // =================================================================
-    if (tabBar) {
-        tabBar.addEventListener('click', (event) => {
-            const button = event.target.closest('.tab-button');
-            if (button && button.dataset.target) {
-                // 【修正】統一呼叫 showPage 函式來切換頁面
-                // 這樣能確保 pageHistory 堆疊被正確重置
-                showPage(button.dataset.target);
-            }
-        });
-    }
+
     // --- 啟動點 ---
     main();
 });

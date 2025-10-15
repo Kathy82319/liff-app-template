@@ -1,4 +1,4 @@
-// public/admin/modules/systemSettings.js (功能整合最終版)
+// public/admin/modules/systemSettings.js (最終修正版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -123,6 +123,33 @@ function renderTemplateSettings(templateKey) {
     adminSettingsContainer.innerHTML = `<p>這裡是 "${template.name}" 的後台設定區塊。</p>`;
 }
 
+function renderOtherSettings() {
+    const settingsContainer = document.getElementById('other-settings-container');
+    // 【防呆修正】如果找不到容器，直接返回，避免錯誤
+    if (!settingsContainer) return;
+    settingsContainer.innerHTML = '';
+    const otherSettings = allSettings.filter(s => s.key !== 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
+    otherSettings.forEach(setting => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        if (setting.key === 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE') {
+            let selectHTML = `<label for="setting-${setting.key}">${setting.description || setting.key}</label>`;
+            selectHTML += `<select id="setting-${setting.key}" name="${setting.key}">`;
+            for (const key in templateDefinitions) {
+                const template = templateDefinitions[key];
+                selectHTML += `<option value="${key}" ${key === setting.value ? 'selected' : ''}>${template.name}</option>`;
+            }
+            selectHTML += `</select>`;
+            formGroup.innerHTML = selectHTML;
+        } else {
+            formGroup.innerHTML = `
+                <label for="setting-${setting.key}">${setting.description || setting.key}</label>
+                <input type="text" id="setting-${setting.key}" name="${setting.key}" value='${setting.value}'>
+            `;
+        }
+        settingsContainer.appendChild(formGroup);
+    });
+}
 
 function setupEventListeners() {
     const page = document.getElementById('page-settings');
@@ -130,7 +157,10 @@ function setupEventListeners() {
 
     const templateSelector = document.getElementById('template-selector');
     const tabsContainer = document.querySelector('.settings-tabs');
+    // 【關鍵修正】在這裡正確宣告 settingsForm
     const settingsForm = document.getElementById('settings-form'); 
+    // 【防呆修正】如果找不到 form，就直接結束函式，避免後續錯誤
+    if (!settingsForm) return;
 
     templateSelector.addEventListener('change', () => {
         renderTemplateSettings(templateSelector.value);
@@ -148,7 +178,7 @@ function setupEventListeners() {
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const saveButton = document.getElementById('save-settings-btn');
-        const confirmed = await ui.confirm('您確定要儲存變更，並啟用當前選擇的樣板嗎？');
+        const confirmed = await ui.confirm('您確定要儲存所有變更嗎？這將會更新樣板藍圖以及其他系統參數。');
         if (!confirmed) return;
 
         saveButton.disabled = true;
@@ -156,35 +186,26 @@ function setupEventListeners() {
 
         try {
             const payload = [];
-
-            // 1. 處理樣板定義 (合併修改)
             const updatedTemplatePart = reconstructTemplateFromUI();
             const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
             payload.push({
                 key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
                 value: JSON.stringify(finalDefinitions, null, 2)
             });
-
-            // 2. 【核心修改】處理要啟用的樣板
-            const newActiveKey = templateSelector.value;
-            payload.push({
-                key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE',
-                value: newActiveKey
+            const otherInputs = settingsForm.querySelectorAll('#other-settings-container input, #other-settings-container select');
+            otherInputs.forEach(input => {
+                payload.push({ key: input.name, value: input.value });
             });
-
-            // 3. 呼叫 API 一次性更新所有設定
             await api.updateSettings(payload);
-            
-            // 4. 更新前端快取
             templateDefinitions = finalDefinitions;
-            
-            ui.toast.success(`樣板設定已儲存，並已啟用 "${templateDefinitions[newActiveKey].name}"！`);
-
+            allSettings = await api.getSettings();
+            renderOtherSettings();
+            ui.toast.success('所有設定已成功儲存！');
         } catch (error) {
             ui.toast.error(`儲存失敗：${error.message}`);
         } finally {
             saveButton.disabled = false;
-            saveButton.textContent = '儲存並啟用';
+            saveButton.textContent = '儲存所有變更';
         }
     });
 
@@ -202,24 +223,20 @@ export const init = async () => {
         } else {
              throw new Error("在資料庫中找不到 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS' 設定。");
         }
-
-        const activeTemplateSetting = allSettings.find(s => s.key === 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE');
-        const activeKey = activeTemplateSetting ? activeTemplateSetting.value : null;
         
         const templateSelector = document.getElementById('template-selector');
         templateSelector.innerHTML = '';
         for (const key in templateDefinitions) {
-            const option = new Option(templateDefinitions[key].name, key);
-            // 將目前系統啟用的樣板設定為下拉選單的預設選項
-            if (key === activeKey) {
-                option.selected = true;
-            }
-            templateSelector.add(option);
+            templateSelector.add(new Option(templateDefinitions[key].name, key));
         }
         
-        // 渲染預設選中的樣板
-        renderTemplateSettings(templateSelector.value);
+        const initialTemplateKey = templateSelector.value;
+        if (initialTemplateKey) {
+            renderTemplateSettings(initialTemplateKey);
+        }
         
+        renderOtherSettings();
+
         if (!document.getElementById('page-settings').dataset.initialized) {
             setupEventListeners();
         }

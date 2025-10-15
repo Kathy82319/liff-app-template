@@ -1,11 +1,10 @@
-// public/admin/modules/systemSettings.js (修改後)
+// public/admin/modules/systemSettings.js (修正後)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
-let templateDefinitions = {}; 
+let templateDefinitions = {};
 let sortableNav = null;
 
-// (createSettingRow 函式維持不變)
 function createSettingRow(setting) {
     const row = document.createElement('div');
     row.className = 'setting-row';
@@ -23,12 +22,6 @@ function createSettingRow(setting) {
     return row;
 }
 
-/**
- * 建立「底部導覽列」的設定 UI
- * @param {object} navBarConfig - 樣板中的 navBar 設定陣列
- * @param {object[]} availablePages - 可用的頁面清單
- * @returns {HTMLElement}
- */
 function createNavBarModule(navBarConfig, availablePages) {
     const container = document.createElement('div');
     container.className = 'setting-visual-guide';
@@ -58,7 +51,6 @@ function createNavBarModule(navBarConfig, availablePages) {
         navItemsContainer.appendChild(row);
     });
 
-    // 初始化拖曳排序
     if (sortableNav) sortableNav.destroy();
     sortableNav = new Sortable(navItemsContainer, {
         animation: 150,
@@ -68,8 +60,6 @@ function createNavBarModule(navBarConfig, availablePages) {
     return container;
 }
 
-
-// (createGlobalSettingsModule 函式修改，加入導覽列模組)
 function createGlobalSettingsModule(template) {
     const accordionTemplate = document.getElementById('accordion-template');
     const clone = accordionTemplate.content.cloneNode(true);
@@ -77,7 +67,6 @@ function createGlobalSettingsModule(template) {
     accordionItem.querySelector('h4').textContent = '全域設定 (導覽列、功能開關)';
     const content = accordionItem.querySelector('.accordion-content');
 
-    // --- 動態生成設定列 ---
     content.appendChild(createSettingRow({
         label: '會員系統', hint: '啟用後，顧客才能註冊會員、累積點數。',
         key: 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM', value: template.features.ENABLE_MEMBERSHIP_SYSTEM, type: 'toggle'
@@ -99,7 +88,6 @@ function createGlobalSettingsModule(template) {
         key: 'TERMS_POINTS_NAME', value: template.terms.POINTS_NAME, type: 'text'
     }));
     
-    // --- 【核心新增】在這裡插入導覽列設定模組 ---
     if (template.logic.navBar && template.logic.availablePages) {
         const navBarModule = createNavBarModule(template.logic.navBar, template.logic.availablePages);
         content.appendChild(navBarModule);
@@ -112,7 +100,6 @@ function createGlobalSettingsModule(template) {
     return accordionItem;
 }
 
-// (renderTemplateSettings, setupEventListeners, init 函式維持不變)
 function renderTemplateSettings(templateKey) {
     const template = templateDefinitions[templateKey];
     if (!template) {
@@ -160,8 +147,9 @@ function setupEventListeners() {
 
 export const init = async () => {
     try {
-        // 【重要】我們現在需要從完整的 JSON 中解析出樣板定義
-        const definitionsSetting = await api.getSettings().then(s => s.find(i => i.key === 'LOG-IC_INDUSTRY_TEMPLATE_DEFINITIONS'));
+        // 【核心修正】拿掉多餘的減號，使用正確的 key
+        const definitionsSetting = await api.getSettings().then(s => s.find(i => i.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS'));
+        
         if (definitionsSetting && definitionsSetting.value) {
             templateDefinitions = JSON.parse(definitionsSetting.value);
         } else {
@@ -179,7 +167,10 @@ export const init = async () => {
             renderTemplateSettings(initialTemplateKey);
         }
         
-        setupEventListeners();
+        // 確保 setupEventListeners 只在第一次 init 時呼叫
+        if (!document.getElementById('page-settings').dataset.initialized) {
+            setupEventListeners();
+        }
 
     } catch (error) {
         console.error('初始化系統設定頁面失敗:', error);

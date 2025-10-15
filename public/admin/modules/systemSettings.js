@@ -128,7 +128,7 @@ function renderOtherSettings() {
     // 【防呆修正】如果找不到容器，直接返回，避免錯誤
     if (!settingsContainer) return;
     settingsContainer.innerHTML = '';
-    const otherSettings = allSettings.filter(s => s.key !== 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
+    const otherSettings = allSettings.filter(s => s.key !== 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS' && s.key !== 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE');
     otherSettings.forEach(setting => {
         const formGroup = document.createElement('div');
         formGroup.className = 'form-group';
@@ -183,25 +183,30 @@ function setupEventListeners() {
 
         saveButton.disabled = true;
         saveButton.textContent = '儲存中...';
+    try {
+        const payload = [];
+        const updatedTemplatePart = reconstructTemplateFromUI();
+        const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
+        payload.push({
+            key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
+            value: JSON.stringify(finalDefinitions, null, 2)
+        });
 
-        try {
-            const payload = [];
-            const updatedTemplatePart = reconstructTemplateFromUI();
-            const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
-            payload.push({
-                key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
-                value: JSON.stringify(finalDefinitions, null, 2)
-            });
-            const selectedTemplateKey = document.getElementById('template-selector').value;
-            payload.push({
-                key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE',
-                value: selectedTemplateKey
-            });
-            
-            const otherInputs = settingsForm.querySelectorAll('#other-settings-container input, #other-settings-container select');
-            otherInputs.forEach(input => {
-                payload.push({ key: input.name, value: input.value });
-            });
+        // 【=========== 請確保已加入此區塊 ===========】
+        // 直接從頂部選擇器讀取要啟用的樣板 Key
+        const selectedTemplateKey = document.getElementById('template-selector').value;
+        payload.push({
+            key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE',
+            value: selectedTemplateKey
+        });
+        // 【=========== 新增/確認區塊結束 ===========】
+
+        // 讀取其他設定 (現在這裡已經不包含啟用樣板的設定了)
+        const otherInputs = settingsForm.querySelectorAll('#other-settings-container input, #other-settings-container select');
+        otherInputs.forEach(input => {
+            payload.push({ key: input.name, value: input.value });
+        });
+
             await api.updateSettings(payload);
             templateDefinitions = finalDefinitions;
             allSettings = await api.getSettings();

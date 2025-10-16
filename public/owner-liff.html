@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>商家管理面板</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 針對手機後台的微調 */
+        body { padding-top: 15px; padding-bottom: 15px; }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background-color: var(--color-card-bg);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin-top: 0;
+            color: var(--color-text-secondary);
+            font-size: 1rem;
+        }
+        .stat-card .stat-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--color-primary);
+            margin: 0.5rem 0 0 0;
+        }
+        .booking-list-item {
+            background-color: var(--color-card-bg);
+            border-left: 5px solid var(--color-accent);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius);
+        }
+        .booking-list-item.status-checked-in { border-left-color: #28a745; }
+        .booking-list-item.status-cancelled { border-left-color: #6c757d; opacity: 0.7; }
+        .booking-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .booking-actions button { flex-grow: 1; }
+    </style>
+</head>
+<body>
+
+    <main id="app-container" class="page">
+        <div id="loading-view">
+            <h1 class="page-main-title">商家管理面板</h1>
+            <p style="text-align: center;">正在初始化並驗證您的管理員身份...</p>
+        </div>
+
+        <div id="unauthorized-view" style="display: none; text-align: center;">
+            <h1 class="page-main-title" style="color: var(--color-danger);">權限不足</h1>
+            <p>抱歉，您不是授權的管理員，無法存取此頁面。</p>
+        </div>
+
+        <div id="main-view" style="display: none;">
+            <h1 id="main-title" class="page-main-title">讀取中...</h1>
+
+            <section id="dashboard-container">
+                </section>
+
+            <section id="list-container" style="margin-top: 30px;">
+                <h2 id="list-title">今日事項</h2>
+                <div id="booking-list-content">
+                    <p>正在載入今日列表...</p>
+                </div>
+            </section>
+            
+            <hr style="border-color: var(--color-secondary); margin: 30px 0;">
+
+            <section>
+                <button id="go-to-admin-panel-btn" class="cta-button">開啟完整版後台</button>
+            </section>
+        </div>
+    </main>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="owner-liff.js"></script>
+</body>
+</html>

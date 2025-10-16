@@ -1,7 +1,7 @@
 // public/owner-liff.js (偵錯版 v2)
 
 document.addEventListener('DOMContentLoaded', () => {
-    const myLiffId = "請在這裡貼上您新建立的 LIFF ID"; // 請再次確認 LIFF ID 是否正確
+    const myLiffId = "2008296713-vPAkV7xr"; // 請再次確認 LIFF ID 是否正確
     let userId = null;
     const loadingView = document.getElementById('loading-view');
 

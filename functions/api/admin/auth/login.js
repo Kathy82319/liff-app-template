@@ -36,7 +36,7 @@ export async function onRequest(context) {
 
         const headers = new Headers();
         headers.set('Content-Type', 'application/json');
-        headers.set('Set-Cookie', `AuthToken=${jwt}; HttpOnly; Secure; Path=/; Max-Age=28800; SameSite=Lax`);
+        headers.set('Set-Cookie', `AuthToken=${jwt}; Secure; Path=/; Max-Age=28800; SameSite=Lax`);
 
         return new Response(JSON.stringify({ success: true, user: { userId: user.user_id, displayName: user.line_display_name } }), {
             status: 200,

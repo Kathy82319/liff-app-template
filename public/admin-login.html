@@ -50,6 +50,8 @@
     </div>
 
     <script>
+        console.log('[Admin Panel Load] Checking cookie on page load:', document.cookie);
+  alert('Cookie on Admin Panel load:\n' + document.cookie);
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('login-form');
             const logOutput = document.getElementById('login-log-output'); // 取得日誌區域

@@ -44,14 +44,14 @@ export async function onRequest(context) {
             .sign(secret);
 
         // --- *** 關鍵修改：變更 magicLink 的目標 URL *** ---
-        const url = new URL(context.request.url);
-        // 指向新的 magic-login API 端點，並將 Cloudflare JWT 作為 'token' 查詢參數
-        const magicLink = `https://${url.hostname}/api/admin/auth/magic-login?token=${jwt}`;
+const url = new URL(context.request.url);
+    // 直接指向登入頁面
+    const magicLink = `https://${url.hostname}/admin-login.html`; // 或 /admin-panel.html
 
-        return new Response(JSON.stringify({ success: true, link: magicLink }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        });
+    return new Response(JSON.stringify({ success: true, link: magicLink }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+    });
 
     } catch (error) {
         console.error('產生 Magic Link 時發生錯誤:', error);

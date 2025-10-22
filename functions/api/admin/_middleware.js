@@ -14,10 +14,10 @@ async function authMiddleware(context) {
                           url.pathname.startsWith('/api/admin/auth/logout') ||
                           url.pathname.startsWith('/api/admin/verify-liff-user') ||
                           url.pathname.startsWith('/api/generate-admin-link') ||
-                          url.pathname.startsWith('/api/admin/dashboard-stats') || // Keep for LIFF for now
-                          url.pathname.startsWith('/api/get-bookings') ||       // Keep for LIFF for now
-                          url.pathname.startsWith('/api/update-booking-status') || // Keep for LIFF for now
-                          url.pathname.startsWith('/api/admin/get-orders');       // Keep for LIFF for now
+                          url.pathname.startsWith('/api/admin/dashboard-stats') ||
+                          url.pathname.startsWith('/api/get-bookings') ||     
+                          url.pathname.startsWith('/api/update-booking-status') || 
+                          url.pathname.startsWith('/api/admin/get-orders');      
 
     if (isPublicRoute) {
         console.log(`[Middleware] 放行公開路由: ${url.pathname}`);

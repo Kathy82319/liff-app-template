@@ -1,22 +1,17 @@
-// public/admin/api.js (加入 Cookie 檢查)
+// public/admin/api.js (修正 getUsers/getProducts 路徑，確保 getAppConfig)
 
 async function request(url, options = {}) {
-    // *** 關鍵偵錯點 2：每次請求前檢查 Cookie ***
+    // *** 請求前檢查 Cookie 的偵錯碼可以保留或移除 ***
     const currentCookies = document.cookie;
     console.log(`[API Request] URL: ${url}`);
     console.log(`[API Request] Cookies before fetch: ${currentCookies || '(none)'}`);
-
-    // (可選) 如果無法看 console，可以用 alert 暫時代替，但會一直跳出視窗
-    // alert(`請求 ${url}\nCookies: ${currentCookies || '(none)'}`);
-
     if (!currentCookies || !currentCookies.includes('AuthToken=')) {
-         console.warn(`[API Request] 警告：發送請求 ${url} 時缺少 AuthToken Cookie！`);
-         // (可選) alert(`警告：請求 ${url} 時缺少 AuthToken！`);
+         console.warn(`[API Request] 警告：發送請求 ${url} 時可能缺少 AuthToken Cookie！`);
     }
 
     try {
         const defaultOptions = {
-            credentials: 'same-origin', // 確保這個設定存在
+            credentials: 'same-origin', // 確保發送 Cookie
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -31,33 +26,50 @@ async function request(url, options = {}) {
         const response = await fetch(url, defaultOptions);
 
         if (!response.ok) {
-            // ... (錯誤處理不變)
             const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
             console.error(`API Error Data for ${url}:`, errorData);
             throw new Error(errorData.error || '未知的 API 錯誤');
         }
         if (response.status === 204) return { success: true };
-        return await response.json();
+        // *** 修改：如果 Content-Type 不是 JSON，嘗試回傳 text ***
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return await response.json();
+        } else {
+            // 如果不是 JSON，例如 404 頁面，嘗試讀取文字避免 JSON 解析錯誤
+            console.warn(`API ${url} 回應非 JSON 格式 (${contentType})`);
+            return { success: false, error: `非預期的回應格式: ${await response.text()}` };
+        }
     } catch (error) {
         console.error(`API 請求失敗 (in catch): ${url}`, error);
-        throw error;
+        throw error; // 將錯誤重新拋出
     }
 }
 
-// ... export const api = { ... } (其餘部分不變)
 export const api = {
+    // *** 新增/確認：獲取 App 設定的 API ***
+    getAppConfig: () => request('/api/get-app-config'), // 公開 API
+
+    // --- Admin Auth ---
     checkAuthStatus: () => request('/api/admin/auth/status'),
+    // login 和 logout 通常由頁面直接處理，不需要放在這裡
+
+    // --- Admin Dashboard ---
     getDashboardStats: () => request('/api/admin/dashboard-stats'),
-    generateImageUploadUrl: () => request('/api/admin/generate-image-upload-url', { method: 'POST' }),
     getActivities: () => request('/api/admin/activities'),
     markActivityAsRead: (activity_id) => request('/api/admin/activities', { method: 'POST', body: JSON.stringify({ activity_id }) }),
-    // Use correct paths based on previous handover/discussion
-    getUsers: () => request('/api/admin/get-users'),
+
+    // --- Admin User Management ---
+    // *** 使用正確的公開路徑 ***
+    getUsers: () => request('/api/get-users'), // File at functions/api/get-users.js
+    // 假設 updateUserDetails 是 admin 功能且檔案在 functions/api/admin/
     updateUserDetails: (data) => request('/api/admin/update-user-details', { method: 'POST', body: JSON.stringify(data) }),
     getUserDetails: (userId) => request(`/api/admin/user-details?userId=${userId}`),
     searchUsers: (query) => request(`/api/admin/user-search?q=${encodeURIComponent(query)}`),
 
-    getProducts: () => request('/api/admin/get-products'),
+    // --- Admin Product Management ---
+    // *** 使用正確的公開路徑 ***
+    getProducts: () => request('/api/get-products'), // File at functions/api/get-products.js
     updateProductOrder: (orderedproductIds) => request('/api/admin/update-product-order', { method: 'POST', body: JSON.stringify({ orderedproductIds }) }),
     toggleProductVisibility: (productId, isVisible) => request('/api/admin/toggle-product-visibility', { method: 'POST', body: JSON.stringify({ productId, isVisible }) }),
     updateProductDetails: (data) => request('/api/admin/update-product-details', { method: 'POST', body: JSON.stringify(data) }),
@@ -66,39 +78,51 @@ export const api = {
     deleteProducts: (productIds) => request('/api/admin/delete-products', { method: 'POST', body: JSON.stringify({ productIds }) }),
     batchUpdateStockStatus: (productIds, stockStatus) => request('/api/admin/batch-update-stock-status', { method: 'POST', body: JSON.stringify({ productIds, stockStatus }) }),
     bulkCreateProducts: (data) => request('/api/admin/bulk-create-products', { method: 'POST', body: JSON.stringify(data) }),
+    generateImageUploadUrl: () => request('/api/admin/generate-image-upload-url', { method: 'POST' }),
 
 
-    getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`), // Keep /api/ for LIFF
-    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // Keep /api/ for LIFF
+    // --- Admin Booking Management ---
+    getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`), // Keep /api/ for LIFF? Or move?
+    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // Keep /api/ for LIFF? Or move?
     getBookingSettings: () => request('/api/admin/booking-settings'),
     saveBookingSettings: (body) => request('/api/admin/booking-settings', { method: 'POST', body: JSON.stringify(body) }),
     createBooking: (data) => request('/api/admin/create-booking', { method: 'POST', body: JSON.stringify(data) }),
     updateBookingDetails: (data) => request('/api/admin/update-booking-details', { method: 'POST', body: JSON.stringify(data) }),
-    getExpHistory: () => request('/api/admin/exp-history-list'),
-    // Assuming addPoints is admin-only based on context
-    addPoints: (data) => request('/api/admin/add-points', { method: 'POST', body: JSON.stringify(data) }), // Moved to /admin/
 
+    // --- Admin EXP/Points ---
+    getExpHistory: () => request('/api/admin/exp-history-list'),
+    // Assuming addPoints is admin only
+    addPoints: (data) => request('/api/admin/add-points', { method: 'POST', body: JSON.stringify(data) }),
+
+    // --- Admin News ---
     getAllNews: () => request('/api/admin/get-all-news'),
     createNews: (data) => request('/api/admin/create-news', { method: 'POST', body: JSON.stringify(data) }),
     updateNews: (data) => request('/api/admin/update-news', { method: 'POST', body: JSON.stringify(data) }),
     deleteNews: (id) => request('/api/admin/delete-news', { method: 'POST', body: JSON.stringify({ id }) }),
 
+    // --- Admin Drafts ---
     getMessageDrafts: () => request('/api/admin/message-drafts'),
     createMessageDraft: (data) => request('/api/admin/message-drafts', { method: 'POST', body: JSON.stringify(data) }),
     updateMessageDraft: (data) => request('/api/admin/message-drafts', { method: 'PUT', body: JSON.stringify(data) }),
     deleteMessageDraft: (draft_id) => request('/api/admin/message-drafts', { method: 'DELETE', body: JSON.stringify({ draft_id }) }),
-     // Assuming sendMessage is admin-only based on context
-    sendMessage: (userId, message) => request('/api/admin/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }), // Moved to /admin/
 
+    // --- Admin Send Message ---
+    // Assuming sendMessage is admin only
+    sendMessage: (userId, message) => request('/api/admin/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }),
+
+    // --- Store Info ---
     getStoreInfo: () => request('/api/get-store-info'), // Keep /api/ for LIFF
     updateStoreInfo: (data) => request('/api/admin/update-store-info', { method: 'POST', body: JSON.stringify(data) }),
 
+    // --- Admin Settings ---
     getSettings: () => request('/api/admin/get-settings'),
     updateSettings: (settings) => request('/api/admin/update-settings', { method: 'POST', body: JSON.stringify(settings) }),
 
+    // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 
-    // Assuming Syncs are admin-only
-    syncD1ToSheet: () => request('/api/admin/sync-d1-to-sheet', { method: 'POST' }),
-    syncProductsFromSheet: () => request('/api/admin/sync-products-from-sheet', { method: 'POST' })
+    // --- Admin Sync ---
+    // Assuming Syncs are admin only
+    syncD1ToSheet: () => request('/api/admin/sync-d1-to-sheet', { method: 'POST' }), // Verify backend file location
+    syncProductsFromSheet: () => request('/api/admin/sync-products-from-sheet', { method: 'POST' }) // Verify backend file location
 };

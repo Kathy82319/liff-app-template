@@ -721,8 +721,14 @@ export const init = async () => {
         if (!currentActiveTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-console.log("DEBUG: Checking template object:", JSON.stringify(currentActiveTemplate, null, 2));
-// 原本的檢查
+// --- Start Enhanced Debugging ---
+        console.log("DEBUG: Full currentActiveTemplate object:", currentActiveTemplate); // Log the object itself
+        console.log("DEBUG: Checking currentActiveTemplate.adminColumns:", currentActiveTemplate.adminColumns); // Log the property directly
+        console.log("DEBUG: Checking typeof currentActiveTemplate.adminColumns:", typeof currentActiveTemplate.adminColumns); // Check its type
+        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.adminColumns):", Array.isArray(currentActiveTemplate.adminColumns)); // Check if it's an array
+        console.log("DEBUG: Checking currentActiveTemplate.hasOwnProperty('adminColumns'):", currentActiveTemplate.hasOwnProperty('adminColumns')); // Does the object directly own this property?
+        console.log("DEBUG: Checking 'adminColumns' in currentActiveTemplate:", 'adminColumns' in currentActiveTemplate); // Is the property accessible (including prototype chain)?
+        // --- End Enhanced Debugging ---
 if (!currentActiveTemplate.adminColumns || !Array.isArray(currentActiveTemplate.adminColumns)) {
     console.error("[ProductManagement Internal Wait] adminColumns check failed!", currentActiveTemplate);
     throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);

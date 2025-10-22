@@ -167,20 +167,22 @@ function updateDynamicButtonsState() {
 function renderProductList(products) {
     const productListTbody = document.getElementById('product-list-tbody');
     const productListThead = document.querySelector('#page-inventory thead tr');
-    // 重要：檢查模組級的 activeTemplate
-    if (!productListTbody || !productListThead || !activeTemplate || !activeTemplate.adminColumns) {
-         console.error("renderProductList: 無效的 activeTemplate 或缺少元素。");
-         // 安全退出，避免進一步錯誤
+
+    // --- 修正檢查路徑 ---
+    if (!productListTbody || !productListThead || !activeTemplate || !activeTemplate.logic || !activeTemplate.logic.adminColumns) {
+         console.error("renderProductList: 無效的 activeTemplate 或缺少 logic.adminColumns。");
          if(productListTbody) productListTbody.innerHTML = '<tr><td colspan="7" style="color: red; text-align:center;">渲染列表時發生錯誤 (樣板無效)。</td></tr>';
          return;
     }
+    // --- 修正結束 ---
 
     let headerHTML = `
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
         <th style="width: 50px;">順序</th>
     `;
-    // 使用模組級 activeTemplate
-    activeTemplate.adminColumns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
+    // --- 修正使用路徑 ---
+    activeTemplate.logic.adminColumns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
+    // --- 修正結束 ---
     headerHTML += `
         <th style="width: 80px;">上架</th>
         <th style="width: 80px;">操作</th>
@@ -196,10 +198,11 @@ function renderProductList(products) {
             <td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>
             <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>
         `;
-        // 使用模組級 activeTemplate
-        activeTemplate.adminColumns.forEach(col => {
-            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`; // 增加檢查
+        // --- 修正使用路徑 ---
+        activeTemplate.logic.adminColumns.forEach(col => {
+            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`;
         });
+        // --- 修正結束 ---
         rowHTML += `
             <td><label class="switch"><input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}><span class="slider"></span></label></td>
             <td class="actions-cell"><button class="action-btn btn-edit-product" data-productid="${p.product_id}" style="background-color: var(--color-warning); color: #000;">編輯</button></td>
@@ -207,7 +210,6 @@ function renderProductList(products) {
         row.innerHTML = rowHTML;
     });
 }
-
 
 function applyProductFiltersAndRender() {
     const searchInput = document.getElementById('product-search-input');
@@ -729,10 +731,13 @@ export const init = async () => {
         console.log("DEBUG: Checking currentActiveTemplate.hasOwnProperty('adminColumns'):", currentActiveTemplate.hasOwnProperty('adminColumns')); // Does the object directly own this property?
         console.log("DEBUG: Checking 'adminColumns' in currentActiveTemplate:", 'adminColumns' in currentActiveTemplate); // Is the property accessible (including prototype chain)?
         // --- End Enhanced Debugging ---
-if (!currentActiveTemplate.adminColumns || !Array.isArray(currentActiveTemplate.adminColumns)) {
-    console.error("[ProductManagement Internal Wait] adminColumns check failed!", currentActiveTemplate);
-    throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
+// --- 修正檢查路徑 ---
+if (!currentActiveTemplate.logic || !currentActiveTemplate.logic.adminColumns || !Array.isArray(currentActiveTemplate.logic.adminColumns)) {
+     // 同時檢查 logic 物件是否存在
+     console.error("[ProductManagement Internal Wait] logic object or adminColumns check failed!", currentActiveTemplate);
+     throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 設定。`); // 錯誤訊息也更新
 }
+// --- 修正結束 ---
         console.log("[ProductManagement Internal Wait] Template and adminColumns check passed.");
 
     } catch (e) {

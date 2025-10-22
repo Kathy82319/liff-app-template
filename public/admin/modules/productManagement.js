@@ -1,4 +1,6 @@
-// public/admin/modules/productManagement.js (加入檢查與日誌)
+// public/admin/modules/productManagement.js
+
+// --- 保持檔案開頭的 import 和變數宣告 ---
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -50,7 +52,11 @@ export function hideBatchToolbar() {
         selectAllCheckbox.indeterminate = false;
     }
 }
-function createFormField(field) {
+async function handleImageUpload(file, inputElement, buttonElement) {
+    ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
+    /* ... (上傳邏輯註解) ... */
+}
+function createFormField(field) { /* ... (此函式內容不變) ... */
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
     const label = document.createElement('label');
@@ -109,7 +115,7 @@ function createFormField(field) {
     }
     return formGroup;
 }
-function addImageInputField(container, value = '') {
+function addImageInputField(container, value = '') { /* ... (此函式內容不變) ... */
     const count = container.children.length;
     if (count >= 5) return;
     const newGroup = document.createElement('div');
@@ -131,7 +137,7 @@ function addImageInputField(container, value = '') {
     });
     updateDynamicButtonsState();
 }
-function addSpecInputField(container, name = '', value = '') {
+function addSpecInputField(container, name = '', value = '') { /* ... (此函式內容不變) ... */
     const count = container.children.length;
     if (count >= 5) return;
     const newGroup = document.createElement('div');
@@ -144,7 +150,7 @@ function addSpecInputField(container, name = '', value = '') {
     container.appendChild(newGroup);
     updateDynamicButtonsState();
 }
-function updateDynamicButtonsState() {
+function updateDynamicButtonsState() { /* ... (此函式內容不變) ... */
     const imageContainer = document.getElementById('edit-product-image-inputs');
     if (imageContainer) {
         document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
@@ -154,15 +160,11 @@ function updateDynamicButtonsState() {
        document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
     }
 }
-
-
-// 渲染列表函式 (加入檢查)
-function renderProductList(products) {
+function renderProductList(products) { /* ... (此函式內容不變) ... */
     const productListTbody = document.getElementById('product-list-tbody');
     const productListThead = document.querySelector('#page-inventory thead tr');
     if (!productListTbody || !productListThead) return;
 
-    // 【關鍵檢查】確保 activeTemplate 和 adminColumns 有效
     if (!activeTemplate || !activeTemplate.adminColumns || !Array.isArray(activeTemplate.adminColumns)) {
         console.error("renderProductList 錯誤： 無效的 activeTemplate 或 adminColumns。", activeTemplate);
         productListTbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">渲染列表失敗：樣板設定錯誤。</td></tr>`;
@@ -173,7 +175,6 @@ function renderProductList(products) {
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
         <th style="width: 50px;">順序</th>
     `;
-    // 現在可以安全地使用 forEach
     activeTemplate.adminColumns.forEach(col => {
         headerHTML += `<th>${col.label}</th>`;
     });
@@ -193,7 +194,6 @@ function renderProductList(products) {
             <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>
         `;
         activeTemplate.adminColumns.forEach(col => {
-            // 【健壯性】如果欄位鍵名不存在於產品資料中，顯示 'N/A'
             rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`;
         });
         rowHTML += `
@@ -203,9 +203,7 @@ function renderProductList(products) {
         row.innerHTML = rowHTML;
     });
 }
-
-// ... (applyProductFiltersAndRender, initializeProductDragAndDrop, CSV 相關, Modal 相關, 批次操作相關 函數保持不變) ...
-function applyProductFiltersAndRender() {
+function applyProductFiltersAndRender() { /* ... (此函式內容不變) ... */
     const searchInput = document.getElementById('product-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const visibilityFilter = document.querySelector('#inventory-visibility-filter .active')?.dataset.filter || 'all';
@@ -229,9 +227,9 @@ function applyProductFiltersAndRender() {
         filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
     }
 
-    renderProductList(filtered); // 呼叫更新後的渲染函數
+    renderProductList(filtered);
 }
-function initializeProductDragAndDrop() {
+function initializeProductDragAndDrop() { /* ... (此函式內容不變) ... */
     const tbody = document.getElementById('product-list-tbody');
     if (sortableProducts) sortableProducts.destroy();
     if (tbody) {
@@ -252,7 +250,7 @@ function initializeProductDragAndDrop() {
         });
     }
 }
-function handleDownloadCsvTemplate() {
+function handleDownloadCsvTemplate() { /* ... (此函式內容不變) ... */
     const headers = ["產品名稱", "分類", "價格", "詳細介紹", "標籤(逗號分隔)", "是否上架(TRUE/FALSE)"];
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",");
     const encodedUri = encodeURI(csvContent);
@@ -263,7 +261,7 @@ function handleDownloadCsvTemplate() {
     link.click();
     document.body.removeChild(link);
 }
-function handleCsvUpload(event) {
+function handleCsvUpload(event) { /* ... (此函式內容不變) ... */
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -274,7 +272,6 @@ function handleCsvUpload(event) {
 
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = lines.slice(1).map(line => {
-            // Improved CSV parsing to handle commas within quoted fields
             const values = [];
             let currentVal = '';
             let inQuotes = false;
@@ -283,13 +280,13 @@ function handleCsvUpload(event) {
                 if (char === '"') {
                     inQuotes = !inQuotes;
                 } else if (char === ',' && !inQuotes) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
+                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
                     currentVal = '';
                 } else {
                     currentVal += char;
                 }
             }
-            values.push(currentVal.trim().replace(/^"|"$/g, '')); // Add the last value
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
 
             const obj = {};
             headers.forEach((header, index) => {
@@ -313,12 +310,12 @@ function handleCsvUpload(event) {
              event.target.value = '';
         }
     };
-    reader.readAsText(file, 'UTF-8'); // Ensure correct encoding
+    reader.readAsText(file, 'UTF-8');
 }
-function openProductModal(product = null) {
+function openProductModal(product = null) { /* ... (此函式內容不變) ... */
     const formBody = document.getElementById('edit-product-form-body');
     const form = document.getElementById('edit-product-form');
-    if (!formBody || !form || !activeTemplate) { // Check activeTemplate
+    if (!formBody || !form || !activeTemplate) {
          console.error("無法開啟 Modal: 表單元素或樣板未就緒。");
          return;
     }
@@ -359,7 +356,6 @@ function openProductModal(product = null) {
                 if (field.type === 'boolean') {
                     input.checked = !!product[field.key];
                 } else {
-                     // Check if the property exists before assigning
                     input.value = product.hasOwnProperty(field.key) ? (product[field.key] || '') : '';
                 }
             }
@@ -406,12 +402,12 @@ function openProductModal(product = null) {
     updateDynamicButtonsState();
     ui.showModal('#edit-product-modal');
 }
-async function handleFormSubmit(event) {
+async function handleFormSubmit(event) { /* ... (此函式內容不變) ... */
     event.preventDefault();
     const form = event.target;
     const data = {};
 
-    if (!activeTemplate) { // Add check
+    if (!activeTemplate) {
          ui.toast.error("儲存失敗：樣板設定未載入。");
          return;
     }
@@ -419,7 +415,6 @@ async function handleFormSubmit(event) {
 
     activeTemplate.fields.forEach(field => {
         const input = form.querySelector(`[name="${field.key}"]`);
-        // Ensure input exists before accessing properties
         if (input && field.key !== 'images' && !field.key.startsWith('spec_')) {
             if (field.type === 'boolean') {
                 data[field.key] = input.checked;
@@ -427,9 +422,8 @@ async function handleFormSubmit(event) {
                 data[field.key] = input.value;
             }
         } else if (field.required && field.key !== 'images' && !field.key.startsWith('spec_')) {
-             // Handle case where required field's input might be missing (shouldn't happen with createFormField)
              console.warn(`Required field input missing: ${field.key}`);
-             data[field.key] = null; // Or some default
+             data[field.key] = null;
         }
 
     });
@@ -444,7 +438,6 @@ async function handleFormSubmit(event) {
     });
 
     for (const field of activeTemplate.fields) {
-        // Check data[field.key] exists and is not just whitespace
         if (field.required && (!data.hasOwnProperty(field.key) || (typeof data[field.key] === 'string' && data[field.key].trim() === '') || data[field.key] === null)) {
             ui.toast.error(`「${field.label}」為必填欄位！`);
             return;
@@ -471,7 +464,7 @@ async function handleFormSubmit(event) {
         ui.toast.error(`儲存失敗：${error.message}`);
     }
 }
-function updateBatchToolbarState() {
+function updateBatchToolbarState() { /* ... (此函式內容不變) ... */
     const toolbar = document.getElementById('batch-actions-toolbar');
     const countSpan = document.getElementById('batch-selected-count');
     const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
@@ -484,7 +477,7 @@ function updateBatchToolbarState() {
         }
     }
 }
-async function handleBatchUpdate(isVisible) {
+async function handleBatchUpdate(isVisible) { /* ... (此函式內容不變) ... */
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
     try {
@@ -493,7 +486,7 @@ async function handleBatchUpdate(isVisible) {
         await init();
     } catch (error) { ui.toast.error(`錯誤：${error.message}`); }
 }
-async function handleBatchSetStock() {
+async function handleBatchSetStock() { /* ... (此函式內容不變) ... */
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
 
@@ -503,7 +496,6 @@ async function handleBatchSetStock() {
         return;
     }
 
-    // Use ui.confirm which returns a Promise
     const confirmed = await ui.confirm(`確定要將 ${selectedIds.length} 個項目的庫存狀態設定為「${statusText}」嗎？`);
     if (!confirmed) return;
 
@@ -516,10 +508,9 @@ async function handleBatchSetStock() {
         ui.toast.error(`錯誤：${error.message}`);
     }
 }
-async function handleBatchDelete() {
-    // 【修正】確保 selectedIds 在此 scope 可用
+async function handleBatchDelete() { /* ... (此函式內容不變) ... */
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！'); // Check again here
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
 
     const confirmed = await ui.confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`);
     if (!confirmed) return;
@@ -532,7 +523,7 @@ async function handleBatchDelete() {
         ui.toast.error(`錯誤：${error.message}`);
     }
 }
-function updateSelectAllCheckboxState() {
+function updateSelectAllCheckboxState() { /* ... (此函式內容不變) ... */
     const selectAllCheckbox = document.getElementById('select-all-products');
     const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
     if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
@@ -551,27 +542,22 @@ function updateSelectAllCheckboxState() {
         selectAllCheckbox.indeterminate = false;
     }
 }
-function setupEventListeners() {
+function setupEventListeners() { /* ... (此函式內容不變) ... */
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // Use event delegation on a static parent (document or page itself)
     document.addEventListener('click', e => {
         const editModal = document.getElementById('edit-product-modal');
-
-        // Handle clicks within the modal
         if (editModal && editModal.contains(e.target)) {
             if (e.target.id === 'add-image-input-btn') {
                 addImageInputField(document.getElementById('edit-product-image-inputs'));
             } else if (e.target.id === 'add-spec-input-btn') {
                 addSpecInputField(document.getElementById('edit-product-spec-inputs'));
             } else if (e.target.classList.contains('btn-remove-input')) {
-                e.target.closest('.dynamic-input-group')?.remove(); // Use optional chaining
+                e.target.closest('.dynamic-input-group')?.remove();
                 updateDynamicButtonsState();
             }
         }
-
-        // Handle clicks within the main page content area
         if (page.contains(e.target)) {
             if (e.target.id === 'add-product-btn') {
                 openProductModal();
@@ -585,7 +571,6 @@ function setupEventListeners() {
         }
     });
 
-    // 其他不涉及點擊的事件監聽器 (保持原樣)
     function addFilterGroupListener(groupId) {
         const filterGroup = document.getElementById(groupId);
         if (filterGroup) {
@@ -620,11 +605,9 @@ function setupEventListeners() {
                     await api.toggleProductVisibility(productId, isVisible);
                     const product = allProducts.find(p => p.product_id === productId);
                     if (product) product.is_visible = isVisible ? 1 : 0;
-                     // Optional: You might want to re-apply filters if visibility changed
-                    // applyProductFiltersAndRender();
                 } catch (error) {
                     ui.toast.error(`更新失敗: ${error.message}`);
-                    e.target.checked = !isVisible; // Revert checkbox on error
+                    e.target.checked = !isVisible;
                 } finally {
                     e.target.disabled = false;
                 }
@@ -640,22 +623,20 @@ function setupEventListeners() {
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
 
-    // Attach submit listener to the form itself
     const editForm = document.getElementById('edit-product-form');
-     if (editForm && !editForm.dataset.listenerAttached) { // Prevent multiple attachments
+     if (editForm && !editForm.dataset.listenerAttached) {
          editForm.addEventListener('submit', handleFormSubmit);
          editForm.dataset.listenerAttached = 'true';
      }
-
 
     page.dataset.initialized = 'true';
 }
 
 
-// --- 初始化 ---
+// --- 初始化 (包含修正後的 try...catch 結構) ---
 export const init = async () => {
-    // Keep previous debug logs if you want, or remove them
     console.log("[ProductManagement] Init started.");
+    // ========== ▼▼▼ 外層 try 開始 ▼▼▼ ==========
     try {
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
              console.error("[ProductManagement DEBUG] window.CONFIG is incomplete or missing!", window.CONFIG);
@@ -664,84 +645,76 @@ export const init = async () => {
         console.log("[ProductManagement DEBUG] window.CONFIG seems ok. Active template key:", window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE);
 
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        // ========== ▼▼▼ 修改點：在賦值時增加 Log ▼▼▼ ==========
         activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
         console.log(`[ProductManagement DEBUG] Assigned activeTemplate for key '${activeTemplateKey}':`, activeTemplate);
-        // ========== ▲▲▲ 修改點 ▲▲▲ ==========
-
 
         if (!activeTemplate) {
             console.error(`[ProductManagement DEBUG] Failed to get activeTemplate for key: ${activeTemplateKey}`);
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
 
-        // ========== ▼▼▼ **新的精確偵錯** ▼▼▼ ==========
-        // 1. 在檢查前直接獲取 adminColumns 的值
         const adminColumnsValue = activeTemplate.adminColumns;
-        // 2. 檢查它是否真的是一個陣列
         const isAdminColumnsArray = Array.isArray(adminColumnsValue);
 
-        // 3. 在 Console 中輸出檢查的 *當下* 的值和類型
         console.log(`[ProductManagement DEBUG **PRE-CHECK**] Value of activeTemplate.adminColumns:`, adminColumnsValue);
         console.log(`[ProductManagement DEBUG **PRE-CHECK**] Result of Array.isArray(activeTemplate.adminColumns):`, isAdminColumnsArray);
-        // ========== ▲▲▲ **新的精確偵錯** ▲▲▲ ==========
 
-        // 【關鍵檢查】使用剛才獲取的值進行判斷
         if (!adminColumnsValue || !isAdminColumnsArray) {
-             // 這個 console.error 仍然印出物件供參考，但判斷依據是上面的 adminColumnsValue 和 isAdminColumnsArray
              console.error("[ProductManagement DEBUG] Check failed! activeTemplate object state at failure:", activeTemplate);
-             // 在錯誤訊息中加入更詳細的偵錯資訊
              throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。 [Debug Info: Value=${JSON.stringify(adminColumnsValue)}, IsArray=${isAdminColumnsArray}]`);
         }
-        // 如果檢查通過，才印成功 Log
         console.log(`[ProductManagement] Active template '${activeTemplateKey}' loaded successfully and adminColumns check passed.`);
 
-        // ... init 函式剩下的程式碼 ...
-
-    } catch (e) {
-        console.error("讀取商業樣板失敗:", e); // 原有的 log
-        document.getElementById('page-inventory').innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
-        return;
-    }
-
+        // --- 將頁面元素檢查和設定移到這裡 ---
         const tbody = document.getElementById('product-list-tbody');
         if (!tbody) {
-             console.error("[ProductManagement] Cannot find tbody element.");
-             return;
+             console.error("[ProductManagement] Cannot find tbody element inside init."); // Log inside init
+             // 即使找不到 tbody，也嘗試繼續執行，避免完全卡住，但後續會出錯
+        } else {
+             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
         }
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
 
         const pageTitle = document.querySelector('#page-inventory .page-header h2');
-        if (pageTitle) pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+        if (pageTitle) {
+            pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+        } else {
+            console.warn("[ProductManagement] Cannot find page title element.");
+        }
+        // --- 頁面元素設定結束 ---
 
+        // ========== ▼▼▼ 內層 try 開始 ▼▼▼ ==========
         try {
             console.log("[ProductManagement] Fetching products...");
             allProducts = []; // Reset before fetching
             allProducts = await api.getProducts();
             console.log(`[ProductManagement] Fetched ${allProducts.length} products.`);
 
-            if (activeTemplate && activeTemplate.adminColumns) { // Double check here might be redundant now but safe
+            // 再次檢查 activeTemplate 和 adminColumns (安全起見)
+            if (activeTemplate && activeTemplate.adminColumns) {
                 applyProductFiltersAndRender();
                 initializeProductDragAndDrop();
                  if (!document.getElementById('page-inventory').dataset.initialized) {
-                     setupEventListeners();
+                     setupEventListeners(); // 確保事件監聽器只設置一次
                  }
                 console.log("[ProductManagement] Init finished successfully.");
             } else {
+                 // 理論上不會執行到這裡，因為前面已經檢查過
+                 console.error("[ProductManagement DEBUG] activeTemplate became invalid before rendering!");
                  throw new Error("activeTemplate 在準備渲染時無效 (二次檢查)。");
             }
-        } catch (error) {
-            console.error('初始化產品頁失敗:', error);
-            tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取失敗: ${error.message}</td></tr>`;
+        } catch (error) { // 內層 catch
+            console.error('初始化產品頁面的產品列表失敗:', error); // Log specific error source
+            const tbody = document.getElementById('product-list-tbody'); // 再次獲取 tbody
+            if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
         }
+        // ========== ▲▲▲ 內層 try...catch 結束 ▲▲▲ ==========
 
-    } catch (e) {
-        // 這個 catch 會捕獲上面所有 try 區塊中的錯誤，包括 adminColumns 檢查失敗的錯誤
-        console.error("讀取商業樣板失敗 (outer catch):", e); // 修改 Log 標示
-        document.getElementById('page-inventory').innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
+    // ========== ▼▼▼ **修正點：外層 try 的結束括號** ▼▼▼ ==========
+    } catch (e) { // 外層 catch
+        console.error("讀取商業樣板失敗 (outer catch):", e);
+        const inventoryPage = document.getElementById('page-inventory'); // 獲取頁面元素
+        if(inventoryPage) inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
         return; // 出錯後停止執行 init
     }
-    // 移除原有的 tbody 和 pageTitle 相關程式碼，因為已移到 try 區塊成功執行後
-};
-
-// ... (其他 productManagement.js 的函式保持不變) ...
+    // ========== ▲▲▲ 外層 try...catch 結束 ▲▲▲ ==========
+}; // init 函式結束

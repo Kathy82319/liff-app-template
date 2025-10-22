@@ -1,4 +1,4 @@
-// functions/api/generate-admin-link.js
+// functions/api/generate-admin-link.js (修改後)
 
 import * as jose from 'jose';
 
@@ -13,38 +13,40 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ success: false, error: '缺少使用者 ID' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
         }
 
-        const { DB, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET } = context.env;
+        // 從環境變數讀取 Cloudflare Access 設定，包含 KEY ID (如果有的話)
+        const { DB, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET, CF_ACCESS_KEY_ID } = context.env;
 
         if (!CF_ACCESS_CLIENT_ID || !CF_ACCESS_CLIENT_SECRET) {
             console.error('伺服器環境變數不完整: 缺少 CF_ACCESS_CLIENT_ID 或 CF_ACCESS_CLIENT_SECRET');
             return new Response(JSON.stringify({ success: false, error: '伺服器設定不完整，無法產生連結' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
         }
 
+        // --- 使用者黑名單檢查 (保持不變) ---
         const user = await DB.prepare("SELECT tag FROM Users WHERE user_id = ?").bind(userId).first();
         if (user && user.tag === '黑名單') {
             return new Response(JSON.stringify({ success: false, error: '抱歉，您目前無權限體驗後台功能' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
         }
 
         const now = Math.floor(Date.now() / 1000);
-        
-        // 根據 Cloudflare Service Token 的要求，payload 需包含 email, nonce, iat, exp 等
+
+        // --- 產生 Cloudflare Access JWT (保持不變) ---
         const payload = {
-            email: `${userId.substring(0, 10)}@magic.link`, // 建立一個唯一的假 Email
+            email: `${userId.substring(0, 10)}@magic.link`, // 使用與使用者相關的唯一識別符
             iat: now,
             nbf: now,
-            exp: now + 3600, // 1 小時後過期
+            exp: now + 3600, // Cloudflare JWT 的有效期限 (例如 1 小時)
             nonce: crypto.randomUUID()
         };
-        
         const secret = new TextEncoder().encode(CF_ACCESS_CLIENT_SECRET);
-        
         const jwt = await new jose.SignJWT(payload)
-            .setProtectedHeader({ alg: 'HS256', kid: context.env.CF_ACCESS_KEY_ID }) // 如果您的 Service Token 有 Key ID，請加入
+            // 如果您的 Cloudflare Service Token 設定了 Key ID，請取消下一行的註解並確保環境變數已設定
+             .setProtectedHeader({ alg: 'HS256', ...(CF_ACCESS_KEY_ID && { kid: CF_ACCESS_KEY_ID }) })
             .sign(secret);
-            
-        // 組合 Magic Link
+
+        // --- *** 關鍵修改：變更 magicLink 的目標 URL *** ---
         const url = new URL(context.request.url);
-        const magicLink = `https://${url.hostname}/admin-panel.html?cf_authorization=${jwt}`;
+        // 指向新的 magic-login API 端點，並將 Cloudflare JWT 作為 'token' 查詢參數
+        const magicLink = `https://${url.hostname}/api/admin/auth/magic-login?token=${jwt}`;
 
         return new Response(JSON.stringify({ success: true, link: magicLink }), {
             status: 200,

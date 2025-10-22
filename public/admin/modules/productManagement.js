@@ -1,5 +1,4 @@
 // public/admin/modules/productManagement.js
-
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -7,7 +6,36 @@ let allProducts = [];
 let sortableProducts = null;
 let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
-
+// 【新增】圖片上傳核心邏जिक
+// 圖片上傳核心邏जिक (已修改為暫時停用狀態)
+async function handleImageUpload(file, inputElement, buttonElement) {
+    ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
+    // 以下為未來啟用時的程式碼，暫時註解
+    /*
+    if (!file) return;
+    const originalButtonText = buttonElement.textContent;
+    buttonElement.textContent = '上傳中...';
+    buttonElement.disabled = true;
+    try {
+        const { uploadURL } = await api.generateImageUploadUrl();
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch(uploadURL, { method: 'POST', body: formData });
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.errors[0]?.message || '上傳至圖片服務失敗');
+        }
+        const publicUrl = result.result.variants[0];
+        inputElement.value = publicUrl;
+        ui.toast.success('圖片上傳成功！');
+    } catch (error) {
+        ui.toast.error(`上傳失敗：${error.message}`);
+    } finally {
+        buttonElement.textContent = originalButtonText;
+        buttonElement.disabled = false;
+    }
+    */
+}
 
 // 建立一個可以從外部呼叫的函式來隱藏工具列
 export function hideBatchToolbar() {
@@ -22,11 +50,9 @@ export function hideBatchToolbar() {
         selectAllCheckbox.indeterminate = false;
     }
 }
-async function handleImageUpload(file, inputElement, buttonElement) {
-    ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
-    /* ... (上傳邏輯註解) ... */
-}
-function createFormField(field) { /* ... (此函式內容不變) ... */
+
+// 根據藍圖生成表單欄位 (新版)
+function createFormField(field) {
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
     const label = document.createElement('label');
@@ -85,7 +111,10 @@ function createFormField(field) { /* ... (此函式內容不變) ... */
     }
     return formGroup;
 }
-function addImageInputField(container, value = '') { /* ... (此函式內容不變) ... */
+
+
+// 動態欄位輔助函式 (升級版)
+function addImageInputField(container, value = '') {
     const count = container.children.length;
     if (count >= 5) return;
     const newGroup = document.createElement('div');
@@ -107,7 +136,8 @@ function addImageInputField(container, value = '') { /* ... (此函式內容不�
     });
     updateDynamicButtonsState();
 }
-function addSpecInputField(container, name = '', value = '') { /* ... (此函式內容不變) ... */
+
+function addSpecInputField(container, name = '', value = '') {
     const count = container.children.length;
     if (count >= 5) return;
     const newGroup = document.createElement('div');
@@ -120,7 +150,8 @@ function addSpecInputField(container, name = '', value = '') { /* ... (此函式
     container.appendChild(newGroup);
     updateDynamicButtonsState();
 }
-function updateDynamicButtonsState() { /* ... (此函式內容不變) ... */
+
+function updateDynamicButtonsState() {
     const imageContainer = document.getElementById('edit-product-image-inputs');
     if (imageContainer) {
         document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
@@ -130,16 +161,12 @@ function updateDynamicButtonsState() { /* ... (此函式內容不變) ... */
        document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
     }
 }
-function renderProductList(products) { /* ... (此函式內容不變) ... */
+
+// 渲染列表函式 (保持不變)
+function renderProductList(products) {
     const productListTbody = document.getElementById('product-list-tbody');
     const productListThead = document.querySelector('#page-inventory thead tr');
     if (!productListTbody || !productListThead) return;
-
-    if (!activeTemplate || !activeTemplate.adminColumns || !Array.isArray(activeTemplate.adminColumns)) {
-        console.error("renderProductList 錯誤： 無效的 activeTemplate 或 adminColumns。", activeTemplate);
-        productListTbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">渲染列表失敗：樣板設定錯誤。</td></tr>`;
-        return;
-    }
 
     let headerHTML = `
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
@@ -164,7 +191,7 @@ function renderProductList(products) { /* ... (此函式內容不變) ... */
             <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>
         `;
         activeTemplate.adminColumns.forEach(col => {
-            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`;
+            rowHTML += `<td>${p[col.key] || 'N/A'}</td>`;
         });
         rowHTML += `
             <td><label class="switch"><input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}><span class="slider"></span></label></td>
@@ -173,33 +200,43 @@ function renderProductList(products) { /* ... (此函式內容不變) ... */
         row.innerHTML = rowHTML;
     });
 }
-function applyProductFiltersAndRender() { /* ... (此函式內容不變) ... */
+
+
+function applyProductFiltersAndRender() {
     const searchInput = document.getElementById('product-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // 【新增】獲取當前啟用的篩選器狀態
     const visibilityFilter = document.querySelector('#inventory-visibility-filter .active')?.dataset.filter || 'all';
     const stockFilter = document.querySelector('#inventory-stock-filter .active')?.dataset.filter || 'all';
 
-    let filtered = [...allProducts];
+    let filtered = [...allProducts]; // 從所有產品開始篩選
 
+    // 【新增】套用「上架狀態」篩選
     if (visibilityFilter === 'visible') {
         filtered = filtered.filter(p => p.is_visible);
     } else if (visibilityFilter === 'hidden') {
         filtered = filtered.filter(p => !p.is_visible);
     }
 
+    // 【新增】套用「庫存狀態」篩選 (根據您的邏जिक)
     if (stockFilter === 'in_stock') {
+        // 庫存數量不是 0 的所有項目 (包含 null 或 > 0)
         filtered = filtered.filter(p => p.stock_quantity !== 0);
     } else if (stockFilter === 'out_of_stock') {
+        // 庫存數量明確為 0 的項目
         filtered = filtered.filter(p => p.stock_quantity === 0);
     }
 
+    // 【修改】最後才套用「關鍵字搜尋」
     if (searchTerm) {
         filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
     }
 
     renderProductList(filtered);
 }
-function initializeProductDragAndDrop() { /* ... (此函式內容不變) ... */
+
+function initializeProductDragAndDrop() {
     const tbody = document.getElementById('product-list-tbody');
     if (sortableProducts) sortableProducts.destroy();
     if (tbody) {
@@ -220,7 +257,9 @@ function initializeProductDragAndDrop() { /* ... (此函式內容不變) ... */
         });
     }
 }
-function handleDownloadCsvTemplate() { /* ... (此函式內容不變) ... */
+
+// --- CSV 相關功能 ---
+function handleDownloadCsvTemplate() {
     const headers = ["產品名稱", "分類", "價格", "詳細介紹", "標籤(逗號分隔)", "是否上架(TRUE/FALSE)"];
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",");
     const encodedUri = encodeURI(csvContent);
@@ -231,7 +270,8 @@ function handleDownloadCsvTemplate() { /* ... (此函式內容不變) ... */
     link.click();
     document.body.removeChild(link);
 }
-function handleCsvUpload(event) { /* ... (此函式內容不變) ... */
+
+function handleCsvUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -242,6 +282,7 @@ function handleCsvUpload(event) { /* ... (此函式內容不變) ... */
 
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const data = lines.slice(1).map(line => {
+            // Improved CSV parsing to handle commas within quoted fields
             const values = [];
             let currentVal = '';
             let inQuotes = false;
@@ -250,13 +291,13 @@ function handleCsvUpload(event) { /* ... (此函式內容不變) ... */
                 if (char === '"') {
                     inQuotes = !inQuotes;
                 } else if (char === ',' && !inQuotes) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, ''));
+                    values.push(currentVal.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
                     currentVal = '';
                 } else {
                     currentVal += char;
                 }
             }
-            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            values.push(currentVal.trim().replace(/^"|"$/g, '')); // Add the last value
 
             const obj = {};
             headers.forEach((header, index) => {
@@ -280,62 +321,69 @@ function handleCsvUpload(event) { /* ... (此函式內容不變) ... */
              event.target.value = '';
         }
     };
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsText(file, 'UTF-8'); // Ensure correct encoding
 }
-function openProductModal(product = null) { /* ... (此函式內容不變) ... */
+
+// --- 【大幅修改】Modal (彈窗) 相關函式 ---
+function openProductModal(product = null) {
     const formBody = document.getElementById('edit-product-form-body');
     const form = document.getElementById('edit-product-form');
-    if (!formBody || !form || !activeTemplate) {
-         console.error("無法開啟 Modal: 表單元素或樣板未就緒。");
-         return;
-    }
-
+    if (!formBody || !form) return;
 
     form.reset();
     formBody.innerHTML = '';
 
+    // 1. 根據藍圖動態生成主要表單
     activeTemplate.fields.forEach(field => {
         const formField = createFormField(field);
         formBody.appendChild(formField);
     });
 
+    // 2. 【新增】根據藍圖決定是否顯示特殊欄位區塊
     const imageSection = document.getElementById('edit-product-image-section');
     const specSection = document.getElementById('edit-product-spec-section');
     const imageInputs = document.getElementById('edit-product-image-inputs');
     const specInputs = document.getElementById('edit-product-spec-inputs');
 
+    // 清空舊的動態欄位
     imageInputs.innerHTML = '';
     specInputs.innerHTML = '';
 
+    // 判斷藍圖中是否有 'images' 欄位，來決定是否顯示圖片區塊
     const hasImages = activeTemplate.fields.some(f => f.key === 'images');
     imageSection.style.display = hasImages ? 'block' : 'none';
 
+    // 判斷藍圖中是否有 'spec' 相關欄位，來決定是否顯示規格區塊
     const hasSpecs = activeTemplate.fields.some(f => f.key.startsWith('spec_'));
     specSection.style.display = hasSpecs ? 'block' : 'none';
 
+    // 3. 處理 Modal 標題
     const modalTitle = document.getElementById('modal-product-title');
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
     pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
 
+    // 4. 填入資料 (編輯模式)
     if (product) {
         modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`;
 
+        // 填入主要欄位資料
         activeTemplate.fields.forEach(field => {
             const input = document.getElementById(`edit-product-${field.key}`);
             if (input && field.key !== 'images' && !field.key.startsWith('spec_')) {
                 if (field.type === 'boolean') {
                     input.checked = !!product[field.key];
                 } else {
-                    input.value = product.hasOwnProperty(field.key) ? (product[field.key] || '') : '';
+                    input.value = product[field.key] || '';
                 }
             }
         });
 
+        // 【新增】填入圖片和規格資料
         if (hasImages) {
             try {
                 const images = JSON.parse(product.images || '[]');
                 if (images.length === 0) {
-                    addImageInputField(imageInputs);
+                    addImageInputField(imageInputs); // 如果沒有圖片，至少顯示一個空欄位
                 } else {
                     images.forEach(imgUrl => addImageInputField(imageInputs, imgUrl));
                 }
@@ -349,9 +397,10 @@ function openProductModal(product = null) { /* ... (此函式內容不變) ... *
                     specAdded = true;
                 }
             }
-            if (!specAdded) addSpecInputField(specInputs);
+            if (!specAdded) addSpecInputField(specInputs); // 如果沒有規格，至少顯示一組空欄位
         }
 
+        // 處理 product_id (隱藏欄位)
         let idInput = form.querySelector('input[name="product_id"]');
         if (!idInput) {
             idInput = document.createElement('input');
@@ -362,6 +411,7 @@ function openProductModal(product = null) { /* ... (此函式內容不變) ... *
         idInput.value = product.product_id;
 
     } else {
+        // --- 新增模式 ---
         modalTitle.textContent = `新增${activeTemplate.entityName}`;
         if (hasImages) addImageInputField(imageInputs);
         if (hasSpecs) addSpecInputField(specInputs);
@@ -372,17 +422,14 @@ function openProductModal(product = null) { /* ... (此函式內容不變) ... *
     updateDynamicButtonsState();
     ui.showModal('#edit-product-modal');
 }
-async function handleFormSubmit(event) { /* ... (此函式內容不變) ... */
+
+// 【大幅修改】處理表單提交
+async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
     const data = {};
 
-    if (!activeTemplate) {
-         ui.toast.error("儲存失敗：樣板設定未載入。");
-         return;
-    }
-
-
+    // 1. 讀取主要欄位資料
     activeTemplate.fields.forEach(field => {
         const input = form.querySelector(`[name="${field.key}"]`);
         if (input && field.key !== 'images' && !field.key.startsWith('spec_')) {
@@ -391,13 +438,10 @@ async function handleFormSubmit(event) { /* ... (此函式內容不變) ... */
             } else {
                 data[field.key] = input.value;
             }
-        } else if (field.required && field.key !== 'images' && !field.key.startsWith('spec_')) {
-             console.warn(`Required field input missing: ${field.key}`);
-             data[field.key] = null;
         }
-
     });
 
+    // 2. 【新增】讀取特殊欄位資料 (圖片和規格)
     const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
     data.images = JSON.stringify(images);
 
@@ -407,20 +451,23 @@ async function handleFormSubmit(event) { /* ... (此函式內容不變) ... */
         data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
     });
 
+    // 3. 檢查必填
     for (const field of activeTemplate.fields) {
+        // Check data[field.key] exists and is not just whitespace
         if (field.required && (!data.hasOwnProperty(field.key) || (typeof data[field.key] === 'string' && data[field.key].trim() === '') || data[field.key] === null)) {
             ui.toast.error(`「${field.label}」為必填欄位！`);
             return;
         }
     }
 
-
+    // 4. 處理 ID
     const idInput = form.querySelector('input[name="product_id"]');
     const isCreating = !idInput;
     if (!isCreating) {
         data.product_id = idInput.value;
     }
 
+    // 5. 提交 API
     try {
         if (isCreating) {
             await api.createProduct(data);
@@ -434,7 +481,9 @@ async function handleFormSubmit(event) { /* ... (此函式內容不變) ... */
         ui.toast.error(`儲存失敗：${error.message}`);
     }
 }
-function updateBatchToolbarState() { /* ... (此函式內容不變) ... */
+
+// --- 批次操作 ---
+function updateBatchToolbarState() {
     const toolbar = document.getElementById('batch-actions-toolbar');
     const countSpan = document.getElementById('batch-selected-count');
     const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
@@ -447,7 +496,8 @@ function updateBatchToolbarState() { /* ... (此函式內容不變) ... */
         }
     }
 }
-async function handleBatchUpdate(isVisible) { /* ... (此函式內容不變) ... */
+
+async function handleBatchUpdate(isVisible) {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
     try {
@@ -456,7 +506,8 @@ async function handleBatchUpdate(isVisible) { /* ... (此函式內容不變) ...
         await init();
     } catch (error) { ui.toast.error(`錯誤：${error.message}`); }
 }
-async function handleBatchSetStock() { /* ... (此函式內容不變) ... */
+
+async function handleBatchSetStock() {
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
     if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
 
@@ -466,6 +517,7 @@ async function handleBatchSetStock() { /* ... (此函式內容不變) ... */
         return;
     }
 
+    // Use ui.confirm which returns a Promise
     const confirmed = await ui.confirm(`確定要將 ${selectedIds.length} 個項目的庫存狀態設定為「${statusText}」嗎？`);
     if (!confirmed) return;
 
@@ -478,9 +530,11 @@ async function handleBatchSetStock() { /* ... (此函式內容不變) ... */
         ui.toast.error(`錯誤：${error.message}`);
     }
 }
-async function handleBatchDelete() { /* ... (此函式內容不變) ... */
+
+async function handleBatchDelete() {
+    // 【修正】確保 selectedIds 在此 scope 可用
     const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
-    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！'); // Check again here
 
     const confirmed = await ui.confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`);
     if (!confirmed) return;
@@ -493,7 +547,8 @@ async function handleBatchDelete() { /* ... (此函式內容不變) ... */
         ui.toast.error(`錯誤：${error.message}`);
     }
 }
-function updateSelectAllCheckboxState() { /* ... (此函式內容不變) ... */
+
+function updateSelectAllCheckboxState() {
     const selectAllCheckbox = document.getElementById('select-all-products');
     const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
     if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
@@ -512,35 +567,48 @@ function updateSelectAllCheckboxState() { /* ... (此函式內容不變) ... */
         selectAllCheckbox.indeterminate = false;
     }
 }
-function setupEventListeners() { /* ... (此函式內容不變) ... */
+
+// 事件監聽器 (最終修正版)
+// --- 事件監聽器 ---
+function setupEventListeners() {
     const page = document.getElementById('page-inventory');
     if (!page || page.dataset.initialized === 'true') return;
 
+    // 【核心修正】將事件監聽器掛載到 document 層級，確保能捕捉到 Modal 中的點擊
     document.addEventListener('click', e => {
-        const editModal = document.getElementById('edit-product-modal');
-        if (editModal && editModal.contains(e.target)) {
+        const modal = document.getElementById('edit-product-modal');
+        // Check if modal exists before trying to access its properties or methods
+        if (modal && modal.contains(e.target)) {
             if (e.target.id === 'add-image-input-btn') {
                 addImageInputField(document.getElementById('edit-product-image-inputs'));
             } else if (e.target.id === 'add-spec-input-btn') {
                 addSpecInputField(document.getElementById('edit-product-spec-inputs'));
             } else if (e.target.classList.contains('btn-remove-input')) {
+                // Use optional chaining to prevent error if closest returns null
                 e.target.closest('.dynamic-input-group')?.remove();
                 updateDynamicButtonsState();
             }
         }
+
+        // 判斷點擊是否發生在主頁面內部
         if (page.contains(e.target)) {
-            if (e.target.id === 'add-product-btn') {
-                openProductModal();
-            } else if (e.target.id === 'download-csv-template-btn') {
-                handleDownloadCsvTemplate();
-            } else if (e.target.closest('.btn-edit-product')) {
-                const button = e.target.closest('.btn-edit-product');
-                const product = allProducts.find(p => p.product_id === button.dataset.productid);
-                if (product) openProductModal(product);
-            }
+             if (e.target.id === 'add-product-btn') {
+                 openProductModal();
+             } else if (e.target.id === 'download-csv-template-btn') {
+                 handleDownloadCsvTemplate();
+             } else if (e.target.closest('.btn-edit-product')) {
+                const button = e.target.closest('.btn-edit-product'); // Define button here
+                // Ensure button exists before accessing dataset
+                if (button && button.dataset.productid) {
+                     const product = allProducts.find(p => p.product_id === button.dataset.productid);
+                     if (product) openProductModal(product);
+                }
+             }
         }
     });
 
+
+    // 其他不涉及點擊的事件監聽器 (保持原樣)
     function addFilterGroupListener(groupId) {
         const filterGroup = document.getElementById(groupId);
         if (filterGroup) {
@@ -575,9 +643,11 @@ function setupEventListeners() { /* ... (此函式內容不變) ... */
                     await api.toggleProductVisibility(productId, isVisible);
                     const product = allProducts.find(p => p.product_id === productId);
                     if (product) product.is_visible = isVisible ? 1 : 0;
+                     // Optional: Re-apply filters if visibility changed
+                    // applyProductFiltersAndRender();
                 } catch (error) {
                     ui.toast.error(`更新失敗: ${error.message}`);
-                    e.target.checked = !isVisible;
+                    e.target.checked = !isVisible; // Revert checkbox on error
                 } finally {
                     e.target.disabled = false;
                 }
@@ -593,147 +663,74 @@ function setupEventListeners() { /* ... (此函式內容不變) ... */
     document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
     document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
 
+    // Attach submit listener to the form itself
     const editForm = document.getElementById('edit-product-form');
+     // Prevent multiple attachments using a dataset attribute
      if (editForm && !editForm.dataset.listenerAttached) {
          editForm.addEventListener('submit', handleFormSubmit);
          editForm.dataset.listenerAttached = 'true';
      }
 
+
     page.dataset.initialized = 'true';
 }
 
-
-// --- 初始化 (包含修正後的 try...catch 結構) ---
+// --- 初始化 ---
 export const init = async () => {
-    console.log("[ProductManagement] Init started.");
-    let currentActiveTemplate = null; // 使用局部變數
-
-    // ========== ▼▼▼ 外層 try 開始 ▼▼▼ ==========
+    // 【新增】在初始化時，先決定要用哪個樣板
     try {
-        // ========== ▼▼▼ 修改點：直接使用參數 ▼▼▼ ==========
-        if (!activeTemplateKey || !definitions || typeof definitions !== 'object') {
-             console.error("[ProductManagement DEBUG] Received invalid parameters!", { activeTemplateKey, definitions });
-             throw new Error("必要的樣板設定未被傳遞。");
+        // Check if window.CONFIG and necessary properties exist
+        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+            throw new Error("全域設定 window.CONFIG 未完整載入或缺少必要屬性。");
         }
-        console.log("[ProductManagement DEBUG] Received active template key:", activeTemplateKey);
-
-        currentActiveTemplate = definitions[activeTemplateKey]; // 從傳入的 definitions 取得
-        console.log(`[ProductManagement DEBUG] Resolved activeTemplate for key '${activeTemplateKey}':`, currentActiveTemplate);
-        // ========== ▲▲▲ 修改點 ▲▲▲ ==========
-
-        if (!currentActiveTemplate) {
-            console.error(`[ProductManagement DEBUG] Failed to get activeTemplate from definitions for key: ${activeTemplateKey}`);
-            throw new Error(`在傳遞的設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+        if (!activeTemplate) {
+            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        }
+        // 【新增檢查】確保 activeTemplate 有 adminColumns
+        if (!activeTemplate.adminColumns || !Array.isArray(activeTemplate.adminColumns)) {
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
         }
 
-        const adminColumnsValue = currentActiveTemplate.adminColumns;
-        const isAdminColumnsArray = Array.isArray(adminColumnsValue);
-
-        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Value of currentActiveTemplate.adminColumns:`, adminColumnsValue);
-        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Result of Array.isArray(currentActiveTemplate.adminColumns):`, isAdminColumnsArray);
-
-        if (!adminColumnsValue || !isAdminColumnsArray) {
-             console.error("[ProductManagement DEBUG] Check failed! currentActiveTemplate object state at failure:", currentActiveTemplate);
-             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。 [Debug Info: Value=${JSON.stringify(adminColumnsValue)}, IsArray=${isAdminColumnsArray}]`);
-        }
-        console.log(`[ProductManagement] Active template '${activeTemplateKey}' loaded successfully and adminColumns check passed.`);
-
-        // --- 頁面元素設定 ---
-        const tbody = document.getElementById('product-list-tbody');
-        if (!tbody) {
-             console.error("[ProductManagement] Cannot find tbody element inside init.");
-             // 即使找不到 tbody，也嘗試繼續執行，避免完全卡住，但後續會出錯
-        } else {
-             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${currentActiveTemplate.entityNamePlural}...</td></tr>`;
-        }
-        const pageTitle = document.querySelector('#page-inventory .page-header h2');
-        if (pageTitle) {
-            pageTitle.textContent = `${currentActiveTemplate.entityNamePlural}管理`;
-        } else {
-            console.warn("[ProductManagement] Cannot find page title element.");
-        }
-        // --- 頁面元素設定結束 ---
-
-        // ========== ▼▼▼ 內層 try 開始 ▼▼▼ ==========
-        try {
-            console.log("[ProductManagement] Fetching products...");
-            allProducts = []; // Reset before fetching
-            allProducts = await api.getProducts();
-            console.log(`[ProductManagement] Fetched ${allProducts.length} products.`);
-
-            // 使用 currentActiveTemplate 進行檢查和渲染
-            if (currentActiveTemplate && currentActiveTemplate.adminColumns) {
-                // ========== ▼▼▼ 修改點：將 currentActiveTemplate 傳遞給需要它的函式 ▼▼▼ ==========
-                // 注意：如果其他函式也需要樣板設定，需要修改它們以接收參數
-                applyProductFiltersAndRender(currentActiveTemplate); // 假設 render 需要樣板
-                initializeProductDragAndDrop(); // 這個可能不需要
-                if (!document.getElementById('page-inventory').dataset.initialized) {
-                    setupEventListeners(currentActiveTemplate); // 事件監聽器可能也需要
-                }
-                // ========== ▲▲▲ 修改點 ▲▲▲ ==========
-                console.log("[ProductManagement] Init finished successfully.");
-            } else {
-                 console.error("[ProductManagement DEBUG] currentActiveTemplate became invalid before rendering!");
-                 throw new Error("activeTemplate 在準備渲染時無效 (二次檢查)。");
-            }
-        } catch (error) { // 內層 catch
-            console.error('初始化產品頁面的產品列表失敗:', error);
-            const tbody = document.getElementById('product-list-tbody');
-            if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
-        }
-        // ========== ▲▲▲ 內層 try...catch 結束 ▲▲▲ ==========
-
-    } catch (e) { // 外層 catch
-        console.error("讀取商業樣板失敗 (outer catch):", e);
+    } catch (e) {
+        console.error("讀取商業樣板失敗:", e);
+        // Safely attempt to update the UI, check if the element exists first
         const inventoryPage = document.getElementById('page-inventory');
-        if(inventoryPage) inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
-        return;
+        if (inventoryPage) {
+            inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
+        }
+        return; // Stop initialization if template loading fails
     }
-    // ========== ▲▲▲ 外層 try...catch 結束 ▲▲▲ ==========
-}; // init 函式結束
 
 
+    const tbody = document.getElementById('product-list-tbody');
+    // Check if tbody exists before manipulating it
+    if (!tbody) {
+        console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
+        return; // Stop initialization if essential element is missing
+    }
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
 
-// 修改 setupEventListeners 以接收樣板
-function setupEventListeners(template) { // 接收 template
-    const page = document.getElementById('page-inventory');
-    // 注意： dataset.initialized 檢查邏輯可能需要調整，確保只綁定一次
-    // 或者在 app.js 傳遞時就判斷是否已初始化
-    // if (!page || page.dataset.initialized === 'true') return;
+    // 【新增】更新頁面標題
+    const pageTitle = document.querySelector('#page-inventory .page-header h2');
+    if (pageTitle) {
+        pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+    } else {
+        console.warn("無法找到頁面標題元素進行更新。");
+    }
 
-    // ... (事件委派邏輯) ...
 
-        // 例如，編輯按鈕需要 template
-        // else if (e.target.closest('.btn-edit-product')) {
-        //     const button = e.target.closest('.btn-edit-product');
-        //     const product = allProducts.find(p => p.product_id === button.dataset.productid);
-        //     if (product) openProductModal(product, template); // <--- 傳遞 template
-        // }
-
-    // ... (其他事件綁定) ...
-
-    // 將篩選按鈕觸發的渲染也改為傳遞 template
-    function addFilterGroupListener(groupId) {
-        const filterGroup = document.getElementById(groupId);
-        if (filterGroup) {
-            filterGroup.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    filterGroup.querySelector('.active')?.classList.remove('active');
-                    e.target.classList.add('active');
-                    applyProductFiltersAndRender(template); // <--- 傳遞 template
-                }
-            });
+    try {
+        allProducts = await api.getProducts();
+        applyProductFiltersAndRender();
+        initializeProductDragAndDrop();
+        setupEventListeners(); // Ensure event listeners are set up after fetching data
+    } catch (error) {
+        console.error('初始化產品頁面的產品列表失敗:', error);
+        // Check tbody again just in case, though less likely to fail here if passed above
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
         }
     }
-    // ...
-
-    document.getElementById('product-search-input')?.addEventListener('input', () => applyProductFiltersAndRender(template)); // <--- 傳遞 template
-
-    // ... (其他事件綁定) ...
-
-    // page.dataset.initialized = 'true'; // 標記初始化可能需要更精確的控制
-}
-
-// ========== ▲▲▲ 修改點 ▲▲▲ ==========
-
-// ... (其他 productManagement.js 的函式保持不變) ...
+};

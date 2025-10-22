@@ -1,4 +1,4 @@
-// functions/api/admin/_middleware.js (v3 - Expanded Whitelist)
+// functions/api/admin/_middleware.js (v4 - 最終白名單)
 
 import * as jose from 'jose';
 
@@ -12,11 +12,12 @@ async function authMiddleware(context) {
                               url.pathname.startsWith('/api/admin/auth/logout') ||
                               url.pathname.startsWith('/api/admin/verify-liff-user') ||
                               url.pathname.startsWith('/api/admin/dashboard-stats') ||
-                              url.pathname.startsWith('/api/get-bookings') || // <--- 新增 booking 列表 API
-                              url.pathname.startsWith('/api/update-booking-status') || // <--- 新增 booking 狀態更新 API
-                              url.pathname.startsWith('/api/generate-admin-link'); // <--- 新增 magic link API
+                              url.pathname.startsWith('/api/get-bookings') || // Booking 列表
+                              url.pathname.startsWith('/api/update-booking-status') || // Booking 狀態更新
+                              url.pathname.startsWith('/api/generate-admin-link') || // Magic link
+                              url.pathname.startsWith('/api/admin/activities'); // <--- 新增這一行 for 最新動態
 
-        // 如果是公開路由 (登入、登出、LIFF驗證、LIFF儀表板、LIFF列表/操作、MagicLink)，就直接放行
+        // 如果是公開路由，就直接放行
         if (isPublicRoute) {
             console.log(`[Middleware] 放行公開路由: ${url.pathname}`);
             return await next();

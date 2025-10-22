@@ -15,7 +15,7 @@ async function authMiddleware(context) {
                               url.pathname.startsWith('/api/get-bookings') || // Booking 列表
                               url.pathname.startsWith('/api/update-booking-status') || // Booking 狀態更新
                               url.pathname.startsWith('/api/generate-admin-link') || // Magic link
-                              url.pathname.startsWith('/api/admin/activities'); // <--- 新增這一行 for 最新動態
+                              url.pathname.startsWith('/api/admin/activities'); // 最新動態
 
         // 如果是公開路由，就直接放行
         if (isPublicRoute) {

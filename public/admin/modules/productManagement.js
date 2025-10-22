@@ -693,15 +693,6 @@ export const init = async () => {
 }; // init 函式結束
 
 
-// 修改 applyProductFiltersAndRender 以傳遞樣板
-function applyProductFiltersAndRender(template) { // 接收 template
-    // ... (篩選邏輯保持不變) ...
-    renderProductList(filtered, template); // 將 template 傳遞下去
-}
-
-// 修改 openProductModal 和 handleFormSubmit，確保它們使用正確的樣板
-// (這兩個函式原本就在 productManagement.js 內部，可以繼續使用局部的 currentActiveTemplate)
-// 但為了安全起見，可以也修改它們接收 template 參數
 
 // 修改 setupEventListeners 以接收樣板
 function setupEventListeners(template) { // 接收 template

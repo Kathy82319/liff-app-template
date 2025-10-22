@@ -101,21 +101,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDashboardStructure(template) {
         let cardsHtml = '';
         switch (template) {
-            case 'studio':
+            case 'studio_template':
                 cardsHtml = `
                     <div class="stat-card"><h3>今日預約</h3><p class="stat-value" id="stat-today-guests">...</p></div>
                     <div class="stat-card"><h3>待處理</h3><p class="stat-value" id="stat-pending-bookings">...</p></div>
                     <div class="stat-card" style="grid-column: span 2;"><h3>本月營業額</h3><p class="stat-value" id="stat-monthly-revenue">...</p></div>
                 `;
                 break;
-            case 'guesthouse': // 民宿
+            case 'guesthouse_template': // 民宿
                  cardsHtml = `
                     <div class="stat-card"><h3>今日入住率</h3><p class="stat-value" id="stat-occupancy">...%</p></div>
                     <div class="stat-card"><h3>待處理訂房</h3><p class="stat-value" id="stat-pending-bookings">...</p></div>
                     <div class="stat-card" style="grid-column: span 2;"><h3>本月營業額</h3><p class="stat-value" id="stat-monthly-revenue">...</p></div>
                 `;
                 break;
-            case 'ecommerce': // 電商
+            case 'ecommerce_template': // 電商
                  cardsHtml = `
                     <div class="stat-card"><h3>今日訂單</h3><p class="stat-value" id="stat-today-orders">...</p></div>
                     <div class="stat-card"><h3>待處理出貨</h3><p class="stat-value" id="stat-pending-shipment">...</p></div>
@@ -145,16 +145,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 更新樣板專屬的數據
             switch (template) {
-                case 'studio':
+                case 'studio_template':
                     const guestsEl = document.getElementById('stat-today-guests');
                     if (guestsEl) guestsEl.textContent = stats.today_total_guests || 0;
                     break;
-                case 'guesthouse':
+                case 'guesthouse_template':
                     const occupancyEl = document.getElementById('stat-occupancy');
                     if(occupancyEl) occupancyEl.textContent = `${stats.monthly_occupancy_rate || 0}%`; // 假設 API 會回傳入住率
                     // 待處理訂房已更新
                     break;
-                case 'ecommerce':
+                case 'ecommerce_template':
                     const ordersEl = document.getElementById('stat-today-orders');
                     if(ordersEl) ordersEl.textContent = stats.today_orders || 0; // 假設 API 會回傳今日訂單
                     const shipmentEl = document.getElementById('stat-pending-shipment');
@@ -174,12 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 根據樣板決定 API 和標題
         switch (template) {
-            case 'studio':
-            case 'guesthouse':
+            case 'studio_template':
+            case 'guesthouse_template':
                 apiUrl = '/api/get-bookings?status=today'; // 獲取今天的 booking
                 title = '今日預約列表';
                 break;
-            case 'ecommerce':
+            case 'ecommerce_template':
                  apiUrl = '/api/admin/get-orders?status=today'; // 假設未來會有這個 API
                  title = '今日訂單列表';
                  break;
@@ -198,9 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 根據樣板渲染不同的列表項
-            if (template === 'studio' || template === 'guesthouse') {
+            if (template === 'studio_template' || template === 'guesthouse_template') {
                 renderBookingList(items);
-            } else if (template === 'ecommerce') {
+            } else if (template === 'ecommerce_template') {
                 renderOrderList(items); // 未來實作
             }
 

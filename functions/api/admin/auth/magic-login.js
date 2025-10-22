@@ -8,7 +8,7 @@ export async function onRequest(context) {
 
     // 1. 透過 Header 驗證 Cloudflare Access 身份
     // **重要前提**：此 `/api/admin/auth/magic-login` 路徑必須在 Cloudflare Access 中
-    // 使用與 `/admin-panel.html` 相同的應用程式/政策進行保護。
+    // 使用與之前 `/admin-panel.html` 相同的應用程式/政策進行保護。
     const cfAuthUserEmail = request.headers.get('Cf-Access-Authenticated-User-Email');
     if (!cfAuthUserEmail) {
         console.error('[MagicLogin] 錯誤：缺少 Cf-Access-Authenticated-User-Email Header。請確認此端點已受 Cloudflare Access 保護。');

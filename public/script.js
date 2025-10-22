@@ -8,7 +8,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageTemplates = document.getElementById('page-templates');
     let activeTemplate = null; // 當前啟用的樣板
     let CONFIG; 
-    
+ // ========== ▼▼▼ 在這裡加入定義 ▼▼▼ ==========
+    let productView = { // 用來儲存產品列表的顯示狀態
+        layout: 'grid', // 預設佈局 ('grid' or 'list')
+        sort: 'default' // 預設排序 ('default', 'price_asc', 'price_desc')
+    };
+    let activeFilters = { // 用來儲存篩選條件
+        keyword: '',
+        filter_1: null,
+        filter_2: null,
+        filter_3: null
+        // 未來可以擴充更多篩選器
+    };
+    // ========== ▲▲▲ 加入定義結束 ▲▲▲ ==========   
     // --- 狀態變數 ---
     let allProducts = [];
     let allNews = [];

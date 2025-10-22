@@ -1,11 +1,10 @@
-// public/admin/app.js (Simplified Fallback)
+// public/admin/app.js (Fallback with Delay Check)
 
 import { api } from './api.js';
 import { ui } from './ui.js';
-import { hideBatchToolbar } from './modules/productManagement.js'; // Keep this import
+import { hideBatchToolbar } from './modules/productManagement.js';
 
 const App = {
-    // 路由表：將頁面 ID 映射到對應的模組路徑
     router: {
         'dashboard': './modules/dashboard.js',
         'users': './modules/userManagement.js',
@@ -18,96 +17,119 @@ const App = {
         'points': './modules/pointsCenter.js',
         'settings': './modules/systemSettings.js',
     },
+    configPromise: null,
+    isConfigReady: false, // 新增標誌
 
-    // 處理路由變更的核心函式
+    // 延遲函式
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
     async handleRouteChange() {
-        // **確保 window.CONFIG 存在才繼續**
-        if (!window.CONFIG) {
-             console.error("[App Fallback] handleRouteChange called before window.CONFIG is ready. Aborting.");
-             // Optionally display an error message to the user
-             // document.body.innerHTML = `<p style="color:red;">設定檔尚未載入，請稍後再試或重新整理。</p>`;
-             return; // Stop execution if config is not ready
+        // 等待 Config Promise 完成 (如果還沒完成)
+        if (!this.isConfigReady) {
+            try {
+                await this.configPromise; // 等待
+                this.isConfigReady = true; // 標記完成
+                console.log("[App Delay Check] Config is ready after await in handleRouteChange.");
+            } catch (error) {
+                console.error("[App Delay Check] Config promise failed:", error);
+                ui.showPage('error');
+                const errorPage = document.getElementById('page-error');
+                if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
+                return;
+            }
         }
+        // 到這裡，this.configPromise 必定已完成，且 window.CONFIG 理應存在
 
         const pageId = window.location.hash.substring(1) || 'dashboard';
-
-        // Attempt to hide toolbar safely
-        try {
-             hideBatchToolbar();
-        } catch(e) { console.warn("Error hiding batch toolbar:", e); }
-
+        try { hideBatchToolbar(); } catch(e) { console.warn("Error hiding batch toolbar:", e); }
         ui.setActiveNav(pageId);
         ui.showPage(pageId);
 
         const modulePath = this.router[pageId];
         if (modulePath) {
             try {
-                console.log(`[App Fallback] Importing module: ${modulePath}`);
+                console.log(`[App Delay Check] Importing module: ${modulePath}`);
                 const pageModule = await import(modulePath);
+
                 if (pageModule.init) {
-                    console.log(`[App Fallback] Calling init for module: ${modulePath}`);
-                    await pageModule.init(); // Call init without parameters
+                    console.log(`[App Delay Check] Module imported. Checking window.CONFIG before calling init...`);
+
+                    // ========== ▼▼▼ **核心修改：延遲檢查** ▼▼▼ ==========
+                    let attempts = 0;
+                    const maxAttempts = 10; // 最多等 1 秒 (10 * 100ms)
+
+                    while (!window.CONFIG && attempts < maxAttempts) {
+                        attempts++;
+                        console.warn(`[App Delay Check] window.CONFIG not ready yet (Attempt ${attempts}). Waiting 100ms...`);
+                        await this.delay(100);
+                    }
+
+                    if (!window.CONFIG) {
+                        console.error(`[App Delay Check] window.CONFIG still not ready after ${maxAttempts} attempts. Aborting init for ${modulePath}.`);
+                        throw new Error("無法載入必要的設定檔 (window.CONFIG)");
+                    }
+                    // ========== ▲▲▲ **核心修改結束** ▲▲▲ ==========
+
+
+                    console.log(`[App Delay Check] window.CONFIG confirmed ready. Calling init for module: ${modulePath}`);
+                    await pageModule.init(); // 不傳參數
+
                 } else {
-                     console.warn(`[App Fallback] Module ${modulePath} has no init function.`);
+                     console.warn(`[App Delay Check] Module ${modulePath} has no init function.`);
                 }
             } catch (error) {
                 console.error(`載入或初始化模組 ${modulePath} 失敗:`, error);
                 const pageElement = document.getElementById(`page-${pageId}`);
                 if (pageElement) {
-                     pageElement.innerHTML = `<p style="color:red;">載入頁面功能 (${pageId}) 時發生錯誤。</p>`;
+                     pageElement.innerHTML = `<p style="color:red;">載入頁面功能 (${pageId}) 時發生錯誤: ${error.message}</p>`;
                 }
             }
         } else {
-             console.warn(`[App Fallback] No module found for pageId: ${pageId}`);
+             console.warn(`[App Delay Check] No module found for pageId: ${pageId}`);
         }
     },
 
-    // 應用程式初始化函式
     async init() {
-        console.log("[App Fallback] Initializing...");
-        ui.initSharedEventListeners(); // Setup modal close buttons etc.
+        console.log("[App Delay Check] Initializing...");
+        ui.initSharedEventListeners();
 
-        try {
-            console.log("[App Fallback] Fetching app config...");
-            window.CONFIG = await api.getAppConfig(); // Fetch config first
-             if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
-                 throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
-             }
-            console.log('[App Fallback] App config loaded:', window.CONFIG);
+        // 啟動設定檔載入 Promise
+        this.configPromise = (async () => {
+            try {
+                console.log("[App Delay Check] Starting config fetch...");
+                window.CONFIG = await api.getAppConfig();
+                if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+                    throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
+                }
+                console.log('[App Delay Check] Config fetch successful:', window.CONFIG);
+                this.isConfigReady = true; // 標記完成
+            } catch (error) {
+                console.error("[App Delay Check] Config fetch failed:", error);
+                this.isConfigReady = false; // 標記失敗
+                throw error; // 重新拋出，讓 handleRouteChange 可以捕捉
+            }
+        })();
 
-            // Config loaded, now setup routing and initial route handling
-            window.addEventListener('hashchange', () => this.handleRouteChange());
+        // 設定路由監聽
+        window.addEventListener('hashchange', () => this.handleRouteChange());
+        document.querySelector('.nav-tabs').addEventListener('click', (event) => {
+            if (event.target.tagName === 'A') {
+                event.preventDefault();
+                const newHash = event.target.getAttribute('href');
+                if (window.location.hash !== newHash) {
+                    window.location.hash = newHash;
+                }
+            }
+        });
 
-            document.querySelector('.nav-tabs').addEventListener('click', (event) => {
-                 if (event.target.tagName === 'A') {
-                     event.preventDefault();
-                     const newHash = event.target.getAttribute('href');
-                     if (window.location.hash !== newHash) {
-                         window.location.hash = newHash; // This will trigger hashchange
-                     } else {
-                          // If hash is the same, manually call handleRouteChange if needed
-                          // this.handleRouteChange();
-                     }
-                 }
-            });
-
-            // Handle the initial page load AFTER config is loaded
-            await this.handleRouteChange();
-            console.log("[App Fallback] Initial route handled.");
-
-        } catch (error) {
-            console.error("[App Fallback] Initialization failed:", error);
-            document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: #dc3545;"><h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認 API (/api/get-app-config) 是否運作正常，且已在「系統設定」中儲存並啟用一個樣板。</p></div>`;
-            return;
-        }
-
-        /* Login check removed for simplicity now */
+        // 處理初始路由 (會等待 configPromise)
+        await this.handleRouteChange();
+        console.log("[App Delay Check] Initial route handled.");
     }
 };
 
-// ** Wait for DOMContentLoaded before initializing **
 document.addEventListener('DOMContentLoaded', () => {
-     // Ensure productManagement's init is not called prematurely if it's the initial page
-     // The init logic handles the call sequence now.
      App.init();
 });

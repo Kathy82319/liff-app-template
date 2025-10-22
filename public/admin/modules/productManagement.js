@@ -163,18 +163,24 @@ function updateDynamicButtonsState() {
 }
 
 // 渲染列表函式 (保持不變)
+// 範例：確保 renderProductList 使用模組級 activeTemplate (若您的舊版是這樣寫)
 function renderProductList(products) {
     const productListTbody = document.getElementById('product-list-tbody');
     const productListThead = document.querySelector('#page-inventory thead tr');
-    if (!productListTbody || !productListThead) return;
+    // 重要：檢查模組級的 activeTemplate
+    if (!productListTbody || !productListThead || !activeTemplate || !activeTemplate.adminColumns) {
+         console.error("renderProductList: 無效的 activeTemplate 或缺少元素。");
+         // 安全退出，避免進一步錯誤
+         if(productListTbody) productListTbody.innerHTML = '<tr><td colspan="7" style="color: red; text-align:center;">渲染列表時發生錯誤 (樣板無效)。</td></tr>';
+         return;
+    }
 
     let headerHTML = `
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
         <th style="width: 50px;">順序</th>
     `;
-    activeTemplate.adminColumns.forEach(col => {
-        headerHTML += `<th>${col.label}</th>`;
-    });
+    // 使用模組級 activeTemplate
+    activeTemplate.adminColumns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
     headerHTML += `
         <th style="width: 80px;">上架</th>
         <th style="width: 80px;">操作</th>
@@ -190,8 +196,9 @@ function renderProductList(products) {
             <td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>
             <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>
         `;
+        // 使用模組級 activeTemplate
         activeTemplate.adminColumns.forEach(col => {
-            rowHTML += `<td>${p[col.key] || 'N/A'}</td>`;
+            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`; // 增加檢查
         });
         rowHTML += `
             <td><label class="switch"><input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}><span class="slider"></span></label></td>
@@ -571,42 +578,39 @@ function updateSelectAllCheckboxState() {
 // 事件監聽器 (最終修正版)
 // --- 事件監聽器 ---
 function setupEventListeners() {
-    const page = document.getElementById('page-inventory');
-    if (!page || page.dataset.initialized === 'true') return;
+     const page = document.getElementById('page-inventory');
+     if (!page || page.dataset.initialized === 'true') {
+         // console.log("[ProductManagement setupEventListeners - Reverted] Skipping, already initialized or page not found.");
+         return;
+     }
+     console.log("[ProductManagement setupEventListeners - Reverted] Binding listeners...");
 
-    // 【核心修正】將事件監聽器掛載到 document 層級，確保能捕捉到 Modal 中的點擊
-    document.addEventListener('click', e => {
+     document.addEventListener('click', e => {
+        // ... Modal 內點擊事件 ...
         const modal = document.getElementById('edit-product-modal');
-        // Check if modal exists before trying to access its properties or methods
         if (modal && modal.contains(e.target)) {
-            if (e.target.id === 'add-image-input-btn') {
-                addImageInputField(document.getElementById('edit-product-image-inputs'));
-            } else if (e.target.id === 'add-spec-input-btn') {
-                addSpecInputField(document.getElementById('edit-product-spec-inputs'));
-            } else if (e.target.classList.contains('btn-remove-input')) {
-                // Use optional chaining to prevent error if closest returns null
+            if (e.target.id === 'add-image-input-btn') { addImageInputField(document.getElementById('edit-product-image-inputs')); }
+            else if (e.target.id === 'add-spec-input-btn') { addSpecInputField(document.getElementById('edit-product-spec-inputs')); }
+            else if (e.target.classList.contains('btn-remove-input')) {
                 e.target.closest('.dynamic-input-group')?.remove();
                 updateDynamicButtonsState();
             }
         }
-
-        // 判斷點擊是否發生在主頁面內部
+        // 頁面點擊事件
         if (page.contains(e.target)) {
              if (e.target.id === 'add-product-btn') {
-                 openProductModal();
-             } else if (e.target.id === 'download-csv-template-btn') {
-                 handleDownloadCsvTemplate();
+                 openProductModal(); // 隱式使用模組級 activeTemplate
              } else if (e.target.closest('.btn-edit-product')) {
-                const button = e.target.closest('.btn-edit-product'); // Define button here
-                // Ensure button exists before accessing dataset
+                const button = e.target.closest('.btn-edit-product');
                 if (button && button.dataset.productid) {
                      const product = allProducts.find(p => p.product_id === button.dataset.productid);
-                     if (product) openProductModal(product);
+                     if (product) openProductModal(product); // 隱式使用模組級 activeTemplate
                 }
              }
+             // ... 其他頁面點擊處理 ...
+             else if (e.target.id === 'download-csv-template-btn') { handleDownloadCsvTemplate(); }
         }
     });
-
 
     // 其他不涉及點擊的事件監聽器 (保持原樣)
     function addFilterGroupListener(groupId) {
@@ -675,60 +679,86 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-// --- 初始化 ---
 export const init = async () => {
-    // 【新增】在初始化時，先決定要用哪個樣板
-    try {
-        // Check if window.CONFIG and necessary properties exist
-        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
-            throw new Error("全域設定 window.CONFIG 未完整載入或缺少必要屬性。");
+    console.log("[ProductManagement Internal Wait] Init called.");
+
+    // Helper function for delay
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    let attempts = 0;
+    const maxAttempts = 15; // Wait up to 1.5 seconds
+
+    // ========== ▼▼▼ **Internal Wait Loop** ▼▼▼ ==========
+    while (
+        (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) &&
+        attempts < maxAttempts
+    ) {
+        attempts++;
+        console.warn(`[ProductManagement Internal Wait] window.CONFIG not fully ready (Attempt ${attempts}). Waiting 100ms...`);
+        await delay(100);
+    }
+
+    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+        console.error("[ProductManagement Internal Wait] window.CONFIG still not ready after waiting. Aborting init.");
+        const inventoryPage = document.getElementById('page-inventory');
+        if (inventoryPage) {
+            inventoryPage.innerHTML = `<p style="color:red;">讀取核心設定失敗，請重新整理頁面或檢查系統設定。</p>`;
         }
+        return; // Stop execution
+    }
+    // ========== ▲▲▲ **Internal Wait Loop End** ▲▲▲ ==========
+
+    console.log("[ProductManagement Internal Wait] window.CONFIG seems ready now.");
+
+    // Now proceed with the original logic from the version you provided
+    try {
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
-        if (!activeTemplate) {
+        // Assign to the module-level variable IF IT STILL EXISTS IN YOUR REVERTED CODE
+        // If you removed the module-level `activeTemplate`, use a local const/let instead:
+        const currentActiveTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+        activeTemplate = currentActiveTemplate; // Assuming module-level 'activeTemplate' exists in your reverted code
+
+        if (!currentActiveTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-        // 【新增檢查】確保 activeTemplate 有 adminColumns
-        if (!activeTemplate.adminColumns || !Array.isArray(activeTemplate.adminColumns)) {
+        // Check adminColumns using the local variable
+        if (!currentActiveTemplate.adminColumns || !Array.isArray(currentActiveTemplate.adminColumns)) {
+             console.error("[ProductManagement Internal Wait] adminColumns check failed!", currentActiveTemplate);
              throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
         }
+        console.log("[ProductManagement Internal Wait] Template and adminColumns check passed.");
 
     } catch (e) {
         console.error("讀取商業樣板失敗:", e);
-        // Safely attempt to update the UI, check if the element exists first
         const inventoryPage = document.getElementById('page-inventory');
         if (inventoryPage) {
             inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
         }
-        return; // Stop initialization if template loading fails
+        return;
     }
-
 
     const tbody = document.getElementById('product-list-tbody');
-    // Check if tbody exists before manipulating it
     if (!tbody) {
         console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
-        return; // Stop initialization if essential element is missing
+        return;
     }
+    // Use the potentially module-level activeTemplate here (as per your original code)
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
 
-    // 【新增】更新頁面標題
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
     if (pageTitle) {
         pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
-    } else {
-        console.warn("無法找到頁面標題元素進行更新。");
     }
-
 
     try {
         allProducts = await api.getProducts();
-        applyProductFiltersAndRender();
+        // Pass activeTemplate to functions that need it (important!)
+        applyProductFiltersAndRender(); // Assuming this implicitly uses module-level activeTemplate
         initializeProductDragAndDrop();
-        setupEventListeners(); // Ensure event listeners are set up after fetching data
+        setupEventListeners(); // Assuming this implicitly uses module-level activeTemplate
+        console.log("[ProductManagement Internal Wait] Init completed successfully.");
     } catch (error) {
         console.error('初始化產品頁面的產品列表失敗:', error);
-        // Check tbody again just in case, though less likely to fail here if passed above
         if (tbody) {
             tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
         }

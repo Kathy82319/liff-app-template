@@ -34,20 +34,9 @@
         </form>
     </div>
 
-<script>
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('login-form');
-            const logOutput = document.getElementById('login-log-output');
-
-            function logMessage(message) {
-                console.log(message);
-                if (logOutput) {
-                    const time = new Date().toLocaleTimeString();
-                    logOutput.textContent += `\n[${time}] ${message}`;
-                    logOutput.scrollTop = logOutput.scrollHeight;
-                }
-            }
-
             if (!loginForm) return;
 
             loginForm.addEventListener('submit', async (e) => {
@@ -56,12 +45,11 @@
                 const password = document.getElementById('login-password').value;
                 const loginStatus = document.getElementById('login-status');
                 const loginButton = document.getElementById('login-button');
-
+                
                 loginStatus.textContent = '';
                 loginButton.disabled = true;
                 loginButton.textContent = '登入中...';
-                logMessage('登入請求已發送...');
-
+                
                 try {
                     const response = await fetch('/api/admin/auth/login', {
                         method: 'POST',
@@ -69,23 +57,17 @@
                         body: JSON.stringify({ username, password })
                     });
                     const result = await response.json();
-
-                    logMessage(`登入 API 回應狀態: ${response.status}`);
-
                     if (!response.ok) throw new Error(result.error || '登入失敗');
 
-                    // *** 關鍵修改：只要 API 成功 (status 200)，就直接跳轉 ***
-                    logMessage('✅ 登入 API 成功！準備跳轉...');
+                    // 登入成功，導向到受保護的後台面板
                     window.location.href = '/admin-panel.html';
-                    // 不再需要 setTimeout 和 document.cookie 檢查
 
                 } catch (error) {
                     loginStatus.textContent = error.message;
-                    logMessage(`登入失敗: ${error.message}`);
-                    loginButton.disabled = false; // 發生錯誤時重新啟用按鈕
+                } finally {
+                    loginButton.disabled = false;
                     loginButton.textContent = '登入';
                 }
-                // 成功登入後不重新啟用按鈕，因為會跳轉
             });
         });
     </script>

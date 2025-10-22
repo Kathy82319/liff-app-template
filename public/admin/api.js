@@ -1,55 +1,63 @@
-// public/admin/api.js (修正 credentials)
+// public/admin/api.js (加入 Cookie 檢查)
 
 async function request(url, options = {}) {
+    // *** 關鍵偵錯點 2：每次請求前檢查 Cookie ***
+    const currentCookies = document.cookie;
+    console.log(`[API Request] URL: ${url}`);
+    console.log(`[API Request] Cookies before fetch: ${currentCookies || '(none)'}`);
+
+    // (可選) 如果無法看 console，可以用 alert 暫時代替，但會一直跳出視窗
+    // alert(`請求 ${url}\nCookies: ${currentCookies || '(none)'}`);
+
+    if (!currentCookies || !currentCookies.includes('AuthToken=')) {
+         console.warn(`[API Request] 警告：發送請求 ${url} 時缺少 AuthToken Cookie！`);
+         // (可選) alert(`警告：請求 ${url} 時缺少 AuthToken！`);
+    }
+
     try {
-        // *** 在這裡加入 credentials: 'same-origin' ***
         const defaultOptions = {
-            credentials: 'same-origin', // <--- 新增這一行確保 Cookie 被發送
+            credentials: 'same-origin', // 確保這個設定存在
             headers: {
                 'Content-Type': 'application/json',
-                ...options.headers // 保留可能傳入的其他 header
+                ...options.headers
             },
-            ...options // 包含傳入的 method, body 等
+            ...options
         };
 
-        // 如果是 FormData (例如未來用於圖片上傳)，不需要設定 Content-Type
         if (options.body instanceof FormData) {
             delete defaultOptions.headers['Content-Type'];
         }
 
-        // 使用合併後的 defaultOptions 進行 fetch
         const response = await fetch(url, defaultOptions);
 
-        // ... 以下的錯誤處理和回應解析邏輯保持不變 ...
         if (!response.ok) {
+            // ... (錯誤處理不變)
             const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
+            console.error(`API Error Data for ${url}:`, errorData);
             throw new Error(errorData.error || '未知的 API 錯誤');
         }
         if (response.status === 204) return { success: true };
         return await response.json();
     } catch (error) {
-        console.error(`API 請求失敗: ${url}`, error);
-        throw error; // 將錯誤拋出，讓呼叫者知道
+        console.error(`API 請求失敗 (in catch): ${url}`, error);
+        throw error;
     }
 }
 
-// export const api = { ... } // api 物件的其他內容保持不變
-// ... (api 物件的其餘部分) ...
+// ... export const api = { ... } (其餘部分不變)
 export const api = {
     checkAuthStatus: () => request('/api/admin/auth/status'),
     getDashboardStats: () => request('/api/admin/dashboard-stats'),
     generateImageUploadUrl: () => request('/api/admin/generate-image-upload-url', { method: 'POST' }),
     getActivities: () => request('/api/admin/activities'),
     markActivityAsRead: (activity_id) => request('/api/admin/activities', { method: 'POST', body: JSON.stringify({ activity_id }) }),
-    // 依 handover notes，將 get-users 移至 admin 路徑
-    getUsers: () => request('/api/admin/get-users'), // <--- 路徑可能需要調整為 /api/admin/get-users
-    // 依 handover notes，將 update-user-details 移至 admin 路徑
-    updateUserDetails: (data) => request('/api/admin/update-user-details', { method: 'POST', body: JSON.stringify(data) }), // <--- 路徑可能需要調整為 /api/admin/update-user-details
+    // Use correct paths based on previous handover/discussion
+    getUsers: () => request('/api/admin/get-users'),
+    updateUserDetails: (data) => request('/api/admin/update-user-details', { method: 'POST', body: JSON.stringify(data) }),
     getUserDetails: (userId) => request(`/api/admin/user-details?userId=${userId}`),
     searchUsers: (query) => request(`/api/admin/user-search?q=${encodeURIComponent(query)}`),
 
-    // 依 handover notes，將 get-products 移至 admin 路徑
-    getProducts: () => request('/api/admin/get-products'), // <--- 路徑可能需要調整為 /api/admin/get-products
+    getProducts: () => request('/api/admin/get-products'),
     updateProductOrder: (orderedproductIds) => request('/api/admin/update-product-order', { method: 'POST', body: JSON.stringify({ orderedproductIds }) }),
     toggleProductVisibility: (productId, isVisible) => request('/api/admin/toggle-product-visibility', { method: 'POST', body: JSON.stringify({ productId, isVisible }) }),
     updateProductDetails: (data) => request('/api/admin/update-product-details', { method: 'POST', body: JSON.stringify(data) }),
@@ -60,14 +68,15 @@ export const api = {
     bulkCreateProducts: (data) => request('/api/admin/bulk-create-products', { method: 'POST', body: JSON.stringify(data) }),
 
 
-    getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`), // LIFF 會用到，保持 /api/
-    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // LIFF 會用到，保持 /api/
+    getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`), // Keep /api/ for LIFF
+    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // Keep /api/ for LIFF
     getBookingSettings: () => request('/api/admin/booking-settings'),
     saveBookingSettings: (body) => request('/api/admin/booking-settings', { method: 'POST', body: JSON.stringify(body) }),
     createBooking: (data) => request('/api/admin/create-booking', { method: 'POST', body: JSON.stringify(data) }),
     updateBookingDetails: (data) => request('/api/admin/update-booking-details', { method: 'POST', body: JSON.stringify(data) }),
     getExpHistory: () => request('/api/admin/exp-history-list'),
-    addPoints: (data) => request('/api/add-points', { method: 'POST', body: JSON.stringify(data) }), // PointsCenter 是 admin 功能，移至 /api/admin/add-points?
+    // Assuming addPoints is admin-only based on context
+    addPoints: (data) => request('/api/admin/add-points', { method: 'POST', body: JSON.stringify(data) }), // Moved to /admin/
 
     getAllNews: () => request('/api/admin/get-all-news'),
     createNews: (data) => request('/api/admin/create-news', { method: 'POST', body: JSON.stringify(data) }),
@@ -78,9 +87,10 @@ export const api = {
     createMessageDraft: (data) => request('/api/admin/message-drafts', { method: 'POST', body: JSON.stringify(data) }),
     updateMessageDraft: (data) => request('/api/admin/message-drafts', { method: 'PUT', body: JSON.stringify(data) }),
     deleteMessageDraft: (draft_id) => request('/api/admin/message-drafts', { method: 'DELETE', body: JSON.stringify({ draft_id }) }),
-    sendMessage: (userId, message) => request('/api/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }), // CRM (Admin) 會用到，移至 /api/admin/send-message?
+     // Assuming sendMessage is admin-only based on context
+    sendMessage: (userId, message) => request('/api/admin/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }), // Moved to /admin/
 
-    getStoreInfo: () => request('/api/get-store-info'), // LIFF 會用到，保持 /api/
+    getStoreInfo: () => request('/api/get-store-info'), // Keep /api/ for LIFF
     updateStoreInfo: (data) => request('/api/admin/update-store-info', { method: 'POST', body: JSON.stringify(data) }),
 
     getSettings: () => request('/api/admin/get-settings'),
@@ -88,7 +98,7 @@ export const api = {
 
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 
-    // 假設 Sync 是 Admin 功能
-    syncD1ToSheet: () => request('/api/admin/sync-d1-to-sheet', { method: 'POST' }), // <--- 路徑可能需要調整
-    syncProductsFromSheet: () => request('/api/admin/sync-products-from-sheet', { method: 'POST' }) // <--- 路徑可能需要調整
+    // Assuming Syncs are admin-only
+    syncD1ToSheet: () => request('/api/admin/sync-d1-to-sheet', { method: 'POST' }),
+    syncProductsFromSheet: () => request('/api/admin/sync-products-from-sheet', { method: 'POST' })
 };

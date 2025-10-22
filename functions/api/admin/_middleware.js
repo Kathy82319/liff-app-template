@@ -1,4 +1,4 @@
-// functions/api/admin/_middleware.js (修正後)
+// functions/api/admin/_middleware.js (v3 - Expanded Whitelist)
 
 import * as jose from 'jose';
 
@@ -7,28 +7,29 @@ async function authMiddleware(context) {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api/admin/')) {
-        // 【核心修正】將 LIFF 專用的驗證 API 也加入到白名單中
+        // 【核心修正】將 LIFF 會用到的所有 admin API 都加入白名單
         const isPublicRoute = url.pathname.startsWith('/api/admin/auth/login') ||
-                          url.pathname.startsWith('/api/admin/auth/logout') ||
-                          // ↓↓↓ LIFF 需要的 API 放這裡 ↓↓↓
-                          url.pathname.startsWith('/api/admin/verify-liff-user') ||
-                          url.pathname.startsWith('/api/admin/dashboard-stats') ||
-                          url.pathname.startsWith('/api/get-bookings') || // 注意：這個路徑不在 /admin/ 下，但為了一致性先放著
-                          url.pathname.startsWith('/api/update-booking-status') || // 注意：這個路徑不在 /admin/ 下
-                          url.pathname.startsWith('/api/generate-admin-link') || // 注意：這個路徑不在 /admin/ 下
-                          url.pathname.startsWith('/api/admin/activities');
+                              url.pathname.startsWith('/api/admin/auth/logout') ||
+                              url.pathname.startsWith('/api/admin/verify-liff-user') ||
+                              url.pathname.startsWith('/api/admin/dashboard-stats') ||
+                              url.pathname.startsWith('/api/get-bookings') || // <--- 新增 booking 列表 API
+                              url.pathname.startsWith('/api/update-booking-status') || // <--- 新增 booking 狀態更新 API
+                              url.pathname.startsWith('/api/generate-admin-link'); // <--- 新增 magic link API
 
-        // 如果是公開路由 (登入、登出、LIFF驗證)，就直接放行
+        // 如果是公開路由 (登入、登出、LIFF驗證、LIFF儀表板、LIFF列表/操作、MagicLink)，就直接放行
         if (isPublicRoute) {
+            console.log(`[Middleware] 放行公開路由: ${url.pathname}`);
             return await next();
         }
 
         // --- 以下是針對完整版後台的 Cookie 驗證邏輯 ---
+        console.log(`[Middleware] 執行 Cookie 驗證: ${url.pathname}`);
         const cookie = request.headers.get('Cookie') || '';
         const tokenMatch = cookie.match(/AuthToken=([^;]+)/);
         const token = tokenMatch ? tokenMatch[1] : null;
 
         if (!token) {
+            console.log('[Middleware] Cookie 驗證失敗: 缺少 Token');
             return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401 });
         }
 
@@ -40,14 +41,18 @@ async function authMiddleware(context) {
             });
 
             if (payload.role !== 'admin') {
+                console.log(`[Middleware] Cookie 驗證失敗: 權限不足 (role: ${payload.role})`);
                 return new Response(JSON.stringify({ error: 'Forbidden: Insufficient privileges' }), { status: 403 });
             }
             context.data.user = payload;
+             console.log(`[Middleware] Cookie 驗證成功: userId=${payload.userId}, role=${payload.role}`);
         } catch (err) {
+            console.log(`[Middleware] Cookie 驗證失敗: Token 無效 (${err.message})`);
             return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token', details: err.message }), { status: 401 });
         }
     }
 
+    // 如果不是 /api/admin/ 開頭的路徑，也直接放行
     return await next();
 }
 

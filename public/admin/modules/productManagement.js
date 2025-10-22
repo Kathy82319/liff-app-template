@@ -721,11 +721,12 @@ export const init = async () => {
         if (!currentActiveTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-        // Check adminColumns using the local variable
-        if (!currentActiveTemplate.adminColumns || !Array.isArray(currentActiveTemplate.adminColumns)) {
-             console.error("[ProductManagement Internal Wait] adminColumns check failed!", currentActiveTemplate);
-             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
-        }
+console.log("DEBUG: Checking template object:", JSON.stringify(currentActiveTemplate, null, 2));
+// 原本的檢查
+if (!currentActiveTemplate.adminColumns || !Array.isArray(currentActiveTemplate.adminColumns)) {
+    console.error("[ProductManagement Internal Wait] adminColumns check failed!", currentActiveTemplate);
+    throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
+}
         console.log("[ProductManagement Internal Wait] Template and adminColumns check passed.");
 
     } catch (e) {

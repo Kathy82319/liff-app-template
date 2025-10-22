@@ -12,10 +12,10 @@ async function authMiddleware(context) {
                               url.pathname.startsWith('/api/admin/auth/logout') ||
                               url.pathname.startsWith('/api/admin/verify-liff-user') ||
                               url.pathname.startsWith('/api/admin/dashboard-stats') ||
-                              url.pathname.startsWith('/api/get-bookings') || 
-                              url.pathname.startsWith('/api/update-booking-status') || 
-                              url.pathname.startsWith('/api/generate-admin-link') || 
-                              url.pathname.startsWith('/api/admin/get-products'); 
+                              url.pathname.startsWith('/api/get-bookings') || // booking 列表 API
+                              url.pathname.startsWith('/api/update-booking-status') || // booking 狀態更新 API
+                              url.pathname.startsWith('/api/generate-admin-link') || // magic link API
+                              url.pathname.startsWith('/api/admin/get-orders'); // <--- **在這裡新增訂單 API**
 
         // 如果是公開路由 (登入、登出、LIFF驗證、LIFF儀表板、LIFF列表/操作、MagicLink、訂單列表)，就直接放行
         if (isPublicRoute) {

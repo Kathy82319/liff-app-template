@@ -63,12 +63,12 @@ export const api = {
     generateImageUploadUrl: () => request('/api/admin/generate-image-upload-url', { method: 'POST' }),
     getActivities: () => request('/api/admin/activities'),
     markActivityAsRead: (activity_id) => request('/api/admin/activities', { method: 'POST', body: { activity_id } }), // 直接傳物件
-    getUsers: () => request('/api/get-users'),
+    getUsers: () => request('/api/admin/get-users'),
     updateUserDetails: (data) => request('/api/update-user-details', { method: 'POST', body: data }),
     getUserDetails: (userId) => request(`/api/admin/user-details?userId=${userId}`),
     searchUsers: (query) => request(`/api/admin/user-search?q=${encodeURIComponent(query)}`),
 
-    getProducts: () => request('/api/get-products'),
+    getProducts: () => request('/api/admin/get-products'),
     updateProductOrder: (orderedproductIds) => request('/api/admin/update-product-order', { method: 'POST', body: { orderedproductIds } }),
     toggleProductVisibility: (productId, isVisible) => request('/api/admin/toggle-product-visibility', { method: 'POST', body: { productId, isVisible } }),
     updateProductDetails: (data) => request('/api/admin/update-product-details', { method: 'POST', body: data }),
@@ -107,5 +107,5 @@ export const api = {
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 
     syncD1ToSheet: () => request('/api/sync-d1-to-sheet', { method: 'POST' }),
-    syncProductsFromSheet: () => request('/api/get-products', { method: 'POST' })
+    syncProductsFromSheet: () => request('/api/admin/get-products', { method: 'POST' }) // <--- 加入 /admin
 };

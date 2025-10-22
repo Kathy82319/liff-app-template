@@ -79,7 +79,6 @@
 
                     logMessage(`登入 API 回應狀態: ${response.status}`);
                     // 注意：無法直接從 JavaScript 讀取 Set-Cookie 回應標頭
-
                     if (!response.ok) throw new Error(result.error || '登入失敗');
 
                     logMessage('登入 API 成功。等待瀏覽器處理 Cookie...');

@@ -1,6 +1,5 @@
 // public/admin/modules/productManagement.js
 
-// --- 保持檔案開頭的 import 和變數宣告 ---
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -607,47 +606,49 @@ function setupEventListeners() { /* ... (此函式內容不變) ... */
 // --- 初始化 (包含修正後的 try...catch 結構) ---
 export const init = async () => {
     console.log("[ProductManagement] Init started.");
+    let currentActiveTemplate = null; // 使用局部變數
+
     // ========== ▼▼▼ 外層 try 開始 ▼▼▼ ==========
     try {
-        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
-             console.error("[ProductManagement DEBUG] window.CONFIG is incomplete or missing!", window.CONFIG);
-             throw new Error("全域設定 window.CONFIG 未完整載入。");
-         }
-        console.log("[ProductManagement DEBUG] window.CONFIG seems ok. Active template key:", window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE);
+        // ========== ▼▼▼ 修改點：直接使用參數 ▼▼▼ ==========
+        if (!activeTemplateKey || !definitions || typeof definitions !== 'object') {
+             console.error("[ProductManagement DEBUG] Received invalid parameters!", { activeTemplateKey, definitions });
+             throw new Error("必要的樣板設定未被傳遞。");
+        }
+        console.log("[ProductManagement DEBUG] Received active template key:", activeTemplateKey);
 
-        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
-        console.log(`[ProductManagement DEBUG] Assigned activeTemplate for key '${activeTemplateKey}':`, activeTemplate);
+        currentActiveTemplate = definitions[activeTemplateKey]; // 從傳入的 definitions 取得
+        console.log(`[ProductManagement DEBUG] Resolved activeTemplate for key '${activeTemplateKey}':`, currentActiveTemplate);
+        // ========== ▲▲▲ 修改點 ▲▲▲ ==========
 
-        if (!activeTemplate) {
-            console.error(`[ProductManagement DEBUG] Failed to get activeTemplate for key: ${activeTemplateKey}`);
-            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        if (!currentActiveTemplate) {
+            console.error(`[ProductManagement DEBUG] Failed to get activeTemplate from definitions for key: ${activeTemplateKey}`);
+            throw new Error(`在傳遞的設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
 
-        const adminColumnsValue = activeTemplate.adminColumns;
+        const adminColumnsValue = currentActiveTemplate.adminColumns;
         const isAdminColumnsArray = Array.isArray(adminColumnsValue);
 
-        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Value of activeTemplate.adminColumns:`, adminColumnsValue);
-        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Result of Array.isArray(activeTemplate.adminColumns):`, isAdminColumnsArray);
+        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Value of currentActiveTemplate.adminColumns:`, adminColumnsValue);
+        console.log(`[ProductManagement DEBUG **PRE-CHECK**] Result of Array.isArray(currentActiveTemplate.adminColumns):`, isAdminColumnsArray);
 
         if (!adminColumnsValue || !isAdminColumnsArray) {
-             console.error("[ProductManagement DEBUG] Check failed! activeTemplate object state at failure:", activeTemplate);
+             console.error("[ProductManagement DEBUG] Check failed! currentActiveTemplate object state at failure:", currentActiveTemplate);
              throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。 [Debug Info: Value=${JSON.stringify(adminColumnsValue)}, IsArray=${isAdminColumnsArray}]`);
         }
         console.log(`[ProductManagement] Active template '${activeTemplateKey}' loaded successfully and adminColumns check passed.`);
 
-        // --- 將頁面元素檢查和設定移到這裡 ---
+        // --- 頁面元素設定 ---
         const tbody = document.getElementById('product-list-tbody');
         if (!tbody) {
-             console.error("[ProductManagement] Cannot find tbody element inside init."); // Log inside init
+             console.error("[ProductManagement] Cannot find tbody element inside init.");
              // 即使找不到 tbody，也嘗試繼續執行，避免完全卡住，但後續會出錯
         } else {
-             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
+             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${currentActiveTemplate.entityNamePlural}...</td></tr>`;
         }
-
         const pageTitle = document.querySelector('#page-inventory .page-header h2');
         if (pageTitle) {
-            pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+            pageTitle.textContent = `${currentActiveTemplate.entityNamePlural}管理`;
         } else {
             console.warn("[ProductManagement] Cannot find page title element.");
         }
@@ -660,32 +661,120 @@ export const init = async () => {
             allProducts = await api.getProducts();
             console.log(`[ProductManagement] Fetched ${allProducts.length} products.`);
 
-            // 再次檢查 activeTemplate 和 adminColumns (安全起見)
-            if (activeTemplate && activeTemplate.adminColumns) {
-                applyProductFiltersAndRender();
-                initializeProductDragAndDrop();
-                 if (!document.getElementById('page-inventory').dataset.initialized) {
-                     setupEventListeners(); // 確保事件監聽器只設置一次
-                 }
+            // 使用 currentActiveTemplate 進行檢查和渲染
+            if (currentActiveTemplate && currentActiveTemplate.adminColumns) {
+                // ========== ▼▼▼ 修改點：將 currentActiveTemplate 傳遞給需要它的函式 ▼▼▼ ==========
+                // 注意：如果其他函式也需要樣板設定，需要修改它們以接收參數
+                applyProductFiltersAndRender(currentActiveTemplate); // 假設 render 需要樣板
+                initializeProductDragAndDrop(); // 這個可能不需要
+                if (!document.getElementById('page-inventory').dataset.initialized) {
+                    setupEventListeners(currentActiveTemplate); // 事件監聽器可能也需要
+                }
+                // ========== ▲▲▲ 修改點 ▲▲▲ ==========
                 console.log("[ProductManagement] Init finished successfully.");
             } else {
-                 // 理論上不會執行到這裡，因為前面已經檢查過
-                 console.error("[ProductManagement DEBUG] activeTemplate became invalid before rendering!");
+                 console.error("[ProductManagement DEBUG] currentActiveTemplate became invalid before rendering!");
                  throw new Error("activeTemplate 在準備渲染時無效 (二次檢查)。");
             }
         } catch (error) { // 內層 catch
-            console.error('初始化產品頁面的產品列表失敗:', error); // Log specific error source
-            const tbody = document.getElementById('product-list-tbody'); // 再次獲取 tbody
+            console.error('初始化產品頁面的產品列表失敗:', error);
+            const tbody = document.getElementById('product-list-tbody');
             if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
         }
         // ========== ▲▲▲ 內層 try...catch 結束 ▲▲▲ ==========
 
-    // ========== ▼▼▼ **修正點：外層 try 的結束括號** ▼▼▼ ==========
     } catch (e) { // 外層 catch
         console.error("讀取商業樣板失敗 (outer catch):", e);
-        const inventoryPage = document.getElementById('page-inventory'); // 獲取頁面元素
+        const inventoryPage = document.getElementById('page-inventory');
         if(inventoryPage) inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
-        return; // 出錯後停止執行 init
+        return;
     }
     // ========== ▲▲▲ 外層 try...catch 結束 ▲▲▲ ==========
 }; // init 函式結束
+
+// ========== ▼▼▼ 修改點：更新需要樣板設定的函式 ▼▼▼ ==========
+// 例如，如果 renderProductList 需要樣板：
+function renderProductList(products, template) { // 接收 template 參數
+    const productListTbody = document.getElementById('product-list-tbody');
+    const productListThead = document.querySelector('#page-inventory thead tr');
+    if (!productListTbody || !productListThead) return;
+
+    // 使用傳入的 template 進行檢查
+    if (!template || !template.adminColumns || !Array.isArray(template.adminColumns)) {
+        console.error("renderProductList 錯誤： 無效的 template 或 adminColumns。", template);
+        productListTbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">渲染列表失敗：樣板設定錯誤。</td></tr>`;
+        return;
+    }
+
+    let headerHTML = `...`; // (保持不變)
+    // 使用 template.adminColumns
+    template.adminColumns.forEach(col => {
+        headerHTML += `<th>${col.label}</th>`;
+    });
+    headerHTML += `...`; // (保持不變)
+    productListThead.innerHTML = headerHTML;
+
+    productListTbody.innerHTML = '';
+    products.forEach(p => {
+        // ... (保持不變) ...
+        template.adminColumns.forEach(col => { // 使用 template.adminColumns
+            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`;
+        });
+        // ... (保持不變) ...
+        row.innerHTML = rowHTML;
+    });
+}
+
+// 修改 applyProductFiltersAndRender 以傳遞樣板
+function applyProductFiltersAndRender(template) { // 接收 template
+    // ... (篩選邏輯保持不變) ...
+    renderProductList(filtered, template); // 將 template 傳遞下去
+}
+
+// 修改 openProductModal 和 handleFormSubmit，確保它們使用正確的樣板
+// (這兩個函式原本就在 productManagement.js 內部，可以繼續使用局部的 currentActiveTemplate)
+// 但為了安全起見，可以也修改它們接收 template 參數
+
+// 修改 setupEventListeners 以接收樣板
+function setupEventListeners(template) { // 接收 template
+    const page = document.getElementById('page-inventory');
+    // 注意： dataset.initialized 檢查邏輯可能需要調整，確保只綁定一次
+    // 或者在 app.js 傳遞時就判斷是否已初始化
+    // if (!page || page.dataset.initialized === 'true') return;
+
+    // ... (事件委派邏輯) ...
+
+        // 例如，編輯按鈕需要 template
+        // else if (e.target.closest('.btn-edit-product')) {
+        //     const button = e.target.closest('.btn-edit-product');
+        //     const product = allProducts.find(p => p.product_id === button.dataset.productid);
+        //     if (product) openProductModal(product, template); // <--- 傳遞 template
+        // }
+
+    // ... (其他事件綁定) ...
+
+    // 將篩選按鈕觸發的渲染也改為傳遞 template
+    function addFilterGroupListener(groupId) {
+        const filterGroup = document.getElementById(groupId);
+        if (filterGroup) {
+            filterGroup.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    filterGroup.querySelector('.active')?.classList.remove('active');
+                    e.target.classList.add('active');
+                    applyProductFiltersAndRender(template); // <--- 傳遞 template
+                }
+            });
+        }
+    }
+    // ...
+
+    document.getElementById('product-search-input')?.addEventListener('input', () => applyProductFiltersAndRender(template)); // <--- 傳遞 template
+
+    // ... (其他事件綁定) ...
+
+    // page.dataset.initialized = 'true'; // 標記初始化可能需要更精確的控制
+}
+
+// ========== ▲▲▲ 修改點 ▲▲▲ ==========
+
+// ... (其他 productManagement.js 的函式保持不變) ...

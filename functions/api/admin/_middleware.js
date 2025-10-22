@@ -1,4 +1,4 @@
-// functions/api/admin/_middleware.js (最終修正版)
+// functions/api/admin/_middleware.js (v3 - Expanded Whitelist)
 
 import * as jose from 'jose';
 
@@ -11,16 +11,19 @@ async function authMiddleware(context) {
         const isPublicRoute = url.pathname.startsWith('/api/admin/auth/login') ||
                               url.pathname.startsWith('/api/admin/auth/logout') ||
                               url.pathname.startsWith('/api/admin/verify-liff-user') ||
-                              url.pathname.startsWith('/api/admin/dashboard-stats'); // <--- 新增這一行
+                              url.pathname.startsWith('/api/admin/dashboard-stats') ||
+                              url.pathname.startsWith('/api/get-bookings') || // <--- 新增 booking 列表 API
+                              url.pathname.startsWith('/api/update-booking-status') || // <--- 新增 booking 狀態更新 API
+                              url.pathname.startsWith('/api/generate-admin-link'); // <--- 新增 magic link API
 
-        // 如果是公開路由 (登入、登出、LIFF驗證、LIFF儀表板)，就直接放行
+        // 如果是公開路由 (登入、登出、LIFF驗證、LIFF儀表板、LIFF列表/操作、MagicLink)，就直接放行
         if (isPublicRoute) {
-            console.log(`[Middleware] 放行公開路由: ${url.pathname}`); // 增加日誌確認
+            console.log(`[Middleware] 放行公開路由: ${url.pathname}`);
             return await next();
         }
 
         // --- 以下是針對完整版後台的 Cookie 驗證邏輯 ---
-        console.log(`[Middleware] 執行 Cookie 驗證: ${url.pathname}`); // 增加日誌確認
+        console.log(`[Middleware] 執行 Cookie 驗證: ${url.pathname}`);
         const cookie = request.headers.get('Cookie') || '';
         const tokenMatch = cookie.match(/AuthToken=([^;]+)/);
         const token = tokenMatch ? tokenMatch[1] : null;
@@ -49,7 +52,7 @@ async function authMiddleware(context) {
         }
     }
 
-
+    // 如果不是 /api/admin/ 開頭的路徑，也直接放行
     return await next();
 }
 

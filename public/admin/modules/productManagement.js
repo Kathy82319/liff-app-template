@@ -8,36 +8,7 @@ let allProducts = [];
 let sortableProducts = null;
 let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
-// 【新增】圖片上傳核心邏輯
-// 圖片上傳核心邏輯 (已修改為暫時停用狀態)
-async function handleImageUpload(file, inputElement, buttonElement) {
-    ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
-    // 以下為未來啟用時的程式碼，暫時註解
-    /*
-    if (!file) return;
-    const originalButtonText = buttonElement.textContent;
-    buttonElement.textContent = '上傳中...';
-    buttonElement.disabled = true;
-    try {
-        const { uploadURL } = await api.generateImageUploadUrl();
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await fetch(uploadURL, { method: 'POST', body: formData });
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.errors[0]?.message || '上傳至圖片服務失敗');
-        }
-        const publicUrl = result.result.variants[0];
-        inputElement.value = publicUrl;
-        ui.toast.success('圖片上傳成功！');
-    } catch (error) {
-        ui.toast.error(`上傳失敗：${error.message}`);
-    } finally {
-        buttonElement.textContent = originalButtonText;
-        buttonElement.disabled = false;
-    }
-    */
-}
+
 
 // 建立一個可以從外部呼叫的函式來隱藏工具列
 export function hideBatchToolbar() {

@@ -49,7 +49,7 @@ async function authMiddleware(context) {
         }
     }
 
-    // 如果不是 /api/admin/ 開頭的路徑，也直接放行
+
     return await next();
 }
 

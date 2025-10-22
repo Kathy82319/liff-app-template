@@ -692,38 +692,6 @@ export const init = async () => {
     // ========== ▲▲▲ 外層 try...catch 結束 ▲▲▲ ==========
 }; // init 函式結束
 
-// ========== ▼▼▼ 修改點：更新需要樣板設定的函式 ▼▼▼ ==========
-// 例如，如果 renderProductList 需要樣板：
-function renderProductList(products, template) { // 接收 template 參數
-    const productListTbody = document.getElementById('product-list-tbody');
-    const productListThead = document.querySelector('#page-inventory thead tr');
-    if (!productListTbody || !productListThead) return;
-
-    // 使用傳入的 template 進行檢查
-    if (!template || !template.adminColumns || !Array.isArray(template.adminColumns)) {
-        console.error("renderProductList 錯誤： 無效的 template 或 adminColumns。", template);
-        productListTbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">渲染列表失敗：樣板設定錯誤。</td></tr>`;
-        return;
-    }
-
-    let headerHTML = `...`; // (保持不變)
-    // 使用 template.adminColumns
-    template.adminColumns.forEach(col => {
-        headerHTML += `<th>${col.label}</th>`;
-    });
-    headerHTML += `...`; // (保持不變)
-    productListThead.innerHTML = headerHTML;
-
-    productListTbody.innerHTML = '';
-    products.forEach(p => {
-        // ... (保持不變) ...
-        template.adminColumns.forEach(col => { // 使用 template.adminColumns
-            rowHTML += `<td>${p.hasOwnProperty(col.key) ? (p[col.key] || 'N/A') : 'N/A'}</td>`;
-        });
-        // ... (保持不變) ...
-        row.innerHTML = rowHTML;
-    });
-}
 
 // 修改 applyProductFiltersAndRender 以傳遞樣板
 function applyProductFiltersAndRender(template) { // 接收 template

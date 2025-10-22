@@ -654,27 +654,51 @@ function setupEventListeners() {
 
 // --- 初始化 ---
 export const init = async () => {
-    console.log("[ProductManagement] Init started."); // Add log
+    // ========== ▼▼▼ 加入偵錯碼 ▼▼▼ ==========
+    console.log("[ProductManagement DEBUG] Init function started.");
+    console.log("[ProductManagement DEBUG] Checking window.CONFIG:", window.CONFIG);
+    // ========== ▲▲▲ 加入偵錯碼 ▲▲▲ ==========
+
+    console.log("[ProductManagement] Init started."); // 原有的 log
     try {
+        // ========== ▼▼▼ 加入偵錯碼 ▼▼▼ ==========
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+            console.error("[ProductManagement DEBUG] window.CONFIG is incomplete or missing!", window.CONFIG); // 更詳細的錯誤 log
             throw new Error("全域設定 window.CONFIG 未完整載入。");
         }
-        console.log("[ProductManagement] window.CONFIG seems loaded.");
+        console.log("[ProductManagement DEBUG] window.CONFIG seems ok. Active template key:", window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE);
+        // ========== ▲▲▲ 加入偵錯碼 ▲▲▲ ==========
+
+        console.log("[ProductManagement] window.CONFIG seems loaded."); // 原有的 log
 
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
         activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
 
+        // ========== ▼▼▼ 加入偵錯碼 ▼▼▼ ==========
+        console.log(`[ProductManagement DEBUG] Attempting to use template key: ${activeTemplateKey}`);
+        console.log("[ProductManagement DEBUG] Resolved activeTemplate:", activeTemplate);
+        // ========== ▲▲▲ 加入偵錯碼 ▲▲▲ ==========
+
+
         if (!activeTemplate) {
+            // ========== ▼▼▼ 加入偵錯碼 ▼▼▼ ==========
+            console.error(`[ProductManagement DEBUG] Failed to get activeTemplate for key: ${activeTemplateKey}`);
+            // ========== ▲▲▲ 加入偵錯碼 ▲▲▲ ==========
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
         // 【關鍵檢查】在讀取 adminColumns 之前確保它是有效的陣列
         if (!activeTemplate.adminColumns || !Array.isArray(activeTemplate.adminColumns)) {
-             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`);
+             // ========== ▼▼▼ 加入偵錯碼 ▼▼▼ ==========
+             console.error("[ProductManagement DEBUG] activeTemplate is missing or has invalid adminColumns!", activeTemplate);
+             // ========== ▲▲▲ 加入偵錯碼 ▲▲▲ ==========
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'adminColumns' 設定。`); // 錯誤發生點
         }
-        console.log(`[ProductManagement] Active template '${activeTemplateKey}' loaded successfully.`);
+        console.log(`[ProductManagement] Active template '${activeTemplateKey}' loaded successfully.`); // 原有的 log
+
+        // ... init 函式剩下的程式碼 ...
 
     } catch (e) {
-        console.error("讀取商業樣板失敗:", e);
+        console.error("讀取商業樣板失敗:", e); // 原有的 log
         document.getElementById('page-inventory').innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
         return;
     }

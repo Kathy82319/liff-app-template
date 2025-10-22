@@ -9,8 +9,14 @@ async function authMiddleware(context) {
     if (url.pathname.startsWith('/api/admin/')) {
         // 【核心修正】將 LIFF 專用的驗證 API 也加入到白名單中
         const isPublicRoute = url.pathname.startsWith('/api/admin/auth/login') ||
-                              url.pathname.startsWith('/api/admin/auth/logout') ||
-                              url.pathname.startsWith('/api/admin/verify-liff-user');
+                          url.pathname.startsWith('/api/admin/auth/logout') ||
+                          // ↓↓↓ LIFF 需要的 API 放這裡 ↓↓↓
+                          url.pathname.startsWith('/api/admin/verify-liff-user') ||
+                          url.pathname.startsWith('/api/admin/dashboard-stats') ||
+                          url.pathname.startsWith('/api/get-bookings') || // 注意：這個路徑不在 /admin/ 下，但為了一致性先放著
+                          url.pathname.startsWith('/api/update-booking-status') || // 注意：這個路徑不在 /admin/ 下
+                          url.pathname.startsWith('/api/generate-admin-link') || // 注意：這個路徑不在 /admin/ 下
+                          url.pathname.startsWith('/api/admin/activities');
 
         // 如果是公開路由 (登入、登出、LIFF驗證)，就直接放行
         if (isPublicRoute) {

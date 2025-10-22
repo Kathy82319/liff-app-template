@@ -15,6 +15,20 @@
         button { width: 100%; padding: 10px; font-size: 1rem; border: none; border-radius: 5px; cursor: pointer; color: white; background-color: var(--primary-color); }
         button:disabled { background-color: #a0a0a0; }
         .status-message { text-align: center; color: var(--danger-color); min-height: 1.2em; margin-top: 10px; }
+        /* 日誌區域樣式 */
+        #login-log-output {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #555;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            border-radius: 4px;
+            max-height: 80px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -31,12 +45,25 @@
             </div>
             <button type="submit" id="login-button">登入</button>
             <p id="login-status" class="status-message"></p>
+            <div id="login-log-output">Login Logs:</div>
         </form>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('login-form');
+            const logOutput = document.getElementById('login-log-output'); // 取得日誌區域
+
+            // 輔助函式：將訊息顯示在畫面上並輸出到 console
+            function logMessage(message) {
+                console.log(message); // 輸出到 console
+                if (logOutput) {
+                    const time = new Date().toLocaleTimeString();
+                    logOutput.textContent += `\n[${time}] ${message}`;
+                    logOutput.scrollTop = logOutput.scrollHeight; // 自動捲動到底部
+                }
+            }
+
             if (!loginForm) return;
 
             loginForm.addEventListener('submit', async (e) => {
@@ -45,29 +72,40 @@
                 const password = document.getElementById('login-password').value;
                 const loginStatus = document.getElementById('login-status');
                 const loginButton = document.getElementById('login-button');
-                
+
                 loginStatus.textContent = '';
                 loginButton.disabled = true;
                 loginButton.textContent = '登入中...';
-                
+                logMessage('登入請求已發送...');
+
                 try {
                     const response = await fetch('/api/admin/auth/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username, password })
                     });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || '登入失敗');
+                    // **不立即解析 result，先檢查 response.ok**
+                    logMessage(`登入 API 回應狀態: ${response.status}`);
 
-                    // 登入成功，導向到受保護的後台面板
+                    if (!response.ok) {
+                        // 如果狀態碼不是 2xx，嘗試解析錯誤訊息
+                        const errorResult = await response.json().catch(() => ({ error: `登入失敗，狀態碼: ${response.status}` }));
+                        throw new Error(errorResult.error || '登入失敗');
+                    }
+
+                    // *** 關鍵修改：只要 API 成功 (status 200)，就直接跳轉 ***
+                    logMessage('✅ 登入 API 成功！準備跳轉...');
                     window.location.href = '/admin-panel.html';
+                    // 不再需要 setTimeout 和 document.cookie 檢查
+                    // 也不需要在成功後解析 response.json()，因為要跳轉了
 
                 } catch (error) {
                     loginStatus.textContent = error.message;
-                } finally {
-                    loginButton.disabled = false;
+                    logMessage(`登入失敗: ${error.message}`);
+                    loginButton.disabled = false; // 發生錯誤時重新啟用按鈕
                     loginButton.textContent = '登入';
                 }
+                // 成功登入後不重新啟用按鈕，因為會跳轉
             });
         });
     </script>

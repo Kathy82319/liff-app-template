@@ -5,9 +5,7 @@ async function request(url, options = {}) {
     const currentCookies = document.cookie;
     console.log(`[API Request] URL: ${url}`);
     console.log(`[API Request] Cookies before fetch: ${currentCookies || '(none)'}`);
-    if (!currentCookies || !currentCookies.includes('AuthToken=')) {
-         console.warn(`[API Request] 警告：發送請求 ${url} 時可能缺少 AuthToken Cookie！`);
-    }
+
 
     try {
         const defaultOptions = {

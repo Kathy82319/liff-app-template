@@ -2,73 +2,12 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
-// --- Google Sheets 工具函式 ---
-async function getAccessToken(env) {
-    const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY } = env;
-    if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) throw new Error('缺少 Google 服務帳號的環境變數。');
-    
-    const formattedPrivateKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-    const privateKey = await jose.importPKCS8(formattedPrivateKey, 'RS256');
-
-    const jwt = await new jose.SignJWT({ scope: 'https://www.googleapis.com/auth/spreadsheets' })
-      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' }).setIssuer(GOOGLE_SERVICE_ACCOUNT_EMAIL)
-      .setAudience('https://oauth2.googleapis.com/token').setSubject(GOOGLE_SERVICE_ACCOUNT_EMAIL)
-      .setIssuedAt().setExpirationTime('1h').sign(privateKey);
-
-    // ** START: 關鍵修正 - 手動建立請求 Body **
-    const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
-    const body = `grant_type=${encodeURIComponent(grantType)}&assertion=${encodeURIComponent(jwt)}`;
-
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body,
-    });
-    // ** END: 關鍵修正 **
-
-    const tokenData = await tokenResponse.json();
-    if (!tokenResponse.ok) {
-        console.error("[Auth] 從 Google 獲取 Access Token 失敗，詳細錯誤:", tokenData);
-        throw new Error(`從 Google 取得 access token 失敗: ${tokenData.error_description || tokenData.error}`);
-    }
-    return tokenData.access_token;
-}
-
-// ** START: 關鍵修正 - 強化 updateRowInSheet 函式 **
-async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) {
-    const { GOOGLE_SHEET_ID } = env;
-    if (!GOOGLE_SHEET_ID) throw new Error('缺少 GOOGLE_SHEET_ID 環境變數。');
-
-    const accessToken = await getAccessToken(env);
-    const simpleAuth = { getRequestHeaders: () => ({ 'Authorization': `Bearer ${accessToken}` }) };
-    
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
-    await doc.loadInfo();
-    
-    const sheet = doc.sheetsByTitle[sheetName];
-    if (!sheet) throw new Error(`在 Google Sheets 中找不到名為 "${sheetName}" 的工作表。`);
-
-    // 預先載入儲存格資料，這對後續的 .save() 很重要
-    await sheet.loadCells();
-    const rows = await sheet.getRows();
-    const rowToUpdate = rows.find(row => row.get(matchColumn) == matchValue);
-
-    if (rowToUpdate) {
-        console.log(`[背景任務] 找到要更新的列 (User: ${matchValue})，準備寫入新資料...`);
-        // 使用 .assign() 方法一次性更新所有欄位，比 .set() 更穩定
-        rowToUpdate.assign(updateData);
-        // 呼叫 save() 將變更寫回 Google Sheet
-        await rowToUpdate.save();
-        console.log(`[背景任務] 成功更新 Google Sheet 中的使用者: ${matchValue}`);
-    } else {
-        console.warn(`[背景任務] 在工作表 "${sheetName}" 中找不到 ${matchColumn} 為 "${matchValue}" 的資料列，無法更新。`);
-    }
-}
-// ** END: 關鍵修正 **
 
 // --- 主要 API 邏輯 ---
 export async function onRequest(context) {
+  console.log("PUBLIC update-user-details.js HANDLER REACHED", context.request.method);
   try {
+    console.log("ADMIN update-user-details.js HANDLER REACHED", context.request.method);
     if (context.request.method !== 'POST') {
       return new Response('Invalid request method.', { status: 405 });
     }

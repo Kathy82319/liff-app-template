@@ -688,6 +688,8 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
+// public/admin/modules/productManagement.js
+
 export const init = async () => {
     console.log("[ProductManagement Internal Wait] Init called.");
 
@@ -697,7 +699,7 @@ export const init = async () => {
     let attempts = 0;
     const maxAttempts = 15; // Wait up to 1.5 seconds
 
-    // ========== ▼▼▼ **Internal Wait Loop** ▼▼▼ ==========
+    // ========== ▼▼▼ Internal Wait Loop ▼▼▼ ==========
     while (
         (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) &&
         attempts < maxAttempts
@@ -715,37 +717,55 @@ export const init = async () => {
         }
         return; // Stop execution
     }
-    // ========== ▲▲▲ **Internal Wait Loop End** ▲▲▲ ==========
+    // ========== ▲▲▲ Internal Wait Loop End ▲▲▲ ==========
 
     console.log("[ProductManagement Internal Wait] window.CONFIG seems ready now.");
 
-    // Now proceed with the original logic from the version you provided
+    // Now proceed with the original logic
     try {
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        // Assign to the module-level variable IF IT STILL EXISTS IN YOUR REVERTED CODE
-        // If you removed the module-level `activeTemplate`, use a local const/let instead:
+        // Assign to the module-level variable
         const currentActiveTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
-        activeTemplate = currentActiveTemplate; // Assuming module-level 'activeTemplate' exists in your reverted code
+        activeTemplate = currentActiveTemplate; // Assign to module-level variable
 
         if (!currentActiveTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-// --- Start Enhanced Debugging ---
-        console.log("DEBUG: Full currentActiveTemplate object:", currentActiveTemplate); // Log the object itself
-        console.log("DEBUG: Checking currentActiveTemplate.adminColumns:", currentActiveTemplate.adminColumns); // Log the property directly
-        console.log("DEBUG: Checking typeof currentActiveTemplate.adminColumns:", typeof currentActiveTemplate.adminColumns); // Check its type
-        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.adminColumns):", Array.isArray(currentActiveTemplate.adminColumns)); // Check if it's an array
-        console.log("DEBUG: Checking currentActiveTemplate.hasOwnProperty('adminColumns'):", currentActiveTemplate.hasOwnProperty('adminColumns')); // Does the object directly own this property?
-        console.log("DEBUG: Checking 'adminColumns' in currentActiveTemplate:", 'adminColumns' in currentActiveTemplate); // Is the property accessible (including prototype chain)?
+
+        // --- Start Enhanced Debugging (Corrected Paths) ---
+        // Log the object structure clearly
+        console.log("DEBUG: Full currentActiveTemplate object:", JSON.stringify(currentActiveTemplate, null, 2)); // Use stringify for better structure view
+        console.log("DEBUG: Checking currentActiveTemplate.logic:", currentActiveTemplate.logic); // Check logic object
+        // Check adminColumns *inside* logic, handle if logic is missing
+        console.log("DEBUG: Checking currentActiveTemplate.logic.adminColumns:", currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : 'logic is missing');
+        console.log("DEBUG: Checking typeof currentActiveTemplate.logic.adminColumns:", typeof (currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : undefined));
+        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.logic.adminColumns):", Array.isArray(currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : undefined));
+        // Check fields at top level
+        console.log("DEBUG: Checking currentActiveTemplate.fields:", currentActiveTemplate.fields);
+        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.fields):", Array.isArray(currentActiveTemplate.fields));
         // --- End Enhanced Debugging ---
-// --- 修正檢查路徑 ---
-if (!currentActiveTemplate.logic || !currentActiveTemplate.logic.adminColumns || !Array.isArray(currentActiveTemplate.logic.adminColumns)) {
-     // 同時檢查 logic 物件是否存在
-     console.error("[ProductManagement Internal Wait] logic object or adminColumns check failed!", currentActiveTemplate);
-     throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 設定。`); // 錯誤訊息也更新
-}
-// --- 修正結束 ---
-        console.log("[ProductManagement Internal Wait] Template and adminColumns check passed.");
+
+        // --- Corrected Check for adminColumns with added log inside ---
+        // Checks if 'logic' exists AND 'adminColumns' inside it is an array
+        if (!currentActiveTemplate.logic || !Array.isArray(currentActiveTemplate.logic.adminColumns)) {
+            // *** ADD THIS LOG ***
+            console.error("!!!! Entering the IF block for adminColumns check !!!!"); // Log if the check fails
+            console.error("[ProductManagement Internal Wait] logic object or adminColumns check failed!", currentActiveTemplate);
+            throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 陣列設定。`); // More specific error
+        }
+        // --- Check End ---
+
+        // *** ADDED CHECK FOR FIELDS ***
+        // Checks if 'fields' exists at the top level AND is an array
+        if (!Array.isArray(currentActiveTemplate.fields)) {
+             console.error("!!!! Check for fields failed !!!!"); // Log if the check fails
+             console.error("[ProductManagement Internal Wait] fields check failed!", currentActiveTemplate);
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'fields' 陣列設定。`); // Specific error for fields
+        }
+        // *** FIELDS CHECK END ***
+
+
+        console.log("[ProductManagement Internal Wait] Template, fields, and adminColumns checks passed."); // Updated log message if both checks succeed
 
     } catch (e) {
         console.error("讀取商業樣板失敗:", e);
@@ -753,15 +773,16 @@ if (!currentActiveTemplate.logic || !currentActiveTemplate.logic.adminColumns ||
         if (inventoryPage) {
             inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
         }
-        return;
+        return; // Stop if template reading fails
     }
 
+    // --- The rest of the init function ---
     const tbody = document.getElementById('product-list-tbody');
     if (!tbody) {
         console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
         return;
     }
-    // Use the potentially module-level activeTemplate here (as per your original code)
+    // Use the module-level activeTemplate (assigned above)
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
 
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
@@ -771,10 +792,9 @@ if (!currentActiveTemplate.logic || !currentActiveTemplate.logic.adminColumns ||
 
     try {
         allProducts = await api.getProducts();
-        // Pass activeTemplate to functions that need it (important!)
-        applyProductFiltersAndRender(); // Assuming this implicitly uses module-level activeTemplate
+        applyProductFiltersAndRender(); // Uses module-level activeTemplate implicitly
         initializeProductDragAndDrop();
-        setupEventListeners(); // Assuming this implicitly uses module-level activeTemplate
+        setupEventListeners(); // Uses module-level activeTemplate implicitly
         console.log("[ProductManagement Internal Wait] Init completed successfully.");
     } catch (error) {
         console.error('初始化產品頁面的產品列表失敗:', error);

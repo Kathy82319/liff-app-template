@@ -337,16 +337,21 @@ function handleCsvUpload(event) {
 function openProductModal(product = null) {
     const formBody = document.getElementById('edit-product-form-body');
     const form = document.getElementById('edit-product-form');
-    if (!formBody || !form) return;
++    // Add check for activeTemplate and ensure fields is an array
++    if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {
++        console.error("openProductModal Error: Cannot open modal because activeTemplate or activeTemplate.fields is invalid.", { activeTemplate });
++        ui.toast.error('無法開啟編輯視窗：樣板設定無效或載入失敗。請檢查系統設定。'); // Inform the user
++        return; // Stop execution if template is invalid
++    }
 
-    form.reset();
-    formBody.innerHTML = '';
+     form.reset();
+     formBody.innerHTML = '';
 
-    // 1. 根據藍圖動態生成主要表單
-    activeTemplate.fields.forEach(field => {
-        const formField = createFormField(field);
-        formBody.appendChild(formField);
-    });
+     // 1. 根據藍圖動態生成主要表單
+     activeTemplate.fields.forEach(field => { // Now this line is safe
+         const formField = createFormField(field);
+         formBody.appendChild(formField);
+     });
 
     // 2. 【新增】根據藍圖決定是否顯示特殊欄位區塊
     const imageSection = document.getElementById('edit-product-image-section');

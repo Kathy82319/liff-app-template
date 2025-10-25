@@ -337,21 +337,23 @@ function handleCsvUpload(event) {
 function openProductModal(product = null) {
     const formBody = document.getElementById('edit-product-form-body');
     const form = document.getElementById('edit-product-form');
-+    // Add check for activeTemplate and ensure fields is an array
-+    if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {
-+        console.error("openProductModal Error: Cannot open modal because activeTemplate or activeTemplate.fields is invalid.", { activeTemplate });
-+        ui.toast.error('無法開啟編輯視窗：樣板設定無效或載入失敗。請檢查系統設定。'); // Inform the user
-+        return; // Stop execution if template is invalid
-+    }
 
-     form.reset();
-     formBody.innerHTML = '';
+    // --- ▼▼▼ 新增的防呆檢查 ▼▼▼ ---
+    if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {
+        console.error("openProductModal 錯誤：無法開啟 modal，因為 activeTemplate 或 activeTemplate.fields 無效。", { activeTemplate });
+        ui.toast.error('無法開啟編輯視窗：樣板設定無效或載入失敗。請檢查系統設定。'); // 提示使用者
+        return; // 如果樣板無效，停止執行函式
+    }
+    // --- ▲▲▲ 防呆檢查結束 ▲▲▲ ---
 
-     // 1. 根據藍圖動態生成主要表單
-     activeTemplate.fields.forEach(field => { // Now this line is safe
-         const formField = createFormField(field);
-         formBody.appendChild(formField);
-     });
+    form.reset();
+    formBody.innerHTML = '';
+
+    // 1. 根據藍圖動態生成主要表單
+    activeTemplate.fields.forEach(field => { // 現在這行是安全的
+        const formField = createFormField(field);
+        formBody.appendChild(formField);
+    });
 
     // 2. 【新增】根據藍圖決定是否顯示特殊欄位區塊
     const imageSection = document.getElementById('edit-product-image-section');
@@ -360,25 +362,25 @@ function openProductModal(product = null) {
     const specInputs = document.getElementById('edit-product-spec-inputs');
 
     // 清空舊的動態欄位
-    imageInputs.innerHTML = '';
-    specInputs.innerHTML = '';
+    if (imageInputs) imageInputs.innerHTML = ''; // 增加檢查以防萬一
+    if (specInputs) specInputs.innerHTML = ''; // 增加檢查以防萬一
 
     // 判斷藍圖中是否有 'images' 欄位，來決定是否顯示圖片區塊
     const hasImages = activeTemplate.fields.some(f => f.key === 'images');
-    imageSection.style.display = hasImages ? 'block' : 'none';
+    if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none'; // 增加檢查
 
     // 判斷藍圖中是否有 'spec' 相關欄位，來決定是否顯示規格區塊
     const hasSpecs = activeTemplate.fields.some(f => f.key.startsWith('spec_'));
-    specSection.style.display = hasSpecs ? 'block' : 'none';
+    if (specSection) specSection.style.display = hasSpecs ? 'block' : 'none'; // 增加檢查
 
     // 3. 處理 Modal 標題
     const modalTitle = document.getElementById('modal-product-title');
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
-    pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+    if (pageTitle) pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`; // 增加檢查
 
     // 4. 填入資料 (編輯模式)
     if (product) {
-        modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`;
+        if (modalTitle) modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`; // 增加檢查
 
         // 填入主要欄位資料
         activeTemplate.fields.forEach(field => {
@@ -393,7 +395,7 @@ function openProductModal(product = null) {
         });
 
         // 【新增】填入圖片和規格資料
-        if (hasImages) {
+        if (hasImages && imageInputs) { // 增加檢查
             try {
                 const images = JSON.parse(product.images || '[]');
                 if (images.length === 0) {
@@ -403,7 +405,7 @@ function openProductModal(product = null) {
                 }
             } catch (e) { addImageInputField(imageInputs); }
         }
-        if (hasSpecs) {
+        if (hasSpecs && specInputs) { // 增加檢查
             let specAdded = false;
             for (let i = 1; i <= 5; i++) {
                 if (product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
@@ -426,14 +428,14 @@ function openProductModal(product = null) {
 
     } else {
         // --- 新增模式 ---
-        modalTitle.textContent = `新增${activeTemplate.entityName}`;
-        if (hasImages) addImageInputField(imageInputs);
-        if (hasSpecs) addSpecInputField(specInputs);
+        if (modalTitle) modalTitle.textContent = `新增${activeTemplate.entityName}`; // 增加檢查
+        if (hasImages && imageInputs) addImageInputField(imageInputs); // 增加檢查
+        if (hasSpecs && specInputs) addSpecInputField(specInputs); // 增加檢查
         const idInput = form.querySelector('input[name="product_id"]');
         if (idInput) idInput.remove();
     }
 
-    updateDynamicButtonsState();
+    updateDynamicButtonsState(); // 這個函式內部也應該有對應元素的檢查
     ui.showModal('#edit-product-modal');
 }
 

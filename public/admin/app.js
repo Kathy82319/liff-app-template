@@ -18,20 +18,17 @@ const App = {
         'settings': './modules/systemSettings.js',
     },
     configPromise: null,
-    isConfigReady: false, // 新增標誌
+    isConfigReady: false, 
 
-    // 延遲函式
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
 
     async handleRouteChange() {
-        // 等待 Config Promise 完成 (如果還沒完成)
         if (!this.isConfigReady) {
             try {
-                await this.configPromise; // 等待
-                this.isConfigReady = true; // 標記完成
-                console.log("[App Delay Check] Config is ready after await in handleRouteChange.");
+                await this.configPromise; 
+                this.isConfigReady = true; 
             } catch (error) {
                 console.error("[App Delay Check] Config promise failed:", error);
                 ui.showPage('error');
@@ -40,7 +37,6 @@ const App = {
                 return;
             }
         }
-        // 到這裡，this.configPromise 必定已完成，且 window.CONFIG 理應存在
 
         const pageId = window.location.hash.substring(1) || 'dashboard';
         try { hideBatchToolbar(); } catch(e) { console.warn("Error hiding batch toolbar:", e); }
@@ -50,15 +46,11 @@ const App = {
         const modulePath = this.router[pageId];
         if (modulePath) {
             try {
-                console.log(`[App Delay Check] Importing module: ${modulePath}`);
                 const pageModule = await import(modulePath);
 
                 if (pageModule.init) {
-                    console.log(`[App Delay Check] Module imported. Checking window.CONFIG before calling init...`);
-
-                    // ========== ▼▼▼ **核心修改：延遲檢查** ▼▼▼ ==========
                     let attempts = 0;
-                    const maxAttempts = 10; // 最多等 1 秒 (10 * 100ms)
+                    const maxAttempts = 10; 
 
                     while (!window.CONFIG && attempts < maxAttempts) {
                         attempts++;
@@ -70,12 +62,8 @@ const App = {
                         console.error(`[App Delay Check] window.CONFIG still not ready after ${maxAttempts} attempts. Aborting init for ${modulePath}.`);
                         throw new Error("無法載入必要的設定檔 (window.CONFIG)");
                     }
-                    // ========== ▲▲▲ **核心修改結束** ▲▲▲ ==========
 
-
-                    console.log(`[App Delay Check] window.CONFIG confirmed ready. Calling init for module: ${modulePath}`);
-                    await pageModule.init(); // 不傳參數
-
+                    await pageModule.init(); 
                 } else {
                      console.warn(`[App Delay Check] Module ${modulePath} has no init function.`);
                 }
@@ -92,27 +80,22 @@ const App = {
     },
 
     async init() {
-        console.log("[App Delay Check] Initializing...");
         ui.initSharedEventListeners();
 
-        // 啟動設定檔載入 Promise
         this.configPromise = (async () => {
             try {
-                console.log("[App Delay Check] Starting config fetch...");
                 window.CONFIG = await api.getAppConfig();
                 if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
                     throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
                 }
-                console.log('[App Delay Check] Config fetch successful:', window.CONFIG);
-                this.isConfigReady = true; // 標記完成
+                this.isConfigReady = true; 
             } catch (error) {
                 console.error("[App Delay Check] Config fetch failed:", error);
-                this.isConfigReady = false; // 標記失敗
-                throw error; // 重新拋出，讓 handleRouteChange 可以捕捉
+                this.isConfigReady = false; 
+                throw error; 
             }
         })();
 
-        // 設定路由監聽
         window.addEventListener('hashchange', () => this.handleRouteChange());
         document.querySelector('.nav-tabs').addEventListener('click', (event) => {
             if (event.target.tagName === 'A') {
@@ -124,9 +107,7 @@ const App = {
             }
         });
 
-        // 處理初始路由 (會等待 configPromise)
         await this.handleRouteChange();
-        console.log("[App Delay Check] Initial route handled.");
     }
 };
 

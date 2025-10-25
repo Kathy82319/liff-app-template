@@ -61,7 +61,7 @@ export const api = {
     // *** 使用正確的公開路徑 ***
     getUsers: () => request('/api/get-users'), // File at functions/api/get-users.js
     // 假設 updateUserDetails 是 admin 功能且檔案在 functions/api/admin/
-    updateUserDetails: (data) => request('/api/admin/update-user-details', { method: 'POST', body: JSON.stringify(data) }),
+    updateUserDetails: (data) => request('/api/update-user-details', { method: 'POST', body: JSON.stringify(data) }),
     getUserDetails: (userId) => request(`/api/admin/user-details?userId=${userId}`),
     searchUsers: (query) => request(`/api/admin/user-search?q=${encodeURIComponent(query)}`),
 

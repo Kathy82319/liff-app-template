@@ -447,115 +447,225 @@ async function initializeCreateBookingModal() {
 
 
 // --- 修改 handleCreateBookingSubmit 函數 ---
+// public/admin/modules/bookingManagement.js
+
+// ... (檔案中其他函數，如 getPriceForDate, renderBookingDetails, updateItemsSubtotal, addAdminBookingItemRow, initializeCreateBookingModal 等保持不變) ...
+
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
+    console.log("handleCreateBookingSubmit 函數觸發"); // 加入日誌
+
     let finalUserId = document.getElementById('selected-user-id').value;
     let finalContactName = '';
     const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
+
     if (isUserSelected) {
         finalUserId = document.getElementById('selected-user-id').value;
         finalContactName = document.getElementById('selected-user-display').textContent;
+         console.log("已選取既有顧客:", finalUserId, finalContactName);
     } else {
         const searchInputText = document.getElementById('booking-user-search').value.trim();
         if (searchInputText) {
             finalUserId = `walk-in-${Date.now()}`;
             finalContactName = searchInputText;
+             console.log("建立臨時顧客:", finalUserId, finalContactName);
+        } else {
+             // 如果沒有選取既有顧客，也沒有輸入臨時名稱，則提示錯誤
+             ui.toast.error('請選擇或輸入顧客名稱！');
+             return; // 停止執行
         }
     }
+
     const items = [];
-    let calculatedTotalAmount = 0; // 新增：計算總金額
+    let calculatedTotalAmount = 0;
     let itemsValid = true;
 
     document.querySelectorAll('.admin-booking-item-row').forEach(row => {
+         if (!itemsValid) return; // 如果前面已有項目無效，則不再處理後續項目
+
         const select = row.querySelector('.booking-item-select');
         let name = select.value;
         if (name === 'other') {
             name = row.querySelector('.booking-item-name-other').value.trim();
         }
-        const qty = parseInt(row.querySelector('.booking-item-qty').value, 10);
-        // --- 直接讀取價格輸入框 ---
-        const price = parseFloat(row.querySelector('.booking-item-price').value);
+        const qtyInput = row.querySelector('.booking-item-qty');
+        const priceInput = row.querySelector('.booking-item-price');
+
+        const qty = parseInt(qtyInput.value, 10);
+        const price = parseFloat(priceInput.value); // 直接讀取價格輸入框
 
         if (name && !isNaN(qty) && qty > 0) {
-            // --- 價格驗證 ---
+            // 價格驗證：必須是有效的非負數字
             if (isNaN(price) || price < 0) {
-                 ui.toast.error(`項目 "${name}" 缺少有效的價格！`);
-                 itemsValid = false;
-                 return; // 跳過此項目
+                console.error(`項目 "${name}" 價格無效: ${priceInput.value}`);
+                ui.toast.error(`項目 "${name}" 缺少有效的價格！`);
+                itemsValid = false; // 標記無效
+                return; // 跳過此項目
             }
             items.push({ name, qty, price });
             calculatedTotalAmount += qty * price; // 累加金額
+            console.log(`加入項目: ${name}, 數量: ${qty}, 價格: ${price}, 目前小計: ${calculatedTotalAmount}`);
+        } else if (name && (isNaN(qty) || qty <= 0)) {
+             // 如果選了名稱但數量無效
+             ui.toast.error(`項目 "${name}" 的數量無效。`);
+             itemsValid = false;
         }
+        // 如果沒選 name，則忽略此行
     });
 
     if (!itemsValid || items.length === 0) {
-        if (items.length === 0) ui.toast.error('請至少填寫一個預約項目！');
+        if (items.length === 0 && itemsValid) { // 確保不是因為價格錯誤而被攔截
+             ui.toast.error('請至少填寫一個有效的預約項目！');
+        }
         return; // 如果有項目價格無效或沒有項目，停止提交
     }
 
-    const formData = {
-        userId: finalUserId,
-        bookingDate: document.getElementById('booking-date-input').value,
-timeSlot: document.getElementById('booking-slot-select').value || null, // 如果沒選，傳 null
-        numOfPeople: document.getElementById('booking-people-input').value,
-        contactPhone: document.getElementById('booking-phone-input').value,
-        // --- 使用計算出的小計作為預設總金額 ---
-        totalAmount: calculatedTotalAmount, // 使用計算值
-        notes: document.getElementById('booking-notes-input').value,
-        contactName: finalContactName,
-        items: items, // items 陣列已包含 price
-    };
+    // 獲取其他表單數據
+    const bookingDate = document.getElementById('booking-date-input').value;
+    const timeSlot = document.getElementById('booking-slot-select').value || null; // 允許空值
+    const numOfPeople = document.getElementById('booking-people-input').value;
+    const contactPhone = document.getElementById('booking-phone-input').value;
+    const notes = document.getElementById('booking-notes-input').value;
+    let totalAmount = calculatedTotalAmount; // 預設使用計算值
 
-    // --- 可選：如果總金額輸入框有值，且與計算值不同，可能需要提示或使用輸入框的值 ---
-     const manualTotalAmount = parseFloat(document.getElementById('booking-total-amount-input').value);
-     if (!isNaN(manualTotalAmount) && manualTotalAmount !== calculatedTotalAmount) {
-         console.warn("手動輸入的總金額與項目小計不同，將使用手動輸入的值。");
-         formData.totalAmount = manualTotalAmount;
-     }
+    // 檢查手動輸入的總金額
+    const manualTotalAmountInput = document.getElementById('booking-total-amount-input');
+    const manualTotalAmount = parseFloat(manualTotalAmountInput.value);
+    if (!isNaN(manualTotalAmount) && manualTotalAmount >= 0 && manualTotalAmount !== calculatedTotalAmount) {
+        console.warn("手動輸入的總金額與項目小計不同，將使用手動輸入的值:", manualTotalAmount);
+        totalAmount = manualTotalAmount; // 覆蓋計算值
+    } else if (isNaN(manualTotalAmount) && manualTotalAmountInput.value.trim() !== '') {
+         // 如果輸入了非數字的值
+         ui.toast.error('預估總金額必須是有效的數字。');
+         return;
+    }
 
 
-    if (!formData.userId || !formData.bookingDate) { // 只檢查 userId 和 bookingDate
+    // 基礎驗證 (顧客和日期)
+    if (!finalUserId || !bookingDate) {
         ui.toast.error('顧客和預約日期為必填！');
         return;
     }
+     // 電話驗證 (如果填寫了)
+     if (contactPhone && !/^09\d{8}$/.test(contactPhone)) {
+         ui.toast.error('請輸入正確的 10 位手機號碼 (09開頭)，或留空。');
+         return;
+     }
+
+
+    const formData = {
+        userId: finalUserId,
+        bookingDate: bookingDate,
+        timeSlot: timeSlot,
+        numOfPeople: numOfPeople,
+        contactPhone: contactPhone, // 允許空字串或 null
+        totalAmount: totalAmount, // 使用最終確定的 totalAmount
+        notes: notes,
+        contactName: finalContactName,
+        items: items,
+    };
+
+    console.log("準備提交的 formData:", formData); // 加入日誌
+
+    // API 提交
     try {
+        // ---【新增】獲取提交按鈕並禁用 ---
+         const submitButton = e.target.querySelector('button[type="submit"]');
+         if (submitButton) {
+             submitButton.disabled = true;
+             submitButton.textContent = '建立中...';
+         }
+
         await api.createBooking(formData);
         ui.toast.success('預約建立成功！');
         ui.hideModal('#create-booking-modal');
-        await fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today');
+        // ---【修正】確保 fetchDataAndRender 呼叫正確 ---
+        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+        await fetchDataAndRender(activeFilter); // 刷新列表
+
     } catch (error) {
+        console.error("建立預約 API 失敗:", error); // 加入詳細錯誤日誌
         ui.toast.error(`建立失敗: ${error.message}`);
+         // ---【新增】錯誤時恢復按鈕 ---
+          const submitButton = e.target.querySelector('button[type="submit"]');
+          if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent = '確認建立';
+          }
     }
 }
 
 async function handleSaveBookingSettings() {
-    if (!bookingDatepicker) return;
+    console.log("handleSaveBookingSettings 函數觸發"); // 加入日誌
+    if (!bookingDatepicker) {
+         console.error("bookingDatepicker 未初始化！");
+         ui.toast.error("日期選擇器未就緒，無法儲存。");
+         return;
+    }
     const saveButton = document.getElementById('save-booking-settings-btn');
+    if (!saveButton) {
+         console.error("找不到儲存按鈕！");
+         return;
+    }
+
     try {
         saveButton.disabled = true;
         saveButton.textContent = '儲存中...';
-        const newEnabledDates = bookingDatepicker.selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
+
+        // ---【修正】確保 bookingDatepicker.selectedDates 存在且是陣列 ---
+        const selectedDates = bookingDatepicker.selectedDates;
+        if (!Array.isArray(selectedDates)) {
+             throw new Error("無法獲取選擇的日期。");
+        }
+        const newEnabledDates = selectedDates.map(d => bookingDatepicker.formatDate(d, "Y-m-d"));
+        console.log("新選擇的可預約日期:", newEnabledDates);
+
+        // ---【修正】確保 enabledDates 是陣列 ---
+        if (!Array.isArray(enabledDates)) {
+             console.warn("原始 enabledDates 不是陣列，將其視為空陣列處理。");
+             enabledDates = [];
+        }
         const originalDates = new Set(enabledDates);
         const newDates = new Set(newEnabledDates);
+
+        // 計算差異
         const datesToAdd = newEnabledDates.filter(d => !originalDates.has(d));
         const datesToRemove = enabledDates.filter(d => !newDates.has(d));
-        
-        const promises = [];
-        datesToAdd.forEach(date => promises.push(api.saveBookingSettings({ action: 'add', date: date })));
-        datesToRemove.forEach(date => promises.push(api.saveBookingSettings({ action: 'remove', date: date })));
-        await Promise.all(promises);
+        console.log("待新增日期:", datesToAdd);
+        console.log("待移除日期:", datesToRemove);
 
-        ui.toast.success('可預約日期已成功儲存！');
+
+        const promises = [];
+        if (datesToAdd.length > 0) {
+             datesToAdd.forEach(date => promises.push(api.saveBookingSettings({ action: 'add', date: date })));
+        }
+        if (datesToRemove.length > 0) {
+             datesToRemove.forEach(date => promises.push(api.saveBookingSettings({ action: 'remove', date: date })));
+        }
+
+        // ---【新增】如果沒有任何變更，也提示使用者 ---
+        if (promises.length === 0) {
+             ui.toast.info("沒有任何日期變更需要儲存。");
+        } else {
+             console.log(`準備執行 ${promises.length} 個 API 操作...`);
+             await Promise.all(promises);
+             ui.toast.success('可預約日期已成功儲存！');
+             enabledDates = newEnabledDates; // 更新快取的日期
+        }
+
         ui.hideModal('#booking-settings-modal');
-        enabledDates = newEnabledDates;
+
     } catch (error) {
+        console.error("儲存可預約日期失敗:", error); // 加入詳細錯誤日誌
         ui.toast.error("儲存失敗: " + error.message);
     } finally {
+        // 確保按鈕一定會恢復
         saveButton.disabled = false;
         saveButton.textContent = '儲存所有變更';
     }
 }
 
+// ... (檔案中其他的函數保持不變) ...
 
 
 // ▼▼▼ 請將此函式新增到檔案中 ▼▼▼
@@ -700,120 +810,182 @@ async function fetchDataAndRender(filter = 'today') {
 }
 
 
-// --- 綁定事件監聽器 (大幅修改) ---
-function setupEventListeners() {
-    const page = document.getElementById('page-bookings');
-    if(!page || page.dataset.initialized) return;
+// public/admin/modules/bookingManagement.js
 
+// --- 綁定事件監聽器 (修正後完整版) ---
+function setupEventListeners() {
+    console.log("setupEventListeners 函數觸發"); // 加入日誌
+    const page = document.getElementById('page-bookings');
+    // ---【修正】檢查 page 是否存在，以及是否已初始化 ---
+    if (!page) {
+         console.error("setupEventListeners: 找不到 #page-bookings 元素！");
+         return; // 找不到頁面元素，無法繼續
+    }
+    if (page.dataset.initialized === 'true') {
+         console.log("setupEventListeners: 事件已初始化，跳過。");
+         return; // 防止重複綁定
+    }
+
+    // --- 使用事件委派處理頁面點擊 ---
     page.addEventListener('click', async e => {
         const target = e.target;
-        
-        // --- ▼▼▼ 修改點：將取消邏輯統一處理 ▼▼▼ ---
+        console.log("頁面點擊事件觸發:", target); // 加入日誌
+
+        // --- 取消按鈕 (列表或日曆) ---
         const quickCancelBtn = target.closest('.btn-quick-cancel');
         if (quickCancelBtn) {
-            e.stopPropagation(); // 防止觸發外層的 "看詳情" 事件
+            e.stopPropagation(); // 防止觸發外層事件
             const bookingId = quickCancelBtn.dataset.bookingId;
+            console.log("點擊快速取消按鈕, bookingId:", bookingId);
+            if (!bookingId) {
+                 console.error("取消按鈕缺少 bookingId");
+                 return;
+            }
             const confirmed = await ui.confirm('確定要取消此預約嗎？');
             if (confirmed) {
                 try {
-                    // 禁用按鈕防止重複點擊
-                    quickCancelBtn.disabled = true; 
+                    quickCancelBtn.disabled = true;
                     await api.updateBookingStatus(Number(bookingId), 'cancelled');
                     ui.toast.success('預約已取消');
-                    // 重新載入資料以更新畫面
-                    await fetchDataAndRender(document.querySelector('#booking-status-filter .active')?.dataset.filter);
+                    // 重新載入當前篩選條件的數據
+                    const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                    await fetchDataAndRender(activeFilter);
                 } catch(err) {
+                    console.error("取消預約失敗:", err);
                     ui.toast.error(`錯誤：${err.message}`);
-                    quickCancelBtn.disabled = false; // 如果失敗，重新啟用按鈕
+                    quickCancelBtn.disabled = false; // 失敗時恢復按鈕
                 }
             }
-            return; // 結束後續判斷
+            return; // 處理完畢
         }
 
-        // --- 點擊看詳情 (日曆或列表) ---
+        // --- 點擊看詳情 (日曆項目或列表行) ---
         const calendarBooking = target.closest('.calendar-booking');
         const bookingRow = target.closest('tr[data-booking-id]');
         if (calendarBooking || bookingRow) {
             const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
-            openBookingDetailsModal(bookingId);
-            return;
+             console.log("點擊查看詳情, bookingId:", bookingId);
+             if (bookingId) {
+                openBookingDetailsModal(bookingId); // 打開詳情 Modal
+             } else {
+                  console.error("無法從點擊目標獲取 bookingId");
+             }
+            return; // 處理完畢
         }
-        
-        // 切換日曆/列表
-        if(target.id === 'switch-to-calendar-view-btn') {
+
+        // --- 切換日曆/列表檢視按鈕 ---
+        if (target.id === 'switch-to-calendar-view-btn') {
+             console.log("點擊切換檢視按鈕");
             const listView = document.getElementById('list-view-container');
             const calendarView = document.getElementById('calendar-view-container');
+             // ---【新增】防禦性檢查 ---
+             if (!listView || !calendarView) {
+                  console.error("找不到 listView 或 calendarView 容器");
+                  return;
+             }
             const isListVisible = listView.style.display !== 'none';
             listView.style.display = isListVisible ? 'none' : 'block';
             calendarView.style.display = isListVisible ? 'block' : 'none';
             target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
-            fetchDataAndRender();
+            fetchDataAndRender(); // 重新載入數據以適應新視圖
+             return; // 處理完畢
         }
-        
-        // 篩選按鈕
-        else if(target.closest('#booking-status-filter') && target.tagName === 'BUTTON') {
+
+        // --- 列表狀態篩選按鈕 ---
+        const filterButton = target.closest('#booking-status-filter button');
+        if (filterButton) {
+            console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
-            target.classList.add('active');
-            fetchDataAndRender(target.dataset.filter);
+            filterButton.classList.add('active');
+            fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 條件載入數據
+             return; // 處理完畢
         }
-      
-        // 手動建立預約按鈕
-        else if(target.id === 'create-booking-btn') {
-            resetCreateBookingModal();
-            ui.showModal('#create-booking-modal');
-        } 
-        
-        // 管理公休日按鈕
-        else if (target.id === 'manage-booking-dates-btn') {
+
+        // --- 手動建立預約按鈕 ---
+        if (target.id === 'create-booking-btn') {
+            console.log("點擊手動建立預約按鈕");
+            resetCreateBookingModal(); // 重置 Modal 內容
+            initializeCreateBookingModal(); // 確保 Modal 初始化 (包含事件綁定)
+            ui.showModal('#create-booking-modal'); // 顯示 Modal
+             return; // 處理完畢
+        }
+
+        // --- 管理公休日按鈕 ---
+        if (target.id === 'manage-booking-dates-btn') {
+            console.log("點擊管理公休日按鈕");
             try {
                 enabledDates = await api.getBookingSettings();
-                if (bookingDatepicker) bookingDatepicker.destroy();
+                console.log("獲取的可預約日期:", enabledDates);
+                if (bookingDatepicker) {
+                     console.log("銷毀舊的 bookingDatepicker (管理用)");
+                     bookingDatepicker.destroy();
+                }
                 bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
                     inline: true, mode: "multiple", dateFormat: "Y-m-d", defaultDate: enabledDates,
                 });
                 ui.showModal('#booking-settings-modal');
             } catch (error) {
-                ui.toast.error("初始化公休日設定失敗: " + error.message);
+                 console.error("初始化公休日設定失敗:", error);
+                 ui.toast.error("初始化公休日設定失敗: " + error.message);
             }
+             return; // 處理完畢
         }
     });
 
-    initializeCreateBookingModal(
-    userSearchInput.addEventListener('input', async (e) => {
-    const query = e.target.value;
-    console.log("搜尋觸發:", query); // <--- 加入日誌
-    if (query.length < 1) {
-        userSelect.style.display = 'none';
-        userSelect.innerHTML = ''; // 清空選項
-        return;
-    }
-    try {
-        console.log("呼叫 API: /api/admin/user-search?q=" + encodeURIComponent(query)); // <--- 加入日誌
-        const users = await api.searchUsers(query);
-        console.log("API 回應:", users); // <--- 加入日誌
-        userSelect.innerHTML = '';
-        if (users.length > 0) {
-            // ... (產生選項的邏輯) ...
-             users.forEach(u => { /* ... */ });
-            userSelect.style.display = 'block';
-        } else {
-            userSelect.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('搜尋使用者失敗:', error); // <--- 確認錯誤有被印出
-        userSelect.style.display = 'none';
-    }
-    });
-); 
-    document.getElementById('create-booking-form')?.addEventListener('submit', handleCreateBookingSubmit);
-    document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings);
-    document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });
-    document.getElementById('calendar-next-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); updateCalendar(); });
+    // ---【修正】確保在 setupEventListeners 中只呼叫 initializeCreateBookingModal 一次 ---
+    // initializeCreateBookingModal(); // <--- 不在這裡直接呼叫，改為點擊按鈕時呼叫
 
+    // --- 綁定 Modal 表單提交事件 ---
+    const createBookingForm = document.getElementById('create-booking-form');
+    // ---【修正】使用 dataset 標記防止重複綁定 ---
+    if (createBookingForm && !createBookingForm.dataset.submitListenerAttached) {
+        createBookingForm.addEventListener('submit', handleCreateBookingSubmit);
+        createBookingForm.dataset.submitListenerAttached = 'true';
+        console.log("綁定 create-booking-form submit 事件。");
+    }
+
+    // --- 綁定儲存公休日按鈕事件 ---
+    const saveSettingsBtn = document.getElementById('save-booking-settings-btn');
+     // ---【修正】使用 dataset 標記防止重複綁定 ---
+    if (saveSettingsBtn && !saveSettingsBtn.dataset.clickListenerAttached) {
+        saveSettingsBtn.addEventListener('click', handleSaveBookingSettings);
+        saveSettingsBtn.dataset.clickListenerAttached = 'true';
+        console.log("綁定 save-booking-settings-btn click 事件。");
+    }
+
+    // --- 綁定日曆月份切換按鈕事件 ---
+    const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
+    // ---【修正】使用 dataset 標記防止重複綁定 ---
+    if (prevMonthBtn && !prevMonthBtn.dataset.clickListenerAttached) {
+        prevMonthBtn.addEventListener('click', () => {
+             console.log("點擊上個月按鈕");
+             currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+             updateCalendar(); // 更新日曆顯示
+        });
+        prevMonthBtn.dataset.clickListenerAttached = 'true';
+    }
+
+    const nextMonthBtn = document.getElementById('calendar-next-month-btn');
+     // ---【修正】使用 dataset 標記防止重複綁定 ---
+    if (nextMonthBtn && !nextMonthBtn.dataset.clickListenerAttached) {
+        nextMonthBtn.addEventListener('click', () => {
+             console.log("點擊下個月按鈕");
+             currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+             updateCalendar(); // 更新日曆顯示
+        });
+        nextMonthBtn.dataset.clickListenerAttached = 'true';
+    }
+
+
+    // --- 標記頁面事件已初始化 ---
     page.dataset.initialized = 'true';
+    console.log("setupEventListeners 完成。");
 }
 
+// --- init 函數保持不變 ---
 export const init = async () => {
-    setupEventListeners();
-    await fetchDataAndRender('today');
+    // ---【修正】確保 setupEventListeners 在 fetchDataAndRender 之前執行 ---
+    setupEventListeners(); // 先綁定好所有靜態事件
+    await fetchDataAndRender('today'); // 然後載入初始數據
 };
+

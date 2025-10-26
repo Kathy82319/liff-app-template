@@ -689,7 +689,6 @@ function renderProductDetails(product) {
     // --- 檢查 DOM 元素是否存在 ---
     const detailsTitle = appContent.querySelector('.details-title');
     const gallery = appContent.querySelector('.details-gallery');
-    const contentContainer = appContent.querySelector('#product-details-content');
 
     if (!detailsTitle || !gallery || !contentContainer) {
          console.error("renderProductDetails 錯誤：找不到必要的 DOM 元素 (title, gallery, or content container)。");

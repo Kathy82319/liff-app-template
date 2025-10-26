@@ -288,73 +288,161 @@ function resetCreateBookingModal() {
 }
 
 
+// public/admin/modules/bookingManagement.js
+
 async function initializeCreateBookingModal() {
-    const addBtn = document.getElementById('admin-add-booking-item-btn');
-if (addBtn && !addBtn.dataset.listenerAttached) {
-    addBtn.addEventListener('click', () => {
-        console.log("+ 按鈕被點擊"); // <--- 加入日誌
-        addAdminBookingItemRow();
-    });
-    addBtn.dataset.listenerAttached = 'true'; // 標記已綁定
-} else if (!addBtn) {
-     console.error("找不到 #admin-add-booking-item-btn 按鈕！");
-}
-     if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
-     try { if(allProducts.length === 0) allProducts = await api.getProducts(); } catch(e) { /* ... */ }
+    // --- 【修正】將 addBtn 的事件綁定移到函數末尾，確保 DOM 元素已準備好 ---
+
+    // --- 防止重複初始化 ---
+    const userSearchInput = document.getElementById('booking-user-search');
+    if (!userSearchInput || userSearchInput.dataset.initialized === 'true') {
+        console.log("initializeCreateBookingModal: 已初始化或找不到 userSearchInput，跳過。");
+        return;
+    }
+    console.log("initializeCreateBookingModal: 執行初始化...");
+
+
+    // --- 獲取產品資料 ---
+    try {
+        if(allProducts.length === 0) {
+             console.log("initializeCreateBookingModal: 正在獲取產品列表...");
+             allProducts = await api.getProducts();
+             console.log(`initializeCreateBookingModal: 成功獲取 ${allProducts.length} 個產品。`);
+        }
+    } catch(e) {
+         console.error("initializeCreateBookingModal: 無法載入產品列表供預約使用", e);
+         // 可以在 Modal 中顯示錯誤提示
+    }
 
     // --- 初始化日期選擇器並加入 onChange 事件 ---
-    if (createBookingDatepicker) createBookingDatepicker.destroy(); // 先銷毀舊的實例
-    createBookingDatepicker = flatpickr("#booking-date-input", {
-        dateFormat: "Y-m-d",
-        onChange: function(selectedDates, dateStr, instance) {
+    if (createBookingDatepicker) {
+         console.log("initializeCreateBookingModal: 銷毀舊的 createBookingDatepicker 實例。");
+         createBookingDatepicker.destroy();
+    }
+    createBookingDatepicker = flatpickr("#booking-date-input", { // <-- flatpickr 呼叫開始
+        dateFormat: "Y-m-d", // 選項 1
+        onChange: function(selectedDates, dateStr, instance) { // 選項 2: onChange 開始
+            console.log("日期選擇變更:", dateStr); // <--- 加入日誌
             // --- 當日期改變時，更新所有項目列的價格 ---
-            document.querySelectorAll('.admin-booking-item-row').forEach(row => {
+            document.querySelectorAll('.admin-booking-item-row').forEach(row => { // <-- forEach 開始
                 const select = row.querySelector('.booking-item-select');
                 const priceInput = row.querySelector('.booking-item-price');
                 const selectedProductName = select.value;
-                if (selectedProductName && selectedProductName !== 'other') {
+                // --- 增加檢查：確保 select 和 priceInput 存在 ---
+                if (select && priceInput && selectedProductName && selectedProductName !== 'other') { // <-- if 開始
                     const selectedProduct = allProducts.find(p => p.name === selectedProductName);
                     const actualPrice = selectedProduct ? getPriceForDate(dateStr, selectedProduct) : null;
                     priceInput.value = actualPrice !== null ? actualPrice : '';
-                }
-            });
+                    console.log(`更新項目 "${selectedProductName}" 價格為: ${priceInput.value}`); // <--- 加入日誌
+                } // <-- if 結束
+            }); // <-- forEach 結束
             updateItemsSubtotal(); // 日期變了，重新計算所有項目的小計
-        }
-    });
-    userSelect.addEventListener('change', () => {
-        const selectedValue = userSelect.value;
-        if (selectedValue) {
-            const selectedOption = userSelect.options[userSelect.selectedIndex];
-            setSelectedUser(selectedValue, selectedOption.dataset.userName);
-            // ▼▼▼ 修改點：自動填入會員電話 ▼▼▼
-            document.getElementById('booking-phone-input').value = selectedOption.dataset.userPhone || '';
-            userSelect.style.display = 'none';
-        }
-    });
-    userSearchInput.addEventListener('blur', () => {
-        setTimeout(() => {
-            const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
-            const inputText = userSearchInput.value.trim();
-            if (userSelect.style.display === 'block' || isUserSelected || !inputText) {
-                return;
-            }
-            const tempUserId = `walk-in-${Date.now()}`;
-            setSelectedUser(tempUserId, inputText);
-            // ▼▼▼ 修改點：清空電話欄位給臨時顧客 ▼▼▼
-            document.getElementById('booking-phone-input').value = '';
-        }, 200);
-    });
-    document.getElementById('change-user-btn').addEventListener('click', () => {
-        document.getElementById('selected-user-id').value = '';
-        document.getElementById('selected-user-view').style.display = 'none';
-        document.getElementById('user-selection-container').style.display = 'block';
-        userSearchInput.value = '';
-        // ▼▼▼ 修改點：清空電話欄位 ▼▼▼
-        document.getElementById('booking-phone-input').value = '';
-        userSearchInput.focus();
-    });
-    document.getElementById('admin-add-booking-item-btn').addEventListener('click', () => addAdminBookingItemRow());
+        } // <-- onChange 函數結束
+        // ---【關鍵修正】確保這裡沒有多餘的逗號 ---
+    }); // <-- flatpickr 呼叫結束
+    console.log("initializeCreateBookingModal: Flatpickr 初始化完成。");
+
+
+    // --- 初始化時段下拉選單 (如果尚未初始化) ---
+    const slotSelect = document.getElementById('booking-slot-select');
+    if (slotSelect && slotSelect.options.length <= 1) { // 避免重複添加選項
+         console.log("initializeCreateBookingModal: 初始化時段選項...");
+         slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>'; // 清空並加入預設
+         for (let hour = 8; hour <= 22; hour++) {
+             ['00', '30'].forEach(minute => {
+                 const time = `${String(hour).padStart(2, '0')}:${minute}`;
+                 slotSelect.add(new Option(time, time));
+             });
+         }
+    }
+
+
+    // --- 使用者搜尋與選擇邏輯 (保持不變) ---
+    const userSelect = document.getElementById('booking-user-select');
+    // 檢查事件是否已綁定，避免重複
+    if (!userSearchInput.dataset.inputListenerAttached) {
+        userSearchInput.addEventListener('input', async (e) => {
+             const query = e.target.value;
+             // console.log("搜尋觸發:", query); // 可以保留或移除
+             if (query.length < 1) { /* ... 清空下拉選單 ... */ return; }
+             try {
+                 const users = await api.searchUsers(query);
+                 // console.log("API 回應:", users); // 可以保留或移除
+                 userSelect.innerHTML = '';
+                 if (users.length > 0) {
+                     users.forEach(u => {
+                         const displayName = u.nickname || u.line_display_name;
+                         const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
+                         option.dataset.userName = displayName;
+                         option.dataset.userPhone = u.phone || '';
+                         userSelect.add(option);
+                     });
+                     userSelect.style.display = 'block';
+                 } else { userSelect.style.display = 'none'; }
+             } catch (error) { console.error('搜尋使用者失敗:', error); userSelect.style.display = 'none'; }
+        });
+        userSearchInput.dataset.inputListenerAttached = 'true';
+    }
+
+    if (userSelect && !userSelect.dataset.changeListenerAttached) {
+        userSelect.addEventListener('change', () => {
+             const selectedValue = userSelect.value;
+             if (selectedValue) {
+                 const selectedOption = userSelect.options[userSelect.selectedIndex];
+                 setSelectedUser(selectedValue, selectedOption.dataset.userName);
+                 document.getElementById('booking-phone-input').value = selectedOption.dataset.userPhone || '';
+                 userSelect.style.display = 'none';
+             }
+        });
+        userSelect.dataset.changeListenerAttached = 'true';
+    }
+
+     if (!userSearchInput.dataset.blurListenerAttached) {
+          userSearchInput.addEventListener('blur', () => {
+               setTimeout(() => {
+                    const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
+                    const inputText = userSearchInput.value.trim();
+                    if (userSelect.style.display === 'block' || isUserSelected || !inputText) { return; }
+                    const tempUserId = `walk-in-${Date.now()}`;
+                    setSelectedUser(tempUserId, inputText);
+                    document.getElementById('booking-phone-input').value = '';
+               }, 200);
+          });
+          userSearchInput.dataset.blurListenerAttached = 'true';
+     }
+
+     const changeUserBtn = document.getElementById('change-user-btn');
+     if (changeUserBtn && !changeUserBtn.dataset.clickListenerAttached) {
+          changeUserBtn.addEventListener('click', () => {
+               document.getElementById('selected-user-id').value = '';
+               document.getElementById('selected-user-view').style.display = 'none';
+               document.getElementById('user-selection-container').style.display = 'block';
+               userSearchInput.value = '';
+               document.getElementById('booking-phone-input').value = '';
+               userSearchInput.focus();
+          });
+          changeUserBtn.dataset.clickListenerAttached = 'true';
+     }
+
+
+    // --- 【修正】確保新增項目按鈕事件綁定 ---
+    const addBtn = document.getElementById('admin-add-booking-item-btn');
+    if (addBtn && !addBtn.dataset.listenerAttached) {
+        addBtn.addEventListener('click', () => {
+            console.log("+ 按鈕被點擊 (in initializeCreateBookingModal)");
+            addAdminBookingItemRow();
+        });
+        addBtn.dataset.listenerAttached = 'true'; // 標記已綁定
+        console.log("initializeCreateBookingModal: 成功綁定 +新增項目 按鈕事件。");
+    } else if (addBtn && addBtn.dataset.listenerAttached) {
+         console.log("initializeCreateBookingModal: +新增項目 按鈕事件已綁定，跳過。");
+    } else if (!addBtn) {
+        console.error("initializeCreateBookingModal: 找不到 #admin-add-booking-item-btn 按鈕！");
+    }
+
+    // --- 標記已初始化 ---
     userSearchInput.dataset.initialized = 'true';
+    console.log("initializeCreateBookingModal: 初始化完成。");
 }
 
 

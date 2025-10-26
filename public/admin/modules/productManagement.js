@@ -60,15 +60,11 @@ function createFormField(field) {
     label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
-    // --- 價格欄位處理 (保持不變) ---
+// --- 價格欄位處理 (保持不變) ---
     if (field.key === 'price') {
         return null;
     }
     if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
-        const priceField = createFormField({ // <-- 這裡創建
-        key: field.key,
-        label: field.label || `價格 (${field.key.split('_')[1]})`,
-        type: 'number',
         const inputElement = document.createElement('input');
         inputElement.type = 'number';
         inputElement.step = 'any';
@@ -77,12 +73,10 @@ function createFormField(field) {
         inputElement.id = `edit-product-${field.key}`;
         inputElement.name = field.key;
         formGroup.appendChild(inputElement);
-        return formGroup;
-        });
-        if (priceField) formBody.appendChild(priceField);
-        }
+        return formGroup; // <--- 直接返回
+    }
 
-    // --- 圖片欄位處理 (保持不變) ---
+// --- 圖片欄位處理 (保持不變) ---
     if (field.type === 'image_url') {
         const fileInputId = `image-upload-${field.key}-${Date.now()}`;
         const imageGroup = document.createElement('div');
@@ -103,8 +97,7 @@ function createFormField(field) {
         // --- 注意：圖片欄位不需要後續的 inputElement 處理，直接返回 ---
         return formGroup; // <--- 直接返回
     }
-
-    // --- 其他欄位類型處理 (修正後) ---
+// --- 其他欄位類型處理 (修正後) ---
     let inputElement; // 在這裡宣告
 
     switch (field.type) {
@@ -170,7 +163,6 @@ function createFormField(field) {
 
     return formGroup;
 }
-
 
 // 動態欄位輔助函式 (升級版)
 function addImageInputField(container, value = '') {
@@ -416,13 +408,7 @@ function handleCsvUpload(event) {
 
 // --- 【大幅修改】Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
-    // --- 在函數開頭再次檢查 activeTemplate ---
-    if (!activeTemplate || !activeTemplate.entityName || !activeTemplate.entityNamePlural) {
-        console.error("openProductModal 錯誤：activeTemplate 未定義或缺少必要屬性。", activeTemplate);
-        ui.toast.error("無法開啟視窗：樣板設定載入不完整。");
-        return; // 阻止執行
-    }
-    // --- 檢查結束 ---
+    // ... (existing code for formBody, form checks) ...
      const formBody = document.getElementById('edit-product-form-body');
      const form = document.getElementById('edit-product-form');
      if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {

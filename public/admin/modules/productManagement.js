@@ -60,20 +60,19 @@ function createFormField(field) {
     label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
-    // --- Specific handling for old 'price' key - SKIP IT ---
+    // --- 價格欄位處理 (保持不變) ---
     if (field.key === 'price') {
-        return null; // Don't render the old price field
+        return null;
     }
-    // --- Specific handling for NEW price keys ---
     if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
         const priceField = createFormField({ // <-- 這裡創建
         key: field.key,
         label: field.label || `價格 (${field.key.split('_')[1]})`,
         type: 'number',
         const inputElement = document.createElement('input');
-        inputElement.type = 'number'; // Use number type
-        inputElement.step = 'any';   // Allow decimals if needed
-        inputElement.min = '0';      // Minimum price is 0
+        inputElement.type = 'number';
+        inputElement.step = 'any';
+        inputElement.min = '0';
         inputElement.placeholder = field.placeholder || '請輸入金額';
         inputElement.id = `edit-product-${field.key}`;
         inputElement.name = field.key;
@@ -83,62 +82,91 @@ function createFormField(field) {
         if (priceField) formBody.appendChild(priceField);
         }
 
-    // ... (rest of the function for image_url, textarea, boolean, default input remains the same) ...
-     if (field.type === 'image_url') { // 處理代表圖片
-        // ... (image upload logic remains the same) ...
-         const fileInputId = `image-upload-${field.key}-${Date.now()}`;
-         const imageGroup = document.createElement('div');
-         imageGroup.className = 'dynamic-input-group';
-         imageGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
-         imageGroup.innerHTML = `
+    // --- 圖片欄位處理 (保持不變) ---
+    if (field.type === 'image_url') {
+        const fileInputId = `image-upload-${field.key}-${Date.now()}`;
+        const imageGroup = document.createElement('div');
+        imageGroup.className = 'dynamic-input-group';
+        imageGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+        imageGroup.innerHTML = `
             <input type="url" id="edit-product-${field.key}" name="${field.key}" placeholder="請貼上網址或點擊右側上傳" style="flex-grow: 1;">
             <input type="file" id="${fileInputId}" accept="image/*" style="display: none;">
             <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
         `;
-         const fileInput = imageGroup.querySelector('input[type="file"]');
-         const urlInput = imageGroup.querySelector('input[type="url"]');
-         const uploadButton = imageGroup.querySelector('.btn-upload-image');
-         fileInput.addEventListener('change', (e) => {
-             if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
-         });
-         formGroup.appendChild(imageGroup);
-    } else { // 其他欄位類型
-        let inputElement;
-        switch (field.type) {
-            case 'textarea':
-                inputElement = document.createElement('textarea');
-                inputElement.rows = 5;
-                break;
-            case 'boolean':
-                const switchWrapper = document.createElement('div');
-                switchWrapper.style.marginTop = '10px';
-                inputElement = document.createElement('input');
-                inputElement.type = 'checkbox';
-                const switchLabel = document.createElement('label');
-                switchLabel.className = 'switch';
-                const slider = document.createElement('span');
-                slider.className = 'slider';
-                switchLabel.append(inputElement, slider);
-                switchWrapper.appendChild(switchLabel);
-                formGroup.appendChild(switchWrapper);
-                break;
-            default:
-                inputElement = document.createElement('input');
-                inputElement.type = field.type === 'number' ? 'number' : 'text'; // Handle number type generically
-                 if (field.type === 'number') {
-                     inputElement.step = 'any';
-                     inputElement.min = '0'; // Sensible default minimum
-                 }
-                if (field.placeholder) inputElement.placeholder = field.placeholder;
-                break;
-        }
-        if (field.type !== 'boolean') {
-            formGroup.appendChild(inputElement);
-        }
-        inputElement.id = `edit-product-${field.key}`;
-        inputElement.name = field.key;
+        const fileInput = imageGroup.querySelector('input[type="file"]');
+        const urlInput = imageGroup.querySelector('input[type="url"]');
+        const uploadButton = imageGroup.querySelector('.btn-upload-image');
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
+        });
+        formGroup.appendChild(imageGroup);
+        // --- 注意：圖片欄位不需要後續的 inputElement 處理，直接返回 ---
+        return formGroup; // <--- 直接返回
     }
 
+    // --- 其他欄位類型處理 (修正後) ---
+    let inputElement; // 在這裡宣告
+
+    switch (field.type) {
+        case 'textarea':
+            inputElement = document.createElement('textarea');
+            inputElement.rows = 5;
+            break; // <--- textarea 也要有 break
+
+        case 'boolean':
+            // boolean 比較特殊，input 在 label 裡面
+            const switchWrapper = document.createElement('div');
+            switchWrapper.style.marginTop = '10px';
+            // inputElement 在這裡被賦值
+            inputElement = document.createElement('input');
+            inputElement.type = 'checkbox';
+            inputElement.id = `edit-product-${field.key}`; // <--- ID 和 name 在這裡設定
+            inputElement.name = field.key;
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            const slider = document.createElement('span');
+            slider.className = 'slider';
+            switchLabel.append(inputElement, slider);
+            switchWrapper.appendChild(switchLabel);
+            formGroup.appendChild(switchWrapper); // 直接把 wrapper 加進去
+            // --- boolean 處理完畢，直接返回，不走後面的 appendChild 和 id/name 設定 ---
+             return formGroup; // <--- 直接返回
+
+        case 'select': // 新增：處理下拉選單
+             inputElement = document.createElement('select');
+             if (Array.isArray(field.options)) {
+                  field.options.forEach(opt => {
+                      inputElement.add(new Option(opt, opt)); // 假設選項文字和值相同
+                  });
+             }
+             if (field.defaultValue) {
+                  inputElement.value = field.defaultValue;
+             }
+             break; // <--- select 也要有 break
+
+        default: // 包含 text, number, email, tel 等
+            inputElement = document.createElement('input');
+            // 根據 field.type 設定 input 的 type
+            inputElement.type = field.type === 'number' ? 'number' : (field.type || 'text'); // 如果沒給 type 預設 text
+            if (inputElement.type === 'number') {
+                inputElement.step = 'any'; // 允許小數
+                inputElement.min = '0';    // 預設最小值
+            }
+            if (field.placeholder) inputElement.placeholder = field.placeholder;
+            if (field.defaultValue) inputElement.value = field.defaultValue; // 加入預設值
+            break; // <--- default 也要有 break
+    }
+
+    // --- 將創建好的 inputElement (非 boolean) 加入 formGroup ---
+    // (這段現在只對 textarea, select, default 創建的 input 有效)
+    if (inputElement) { // 確保 inputElement 被成功創建
+        formGroup.appendChild(inputElement);
+        // --- ID 和 Name 在這裡統一設定 (除了 boolean) ---
+        inputElement.id = `edit-product-${field.key}`;
+        inputElement.name = field.key;
+    } else {
+        console.error(`無法為欄位 ${field.key} (類型 ${field.type}) 創建輸入元素`);
+    }
 
     return formGroup;
 }

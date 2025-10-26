@@ -679,7 +679,6 @@ function renderProductDetails(product) {
         const gallery = appContent.querySelector('.details-gallery');
         const mainImage = gallery.querySelector('.details-image-main');
         const thumbnails = gallery.querySelector('.details-image-thumbnails');
-        const contentContainer = appContent.querySelector('#product-details-content');
 
         detailsTitle.textContent = product.name;
         contentContainer.innerHTML = ''; // 清空內容

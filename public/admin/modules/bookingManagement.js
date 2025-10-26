@@ -1,23 +1,63 @@
-// public/admin/modules/bookingManagement.js (v4 - 綜合優化版)
+// public/admin/modules/bookingManagement.js (修改價格相關部分)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
+// --- 保持原有的變數宣告 ---
 let allBookings = [];
-let allProducts = []; // 【新增】快取所有產品
+let allProducts = [];
 let currentCalendarDate = new Date();
 let createBookingDatepicker = null;
 let bookingDatepicker = null; // For settings modal
 let enabledDates = [];
-let currentBookingInModal = null; // 【新增】用來存放當前彈窗中的預約資料
+let currentBookingInModal = null;
 
-// 【全新函式】此函式負責渲染「詳情/編輯」視窗的內部畫面
+// --- 【新增】複製 getPriceForDate 輔助函式過來 ---
+/**
+ * 根據日期和產品資料獲取當日價格
+ * @param {string} dateString - 日期字串 (YYYY-MM-DD)
+ * @param {object} product - 產品物件 (包含 price_weekday, price_friday, price_saturday)
+ * @returns {number | null} 當日價格或 null
+ */
+function getPriceForDate(dateString, product) {
+    if (!product) return null; // 如果沒有產品資訊，回傳 null
+    // 如果日期無效，或產品沒有任何價格資訊，嘗試回傳平日價，再沒有就回傳 null
+    if (!dateString) return product.price_weekday !== null ? product.price_weekday : null;
+
+    try {
+        const date = new Date(dateString + 'T00:00:00'); // 確保解析為當地日期
+        // 檢查日期是否有效
+        if (isNaN(date.getTime())) {
+             console.warn("getPriceForDate: 無效的日期字串", dateString);
+             return product.price_weekday !== null ? product.price_weekday : null;
+        }
+        const dayOfWeek = date.getDay(); // 0=週日, 1=週一, ..., 5=週五, 6=週六
+
+        if (dayOfWeek === 5) { // 週五
+            return product.price_friday !== null ? product.price_friday : product.price_weekday;
+        } else if (dayOfWeek === 6) { // 週六
+            return product.price_saturday !== null ? product.price_saturday : product.price_weekday;
+        } else { // 平日 (週日到週四)
+            return product.price_weekday !== null ? product.price_weekday : null;
+        }
+    } catch (e) {
+        console.error("getPriceForDate 發生錯誤:", e);
+        // 出錯時，安全起見回傳平日價或 null
+         return product.price_weekday !== null ? product.price_weekday : null;
+    }
+     // 如果連平日價都沒有，最終回傳 null
+     return product.price_weekday !== null ? product.price_weekday : null;
+}
+
+
+// --- 修改 renderBookingDetails (View Mode) ---
+// (顯示詳情時，BookingItems.price 應該已經是當時的正確價格，無需修改)
 function renderBookingDetails(booking, userProfile, isEditing = false) {
     const contentEl = document.getElementById('booking-details-content');
     if (!contentEl) return;
 
     const contactName = userProfile ? (userProfile.nickname || userProfile.line_display_name) : booking.contact_name;
 
-    // View Mode HTML
+    // View Mode HTML (此部分**不需**修改價格顯示邏輯，因為 booking.items[x].price 應為正確值)
     if (!isEditing) {
         let html = `
             <h4>預約資訊</h4>
@@ -26,18 +66,19 @@ function renderBookingDetails(booking, userProfile, isEditing = false) {
                 <div><strong>預約日期:</strong> ${booking.booking_date}</div>
                 <div><strong>預約時段:</strong> ${booking.time_slot}</div>
                 <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
-                <div><strong>預估總金額:</strong> ${booking.total_amount || '未設定'}</div>
+                <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
                 <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
             </div>
             <div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>
-            
+
             <h4>預約項目</h4>
             <table class="items-table">
                 <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
                 <tbody>
         `;
+        // --- 這裡直接使用 booking.items[x].price ---
         booking.items.forEach(item => {
-            html += `<tr><td>${item.item_name}</td><td>${item.quantity}</td><td>${item.price || 'N/A'}</td></tr>`;
+            html += `<tr><td>${item.item_name}</td><td>${item.quantity}</td><td>${item.price !== null ? '$' + item.price : 'N/A'}</td></tr>`;
         });
         html += '</tbody></table>';
 
@@ -50,8 +91,8 @@ function renderBookingDetails(booking, userProfile, isEditing = false) {
             html += `<hr><h4>顧客資訊 (臨時顧客)</h4><p><strong>顧客姓名:</strong> ${contactName}</p>`;
         }
         contentEl.innerHTML = html;
-    } 
-    // Edit Mode HTML
+    }
+    // Edit Mode HTML (此部分**不需**修改價格顯示邏輯，理由同上)
     else {
         let itemsHtml = '';
         booking.items.forEach((item, index) => {
@@ -63,31 +104,31 @@ function renderBookingDetails(booking, userProfile, isEditing = false) {
                 </tr>
             `;
         });
-
-        contentEl.innerHTML = `
+        // ... (其餘 Edit Mode HTML 保持不變) ...
+         contentEl.innerHTML = `
             <h4>預約資訊 (編輯中)</h4>
             <div id="booking-edit-form" class="details-grid-container">
-                <div><strong>預約單號:</strong> ${booking.booking_id}</div>
-                <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
-                <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>
-                <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people}" min="1"></div>
-                <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
-                <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
+                 <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                 <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
+                 <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>
+                 <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people}" min="1"></div>
+                 <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
+                 <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
             </div>
             <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
-            
             <h4>預約項目 (編輯中)</h4>
             <table class="items-table">
                 <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
                 <tbody id="editable-items-tbody">${itemsHtml}</tbody>
             </table>
         `;
-        // 初始化日期選擇器
-        flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" });
+         flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" });
+
     }
 }
 
-// 【全新函式】處理儲存變更的邏輯
+// --- 修改 handleSaveBookingChanges (編輯儲存) ---
+// (BookingItems.price 是使用者在編輯時手動輸入的，無需自動計算)
 async function handleSaveBookingChanges(bookingId) {
     const payload = {
         bookingId: bookingId,
@@ -104,12 +145,13 @@ async function handleSaveBookingChanges(bookingId) {
         payload.items.push({
             name: row.querySelector('.edit-item-name').value,
             qty: parseInt(row.querySelector('.edit-item-qty').value, 10),
+            // --- 直接讀取編輯後的價格 ---
             price: parseFloat(row.querySelector('.edit-item-price').value) || null,
         });
     });
 
     try {
-        await api.updateBookingDetails(payload);
+        await api.updateBookingDetails(payload); // 後端 API 會處理這些欄位
         ui.toast.success('預約更新成功！');
         ui.hideModal('#booking-details-modal');
         await fetchDataAndRender(); // 重新整理列表
@@ -118,22 +160,24 @@ async function handleSaveBookingChanges(bookingId) {
     }
 }
 
-// --- 【新增】小計功能 ---
+
+// --- 修改 updateItemsSubtotal (手動建立預約時計算小計) ---
 function updateItemsSubtotal() {
     let subtotal = 0;
     document.querySelectorAll('.admin-booking-item-row').forEach(row => {
         const qty = parseFloat(row.querySelector('.booking-item-qty').value) || 0;
+        // --- 直接讀取價格輸入框的值 ---
         const price = parseFloat(row.querySelector('.booking-item-price').value) || 0;
         subtotal += qty * price;
     });
     const subtotalEl = document.getElementById('items-subtotal');
     const totalAmountInput = document.getElementById('booking-total-amount-input');
     if (subtotalEl) subtotalEl.textContent = `項目小計: $${subtotal}`;
-    if (totalAmountInput) totalAmountInput.value = subtotal;
+    // --- 同步更新總金額輸入框 ---
+    if (totalAmountInput) totalAmountInput.value = subtotal > 0 ? subtotal : ''; // 如果小計是0，清空總金額
 }
 
-// --- 手動建立預約 Modal 的核心邏輯 ---
-
+// --- 修改 addAdminBookingItemRow (手動建立預約時新增項目列) ---
 function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     const container = document.getElementById('admin-booking-items-container');
     if (!container || container.children.length >= 5) {
@@ -150,7 +194,9 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     select.className = 'booking-item-select';
     select.innerHTML = '<option value="">-- 選擇項目 --</option>';
     allProducts.filter(p => p.is_visible).forEach(p => {
-        select.add(new Option(`${p.name} - $${p.price}`, p.name));
+        // --- 選項文字顯示平日價格 ---
+        const priceText = p.price_weekday !== null ? `$${p.price_weekday} 起` : '洽詢';
+        select.add(new Option(`${p.name} - ${priceText}`, p.name));
     });
     select.add(new Option('其他 (手動輸入)', 'other'));
 
@@ -185,8 +231,9 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     itemRow.append(nameContainer, qtyInput, priceInput, removeBtn);
     container.appendChild(itemRow);
 
-    qtyInput.addEventListener('input', updateItemsSubtotal);
-    priceInput.addEventListener('input', updateItemsSubtotal);
+    // --- 事件監聽 ---
+    qtyInput.addEventListener('input', updateItemsSubtotal); // 數量變動 -> 更新小計
+    priceInput.addEventListener('input', updateItemsSubtotal); // 價格變動 -> 更新小計
 
     select.addEventListener('change', () => {
         nameInput.style.display = select.value === 'other' ? 'block' : 'none';
@@ -242,46 +289,27 @@ function resetCreateBookingModal() {
 
 
 async function initializeCreateBookingModal() {
-    if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
-    try {
-        if(allProducts.length === 0) allProducts = await api.getProducts();
-    } catch(e) { console.error("無法載入產品列表供預約使用"); }
-    createBookingDatepicker = flatpickr("#booking-date-input", { dateFormat: "Y-m-d" });
-    const slotSelect = document.getElementById('booking-slot-select');
-    slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
-    for (let hour = 8; hour <= 22; hour++) {
-        ['00', '30'].forEach(minute => {
-            const time = `${String(hour).padStart(2, '0')}:${minute}`;
-            slotSelect.add(new Option(time, time));
-        });
-    }
-    const userSearchInput = document.getElementById('booking-user-search');
-    const userSelect = document.getElementById('booking-user-select');
-    userSearchInput.addEventListener('input', async (e) => {
-        const query = e.target.value;
-        if (query.length < 1) {
-            userSelect.style.display = 'none';
-            return;
-        }
-        try {
-            const users = await api.searchUsers(query);
-            userSelect.innerHTML = '';
-            if (users.length > 0) {
-                users.forEach(u => {
-                    const displayName = u.nickname || u.line_display_name;
-                    const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
-                    option.dataset.userName = displayName;
-                    // ▼▼▼ 修改點：將會員電話存入 data attribute ▼▼▼
-                    option.dataset.userPhone = u.phone || '';
-                    userSelect.add(option);
-                });
-                userSelect.style.display = 'block';
-            } else {
-                userSelect.style.display = 'none';
-            }
-        } catch (error) { 
-            console.error('搜尋使用者失敗:', error);
-            userSelect.style.display = 'none';
+    // ... (防止重複初始化、獲取 allProducts 邏輯不變) ...
+     if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
+     try { if(allProducts.length === 0) allProducts = await api.getProducts(); } catch(e) { /* ... */ }
+
+    // --- 初始化日期選擇器並加入 onChange 事件 ---
+    if (createBookingDatepicker) createBookingDatepicker.destroy(); // 先銷毀舊的實例
+    createBookingDatepicker = flatpickr("#booking-date-input", {
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr, instance) {
+            // --- 當日期改變時，更新所有項目列的價格 ---
+            document.querySelectorAll('.admin-booking-item-row').forEach(row => {
+                const select = row.querySelector('.booking-item-select');
+                const priceInput = row.querySelector('.booking-item-price');
+                const selectedProductName = select.value;
+                if (selectedProductName && selectedProductName !== 'other') {
+                    const selectedProduct = allProducts.find(p => p.name === selectedProductName);
+                    const actualPrice = selectedProduct ? getPriceForDate(dateStr, selectedProduct) : null;
+                    priceInput.value = actualPrice !== null ? actualPrice : '';
+                }
+            });
+            updateItemsSubtotal(); // 日期變了，重新計算所有項目的小計
         }
     });
     userSelect.addEventListener('change', () => {
@@ -320,6 +348,8 @@ async function initializeCreateBookingModal() {
     userSearchInput.dataset.initialized = 'true';
 }
 
+
+// --- 修改 handleCreateBookingSubmit 函數 ---
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
     let finalUserId = document.getElementById('selected-user-id').value;
@@ -336,32 +366,57 @@ async function handleCreateBookingSubmit(e) {
         }
     }
     const items = [];
+    let calculatedTotalAmount = 0; // 新增：計算總金額
+    let itemsValid = true;
+
     document.querySelectorAll('.admin-booking-item-row').forEach(row => {
         const select = row.querySelector('.booking-item-select');
         let name = select.value;
         if (name === 'other') {
             name = row.querySelector('.booking-item-name-other').value.trim();
         }
-        const qty = row.querySelector('.booking-item-qty').value;
-        const price = row.querySelector('.booking-item-price').value;
-        if (name) items.push({ name, qty, price });
+        const qty = parseInt(row.querySelector('.booking-item-qty').value, 10);
+        // --- 直接讀取價格輸入框 ---
+        const price = parseFloat(row.querySelector('.booking-item-price').value);
+
+        if (name && !isNaN(qty) && qty > 0) {
+            // --- 價格驗證 ---
+            if (isNaN(price) || price < 0) {
+                 ui.toast.error(`項目 "${name}" 缺少有效的價格！`);
+                 itemsValid = false;
+                 return; // 跳過此項目
+            }
+            items.push({ name, qty, price });
+            calculatedTotalAmount += qty * price; // 累加金額
+        }
     });
-    if (items.length === 0) {
-        ui.toast.error('請至少填寫一個預約項目！');
-        return;
+
+    if (!itemsValid || items.length === 0) {
+        if (items.length === 0) ui.toast.error('請至少填寫一個預約項目！');
+        return; // 如果有項目價格無效或沒有項目，停止提交
     }
+
     const formData = {
         userId: finalUserId,
         bookingDate: document.getElementById('booking-date-input').value,
         timeSlot: document.getElementById('booking-slot-select').value,
         numOfPeople: document.getElementById('booking-people-input').value,
-        // ▼▼▼ 修改點：收集電話號碼 ▼▼▼
         contactPhone: document.getElementById('booking-phone-input').value,
-        totalAmount: document.getElementById('booking-total-amount-input').value,
+        // --- 使用計算出的小計作為預設總金額 ---
+        totalAmount: calculatedTotalAmount, // 使用計算值
         notes: document.getElementById('booking-notes-input').value,
-        contactName: finalContactName, 
-        items: items,
+        contactName: finalContactName,
+        items: items, // items 陣列已包含 price
     };
+
+    // --- 可選：如果總金額輸入框有值，且與計算值不同，可能需要提示或使用輸入框的值 ---
+     const manualTotalAmount = parseFloat(document.getElementById('booking-total-amount-input').value);
+     if (!isNaN(manualTotalAmount) && manualTotalAmount !== calculatedTotalAmount) {
+         console.warn("手動輸入的總金額與項目小計不同，將使用手動輸入的值。");
+         formData.totalAmount = manualTotalAmount;
+     }
+
+
     if (!formData.userId || !formData.bookingDate || !formData.timeSlot) {
         ui.toast.error('顧客、預約日期和時段為必填！');
         return;

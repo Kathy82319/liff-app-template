@@ -21,7 +21,7 @@ export async function onRequest(context) {
         const errors = [];
         if (!userId || typeof userId !== 'string' || userId.length < 5) errors.push('無效的使用者 ID。');
         if (!bookingDate || !isValidDate(bookingDate)) errors.push('無效的日期格式，應為 YYYY-MM-DD。');
-        if (!timeSlot || !isValidTime(timeSlot)) errors.push('無效的時間格式，應為 HH:MM。');
+        // if (!timeSlot || !isValidTime(timeSlot)) errors.push('無效的時間格式，應為 HH:MM。');
         if (!contactName || typeof contactName !== 'string' || contactName.trim().length === 0) errors.push('聯絡姓名為必填。');
         
         // ▼▼▼ 修改點：電話變成非必填 ▼▼▼
@@ -49,6 +49,7 @@ export async function onRequest(context) {
         // ▼▼▼ 修改點：將 contactPhone 傳入資料庫 ▼▼▼
         const { booking_id } = await bookingStmt.bind(
             userId, contactName.trim(), contactPhone.trim() || null, bookingDate, 
+            timeSlot ? timeSlot.trim() : null,
             timeSlot, people, totalAmount || null, notes || null
         ).first();
 

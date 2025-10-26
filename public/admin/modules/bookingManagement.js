@@ -289,7 +289,16 @@ function resetCreateBookingModal() {
 
 
 async function initializeCreateBookingModal() {
-    // ... (防止重複初始化、獲取 allProducts 邏輯不變) ...
+    const addBtn = document.getElementById('admin-add-booking-item-btn');
+if (addBtn && !addBtn.dataset.listenerAttached) {
+    addBtn.addEventListener('click', () => {
+        console.log("+ 按鈕被點擊"); // <--- 加入日誌
+        addAdminBookingItemRow();
+    });
+    addBtn.dataset.listenerAttached = 'true'; // 標記已綁定
+} else if (!addBtn) {
+     console.error("找不到 #admin-add-booking-item-btn 按鈕！");
+}
      if (document.getElementById('booking-user-search').dataset.initialized === 'true') return;
      try { if(allProducts.length === 0) allProducts = await api.getProducts(); } catch(e) { /* ... */ }
 
@@ -399,7 +408,7 @@ async function handleCreateBookingSubmit(e) {
     const formData = {
         userId: finalUserId,
         bookingDate: document.getElementById('booking-date-input').value,
-        timeSlot: document.getElementById('booking-slot-select').value,
+timeSlot: document.getElementById('booking-slot-select').value || null, // 如果沒選，傳 null
         numOfPeople: document.getElementById('booking-people-input').value,
         contactPhone: document.getElementById('booking-phone-input').value,
         // --- 使用計算出的小計作為預設總金額 ---
@@ -417,8 +426,8 @@ async function handleCreateBookingSubmit(e) {
      }
 
 
-    if (!formData.userId || !formData.bookingDate || !formData.timeSlot) {
-        ui.toast.error('顧客、預約日期和時段為必填！');
+    if (!formData.userId || !formData.bookingDate) { // 只檢查 userId 和 bookingDate
+        ui.toast.error('顧客和預約日期為必填！');
         return;
     }
     try {
@@ -681,7 +690,33 @@ function setupEventListeners() {
         }
     });
 
-    initializeCreateBookingModal(); 
+    initializeCreateBookingModal(
+    userSearchInput.addEventListener('input', async (e) => {
+    const query = e.target.value;
+    console.log("搜尋觸發:", query); // <--- 加入日誌
+    if (query.length < 1) {
+        userSelect.style.display = 'none';
+        userSelect.innerHTML = ''; // 清空選項
+        return;
+    }
+    try {
+        console.log("呼叫 API: /api/admin/user-search?q=" + encodeURIComponent(query)); // <--- 加入日誌
+        const users = await api.searchUsers(query);
+        console.log("API 回應:", users); // <--- 加入日誌
+        userSelect.innerHTML = '';
+        if (users.length > 0) {
+            // ... (產生選項的邏輯) ...
+             users.forEach(u => { /* ... */ });
+            userSelect.style.display = 'block';
+        } else {
+            userSelect.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('搜尋使用者失敗:', error); // <--- 確認錯誤有被印出
+        userSelect.style.display = 'none';
+    }
+    });
+); 
     document.getElementById('create-booking-form')?.addEventListener('submit', handleCreateBookingSubmit);
     document.getElementById('save-booking-settings-btn')?.addEventListener('click', handleSaveBookingSettings);
     document.getElementById('calendar-prev-month-btn')?.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); updateCalendar(); });

@@ -66,6 +66,10 @@ function createFormField(field) {
     }
     // --- Specific handling for NEW price keys ---
     if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
+        const priceField = createFormField({ // <-- 這裡創建
+        key: field.key,
+        label: field.label || `價格 (${field.key.split('_')[1]})`,
+        type: 'number',
         const inputElement = document.createElement('input');
         inputElement.type = 'number'; // Use number type
         inputElement.step = 'any';   // Allow decimals if needed
@@ -75,8 +79,9 @@ function createFormField(field) {
         inputElement.name = field.key;
         formGroup.appendChild(inputElement);
         return formGroup;
-    }
-    // --- End specific price handling ---
+        });
+        if (priceField) formBody.appendChild(priceField);
+        }
 
     // ... (rest of the function for image_url, textarea, boolean, default input remains the same) ...
      if (field.type === 'image_url') { // 處理代表圖片
@@ -383,7 +388,13 @@ function handleCsvUpload(event) {
 
 // --- 【大幅修改】Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
-    // ... (existing code for formBody, form checks) ...
+    // --- 在函數開頭再次檢查 activeTemplate ---
+    if (!activeTemplate || !activeTemplate.entityName || !activeTemplate.entityNamePlural) {
+        console.error("openProductModal 錯誤：activeTemplate 未定義或缺少必要屬性。", activeTemplate);
+        ui.toast.error("無法開啟視窗：樣板設定載入不完整。");
+        return; // 阻止執行
+    }
+    // --- 檢查結束 ---
      const formBody = document.getElementById('edit-product-form-body');
      const form = document.getElementById('edit-product-form');
      if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {

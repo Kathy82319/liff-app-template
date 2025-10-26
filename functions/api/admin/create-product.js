@@ -5,6 +5,8 @@ import { customAlphabet } from 'nanoid';
 const generateProductId = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz', 8);
 
 export async function onRequest(context) {
+
+    // ... (檢查 errors.length) ...
     try {
         if (context.request.method !== 'POST') {
             return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
@@ -31,7 +33,9 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ error: errors.join(' ') }), { status: 400 });
         }
         // --- 驗證結束 ---
-
+        if (body.price_weekday && isNaN(Number(body.price_weekday))) errors.push('平日價格必須是有效的數字。');
+        if (body.price_friday && isNaN(Number(body.price_friday))) errors.push('週五價格必須是有效的數字。');
+        if (body.price_saturday && isNaN(Number(body.price_saturday))) errors.push('週六價格必須是有效的數字。');
         const db = context.env.DB;
         
         // --- 2. 準備資料並生成 ID ---
@@ -49,6 +53,9 @@ export async function onRequest(context) {
             stock_status: body.stock_status || null,
             price_type: body.price_type || 'simple',
             price: body.price ?? null,
+            price_weekday: body.price_weekday ?? null,  
+            price_friday: body.price_friday ?? null,     
+            price_saturday: body.price_saturday ?? null, 
             price_options: body.price_options || null,
             spec_1_name: body.spec_1_name || null, spec_1_value: body.spec_1_value || null,
             spec_2_name: body.spec_2_name || null, spec_2_value: body.spec_2_value || null,
@@ -60,17 +67,30 @@ export async function onRequest(context) {
             filter_2: body.filter_2 || null,
             filter_3: body.filter_3 || null,
         };
-        const stmt = db.prepare(
-            `INSERT INTO Products (
-                product_id, name, description, category, images, is_visible, display_order,
-                inventory_management_type, stock_quantity, stock_status, price_type, price, price_options,
-                spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value,
-                spec_4_name, spec_4_value, spec_5_name, spec_5_value,
-                filter_1, filter_2, filter_3
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
+const stmt = db.prepare(
+        `INSERT INTO Products (
+            product_id, name, description, category, images, is_visible, display_order,
+            inventory_management_type, stock_quantity, stock_status, price_type, /* 移除 price, */
+            price_weekday, price_friday, price_saturday, price_options,
+            spec_1_name, spec_1_value, spec_2_name, spec_2_value, spec_3_name, spec_3_value,
+            spec_4_name, spec_4_value, spec_5_name, spec_5_value,
+            filter_1, filter_2, filter_3
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, /* 移除 ?, */ ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` 
+    );
 
-        await stmt.bind(...Object.values(newProductData)).run();
+await stmt.bind(
+         newProductData.product_id, newProductData.name, newProductData.description, newProductData.category,
+         newProductData.images, newProductData.is_visible, newProductData.display_order,
+         newProductData.inventory_management_type, newProductData.stock_quantity, newProductData.stock_status,
+         newProductData.price_type,
+         newProductData.price_weekday, newProductData.price_friday, newProductData.price_saturday, // 新增
+         newProductData.price_options,
+         // ... (specs and filters) ...
+          newProductData.spec_1_name, newProductData.spec_1_value, newProductData.spec_2_name, newProductData.spec_2_value,
+          newProductData.spec_3_name, newProductData.spec_3_value, newProductData.spec_4_name, newProductData.spec_4_value,
+          newProductData.spec_5_name, newProductData.spec_5_value,
+          newProductData.filter_1, newProductData.filter_2, newProductData.filter_3
+     ).run();
         
         // --- 4. 回傳成功訊息與新產品資料 ---
         return new Response(JSON.stringify({ success: true, product: newProductData }), {

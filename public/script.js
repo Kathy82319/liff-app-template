@@ -673,37 +673,65 @@ function renderBookings(bookings, container, isPast = false) {
 
 
 function renderProductDetails(product) {
-    if (!product || !activeTemplate) return;
+    // --- 在函數開頭檢查傳入的 product 和 activeTemplate ---
+    if (!product || typeof product !== 'object') {
+        console.error("renderProductDetails 錯誤：傳入的 product 無效。", product);
+        appContent.innerHTML = `<p style="color:red;">無法載入產品資料。</p>`; // 直接在 appContent 顯示錯誤
+        return;
+    }
+    if (!activeTemplate || !Array.isArray(activeTemplate.fields)) {
+        console.error("renderProductDetails 錯誤：activeTemplate 無效或缺少 fields。", activeTemplate);
+        appContent.innerHTML = `<p style="color:red;">系統樣板設定錯誤。</p>`;
+        return;
+    }
+    console.log("Rendering details for product:", product); // 輸出收到的產品資料
 
-        const detailsTitle = appContent.querySelector('.details-title');
-        const gallery = appContent.querySelector('.details-gallery');
-        const mainImage = gallery.querySelector('.details-image-main');
-        const thumbnails = gallery.querySelector('.details-image-thumbnails');
+    // --- 檢查 DOM 元素是否存在 ---
+    const detailsTitle = appContent.querySelector('.details-title');
+    const gallery = appContent.querySelector('.details-gallery');
+    const contentContainer = appContent.querySelector('#product-details-content');
 
-        detailsTitle.textContent = product.name;
-        contentContainer.innerHTML = ''; // 清空內容
+    if (!detailsTitle || !gallery || !contentContainer) {
+         console.error("renderProductDetails 錯誤：找不到必要的 DOM 元素 (title, gallery, or content container)。");
+         appContent.innerHTML = `<p style="color:red;">頁面結構錯誤，無法顯示產品詳情。</p>`;
+         return;
+    }
+    const mainImage = gallery.querySelector('.details-image-main');
+    const thumbnails = gallery.querySelector('.details-image-thumbnails');
+    if(!mainImage || !thumbnails){
+         console.error("renderProductDetails 錯誤：找不到 gallery 內的 mainImage 或 thumbnails 元素。");
+         // 即使找不到圖片元素，也嘗試繼續渲染文字內容
+         gallery.style.display = 'none'; // 隱藏圖片區塊
+    }
 
-        // 1. 處理圖片
-        try {
-            const images = JSON.parse(product.images || '[]');
-            if (images.length > 0) {
-                mainImage.src = images[0];
-                thumbnails.innerHTML = images.map((img, index) => 
-                    `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`
-                ).join('');
-                gallery.style.display = 'block';
 
-                thumbnails.addEventListener('click', e => {
-                    if (e.target.tagName === 'IMG') {
-                        mainImage.src = e.target.dataset.src;
-                        thumbnails.querySelector('.active')?.classList.remove('active');
-                        e.target.classList.add('active');
-                    }
-                });
-            } else {
-                gallery.style.display = 'none';
-            }
-        } catch(e) { gallery.style.display = 'none'; }
+    detailsTitle.textContent = product.name || "產品名稱載入失敗"; // 提供預設值
+    contentContainer.innerHTML = ''; // 清空內容
+
+    // --- 圖片處理 (增加 try-catch 和元素檢查) ---
+    try {
+         const images = JSON.parse(product.images || '[]');
+         if (images.length > 0 && mainImage && thumbnails) { // 再次檢查元素
+             mainImage.src = images[0];
+             thumbnails.innerHTML = images.map((img, index) => `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`).join('');
+             gallery.style.display = 'block';
+
+             // 清除舊監聽器 (如果有的話) 再綁定新的
+             thumbnails.replaceWith(thumbnails.cloneNode(true)); // 簡單粗暴但有效的方法
+             appContent.querySelector('.details-gallery .details-image-thumbnails').addEventListener('click', e => {
+                 if (e.target.tagName === 'IMG') {
+                      if(mainImage) mainImage.src = e.target.dataset.src; // 再次檢查 mainImage
+                      appContent.querySelector('.details-gallery .details-image-thumbnails .active')?.classList.remove('active');
+                      e.target.classList.add('active');
+                 }
+             });
+         } else {
+             gallery.style.display = 'none';
+         }
+    } catch(e) {
+         console.error("處理產品圖片時出錯:", e);
+         gallery.style.display = 'none';
+    }
 
 
     const contentContainer = appContent.querySelector('#product-details-content');
@@ -724,24 +752,28 @@ function renderProductDetails(product) {
     priceSection.append(priceLabel, priceContent);
     contentContainer.appendChild(priceSection);
 
-    // --- 根據藍圖動態生成其他內容 (跳過舊 price) ---
-    activeTemplate.fields.forEach(field => {
-        // 跳過 'name', 'images', 'is_visible', 以及所有價格欄位
-        if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible' || field.key.startsWith('price_')) return;
-
-        const value = product[field.key];
-        if (value) {
-            const section = document.createElement('div');
-            section.className = 'detail-field-section';
-            const label = document.createElement('h3');
-            label.textContent = field.label;
-            const content = document.createElement('p');
-            // 將內容中的換行符轉換為 <br>，適合 description 等欄位
-             content.innerHTML = String(value).replace(/\n/g, '<br>');
-            section.append(label, content);
-            contentContainer.appendChild(section);
-        }
-    });
+    // --- 其他欄位 (增加檢查) ---
+    try {
+        activeTemplate.fields.forEach(field => {
+            if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible' || field.key.startsWith('price_')) return;
+            const value = product[field.key];
+            if (value !== null && typeof value !== 'undefined' && value !== '') { // 更嚴格的檢查
+                const section = document.createElement('div');
+                section.className = 'detail-field-section';
+                const label = document.createElement('h3');
+                label.textContent = field.label;
+                const content = document.createElement('p');
+                // 確保 value 是字串再取代換行符
+                content.innerHTML = String(value).replace(/\n/g, '<br>');
+                section.append(label, content);
+                contentContainer.appendChild(section);
+            }
+        });
+    } catch (e) {
+        console.error("渲染其他產品欄位時出錯:", e);
+        // 可以在 contentContainer 附加一個錯誤提示
+         contentContainer.innerHTML += `<p style="color:red;">部分欄位渲染失敗。</p>`;
+    }
 }
 
 function renderProducts() {
@@ -817,12 +849,14 @@ function populateFilters() {
     const container = document.getElementById('dynamic-filter-container');
     if (!container) return;
     container.innerHTML = '';
-
-    const filterDefinitions = CONFIG?.LOGIC?.PRODUCT_FILTERS || [];
-
-    if (filterDefinitions.length === 0) {
-        return;
-    }
+const filterDefinitions = CONFIG?.LOGIC?.PRODUCT_FILTERS;
+if (!Array.isArray(filterDefinitions)) {
+    console.warn("PRODUCT_FILTERS 設定未定義或非陣列，無法產生篩選器。", filterDefinitions);
+    return; // 如果不是陣列，直接結束函數
+}
+if (filterDefinitions.length === 0) {
+     return; // 如果是空陣列，也直接結束
+}
 
     filterDefinitions.forEach(filterDef => {
         const select = document.createElement('select');
@@ -851,12 +885,12 @@ function populateFilters() {
 }
     
 async function initializeProductsPage() {
-        productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
-        productView.sort = 'default';
-    
-        const container = document.getElementById('product-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
+    productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
+    productView.sort = 'default';
+
+    const container = document.getElementById('product-list-container');
+    if (!container) return;
+    container.innerHTML = `<p>載入中...</p>`; 
     
         const viewControls = document.getElementById('product-view-controls');
         const layoutSwitcher = document.querySelector('.layout-switcher');
@@ -1002,11 +1036,23 @@ function addBookingItemRow(name = '', qty = 1) {
     priceInputHidden.className = 'booking-item-actual-price';
     priceInputHidden.value = ''; // 稍後根據日期和選擇更新
 
-    const removeBtn = document.createElement('button');
-    // ... (移除按鈕樣式和事件綁定不變) ...
-     removeBtn.type = 'button'; removeBtn.className = 'remove-booking-item-btn';
-     removeBtn.textContent = '-'; removeBtn.style.cssText = '/* ... */';
-     removeBtn.addEventListener('click', () => { /* ... */ });
+const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-booking-item-btn';
+    removeBtn.textContent = '-';
+    removeBtn.style.cssText = 'background: var(--color-danger); padding: 5px 10px; border: none; color: white; border-radius: 4px; cursor: pointer; height: fit-content;'; // 確保樣式正確
+
+    // --- 確保這段事件綁定存在 ---
+    removeBtn.addEventListener('click', () => {
+        itemRow.remove(); // 移除自己所在的整列
+        // 移除後，檢查是否需要重新顯示 "新增項目" 按鈕
+        const currentContainer = document.getElementById('booking-items-container'); // 重新獲取容器
+        if (currentContainer && currentContainer.children.length < 5) {
+            const addBtn = document.getElementById('add-booking-item-btn');
+            if (addBtn) addBtn.style.display = 'block';
+        }
+    });
+    // --- 事件綁定結束 ---
 
     // --- 當選擇項目改變時，更新隱藏的價格欄位 ---
     select.addEventListener('change', () => {
@@ -1109,11 +1155,39 @@ async function initializeBookingPage() {
                 bookingData.date = dateStr;
                 timeSlotContainer.style.display = 'block';
                 detailsForm.style.display = 'none';
-                renderTimeSlots(timeSlotSelect);
+renderTimeSlots(timeSlotSelect);
+
+                // ---【核心修改】日期變更時，立即更新所有現有項目的價格 ---
+                document.querySelectorAll('.booking-item-row').forEach(row => {
+                    const select = row.querySelector('.booking-item-select');
+                    const priceInputHidden = row.querySelector('.booking-item-actual-price');
+                    const selectedProductName = select.value; // 讀取當前選擇的項目名稱
+
+                    // 只有當項目已被選擇時才更新價格
+                    if (selectedProductName) {
+                        const selectedProduct = allProducts.find(p => p.name === selectedProductName);
+                        const actualPrice = selectedProduct ? getPriceForDate(dateStr, selectedProduct) : null; // 使用新的日期計算價格
+                        priceInputHidden.value = actualPrice !== null ? actualPrice : ''; // 更新隱藏欄位
+
+                        // 更新價格提示 (如果有的話)
+                        let priceDisplay = row.querySelector('.price-display-hint');
+                        if (priceDisplay) {
+                             priceDisplay.textContent = actualPrice !== null ? ` ($${actualPrice})` : '';
+                        }
+                    }
+                });
+                // ---【修改結束】---
+
             } else {
                 bookingData.date = null;
                 timeSlotContainer.style.display = 'none';
                 detailsForm.style.display = 'none';
+                // (可選) 清空所有項目的價格
+                 document.querySelectorAll('.booking-item-row').forEach(row => {
+                     row.querySelector('.booking-item-actual-price').value = '';
+                     let priceDisplay = row.querySelector('.price-display-hint');
+                     if (priceDisplay) priceDisplay.textContent = '';
+                 });
             }
         },
     });
@@ -1207,56 +1281,73 @@ function renderTimeSlots(selectElement) {
 
 async function handleBookingConfirmation(event) {
     const confirmBtn = event.target;
-    // ... (防止重複提交邏輯不變) ...
-     if (confirmBtn.dataset.isSubmitting === 'true') return;
+    if (confirmBtn.dataset.isSubmitting === 'true') return;
 
     const items = [];
     const itemRows = document.querySelectorAll('.booking-item-row');
-    let calculatedTotalAmount = 0; // 新增：計算總金額
-    let missingPrice = false;
+    let calculatedTotalAmount = 0;
+    let itemsValid = true; // 標記所有項目是否有效
+
+    // 再次檢查 bookingData.date 是否存在
+    if (!bookingData.date) {
+        alert('請先選擇預約日期！');
+        return;
+    }
 
     itemRows.forEach(row => {
-        const name = row.querySelector('.booking-item-select').value;
-        const qty = parseInt(row.querySelector('.booking-item-qty').value, 10);
-        // --- 從隱藏欄位讀取價格 ---
-        const price = parseFloat(row.querySelector('.booking-item-actual-price').value);
+        if (!itemsValid) return; // 如果前面已有項目無效，則不再處理後續項目
+
+        const nameSelect = row.querySelector('.booking-item-select');
+        const qtyInput = row.querySelector('.booking-item-qty');
+        const priceInputHidden = row.querySelector('.booking-item-actual-price'); // 讀取隱藏價格欄位
+
+        const name = nameSelect.value;
+        const qty = parseInt(qtyInput.value, 10);
+        const price = parseFloat(priceInputHidden.value); // 讀取隱藏價格
 
         if (name && !isNaN(qty) && qty > 0) {
-             // --- 如果價格無效 (NaN 或 null)，標記錯誤 ---
-            if (isNaN(price)) {
-                console.warn(`項目 "${name}" 缺少有效價格！`);
-                // 可以選擇提示用戶或直接忽略此項目
-                 missingPrice = true; // 標記有項目缺少價格
-                 // items.push({ name, qty, price: null }); // 仍然加入，但價格為 null
+            // 價格必須是有效的非負數字
+            if (isNaN(price) || price < 0) {
+                console.error(`項目 "${name}" 價格無效: 從 hidden input 讀取的值为 '${priceInputHidden.value}'`);
+                alert(`項目 "${name}" 無法根據您選擇的日期找到有效價格，請確認日期或重新選擇項目。`);
+                itemsValid = false; // 標記無效
             } else {
-                 items.push({ name, qty, price });
-                 calculatedTotalAmount += qty * price; // 累加金額
+                items.push({ name, qty, price });
+                calculatedTotalAmount += qty * price; // 累加金額
             }
+        } else if (name) {
+            // 如果選了名稱但數量無效
+            alert(`項目 "${name}" 的數量無效。`);
+            itemsValid = false;
         }
     });
 
-    // --- 如果有項目缺少價格，阻止提交 ---
-     if (missingPrice) {
-         alert('錯誤：有預約項目未能確定價格，請重新選擇日期或項目。');
-         return; // 停止執行
-     }
+    // 如果有任何項目無效，或最終沒有有效項目，則停止
+    if (!itemsValid || items.length === 0) {
+        if (items.length === 0 && itemsValid) { // 確保不是因為價格錯誤而被攔截
+            alert('請至少選擇一個有效的預約項目！');
+        }
+        return; // 停止執行
+    }
 
+    // 讀取其他表單資料
     bookingData.timeSlot = document.getElementById('time-slot-select').value;
     bookingData.people = document.getElementById('booking-people').value;
     bookingData.name = document.getElementById('contact-name').value;
     bookingData.phone = document.getElementById('contact-phone').value;
 
-    if (!bookingData.date || !bookingData.timeSlot || !bookingData.name || !bookingData.phone) {
-        alert('日期、時段、姓名與電話為必填！');
-        return;
+    // 基礎驗證
+    if (!bookingData.timeSlot || !bookingData.name || !bookingData.phone) {
+         alert('時段、姓名與電話為必填！'); // 將日期驗證移到前面
+         return;
     }
-     
     const phoneRegex = /^09\d{8}$/;
     if (!phoneRegex.test(bookingData.phone)) {
         alert('請輸入正確的 10 位手機號碼 (必須為 09 開頭)。');
         return;
     }
 
+    // --- 提交 API ---
     try {
         confirmBtn.dataset.isSubmitting = 'true';
         confirmBtn.disabled = true;
@@ -1269,51 +1360,47 @@ async function handleBookingConfirmation(event) {
             numOfPeople: bookingData.people,
             contactName: bookingData.name,
             contactPhone: bookingData.phone,
-            items: items, // items 陣列現在包含 price
-            // --- 新增：將計算出的總金額加入 payload ---
-            totalAmount: calculatedTotalAmount
+            items: items, // items 陣列包含 price
+            totalAmount: calculatedTotalAmount // 使用計算出的總金額
         };
 
-        // --- 後端 API bookings-create.js 不需要修改 ---
-        // 因為它本來就預期前端會傳送每個 item 的 price，並可選地接收 totalAmount
-        const createRes = await fetch('/api/bookings-create', {
+        const createRes = await fetch('/api/bookings-create', { // 確認 API 路徑
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookingPayload)
         });
 
         if (!createRes.ok) {
-            const errorResult = await createRes.json();
+            const errorResult = await createRes.json().catch(() => ({ error: `伺服器錯誤 ${createRes.status}` }));
             throw new Error(errorResult.error || '建立預約時發生未知錯誤');
         }
 
         const result = await createRes.json();
 
-        fetch('/api/send-message', {
+        // 發送確認訊息 (背景執行，不阻塞主流程)
+        fetch('/api/send-message', { // 確認 API 路徑
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
-        });
+        }).catch(err => console.error("發送 LINE 通知失敗:", err));
 
+        // 顯示成功訊息並跳轉
         appContent.innerHTML = `
             <div class="details-section" style="text-align: center;">
                 <h2 style="color: var(--color-accent);">✅ 預約成功！</h2>
                 <p>3 秒後將自動跳轉至您的預約列表...</p>
             </div>
         `;
-
-        setTimeout(() => {
-            showPage('page-my-bookings');
-        }, 3000);
+        setTimeout(() => { showPage('page-my-bookings'); }, 3000);
 
     } catch (error) {
+        console.error("預約失敗:", error); // 在控制台輸出更詳細錯誤
         alert(`預約失敗：${error.message}`);
         confirmBtn.dataset.isSubmitting = 'false';
         confirmBtn.disabled = false;
         confirmBtn.textContent = '確認預約';
     }
 }
-
     // =================================================================
     // Tab Bar 主導航
     // =================================================================

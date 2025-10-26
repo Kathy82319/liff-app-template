@@ -4,81 +4,287 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>商家管理面板</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 針對手機後台的微調 */
-        body { padding-top: 15px; padding-bottom: 15px; }
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
+        /* 老闆 LIFF 專屬樣式調整 */
+        body {
+            padding-top: 60px; /* 為固定標題預留空間 */
+            padding-bottom: 70px; /* 為固定 TabBar 預留空間 */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
-        .stat-card {
-            background-color: var(--color-card-bg);
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
+
+        #app-header { /* 固定頂部標題 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--color-header-bg);
+            padding: 15px;
             text-align: center;
+            z-index: 100;
+            border-bottom: 1px solid var(--color-primary);
         }
-        .stat-card h3 {
-            margin-top: 0;
-            color: var(--color-text-secondary);
-            font-size: 1rem;
+
+        #app-header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--color-text-primary);
         }
-        .stat-card .stat-value {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--color-primary);
-            margin: 0.5rem 0 0 0;
+
+        #app-container {
+            flex-grow: 1;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto; /* 允許內容滾動 */
         }
-        .booking-list-item {
+
+        /* Tab 內容頁基本樣式 */
+        .tab-content {
+            display: none; /* 預設隱藏 */
+        }
+        .tab-content.active {
+            display: block; /* 顯示當前 Tab */
+        }
+
+        /* 最新動態卡片樣式 (參考 image_3b1a27.png) */
+        .activity-card {
             background-color: var(--color-card-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 15px;
             border-left: 5px solid var(--color-accent);
+            cursor: pointer; /* 提示可點擊 */
+        }
+        .activity-card.status-cancelled {
+             border-left-color: var(--color-danger);
+             opacity: 0.8;
+        }
+        .activity-card.status-new-user {
+             border-left-color: var(--color-primary); /* 新會員用不同顏色 */
+        }
+        .activity-card p { margin: 5px 0; }
+        .activity-card small { color: var(--color-text-secondary); }
+
+        /* 日曆 Tab 樣式 */
+        #calendar-view { margin-bottom: 20px; }
+        #calendar-placeholder .flatpickr-calendar { /* 讓日曆寬度自動 */
+            width: auto !important;
+            margin: 0 auto; /* 置中 */
+        }
+        .flatpickr-day.has-event { /* 標示有事件的日期 */
+            position: relative;
+        }
+        .flatpickr-day.has-event::after {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--color-accent);
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #daily-cards-container { margin-top: 20px; }
+        .daily-card {
+            background-color: var(--color-card-bg);
+            border-radius: var(--border-radius);
             padding: 15px;
             margin-bottom: 10px;
-            border-radius: var(--border-radius);
+            border-left: 5px solid var(--color-accent);
+            cursor: pointer;
         }
-        .booking-list-item.status-checked-in { border-left-color: #28a745; }
-        .booking-list-item.status-cancelled { border-left-color: #6c757d; opacity: 0.7; }
-        .booking-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .booking-actions button { flex-grow: 1; }
+         .daily-card.status-checked-in { border-left-color: #28a745; }
+         .daily-card.status-cancelled { border-left-color: #6c757d; opacity: 0.7; }
+        .daily-card p { margin: 5px 0; }
+        .daily-card small { color: var(--color-text-secondary); }
+
+        /* 訂單 Tab 樣式 (參考 image_3b1a67.png) */
+        .filter-controls { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .filter-controls input, .filter-controls select { width: auto; flex-grow: 1; }
+        .order-list-item {
+            background-color: var(--color-card-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+         .order-list-item p { margin: 5px 0; }
+         .order-list-item small { color: var(--color-text-secondary); }
+
+        /* Modal 彈窗樣式 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: none; /* 預設隱藏 */
+            justify-content: center; align-items: center;
+            z-index: 1000; padding: 15px; box-sizing: border-box;
+        }
+        .modal-content {
+            background: var(--color-card-bg); /* 深色背景 */
+            padding: 20px; border-radius: var(--border-radius);
+            width: 100%; max-width: 500px;
+            max-height: 90vh; /* 最大高度 */
+            overflow-y: auto; /* 內容過多時滾動 */
+            border: 1px solid var(--color-primary);
+            position: relative;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--color-secondary);
+            padding-bottom: 10px; margin-bottom: 15px;
+        }
+        .modal-header h3 { margin: 0; color: var(--color-primary); }
+        .modal-close {
+            font-size: 1.8rem; font-weight: bold; border: none; background: none;
+            cursor: pointer; color: var(--color-text-secondary); padding: 0 5px; line-height: 1;
+            position: absolute; top: 10px; right: 10px;
+        }
+        .modal-body h4 { color: var(--color-primary); margin-top: 20px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px;}
+        .modal-body p { margin: 8px 0; }
+        .modal-body strong { color: var(--color-text-secondary); margin-right: 5px; }
+        .modal-actions { margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
+        /* 適應不同按鈕數量 */
+        .modal-actions.row-layout { flex-direction: row; }
+
+        /* 控房介面按鈕 */
+        .manage-rooms-btn {
+            background-color: var(--color-secondary);
+            margin-bottom: 15px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+        /* 電商管理按鈕 */
+        .ecommerce-manage-buttons {
+             display: flex; gap: 10px; margin-bottom: 15px;
+        }
+        .ecommerce-manage-buttons button {
+            background-color: var(--color-secondary);
+             padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+
+        /* 底部導覽列 (使用 style.css 的 #tab-bar) */
+        #owner-tab-bar { /* 確保 ID 不同 */
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 65px;
+            display: flex; justify-content: space-around; align-items: center;
+            background-color: var(--color-header-bg); border-top: 1px solid var(--color-primary);
+            backdrop-filter: blur(10px); z-index: 100;
+        }
+        #owner-tab-bar .tab-button { /* 沿用 .tab-button 樣式 */
+             flex-grow: 1; padding: 8px 5px; background: none; border: none;
+             color: var(--color-text-secondary); font-size: 0.9rem; cursor: pointer;
+             transition: color 0.3s, transform 0.3s; line-height: 1.4; text-align: center;
+        }
+         #owner-tab-bar .tab-button.active {
+             color: var(--color-accent); transform: scale(1.1);
+        }
+
     </style>
 </head>
 <body>
 
-    <main id="app-container" class="page">
+    <header id="app-header">
+        <h1>商家管理面板</h1>
+    </header>
+
+    <main id="app-container">
         <div id="loading-view">
-            <h1 class="page-main-title">商家管理面板</h1>
             <p style="text-align: center;">正在初始化並驗證您的管理員身份...</p>
         </div>
-
         <div id="unauthorized-view" style="display: none; text-align: center;">
-            <h1 class="page-main-title" style="color: var(--color-danger);">權限不足</h1>
+            <h2 style="color: var(--color-danger);">權限不足</h2>
             <p>抱歉，您不是授權的管理員，無法存取此頁面。</p>
         </div>
 
         <div id="main-view" style="display: none;">
-            <h1 id="main-title" class="page-main-title">讀取中...</h1>
 
-            <section id="dashboard-container">
-                </section>
-
-            <section id="list-container" style="margin-top: 30px;">
-                <h2 id="list-title">今日事項</h2>
-                <div id="booking-list-content">
-                    <p>正在載入今日列表...</p>
+            <div id="tab-content-activity" class="tab-content active">
+                <h2>最新動態</h2>
+                <div id="activity-list-content">
+                    <p>正在載入動態...</p>
                 </div>
-            </section>
+            </div>
 
-            <hr style="border-color: var(--color-secondary); margin: 30px 0;">
+            <div id="tab-content-calendar" class="tab-content">
+                <h2>日曆總覽</h2>
+                 <button id="manage-rooms-btn" class="cta-button manage-rooms-btn" style="display: none;">管理房價 / 房量</button>
+                 <div id="calendar-view">
+                    <div id="calendar-placeholder"></div>
+                </div>
+                <h3><span id="selected-date-display">今日</span> 事項</h3>
+                <div id="daily-cards-container">
+                    <p>請先從上方選擇日期</p>
+                </div>
+            </div>
 
-            <section>
-                <button id="go-to-admin-panel-btn" class="cta-button">開啟完整版後台</button>
-            </section>
+            <div id="tab-content-order" class="tab-content">
+                <h2>訂單 / 預約列表</h2>
+                 <div class="ecommerce-manage-buttons" style="display: none;">
+                    <button id="manage-stock-btn">低庫存提醒</button>
+                    <button id="manage-visibility-btn">快速上下架</button>
+                 </div>
+                <div class="filter-controls">
+                    <input type="search" id="order-search-input" placeholder="搜尋編號、姓名...">
+                    <select id="order-date-filter-type">
+                        <option value="booking_date">預約/訂單日</option>
+                        <option value="created_at">建立日</option>
+                    </select>
+                    <input type="date" id="order-date-filter-start">
+                    <input type="date" id="order-date-filter-end">
+                    <select id="order-status-filter">
+                        <option value="">所有狀態</option>
+                        <option value="confirmed">預約成功/待處理</option>
+                        <option value="checked-in">已報到/已入住/已出貨</option>
+                        <option value="cancelled">已取消</option>
+                        </select>
+                    <button id="order-filter-apply-btn">查詢</button>
+                </div>
+                <div id="order-list-content">
+                    <p>正在載入列表...</p>
+                </div>
+            </div>
+
+             <div id="tab-content-customer" class="tab-content">
+                <h2>顧客查詢</h2>
+                <div class="filter-controls">
+                    <input type="search" id="customer-search-input" placeholder="搜尋姓名、電話...">
+                     <button id="customer-search-btn">搜尋</button>
+                 </div>
+                <div id="customer-search-results"></div>
+             </div>
+
+             <button id="go-to-admin-panel-btn" class="cta-button" style="margin-top: 30px; background-color: var(--color-secondary);">開啟完整版後台</button>
+
         </div>
     </main>
 
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="details-modal-title">詳細資訊</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="details-modal-body" class="modal-body">
+                <p>正在載入資料...</p>
+            </div>
+            <div id="details-modal-actions" class="modal-actions">
+                </div>
+        </div>
+    </div>
+
+    <nav id="owner-tab-bar">
+        <button class="tab-button active" data-tab="activity">最新<br>動態</button>
+        <button class="tab-button" data-tab="calendar">日曆</button>
+        <button class="tab-button" data-tab="order">訂單</button>
+         <button class="tab-button" data-tab="customer">顧客<br>查詢</button> </nav>
+
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="owner-liff.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script> <script src="owner-liff.js"></script>
 </body>
 </html>

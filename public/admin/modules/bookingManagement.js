@@ -404,8 +404,7 @@ async function initializeCreateBookingModal() {
         userSearchInput.dataset.inputListenerAttached = 'true';
     }
     if (userSelect && !userSelect.dataset.changeListenerAttached) {
-        userSelect.addEventListener('change', () => {
-            // /* ... 選擇使用者 ... */
+userSelect.addEventListener('change', async () => { 
             // --- ▼▼▼ 補全開始 ▼▼▼ ---
             const selectedOption = userSelect.options[userSelect.selectedIndex];
             if (selectedOption && selectedOption.value) { // 確保不是選擇 "-- 請選擇顧客 --"
@@ -414,15 +413,20 @@ async function initializeCreateBookingModal() {
                 setSelectedUser(userId, userName); // 呼叫已有的函式來更新介面
 
                 // (可選) 選擇後自動帶入電話
-            const selectedUser = allUsers.find(u => u.user_id === userId); // <--- ERROR HERE: allUsers is not defined in this file
-            if (selectedUser && selectedUser.phone) {
-            const phoneInput = document.getElementById('booking-phone-input');
-            if(phoneInput) phoneInput.value = selectedUser.phone;
-            }
+try {
+                    // Fetch specific user details using the API
+                    const userDetails = await api.getUserDetails(userId);
+                    if (userDetails && userDetails.profile && userDetails.profile.phone) {
+                        const phoneInput = document.getElementById('booking-phone-input');
+                        if(phoneInput) phoneInput.value = userDetails.profile.phone;
+                    }
+                } catch (error) {
+                    console.error(`無法獲取用戶 ${userId} 的詳細資料以自動填入電話:`, error);
+                    // Don't show an error toast here, just fail silently on autofill
+                }
+                // --- ▲▲▲ MODIFIED SECTION ▲▲▲ ---
 
             }
-            // 如果選擇了 "-- 請選擇顧客 --"，可以選擇性地不做任何事或重置
-            // --- ▲▲▲ 補全結束 ▲▲▲ ---
         });
         userSelect.dataset.changeListenerAttached = 'true';
     }

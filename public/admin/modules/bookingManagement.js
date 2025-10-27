@@ -268,28 +268,35 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     updateItemsSubtotal();
 }
 
-function setSelectedUser(userId, userName) {
-    console.log(`setSelectedUser 被呼叫: userId=${userId}, userName=${userName}`); // <--- 加入日誌
 
-    const selectedUserIdInput = document.getElementById('selected-user-id'); // <--- 獲取隱藏欄位
+function setSelectedUser(userId, userName) {
+    console.log(`setSelectedUser 被呼叫: userId=${userId}, userName=${userName}`);
+
+    const selectedUserIdInput = document.getElementById('selected-user-id');
     const selectedUserDisplay = document.getElementById('selected-user-display');
     const userSelectionContainer = document.getElementById('user-selection-container');
     const selectedUserView = document.getElementById('selected-user-view');
 
-    // --- ▼▼▼ 檢查點：確保元素都存在 ▼▼▼ ---
     if (!selectedUserIdInput || !selectedUserDisplay || !userSelectionContainer || !selectedUserView) {
         console.error("setSelectedUser 錯誤：找不到必要的 UI 元素！");
         ui.toast.error("更新顧客顯示時發生錯誤，請檢查控制台。");
         return;
     }
-    // --- ▲▲▲ 檢查點結束 ▲▲▲ ---
 
-    selectedUserIdInput.value = userId; // 設定隱藏欄位的值
-    selectedUserDisplay.textContent = userName || '名稱錯誤'; // <--- **核心修改：確保這裡設定 textContent**
+    selectedUserIdInput.value = userId;
     userSelectionContainer.style.display = 'none';
     selectedUserView.style.display = 'flex';
 
-    console.log(`setSelectedUser 完成：顯示名稱設為 "${selectedUserDisplay.textContent}"`); // <--- 加入日誌
+    // --- ▼▼▼ 使用 setTimeout 延遲設定 textContent ▼▼▼ ---
+    setTimeout(() => {
+        if(selectedUserDisplay){ // 再次檢查元素是否存在
+             selectedUserDisplay.textContent = userName || '名稱錯誤';
+             console.log(`(延遲後) setSelectedUser 完成：顯示名稱設為 "${selectedUserDisplay.textContent}"`);
+        } else {
+             console.error("(延遲後) setSelectedUser 錯誤: selectedUserDisplay 元素消失了！");
+        }
+    }, 0); // 設定為 0 毫秒，使其在當前同步程式碼執行完畢後立即執行
+
 }
 
 function resetCreateBookingModal() {
@@ -462,7 +469,7 @@ if (userSelect && !userSelect.dataset.changeListenerAttached) {
         });
         userSelect.dataset.changeListenerAttached = 'true';
     }
-    
+
      if (!userSearchInput.dataset.blurListenerAttached) {
           userSearchInput.addEventListener('blur', () => {
             /* ... 處理臨時顧客 ... */

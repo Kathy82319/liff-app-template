@@ -269,10 +269,27 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
 }
 
 function setSelectedUser(userId, userName) {
-    document.getElementById('selected-user-id').value = userId;
-    document.getElementById('selected-user-display').textContent = userName;
-    document.getElementById('user-selection-container').style.display = 'none';
-    document.getElementById('selected-user-view').style.display = 'flex';
+    console.log(`setSelectedUser 被呼叫: userId=${userId}, userName=${userName}`); // <--- 加入日誌
+
+    const selectedUserIdInput = document.getElementById('selected-user-id'); // <--- 獲取隱藏欄位
+    const selectedUserDisplay = document.getElementById('selected-user-display');
+    const userSelectionContainer = document.getElementById('user-selection-container');
+    const selectedUserView = document.getElementById('selected-user-view');
+
+    // --- ▼▼▼ 檢查點：確保元素都存在 ▼▼▼ ---
+    if (!selectedUserIdInput || !selectedUserDisplay || !userSelectionContainer || !selectedUserView) {
+        console.error("setSelectedUser 錯誤：找不到必要的 UI 元素！");
+        ui.toast.error("更新顧客顯示時發生錯誤，請檢查控制台。");
+        return;
+    }
+    // --- ▲▲▲ 檢查點結束 ▲▲▲ ---
+
+    selectedUserIdInput.value = userId; // 設定隱藏欄位的值
+    selectedUserDisplay.textContent = userName || '名稱錯誤'; // <--- **核心修改：確保這裡設定 textContent**
+    userSelectionContainer.style.display = 'none';
+    selectedUserView.style.display = 'flex';
+
+    console.log(`setSelectedUser 完成：顯示名稱設為 "${selectedUserDisplay.textContent}"`); // <--- 加入日誌
 }
 
 function resetCreateBookingModal() {
@@ -403,36 +420,49 @@ async function initializeCreateBookingModal() {
         });
         userSearchInput.dataset.inputListenerAttached = 'true';
     }
-    if (userSelect && !userSelect.dataset.changeListenerAttached) {
-userSelect.addEventListener('change', async () => { 
-            // --- ▼▼▼ 補全開始 ▼▼▼ ---
+if (userSelect && !userSelect.dataset.changeListenerAttached) {
+        userSelect.addEventListener('change', async () => { // 確認是 async
             const selectedOption = userSelect.options[userSelect.selectedIndex];
-            if (selectedOption && selectedOption.value) { // 確保不是選擇 "-- 請選擇顧客 --"
+            if (selectedOption && selectedOption.value) {
                 const userId = selectedOption.value;
-                const userName = selectedOption.dataset.userName; // 從 dataset 讀取名稱
-                setSelectedUser(userId, userName); // 呼叫已有的函式來更新介面
+                const userName = selectedOption.dataset.userName;
+                setSelectedUser(userId, userName); // 呼叫上面修改過的函數
 
-                // (可選) 選擇後自動帶入電話
-try {
-                    // Fetch specific user details using the API
+                // --- ▼▼▼ 除錯手機自動帶入 ▼▼▼ ---
+                try {
+                    console.log(`準備為用戶 ${userId} 獲取詳細資料...`); // <--- 加入日誌
                     const userDetails = await api.getUserDetails(userId);
-                    if (userDetails && userDetails.profile && userDetails.profile.phone) {
+                    console.log('從 API 獲取的用戶詳細資料:', userDetails); // <--- **重要：檢查 API 回傳的完整內容**
+
+                    // --- **檢查點：確認 userDetails 和 profile 存在** ---
+                    if (userDetails && userDetails.profile) {
                         const phoneInput = document.getElementById('booking-phone-input');
-                        if(phoneInput) phoneInput.value = userDetails.profile.phone;
+                        if (phoneInput) {
+                             // --- **檢查點：確認 phone 欄位存在且有值** ---
+                            if (userDetails.profile.phone) {
+                                phoneInput.value = userDetails.profile.phone;
+                                console.log(`已自動填入電話: ${userDetails.profile.phone}`); // <--- 加入日誌
+                            } else {
+                                console.log(`用戶 ${userId} 的資料中沒有電話號碼。`); // <--- 加入日誌
+                                phoneInput.value = ''; // 如果用戶沒存電話，清空輸入框
+                            }
+                        } else {
+                             console.error("找不到電話輸入框 booking-phone-input");
+                        }
+                    } else {
+                         console.warn(`無法從 API 回應中獲取用戶 ${userId} 的 profile 資料。`);
+                         // 即使 profile 不存在，也不清空用戶可能手動輸入的電話
                     }
                 } catch (error) {
                     console.error(`無法獲取用戶 ${userId} 的詳細資料以自動填入電話:`, error);
-                    // Don't show an error toast here, just fail silently on autofill
+                    // API 呼叫失敗時不清空電話，避免覆蓋用戶可能手動輸入的值
                 }
-                // --- ▲▲▲ MODIFIED SECTION ▲▲▲ ---
-
+                // --- ▲▲▲ 除錯結束 ▲▲▲ ---
             }
         });
         userSelect.dataset.changeListenerAttached = 'true';
     }
-     // blur 事件監聽器通常用於處理當使用者輸入完畢，但未從下拉選單選擇時的情況
-     // 在目前的 handleCreateBookingSubmit 邏輯中，已處理了這種情況（視為臨時顧客）
-     // 因此這裡的 blur 監聽器可以暫時不加特定邏輯，或用於清除下拉選單等 UI 操作
+    
      if (!userSearchInput.dataset.blurListenerAttached) {
           userSearchInput.addEventListener('blur', () => {
             /* ... 處理臨時顧客 ... */

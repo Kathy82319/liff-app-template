@@ -78,7 +78,7 @@ export const api = {
     bulkCreateProducts: (data) => request('/api/admin/bulk-create-products', { method: 'POST', body: JSON.stringify(data) }),
     generateImageUploadUrl: () => request('/api/admin/generate-image-upload-url', { method: 'POST' }),
 
-    / --- Admin Room Availability Management (民宿專用) ---
+    // --- Admin Room Availability Management (民宿專用) ---
     getRoomInventory: (params) => request(`/api/admin/get-room-inventory?${params.toString()}`),
     updateRoomInventory: (data) => request('/api/admin/update-room-inventory', { method: 'POST', body: JSON.stringify(data) }),
 

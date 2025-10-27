@@ -18,7 +18,7 @@ function getDayOfWeek(dateString) {
     return date.getDay();
 }
 
-// D1 Upsert 輔助函式 (修正 key 檢查與資料類型處理)
+// D1 Upsert 輔助函式 (修正 key 檢查與資料類型處理 v2)
 function prepareUpsertStatement(db, updates) {
     const baseFields = ['product_id', 'inventory_date'];
     const conflictTarget = '(product_id, inventory_date)';
@@ -34,12 +34,22 @@ function prepareUpsertStatement(db, updates) {
     const updateSetClauses = [];
     const bindValuesOrder = []; // 記錄 DB 欄位順序
 
+    // **重要**: 確保 updates 是陣列且至少有一個元素
+    if (!Array.isArray(updates) || updates.length === 0) {
+        throw new Error("prepareUpsertStatement: 'updates' 參數必須是非空陣列");
+    }
     const firstUpdate = updates[0];
+    // **重要**: 確保 firstUpdate 是物件
+    if (typeof firstUpdate !== 'object' || firstUpdate === null) {
+        throw new Error("prepareUpsertStatement: 'updates' 陣列中的元素必須是物件");
+    }
+
 
     // 遍歷前端可能傳來的 key
     for (const frontendKey in possibleFrontendKeys) {
         // 檢查第一筆 update 資料是否包含這個前端 key
-        if (firstUpdate.hasOwnProperty(frontendKey)) {
+        // **重要**: 使用 Object.prototype.hasOwnProperty.call 避免原型鏈問題
+        if (Object.prototype.hasOwnProperty.call(firstUpdate, frontendKey)) {
             const dbField = possibleFrontendKeys[frontendKey]; // 取得對應的 DB 欄位
             updatePlaceholders.push('?');
             updateSetClauses.push(`${dbField} = excluded.${dbField}`); // SQL 使用 DB 欄位
@@ -49,7 +59,7 @@ function prepareUpsertStatement(db, updates) {
 
 
     if (bindValuesOrder.length === 0) {
-        // 這個錯誤訊息現在是正確的，因為確實沒有收到 status, quantity, price 任一項
+        // 這個錯誤訊息現在是正確的
         throw new Error("沒有提供任何有效的更新欄位 (status, quantity, price)");
     }
 
@@ -63,13 +73,18 @@ function prepareUpsertStatement(db, updates) {
         ${updateSetClauses.join(', ')}
     `;
 
-    console.log("[prepareUpsertStatement v2] SQL:", sql); // 除錯用
-    console.log("[prepareUpsertStatement v2] Fields to Bind:", [...baseFields, ...bindValuesOrder]); // 除錯用
+    // console.log("[prepareUpsertStatement v3] SQL:", sql); // 除錯用
+    // console.log("[prepareUpsertStatement v3] Fields to Bind:", [...baseFields, ...bindValuesOrder]); // 除錯用
 
-    return {
-        stmt: db.prepare(sql),
-        fieldsToBind: [...baseFields, ...bindValuesOrder] // 傳回 DB 欄位順序
-    };
+    try {
+        return {
+            stmt: db.prepare(sql),
+            fieldsToBind: [...baseFields, ...bindValuesOrder] // 傳回 DB 欄位順序
+        };
+    } catch (e) {
+         console.error("Error preparing statement:", e, "SQL:", sql);
+         throw e; // 將錯誤重新拋出
+    }
 }
 
 
@@ -99,53 +114,39 @@ export async function onRequest(context) {
                  if (!update.productId || !update.date || !/^\d{4}-\d{2}-\d{2}$/.test(update.date)) {
                      throw new Error("每筆更新必須包含有效的 productId 和 date (YYYY-MM-DD)");
                  }
-                 // 驗證可選欄位
                  if (update.status && !['Open', 'Closed'].includes(update.status)) {
                      throw new Error(`無效的 status 值: ${update.status}`);
                  }
-                 // **修正**: quantity 可以是 0
                  if (update.quantity !== undefined && (!Number.isInteger(Number(update.quantity)) || Number(update.quantity) < 0)) {
                       throw new Error(`quantity 必須是非負整數: ${update.quantity}`);
                  }
-                 // **修正**: price 可以是 0
                  if (update.price !== undefined && update.price !== null && (typeof update.price !== 'number' || !Number.isInteger(Number(update.price)) || Number(update.price) < 0)) {
                      throw new Error(`price 必須是非負整數或 null: ${update.price}`);
                  }
+                 // **新增驗證**: 確保至少有一個要更新的欄位
+                 if (!update.hasOwnProperty('status') && !update.hasOwnProperty('quantity') && !update.hasOwnProperty('price')) {
+                     throw new Error(`更新物件必須包含 status, quantity 或 price 其中至少一項`);
+                 }
             }
 
-            // 準備 Upsert 語句 (只需準備一次，因為欄位結構相同)
+            // 準備 Upsert 語句
             const { stmt, fieldsToBind } = prepareUpsertStatement(db, updatesArray);
 
             // 為每一筆更新生成綁定操作
             operations = updatesArray.map(update => {
                  const values = fieldsToBind.map(field => {
                      let valueToBind;
-                     switch (field) { // 這裡的 field 是 DB 欄位名
-                         case 'product_id':
-                             valueToBind = update.productId;
-                             break;
-                         case 'inventory_date':
-                             valueToBind = update.date;
-                             break;
-                         case 'status':
-                             valueToBind = update.status; // TEXT
-                             break;
-                         case 'quantity_available':
-                             // 前端傳的是 quantity, 確保傳入 INTEGER 或 NULL
-                             valueToBind = update.quantity !== undefined && update.quantity !== null ? Number(update.quantity) : null;
-                             break;
-                         case 'base_price':
-                             // 前端傳的是 price, 確保傳入 INTEGER 或 NULL
-                             valueToBind = update.price !== undefined && update.price !== null ? Number(update.price) : null;
-                             break;
-                         default:
-                             // 理論上不會有其他欄位，但保留以防萬一
-                             valueToBind = update[field];
+                     switch (field) { // field 是 DB 欄位名
+                         case 'product_id': valueToBind = update.productId; break;
+                         case 'inventory_date': valueToBind = update.date; break;
+                         case 'status': valueToBind = update.status; break; // TEXT
+                         case 'quantity_available': valueToBind = update.quantity !== undefined && update.quantity !== null ? Number(update.quantity) : null; break; // INTEGER or NULL
+                         case 'base_price': valueToBind = update.price !== undefined && update.price !== null ? Number(update.price) : null; break; // INTEGER or NULL
+                         default: valueToBind = null; // 預設給 null 以防萬一
                      }
                      return valueToBind;
                  });
-                 // 除錯用: 顯示最終綁定陣列
-                 // console.log("單筆更新 Binding values:", values);
+                 // console.log("單筆更新 Binding values:", values); // 除錯用
                  return stmt.bind(...values);
             });
 
@@ -160,26 +161,23 @@ export async function onRequest(context) {
             if (weekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)) {
                  throw new Error("weekdays 陣列包含無效的星期數值 (應為 0-6)");
             }
-            // 驗證 updateValues 的內容
-             if (updateValues.status && !['Open', 'Closed'].includes(updateValues.status)) {
+            if (updateValues.status && !['Open', 'Closed'].includes(updateValues.status)) {
                  throw new Error(`無效的 status 值: ${updateValues.status}`);
              }
-             // **修正**: quantity 可以是 0
              if (updateValues.quantity !== undefined && (!Number.isInteger(Number(updateValues.quantity)) || Number(updateValues.quantity) < 0)) {
                  throw new Error(`quantity 必須是非負整數: ${updateValues.quantity}`);
              }
-             // **修正**: price 可以是 0
              if (updateValues.price !== undefined && updateValues.price !== null && (typeof updateValues.price !== 'number' || !Number.isInteger(Number(updateValues.price)) || Number(updateValues.price) < 0 )) {
                  throw new Error(`price 必須是非負整數或 null: ${updateValues.price}`);
              }
-            if (Object.keys(updateValues).length === 0) {
-                 throw new Error("updateValues 物件不可為空");
-            }
+             // **新增驗證**: 確保 updateValues 至少有一個有效 key
+             const validUpdateKeys = Object.keys(updateValues).filter(key => ['status', 'quantity', 'price'].includes(key));
+             if (validUpdateKeys.length === 0) {
+                 throw new Error("updateValues 物件必須包含 status, quantity 或 price 其中至少一項");
+             }
 
-
-            // 準備 Upsert 語句 (將 updateValues 包裝成陣列以複用 prepareUpsertStatement)
-            // **重要**: 這裡的 updateValues 可能只包含部分 key (status, quantity, price)
-            // prepareUpsertStatement 會根據 updateValues 實際包含的 key 來生成 SQL
+            // 準備 Upsert 語句 (基於 updateValues 的 key)
+            // **重要**: 將 updateValues 包裝成陣列以複用
             const { stmt, fieldsToBind } = prepareUpsertStatement(db, [updateValues]);
 
             // 計算符合條件的所有日期
@@ -191,30 +189,16 @@ export async function onRequest(context) {
                  const values = fieldsToBind.map(field => { // field 是 DB 欄位名
                      let valueToBind;
                      switch (field) {
-                         case 'product_id':
-                             valueToBind = productId;
-                             break;
-                         case 'inventory_date':
-                             valueToBind = dateStr;
-                             break;
-                         case 'status':
-                             valueToBind = updateValues.status; // TEXT
-                             break;
-                         case 'quantity_available':
-                              // 確保傳入 INTEGER 或 NULL
-                             valueToBind = updateValues.quantity !== undefined && updateValues.quantity !== null ? Number(updateValues.quantity) : null;
-                             break;
-                         case 'base_price':
-                              // 確保傳入 INTEGER 或 NULL
-                             valueToBind = updateValues.price !== undefined && updateValues.price !== null ? Number(updateValues.price) : null;
-                             break;
-                         default:
-                             valueToBind = updateValues[field];
+                         case 'product_id': valueToBind = productId; break;
+                         case 'inventory_date': valueToBind = dateStr; break;
+                         case 'status': valueToBind = updateValues.status; break; // TEXT
+                         case 'quantity_available': valueToBind = updateValues.quantity !== undefined && updateValues.quantity !== null ? Number(updateValues.quantity) : null; break; // INTEGER or NULL
+                         case 'base_price': valueToBind = updateValues.price !== undefined && updateValues.price !== null ? Number(updateValues.price) : null; break; // INTEGER or NULL
+                         default: valueToBind = null;
                      }
                      return valueToBind;
                  });
-                 // 除錯用: 顯示最終綁定陣列
-                 // console.log("批次更新 Binding values:", values);
+                 // console.log("批次更新 Binding values:", values); // 除錯用
                  return stmt.bind(...values);
             });
 
@@ -241,15 +225,13 @@ export async function onRequest(context) {
         });
 
     } catch (error) {
-        // 在錯誤日誌中包含更詳細的訊息
         console.error('Error in admin/update-room-inventory API:', error.message, error.stack);
-        // 如果是 D1 錯誤，嘗試獲取更詳細原因
         let details = error.message;
         if (error.cause) {
              details += ` Cause: ${JSON.stringify(error.cause)}`;
         }
         return new Response(JSON.stringify({ error: '更新房量資料失敗', details: details }), {
-            status: 500, // 或根據錯誤類型回傳 400
+            status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
     }

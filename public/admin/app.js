@@ -65,6 +65,15 @@ const App = {
                     }
 
                     await pageModule.init(); 
+                // ******** 新增判斷 ********
+                if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
+                    console.log("[App.js] Calling initializeDatePickers for room-availability...");
+                    // 使用 setTimeout 給予 DOM 更多時間反應 ui.showPage
+                    setTimeout(() => {
+                        pageModule.initializeDatePickers();
+                    }, 50); // 稍微延遲後再初始化 Flatpickr
+                }
+                // ******** 新增結束 ********
                 } else {
                      console.warn(`[App Delay Check] Module ${modulePath} has no init function.`);
                 }

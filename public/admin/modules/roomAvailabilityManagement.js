@@ -535,9 +535,20 @@ function setupEventListeners() {
          });
     }
 
+// **加入**: 在事件監聽器設定完成後，檢查日期並觸發初始載入
+    if (dateRangePicker && dateRangePicker.selectedDates.length === 2) {
+        console.log("roomAvailabilityManagement setupEventListeners: 觸發初始 loadInventoryData...");
+        // 使用 setTimeout 確保 Flatpickr 完全渲染後再載入，避免潛在競爭條件
+        setTimeout(() => {
+             loadInventoryData();
+        }, 0);
+    } else {
+        console.log("roomAvailabilityManagement setupEventListeners: 初始日期範圍未選定，等待手動載入。");
+    }
+
     page.dataset.initialized = 'true';
      console.log("roomAvailabilityManagement: 事件監聽器設定完成。");
-}
+} // setupEventListeners 函數結束
 
 // --- 初始化函式 ---
 export const init = async () => {
@@ -568,14 +579,6 @@ export const init = async () => {
 
         // 無論如何都執行 setupEventListeners 來確保日期選擇器和按鈕事件被綁定
         setupEventListeners();
-
-        // 可以在這裡設定預設日期範圍並自動載入第一次資料
-         if (dateRangePicker && dateRangePicker.selectedDates.length === 2) {
-             console.log("roomAvailabilityManagement init: 觸發第一次 loadInventoryData...");
-             await loadInventoryData(); // 等待第一次資料載入完成
-         } else {
-              console.log("roomAvailabilityManagement init: 日期選擇器未就緒或未選範圍，不載入初始資料。");
-         }
 
     } catch (error) {
         console.error("初始化房量控管頁面失敗:", error);

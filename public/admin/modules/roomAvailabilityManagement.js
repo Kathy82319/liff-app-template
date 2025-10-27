@@ -63,14 +63,15 @@ function renderAvailabilityGrid() {
             const quantity = inventory?.quantity_available ?? 0; // 預設 0
             const price = inventory?.base_price; // 可能為 null
 
-// --- 判斷視覺提示 ---
-        let cellStyle = ''; // 儲存背景色樣式
-        let priceText = price !== null ? String(price) : ''; // 顯示空字串而非 'null'
-        let statusText = status === 'Open' ? '開啟' : '關閉';
-        let statusClass = status === 'Open' ? 'status-open' : 'status-closed';
-        let tooltip = ''; // 滑鼠提示
-        let icon = ''; // 驚嘆號
-        let isBookable = false; // 標記是否可預訂
+            // --- 判斷視覺提示 ---
+            let cellStyle = '';
+            let priceText = price !== null ? String(price) : ''; // 顯示空字串而非 'null'
+            let statusText = status === 'Open' ? '開啟' : '關閉';
+            let statusClass = status === 'Open' ? 'status-open' : 'status-closed';
+            let tooltip = ''; // 滑鼠提示
+            let icon = '';
+            let isBookable = false; // 標記是否可預訂
+
 
         if (status === 'Open') {
             if (quantity > 0) {
@@ -95,8 +96,9 @@ function renderAvailabilityGrid() {
             cellStyle = 'background-color: #f8d7da;'; // 紅色表示關閉
         }
 
-        // 組裝格子的 HTML
-        tableHtml += `
+
+            // 組裝格子的 HTML
+tableHtml += `
             <td style="border: 1px solid var(--color-border); padding: 5px; text-align: center; vertical-align: top; ${cellStyle}"
                 data-product-id="${product.product_id}" data-date="${dateStr}" title="${tooltip}">
                 <div style="margin-bottom: 3px;">
@@ -167,14 +169,15 @@ function bindCellEvents() {
                 if (qtyInput) qtyInput.disabled = (newStatus === 'Closed');
                 if (priceInput) priceInput.disabled = (newStatus === 'Closed');
 
-                // 更新背景色 (如果需要)
-                if (newStatus === 'Closed') {
-                    cell.style.backgroundColor = '#f8d7da'; // 紅色
-                } else {
-                     // 如果開啟後數量為 0，則變黃色，否則變回預設 (白色)
-                     const quantity = parseInt(qtyInput.value, 10);
-                     cell.style.backgroundColor = (quantity === 0) ? '#fff3cd' : ''; // 黃色或預設
-                }
+            // 更新背景色 (如果需要)
+            if (newStatus === 'Closed') {
+                cell.style.backgroundColor = '#f8d7da'; // 紅色
+            } else {
+                 // 如果開啟後數量為 0 或 價格為空，則變黃色，否則變回預設 (白色)
+                 const quantity = parseInt(qtyInput.value, 10);
+                 const price = priceInput.value.trim() === '' ? null : parseInt(priceInput.value.trim()); // 檢查價格是否為空
+                 cell.style.backgroundColor = (quantity === 0 || price === null) ? '#fff3cd' : ''; // 黃色或預設
+            }
 
 
                 ui.toast.success('狀態更新成功');
@@ -215,7 +218,8 @@ function bindCellEvents() {
                  target.dataset.originalValue = newValue; // 更新原始值記錄
                  console.log(`更新 ${productId} 在 ${date} 的數量為 ${newValue}`);
                  // 更新背景色
-                cell.style.backgroundColor = (newValue === 0 && cell.querySelector('.status-toggle')?.dataset.status === 'Open') ? '#fff3cd' : ''; // 數量為0且狀態開啟才變黃            }
+                 cell.style.backgroundColor = (newValue === 0) ? '#fff3cd' : ''; // 黃色或預設
+            }
 
         } else if (target.matches('.price-input')) {
             const oldValue = target.dataset.originalValue || target.defaultValue;

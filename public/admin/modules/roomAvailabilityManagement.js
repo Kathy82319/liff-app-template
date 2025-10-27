@@ -326,6 +326,7 @@ async function loadInventoryData() {
 }
 
 // --- 處理批次修改 (使用獨立日期選擇器) ---
+// --- 處理批次修改 (移除 Flatpickr 初始化) ---
 function openBulkEditModal() {
     const productSelect = document.getElementById('rav-product-select');
     const selectedProductId = productSelect.value;
@@ -341,24 +342,36 @@ function openBulkEditModal() {
     if(form) form.reset();
     document.querySelectorAll('#bulk-edit-weekdays input').forEach(cb => cb.checked = true);
 
+    // **移除**: 不在此處初始化 bulkEditDatePicker
+
+    // **新增**: 清空日期輸入框，讓用戶重新選擇
     const dateInput = document.getElementById('bulk-edit-date-picker');
     if (dateInput) {
+        dateInput.value = ''; // 清空顯示
+         // 如果之前的實例存在，銷毀它
          if (bulkEditDatePicker) {
               bulkEditDatePicker.destroy();
+              bulkEditDatePicker = null; // 清除引用
          }
-         bulkEditDatePicker = flatpickr(dateInput, {
-              mode: "range",
-              dateFormat: "Y-m-d",
-              locale: "zh_tw",
-         });
-         console.log("批次修改 Flatpickr instance created:", bulkEditDatePicker); // **除錯用**
+         // **重要**: 在顯示 Modal 後才初始化
+         setTimeout(() => {
+              if (document.getElementById('rav-bulk-edit-modal').style.display !== 'none') { // 確保 Modal 真的顯示了
+                   console.log("Initializing bulkEditDatePicker...");
+                   bulkEditDatePicker = flatpickr(dateInput, {
+                        mode: "range",
+                        dateFormat: "Y-m-d",
+                        locale: "zh_tw",
+                   });
+                   console.log("BulkEditDatePicker instance:", bulkEditDatePicker);
+              }
+         }, 50); // 稍微延遲一點點
     } else {
          console.error("找不到批次修改的日期輸入框 #bulk-edit-date-picker");
     }
 
+
     ui.showModal('#rav-bulk-edit-modal');
 }
-
 async function handleBulkEditSubmit(event) {
     event.preventDefault();
     const form = event.target;
@@ -452,40 +465,15 @@ async function handleBulkEditSubmit(event) {
 
 
 // --- 事件綁定 (v3 - 使用 onReady 觸發初始載入) ---
+// --- 事件綁定 (v4 - 移除 Flatpickr 初始化) ---
 function setupEventListeners() {
     const page = document.getElementById('page-room-availability');
     if (!page || page.dataset.initialized === 'true') {
-        // console.log("roomAvailabilityManagement: 事件已初始化或頁面不存在，跳過。");
         return;
     }
-    console.log("roomAvailabilityManagement: 初始化事件監聽器...");
+    console.log("roomAvailabilityManagement: 初始化事件監聽器 (不含 Flatpickr)...");
 
-    // 初始化主日期範圍選擇器 (只在第一次)
-    if (!dateRangePicker) {
-         console.log("roomAvailabilityManagement: 初始化主日期選擇器...");
-         dateRangePicker = flatpickr("#rav-date-range", {
-             mode: "range",
-             dateFormat: "Y-m-d",
-             locale: "zh_tw",
-             defaultDate: [
-                  new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                  new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-             ],
-             onReady: function(selectedDates, dateStr, instance) {
-                  console.log("主日期選擇器 onReady");
-                  // **確保 selectedDates 有效才觸發**
-                  if (Array.isArray(selectedDates) && selectedDates.length === 2) {
-                       console.log("roomAvailabilityManagement setupEventListeners (onReady): 觸發初始 loadInventoryData...");
-                       // 使用 setTimeout 確保 DOM 完全渲染
-                       setTimeout(() => {
-                           loadInventoryData();
-                       }, 0);
-                  } else {
-                       console.log("roomAvailabilityManagement setupEventListeners (onReady): 初始日期範圍未選定或無效。");
-                  }
-             }
-         });
-    }
+    // **移除**: dateRangePicker 初始化代碼已移除
 
     // 綁定按鈕事件 (如果尚未綁定)
     const applyBtn = document.getElementById('rav-apply-filter-btn');
@@ -514,14 +502,15 @@ function setupEventListeners() {
          console.log("roomAvailabilityManagement setupEventListeners: 房型下拉選單已填充。");
     }
 
-    // **重要**: bindCellEvents 應該在表格渲染後呼叫，所以移出 setupEventListeners
-    // bindCellEvents(); // <--- 從這裡移除
+    // 綁定表格事件 (移到 renderAvailabilityGrid 後)
+    // bindCellEvents(); // <--- 確保這行已移除或註解
 
     page.dataset.initialized = 'true';
-    console.log("roomAvailabilityManagement: 事件監聽器設定完成。");
+    console.log("roomAvailabilityManagement: 事件監聽器設定完成 (不含 Flatpickr)。");
 }
 
 // --- 初始化函式 (v3 - 修正 Flatpickr 初始化時機) ---
+// --- 初始化函式 (v4 - 延遲初始化 Flatpickr) ---
 export const init = async () => {
     console.log("roomAvailabilityManagement: init 開始...");
     const page = document.getElementById('page-room-availability');
@@ -539,15 +528,45 @@ export const init = async () => {
         if (currentProducts.length === 0) {
             console.log("roomAvailabilityManagement init: currentProducts 為空，呼叫 api.getProducts...");
             const allProds = await api.getProducts();
-            currentProducts = allProds; // 不再過濾
+            currentProducts = allProds;
             console.log(`roomAvailabilityManagement init: 載入 ${currentProducts.length} 個房型/產品`);
         } else {
              console.log(`roomAvailabilityManagement init: 使用快取的 ${currentProducts.length} 個房型/產品。`);
         }
 
-        // **重要**: 先執行 setupEventListeners 來初始化 Flatpickr 和綁定按鈕
+        // 先綁定按鈕等事件
         setupEventListeners();
-        // 初始資料的載入現在由 Flatpickr 的 onReady 事件觸發
+
+        // **新增**: 使用 setTimeout 延遲初始化主日期選擇器
+        setTimeout(() => {
+            console.log("roomAvailabilityManagement init (setTimeout): 嘗試初始化主日期選擇器...");
+            const dateRangeInput = document.getElementById('rav-date-range');
+            if (dateRangeInput && !dateRangePicker) { // 檢查元素存在且實例未創建
+                 dateRangePicker = flatpickr(dateRangeInput, {
+                     mode: "range",
+                     dateFormat: "Y-m-d",
+                     locale: "zh_tw",
+                     defaultDate: [
+                          new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                          new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+                     ],
+                     onReady: function(selectedDates, dateStr, instance) {
+                          console.log("主日期選擇器 onReady - 觸發初始載入");
+                          if (Array.isArray(selectedDates) && selectedDates.length === 2) {
+                               loadInventoryData(); // 直接呼叫載入
+                          } else {
+                               console.log("主日期選擇器 onReady - 初始日期範圍未選定或無效。");
+                          }
+                     }
+                 });
+                 console.log("主日期選擇器 Flatpickr instance:", dateRangePicker); // 除錯
+            } else if (dateRangePicker) {
+                 console.log("主日期選擇器已存在，跳過初始化。");
+            } else {
+                 console.error("roomAvailabilityManagement init (setTimeout): 找不到 #rav-date-range 元素！");
+                 ui.toast.error("無法初始化主日期選擇器。");
+            }
+        }, 100); // 延遲 100 毫秒，給 DOM 一點時間
 
     } catch (error) {
         console.error("初始化房量控管頁面失敗:", error);

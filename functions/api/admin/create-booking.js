@@ -49,7 +49,7 @@ export async function onRequest(context) {
         // ▼▼▼ 修改點：將 contactPhone 傳入資料庫 ▼▼▼
 const { booking_id } = await bookingStmt.bind(
     userId, contactName.trim(), contactPhone.trim() || null, bookingDate,
-    timeSlot ? timeSlot.trim() : null, // 僅保留這一個 timeSlot
+    timeSlot ? timeSlot.trim() : '', // 當 timeSlot 為空時，傳入空字串 ''
     people, totalAmount || null, notes || null
 ).first();
 

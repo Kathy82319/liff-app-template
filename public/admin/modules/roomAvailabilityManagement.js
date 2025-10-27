@@ -464,7 +464,6 @@ async function handleBulkEditSubmit(event) {
 }
 
 
-// --- 事件綁定 (v3 - 使用 onReady 觸發初始載入) ---
 // --- 事件綁定 (v4 - 移除 Flatpickr 初始化) ---
 function setupEventListeners() {
     const page = document.getElementById('page-room-availability');
@@ -507,46 +506,10 @@ function setupEventListeners() {
 
     page.dataset.initialized = 'true';
     console.log("roomAvailabilityManagement: 事件監聽器設定完成 (不含 Flatpickr)。");
-}// --- 事件綁定 (setupEventListeners) - 移除 Flatpickr 初始化 ---
-function setupEventListeners() {
-    const page = document.getElementById('page-room-availability');
-    if (!page || page.dataset.initialized === 'true') {
-        return;
-    }
-    console.log("roomAvailabilityManagement: 初始化事件監聽器 (不含 Flatpickr)...");
-
-    // **移除**: dateRangePicker 初始化代碼已移除
-
-    // 綁定按鈕事件 (如果尚未綁定)
-    const applyBtn = document.getElementById('rav-apply-filter-btn');
-    if (applyBtn && !applyBtn.dataset.listenerAttached) {
-        applyBtn.addEventListener('click', loadInventoryData);
-        applyBtn.dataset.listenerAttached = 'true';
-    }
-    const bulkEditBtn = document.getElementById('rav-bulk-edit-all-btn');
-    if (bulkEditBtn && !bulkEditBtn.dataset.listenerAttached) {
-        bulkEditBtn.addEventListener('click', openBulkEditModal); // openBulkEditModal 內部會處理 bulkEditDatePicker
-        bulkEditBtn.dataset.listenerAttached = 'true';
-    }
-    const bulkEditForm = document.getElementById('rav-bulk-edit-form');
-    if (bulkEditForm && !bulkEditForm.dataset.submitListenerAttached) {
-        bulkEditForm.addEventListener('submit', handleBulkEditSubmit);
-        bulkEditForm.dataset.submitListenerAttached = 'true';
-    }
-
-    // 填充房型下拉選單 (如果尚未填充)
-    const productSelect = document.getElementById('rav-product-select');
-    if (productSelect && currentProducts.length > 0 && productSelect.options.length <= 1) {
-         productSelect.innerHTML = '<option value="all">所有房型</option>';
-         currentProducts.forEach(product => {
-             productSelect.add(new Option(product.name, product.product_id));
-         });
-         console.log("roomAvailabilityManagement setupEventListeners: 房型下拉選單已填充。");
-    }
-
-    page.dataset.initialized = 'true';
-    console.log("roomAvailabilityManagement: 事件監聽器設定完成 (不含 Flatpickr)。");
 }
+
+
+
 
 // --- **新增**: 專門初始化日期選擇器的函數 ---
 export function initializeDatePickers() {

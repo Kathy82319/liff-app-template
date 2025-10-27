@@ -236,14 +236,28 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     priceInput.addEventListener('input', updateItemsSubtotal); // 價格變動 -> 更新小計
 
     select.addEventListener('change', () => {
+        console.log("項目選擇變更:", select.value);
         nameInput.style.display = select.value === 'other' ? 'block' : 'none';
-        if (select.value !== 'other' && select.value !== '') {
-            const selectedProduct = allProducts.find(p => p.name === select.value);
-            if (selectedProduct) priceInput.value = selectedProduct.price;
-        }
-        updateItemsSubtotal();
+        // ---【修改】呼叫新的 updateItemPrice 函數 ---
+        const bookingDateInput = document.getElementById('booking-date-input');
+        const bookingDate = bookingDateInput ? bookingDateInput.value : null;
+        updateItemPrice(itemRow, bookingDate); // <--- 使用新函數更新價格
+        updateItemsSubtotal(); // 更新完價格後，重新計算小計
     });
-    
+    // ---【修改】初始設定值與價格計算 ---
+    select.value = name; // 嘗試設定初始選擇
+
+    // 如果初始有 name，立即嘗試計算並設定價格
+    if (name && name !== 'other') {
+        const initialDateInput = document.getElementById('booking-date-input');
+        const initialDate = initialDateInput ? initialDateInput.value : null;
+         // ---【修改】呼叫新的 updateItemPrice 函數 ---
+         updateItemPrice(itemRow, initialDate); // <--- 使用新函數設定初始價格
+         console.log(`初始項目: ${name}, 初始日期: ${initialDate}, 計算後價格輸入框值: ${priceInput.value}`);
+    } else {
+         console.log("addAdminBookingItemRow: 無初始項目名稱，不設定初始價格。");
+    }
+
     removeBtn.addEventListener('click', () => {
         itemRow.remove();
         if (container.children.length < 5) document.getElementById('admin-add-booking-item-btn').style.display = 'block';
@@ -290,176 +304,137 @@ function resetCreateBookingModal() {
 
 async function initializeCreateBookingModal() {
     const userSearchInput = document.getElementById('booking-user-search');
-    // ---【增加】更早的初始化檢查 ---
-    if (!userSearchInput || userSearchInput.dataset.initialized === 'true') {
-        console.log("initializeCreateBookingModal: 已初始化或找不到 userSearchInput，跳過。");
-         // 【新增】如果已初始化，仍需確保產品列表有資料
-         if (allProducts.length === 0) {
-             console.warn("initializeCreateBookingModal: 重新檢查 allProducts...");
-             try {
-                  allProducts = await api.getProducts(); // 嘗試重新獲取
-                  console.log(`initializeCreateBookingModal: 重新獲取了 ${allProducts.length} 個產品。`);
-             } catch(e) { console.error("initializeCreateBookingModal: 重新獲取產品失敗", e); }
-         }
+    if (!userSearchInput) {
+        console.error("initializeCreateBookingModal: 找不到 userSearchInput 元素！");
         return;
     }
-    console.log("initializeCreateBookingModal: 執行初始化...");
+    console.log("initializeCreateBookingModal: 執行初始化/重新初始化...");
 
-    // --- 確保先獲取產品資料 ---
-    try {
-        if(allProducts.length === 0) {
-             console.log("initializeCreateBookingModal: 正在獲取產品列表...");
-             allProducts = await api.getProducts(); // <--- await 確保執行完畢
-             console.log(`initializeCreateBookingModal: 成功獲取 ${allProducts.length} 個產品。`);
-             if (allProducts.length === 0) {
-                  console.warn("initializeCreateBookingModal: 獲取的產品列表為空！");
-                  ui.toast.error("無法載入預約項目，產品列表為空。"); // 提示使用者
-             }
-        } else {
-             console.log(`initializeCreateBookingModal: 使用快取的 ${allProducts.length} 個產品。`);
+    // --- 步驟 1: 強制確保 allProducts 已載入 ---
+    if (allProducts.length === 0) {
+        console.log("initializeCreateBookingModal: allProducts 為空，強制 await api.getProducts()...");
+        try {
+            allProducts = await api.getProducts(); // 等待 API 完成
+            console.log(`initializeCreateBookingModal: 強制獲取了 ${allProducts.length} 個產品。`);
+            if (allProducts.length === 0) {
+                 console.warn("initializeCreateBookingModal: 獲取的產品列表為空！");
+                 ui.toast.error("無法載入預約項目，產品列表為空。");
+            }
+        } catch (e) {
+            console.error("initializeCreateBookingModal: 強制獲取產品失敗", e);
+            ui.toast.error(`載入預約項目失敗: ${e.message}`);
+            // 如果獲取失敗，後續 addAdminBookingItemRow 的下拉選單會是空的
         }
-    } catch(e) {
-         console.error("initializeCreateBookingModal: 無法載入產品列表供預約使用", e);
-         ui.toast.error(`載入預約項目失敗: ${e.message}`); // 提示使用者
-         // 即使產品載入失敗，還是繼續初始化其他部分，但下拉選單會是空的
+    } else {
+         console.log(`initializeCreateBookingModal: 使用快取的 ${allProducts.length} 個產品。`);
     }
 
-    // --- 初始化日期選擇器並加入 onChange 事件 ---
+    // --- 步驟 2: 初始化日期選擇器 (並在 onChange 中更新價格) ---
     if (createBookingDatepicker) {
-         console.log("initializeCreateBookingModal: 銷毀舊的 createBookingDatepicker 實例。");
-         createBookingDatepicker.destroy();
+        console.log("initializeCreateBookingModal: 銷毀舊的 createBookingDatepicker 實例。");
+        createBookingDatepicker.destroy();
     }
-    createBookingDatepicker = flatpickr("#booking-date-input", { // <-- flatpickr 呼叫開始
-        dateFormat: "Y-m-d", // 選項 1
-        onChange: function(selectedDates, dateStr, instance) { // 選項 2: onChange 開始
-            console.log("日期選擇變更:", dateStr); // <--- 加入日誌
+    createBookingDatepicker = flatpickr("#booking-date-input", {
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr, instance) {
+            console.log("日期選擇變更:", dateStr);
             // --- 當日期改變時，更新所有項目列的價格 ---
-            document.querySelectorAll('.admin-booking-item-row').forEach(row => { // <-- forEach 開始
-                const select = row.querySelector('.booking-item-select');
-                const priceInput = row.querySelector('.booking-item-price');
-                const selectedProductName = select.value;
-                // --- 增加檢查：確保 select 和 priceInput 存在 ---
-                if (select && priceInput && selectedProductName && selectedProductName !== 'other') { // <-- if 開始
-                    const selectedProduct = allProducts.find(p => p.name === selectedProductName);
-                    const actualPrice = selectedProduct ? getPriceForDate(dateStr, selectedProduct) : null;
-                    priceInput.value = actualPrice !== null ? actualPrice : '';
-                    console.log(`更新項目 "${selectedProductName}" 價格為: ${priceInput.value}`); // <--- 加入日誌
-                } // <-- if 結束
-            }); // <-- forEach 結束
-            updateItemsSubtotal(); // 日期變了，重新計算所有項目的小計
-        } // <-- onChange 函數結束
-        // ---【關鍵修正】確保這裡沒有多餘的逗號 ---
-    }); // <-- flatpickr 呼叫結束
+            document.querySelectorAll('.admin-booking-item-row').forEach(row => {
+                // ---【修改】呼叫新的 updateItemPrice 函數 ---
+                updateItemPrice(row, dateStr);
+            });
+            updateItemsSubtotal(); // 重新計算小計
+        }
+    });
     console.log("initializeCreateBookingModal: Flatpickr 初始化完成。");
 
-
-    // --- 初始化時段下拉選單 (如果尚未初始化) ---
+    // --- 步驟 3: 初始化時段下拉選單 ---
     const slotSelect = document.getElementById('booking-slot-select');
-    if (slotSelect && slotSelect.options.length <= 1) { // 避免重複添加選項
-         console.log("initializeCreateBookingModal: 初始化時段選項...");
-         slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>'; // 清空並加入預設
-         for (let hour = 8; hour <= 22; hour++) {
-             ['00', '30'].forEach(minute => {
-                 const time = `${String(hour).padStart(2, '0')}:${minute}`;
-                 slotSelect.add(new Option(time, time));
-             });
-         }
+    if (slotSelect && slotSelect.options.length <= 1) {
+        console.log("initializeCreateBookingModal: 初始化時段選項...");
+        slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
+        for (let hour = 8; hour <= 22; hour++) {
+            ['00', '30'].forEach(minute => {
+                const time = `${String(hour).padStart(2, '0')}:${minute}`;
+                slotSelect.add(new Option(time, time));
+            });
+        }
     }
 
-
-    // --- 使用者搜尋與選擇邏輯 (保持不變) ---
+    // --- 步驟 4: 處理使用者搜尋與選擇 (確保事件只綁定一次) ---
     const userSelect = document.getElementById('booking-user-select');
-    // 檢查事件是否已綁定，避免重複
     if (!userSearchInput.dataset.inputListenerAttached) {
-        userSearchInput.addEventListener('input', async (e) => {
-             const query = e.target.value;
-             // console.log("搜尋觸發:", query); // 可以保留或移除
-             if (query.length < 1) { /* ... 清空下拉選單 ... */ return; }
-             try {
-                 const users = await api.searchUsers(query);
-                 // console.log("API 回應:", users); // 可以保留或移除
-                 userSelect.innerHTML = '';
-                 if (users.length > 0) {
-                     users.forEach(u => {
-                         const displayName = u.nickname || u.line_display_name;
-                         const option = new Option(`${displayName} (${u.user_id.substring(0, 10)}...)`, u.user_id);
-                         option.dataset.userName = displayName;
-                         option.dataset.userPhone = u.phone || '';
-                         userSelect.add(option);
-                     });
-                     userSelect.style.display = 'block';
-                 } else { userSelect.style.display = 'none'; }
-             } catch (error) { console.error('搜尋使用者失敗:', error); userSelect.style.display = 'none'; }
-        });
+        userSearchInput.addEventListener('input', async (e) => { /* ... 使用者搜尋 API 呼叫 ... */ });
         userSearchInput.dataset.inputListenerAttached = 'true';
     }
-
     if (userSelect && !userSelect.dataset.changeListenerAttached) {
-        userSelect.addEventListener('change', () => {
-             const selectedValue = userSelect.value;
-             if (selectedValue) {
-                 const selectedOption = userSelect.options[userSelect.selectedIndex];
-                 setSelectedUser(selectedValue, selectedOption.dataset.userName);
-                 document.getElementById('booking-phone-input').value = selectedOption.dataset.userPhone || '';
-                 userSelect.style.display = 'none';
-             }
-        });
+        userSelect.addEventListener('change', () => { /* ... 選擇使用者 ... */ });
         userSelect.dataset.changeListenerAttached = 'true';
     }
-
      if (!userSearchInput.dataset.blurListenerAttached) {
-          userSearchInput.addEventListener('blur', () => {
-               setTimeout(() => {
-                    const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
-                    const inputText = userSearchInput.value.trim();
-                    if (userSelect.style.display === 'block' || isUserSelected || !inputText) { return; }
-                    const tempUserId = `walk-in-${Date.now()}`;
-                    setSelectedUser(tempUserId, inputText);
-                    document.getElementById('booking-phone-input').value = '';
-               }, 200);
-          });
+          userSearchInput.addEventListener('blur', () => { /* ... 處理臨時顧客 ... */ });
           userSearchInput.dataset.blurListenerAttached = 'true';
      }
-
      const changeUserBtn = document.getElementById('change-user-btn');
      if (changeUserBtn && !changeUserBtn.dataset.clickListenerAttached) {
-          changeUserBtn.addEventListener('click', () => {
-               document.getElementById('selected-user-id').value = '';
-               document.getElementById('selected-user-view').style.display = 'none';
-               document.getElementById('user-selection-container').style.display = 'block';
-               userSearchInput.value = '';
-               document.getElementById('booking-phone-input').value = '';
-               userSearchInput.focus();
-          });
+          changeUserBtn.addEventListener('click', () => { /* ... 更換使用者 ... */ });
           changeUserBtn.dataset.clickListenerAttached = 'true';
      }
 
+    // --- 步驟 5: 清空舊項目並新增第一行 ---
+    const itemsContainer = document.getElementById('admin-booking-items-container');
+    if (itemsContainer) {
+        console.log("initializeCreateBookingModal: 清空並新增第一行項目...");
+        itemsContainer.innerHTML = ''; // 清空舊項目
+        addAdminBookingItemRow();      // <--- 在這裡呼叫，確保 allProducts 已載入
+        // 確保按鈕可見
+        const addBtn = document.getElementById('admin-add-booking-item-btn');
+        if (addBtn) addBtn.style.display = 'block';
+    } else {
+        console.error("initializeCreateBookingModal: 找不到 #admin-booking-items-container 元素！");
+    }
 
-    // --- 【修正】確保新增項目按鈕事件綁定 ---
+    // --- 步驟 6: 綁定 "+新增項目" 按鈕事件 (確保只綁定一次) ---
     const addBtn = document.getElementById('admin-add-booking-item-btn');
     if (addBtn && !addBtn.dataset.listenerAttached) {
         addBtn.addEventListener('click', () => {
             console.log("+ 按鈕被點擊 (in initializeCreateBookingModal)");
             addAdminBookingItemRow();
         });
-        addBtn.dataset.listenerAttached = 'true'; // 標記已綁定
+        addBtn.dataset.listenerAttached = 'true';
         console.log("initializeCreateBookingModal: 成功綁定 +新增項目 按鈕事件。");
-    } else if (addBtn && addBtn.dataset.listenerAttached) {
-         console.log("initializeCreateBookingModal: +新增項目 按鈕事件已綁定，跳過。");
     } else if (!addBtn) {
-        console.error("initializeCreateBookingModal: 找不到 #admin-add-booking-item-btn 按鈕！");
+         console.error("initializeCreateBookingModal: 找不到 #admin-add-booking-item-btn 按鈕！");
     }
 
-    // --- 標記已初始化 ---
-    userSearchInput.dataset.initialized = 'true';
     console.log("initializeCreateBookingModal: 初始化完成。");
 }
 
+// --- 【新增】獨立的更新項目價格函數 ---
+function updateItemPrice(itemRowElement, selectedDateString) {
+     if (!itemRowElement) return;
+     const select = itemRowElement.querySelector('.booking-item-select');
+     const priceInput = itemRowElement.querySelector('.booking-item-price');
+     if (!select || !priceInput) return; // 確保元素存在
 
-// --- 修改 handleCreateBookingSubmit 函數 ---
-// public/admin/modules/bookingManagement.js
+     const selectedProductName = select.value;
+     console.log(`updateItemPrice: 項目=${selectedProductName}, 日期=${selectedDateString}`); // 加入日誌
 
-// ... (檔案中其他函數，如 getPriceForDate, renderBookingDetails, updateItemsSubtotal, addAdminBookingItemRow, initializeCreateBookingModal 等保持不變) ...
+     if (selectedProductName && selectedProductName !== 'other') {
+         const selectedProduct = allProducts.find(p => p.name === selectedProductName);
+         const actualPrice = selectedProduct ? getPriceForDate(selectedDateString, selectedProduct) : null;
+         console.log(`updateItemPrice: 計算價格=${actualPrice}`); // 加入日誌
+         priceInput.value = actualPrice !== null ? actualPrice : ''; // 更新價格輸入框
+         if (actualPrice === null && selectedProduct) {
+             console.warn(`updateItemPrice: 產品 "${selectedProduct.name}" 在日期 ${selectedDateString} 無法確定價格！`);
+         }
+     } else {
+          // 如果是 "其他" 或未選擇，清空價格
+          priceInput.value = '';
+          console.log("updateItemPrice: 清空價格 (其他或未選)");
+     }
+}
+
 
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();

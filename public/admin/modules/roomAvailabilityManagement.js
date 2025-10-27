@@ -7,6 +7,7 @@ let currentInventoryData = {}; // 存放讀取的庫存資料 { "房型ID": { "�
 let dateRangePicker = null; // 主日期範圍選擇器實例
 let bulkEditDatePicker = null; // 批次修改日期選擇器實例
 let displayedDates = []; // 當前表格顯示的日期陣列
+let isDatePickerInitialized = false;
 
 // --- Helper: 取得某日期是星期幾的縮寫 ---
 const weekdayShort = ["日", "一", "二", "三", "四", "五", "六"];

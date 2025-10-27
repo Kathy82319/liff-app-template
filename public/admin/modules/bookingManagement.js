@@ -414,11 +414,11 @@ async function initializeCreateBookingModal() {
                 setSelectedUser(userId, userName); // 呼叫已有的函式來更新介面
 
                 // (可選) 選擇後自動帶入電話
-                const selectedUser = allUsers.find(u => u.user_id === userId); // 假設 allUsers 已載入
-                if (selectedUser && selectedUser.phone) {
-                     const phoneInput = document.getElementById('booking-phone-input');
-                     if(phoneInput) phoneInput.value = selectedUser.phone;
-                }
+            const selectedUser = allUsers.find(u => u.user_id === userId); // <--- ERROR HERE: allUsers is not defined in this file
+            if (selectedUser && selectedUser.phone) {
+            const phoneInput = document.getElementById('booking-phone-input');
+            if(phoneInput) phoneInput.value = selectedUser.phone;
+            }
 
             }
             // 如果選擇了 "-- 請選擇顧客 --"，可以選擇性地不做任何事或重置

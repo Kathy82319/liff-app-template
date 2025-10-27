@@ -272,8 +272,10 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
 function setSelectedUser(userId, userName) {
     console.log(`setSelectedUser 被呼叫: userId=${userId}, userName=${userName}`);
 
-    const selectedUserIdInput = document.getElementById('selected-user-id');
-    const selectedUserDisplay = document.getElementById('selected-user-display');
+    // --- ▼▼▼ 修改 ID ▼▼▼ ---
+    const selectedUserIdInput = document.getElementById('booking-selected-user-id');
+    const selectedUserDisplay = document.getElementById('booking-selected-user-display');
+    // --- ▲▲▲ 修改 ID ▲▲▲ ---
     const userSelectionContainer = document.getElementById('user-selection-container');
     const selectedUserView = document.getElementById('selected-user-view');
 
@@ -309,7 +311,7 @@ function resetCreateBookingModal() {
         addAdminBookingItemRow();
     }
 
-    const selectedUserId = document.getElementById('selected-user-id');
+    const selectedUserId = document.getElementById('booking-selected-user-id');
     if (selectedUserId) selectedUserId.value = '';
 
     const selectedUserView = document.getElementById('selected-user-view');
@@ -496,8 +498,8 @@ if (userSelect && !userSelect.dataset.changeListenerAttached) {
             /* ... 更換使用者 ... */
             // --- ▼▼▼ 補全開始 ▼▼▼ ---
             // 重置使用者選擇介面
-            document.getElementById('selected-user-id').value = '';
-            document.getElementById('selected-user-display').textContent = '';
+            document.getElementById('booking-selected-user-id').value = '';
+            document.getElementById('booking-selected-user-display').textContent = '';
             document.getElementById('selected-user-view').style.display = 'none';
 
             // 顯示搜尋輸入框並清空
@@ -580,13 +582,13 @@ async function handleCreateBookingSubmit(e) {
     e.preventDefault();
     console.log("handleCreateBookingSubmit 函數觸發"); // 加入日誌
 
-    let finalUserId = document.getElementById('selected-user-id').value;
+    let finalUserId = document.getElementById('booking-selected-user-id').value;
     let finalContactName = '';
     const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
 
     if (isUserSelected) {
-        finalUserId = document.getElementById('selected-user-id').value;
-        finalContactName = document.getElementById('selected-user-display').textContent;
+        finalUserId = document.getElementById('booking-selected-user-id').value;
+        finalContactName = document.getElementById('booking-selected-user-display').textContent;
          console.log("已選取既有顧客:", finalUserId, finalContactName);
     } else {
         const searchInputText = document.getElementById('booking-user-search').value.trim();
@@ -790,10 +792,8 @@ async function handleSaveBookingSettings() {
     }
 }
 
-// ... (檔案中其他的函數保持不變) ...
 
 
-// ▼▼▼ 請將此函式新增到檔案中 ▼▼▼
 async function openBookingDetailsModal(bookingId) {
     const modal = document.getElementById('booking-details-modal');
     const editBtn = document.getElementById('booking-details-edit-btn');
@@ -813,15 +813,14 @@ async function openBookingDetailsModal(bookingId) {
             userProfile = userDetails.profile;
         }
 
-        renderBookingDetails(currentBookingInModal, userProfile, false); // 初始為 View mode
+        renderBookingDetails(currentBookingInModal, userProfile, false); 
 
-        // --- 核心編輯邏輯 ---
         editBtn.onclick = () => {
             const isEditing = editBtn.textContent === '儲存變更';
             if (isEditing) {
                 handleSaveBookingChanges(currentBookingInModal.booking_id);
             } else {
-                renderBookingDetails(currentBookingInModal, userProfile, true); // 切換到 Edit mode
+                renderBookingDetails(currentBookingInModal, userProfile, true); 
                 editBtn.textContent = '儲存變更';
             }
         };
@@ -831,7 +830,6 @@ async function openBookingDetailsModal(bookingId) {
     }
 }
 
-// --- 列表與日曆渲染函式 (【Bug 修復】) ---
 
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
@@ -935,7 +933,6 @@ async function fetchDataAndRender(filter = 'today') {
 }
 
 
-// public/admin/modules/bookingManagement.js
 
 // --- 綁定事件監聽器 (修正後完整版) ---
 function setupEventListeners() {

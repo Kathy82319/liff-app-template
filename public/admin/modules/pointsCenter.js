@@ -12,7 +12,7 @@ function resetPointsCenterPage() {
     const userSearchInput = document.getElementById('user-search-input-points');
     const userSearchResults = document.getElementById('user-search-results');
     const pointsEntryForm = document.getElementById('points-entry-form');
-    const selectedUserDisplay = document.getElementById('selected-user-display');
+    const selectedUserDisplay = document.getElementById('points-selected-user-display');
     const qrReader = document.getElementById('qr-reader');
     const pointsStatusMessage = document.getElementById('points-status-message');
 
@@ -63,7 +63,7 @@ async function handleUserSearchForPoints(query) {
 function selectUserForPoints(user) {
     currentSelectedUserForPoints = user;
 
-    const selectedUserDisplay = document.getElementById('selected-user-display');
+    const selectedUserDisplay = document.getElementById('points-selected-user-display');
     const pointsEntryForm = document.getElementById('points-entry-form');
     const userSearchResults = document.getElementById('user-search-results');
     const userSearchInput = document.getElementById('user-search-input-points');

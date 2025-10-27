@@ -554,6 +554,7 @@
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
             <a href="#inventory">產品/服務管理</a>
+            <a href="#room-availability">房量控管</a>
             <a href="#bookings">訂位管理</a>
             <a href="#exp-history">點數紀錄</a>
             <a href="#news">資訊管理</a>
@@ -699,6 +700,83 @@
                     </table>
                 </div>
             </div>
+
+<div id="page-room-availability" class="page">
+    <div class="page-header">
+        <h2>房量控管 (民宿專用)</h2>
+        </div>
+
+    <div class="filter-bar" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+        <div class="form-group" style="min-width: 200px;">
+            <label for="rav-product-select">選擇房型:</label>
+            <select id="rav-product-select">
+                <option value="all">所有房型</option>
+                </select>
+        </div>
+        <div class="form-group">
+            <label for="rav-date-range">選擇日期範圍:</label>
+            <input type="text" id="rav-date-range" placeholder="請選擇日期範圍">
+        </div>
+        <button id="rav-apply-filter-btn" class="action-btn btn-save" style="align-self: flex-end;">載入資料</button>
+         <button id="rav-bulk-edit-all-btn" class="action-btn" style="background-color: var(--color-info); align-self: flex-end; margin-left: auto;">批次修改</button>
+    </div>
+
+    <div id="rav-grid-container" style="overflow-x: auto; margin-top: 1rem;">
+        <p>請先選擇房型和日期範圍，然後點擊「載入資料」。</p>
+        </div>
+
+    <div id="rav-bulk-edit-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>批次修改設定</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="rav-bulk-edit-form">
+                <p>將修改 <strong id="bulk-edit-info"></strong> 在指定日期範圍與星期內的設定。</p>
+                <div class="form-group">
+                    <label for="bulk-edit-date-range">日期範圍 (同上方選擇):</label>
+                    <input type="text" id="bulk-edit-date-range" readonly style="background-color: #e9ecef;">
+                </div>
+                <div class="form-group">
+                    <label>選擇星期 (可複選):</label>
+                    <div id="bulk-edit-weekdays" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <label><input type="checkbox" name="weekday" value="1"> 一</label>
+                        <label><input type="checkbox" name="weekday" value="2"> 二</label>
+                        <label><input type="checkbox" name="weekday" value="3"> 三</label>
+                        <label><input type="checkbox" name="weekday" value="4"> 四</label>
+                        <label><input type="checkbox" name="weekday" value="5"> 五</label>
+                        <label><input type="checkbox" name="weekday" value="6"> 六</label>
+                        <label><input type="checkbox" name="weekday" value="0"> 日</label>
+                    </div>
+                </div>
+                <hr>
+                <div class="form-group">
+                    <label for="bulk-edit-status">房況:</label>
+                    <select id="bulk-edit-status">
+                        <option value="">-- 不變更 --</option>
+                        <option value="Open">開啟 (可預訂)</option>
+                        <option value="Closed">關閉 (不可預訂)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bulk-edit-quantity">可售數量:</label>
+                    <input type="number" id="bulk-edit-quantity" placeholder="留空表示不變更" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="bulk-edit-price">當日價格:</label>
+                    <input type="number" id="bulk-edit-price" placeholder="留空表示不變更">
+                    <small>輸入價格會覆蓋預設價，清除則恢復預設價</small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                    <button type="submit" class="action-btn btn-save">確認修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>            
+
 
             <div id="page-exp-history" class="page">
                 <div class="page-header">

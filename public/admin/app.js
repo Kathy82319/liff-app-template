@@ -10,6 +10,7 @@ const App = {
         'users': './modules/userManagement.js',
         'inventory': './modules/productManagement.js',
         'bookings': './modules/bookingManagement.js',
+        'room-availability': './modules/roomAvailabilityManagement.js', 
         'exp-history': './modules/expHistory.js',
         'news': './modules/newsManagement.js',
         'drafts': './modules/draftsManagement.js',

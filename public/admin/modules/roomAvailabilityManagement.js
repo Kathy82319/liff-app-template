@@ -391,8 +391,7 @@ async function handleBulkEditSubmit(event) {
     const dateRange = dateRangePicker ? dateRangePicker.selectedDates : [];
     if (dateRange.length < 2) return; // 防禦
 
-    const startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
-    const endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
+
 
     const selectedWeekdays = Array.from(form.querySelectorAll('[name="weekday"]:checked')).map(cb => parseInt(cb.value));
     const status = form.querySelector('#bulk-edit-status').value;

@@ -95,8 +95,8 @@ export async function onRequest(context) {
                     }
                 }
 
-                // 檢查當日是否可訂
-                const isDailyAvailable = dailyStatus === 'Open' && dailyQuantity > 0 && dailyPrice !== null;
+                // 檢查當日是否可訂 (價格為 0 也視為不可訂)
+                const isDailyAvailable = dailyStatus === 'Open' && dailyQuantity > 0 && dailyPrice !== null && dailyPrice > 0;
 
                 // 更新整體可訂狀態和最小數量
                 if (!isDailyAvailable) {
@@ -105,9 +105,11 @@ export async function onRequest(context) {
                 minQuantity = Math.min(minQuantity, dailyQuantity);
 
                 // 累加總價 (只有在整體仍然可訂的情況下才有意義)
-                if (isAvailableOverall) {
-                    totalCalculatedPrice += dailyPrice; // 每日價格累加
+                // **修正**: 即使 isAvailableOverall 變 false 也要繼續累加，以便計算平均價 (如果需要)
+                if (dailyPrice !== null && dailyPrice > 0) { // 只有有效價格才累加
+                    totalCalculatedPrice += dailyPrice;
                 }
+
 
                 // (可選) 記錄每日細節
                 dailyDetails.push({
@@ -121,16 +123,16 @@ export async function onRequest(context) {
             // 如果從未找到任何房間 (例如整個範圍都沒有庫存記錄且預設關閉)
             if (minQuantity === Infinity) {
                 minQuantity = 0;
-                isAvailableOverall = false;
+                isAvailableOverall = false; // 確保這種情況下也是 false
             }
 
-            // 計算平均價格 (僅在可預訂時)
-            const avgPricePerNight = isAvailableOverall && dateRange.length > 0 ? Math.round(totalCalculatedPrice / dateRange.length) : null;
+            // 計算平均價格 (僅在總價大於0時)
+            const avgPricePerNight = totalCalculatedPrice > 0 && dateRange.length > 0 ? Math.round(totalCalculatedPrice / dateRange.length) : null;
 
             responseData[product.product_id] = {
                 isAvailable: isAvailableOverall,
                 minAvailableQuantity: minQuantity,
-                totalPrice: isAvailableOverall ? totalCalculatedPrice : null,
+                totalPrice: isAvailableOverall ? totalCalculatedPrice : null, // 只有整體可訂才給總價
                 pricePerNight: avgPricePerNight, // 可以提供平均價
                 // dailyDetails: dailyDetails // (選擇性回傳)
             };

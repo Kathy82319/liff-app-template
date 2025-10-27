@@ -362,22 +362,121 @@ async function initializeCreateBookingModal() {
     }
 
     // --- 步驟 4: 處理使用者搜尋與選擇 (確保事件只綁定一次) ---
+// --- 步驟 4: 處理使用者搜尋與選擇 (確保事件只綁定一次) ---
     const userSelect = document.getElementById('booking-user-select');
     if (!userSearchInput.dataset.inputListenerAttached) {
-        userSearchInput.addEventListener('input', async (e) => { /* ... 使用者搜尋 API 呼叫 ... */ });
+        userSearchInput.addEventListener('input', async (e) => {
+            // /* ... 使用者搜尋 API 呼叫 ... */
+            // --- ▼▼▼ 補全開始 ▼▼▼ ---
+            const query = e.target.value.trim();
+            const userSelectElement = document.getElementById('booking-user-select'); // 在事件處理器內重新獲取元素
+            if (!userSelectElement) return; // 如果找不到下拉選單元素，則不繼續
+
+            if (query.length < 1) { // 至少輸入1個字才搜尋
+                userSelectElement.style.display = 'none';
+                userSelectElement.innerHTML = '';
+                return;
+            }
+            try {
+                const users = await api.searchUsers(query); // 呼叫 API 搜尋
+                userSelectElement.innerHTML = ''; // 清空舊結果
+                if (users.length > 0) {
+                    userSelectElement.add(new Option('-- 請選擇顧客 --', '')); // 加入預設選項
+                    users.forEach(user => {
+                        const displayName = user.nickname || user.line_display_name;
+                        // 將 user name 存在 option 的 dataset 中，方便後續選取時取得
+                        const option = new Option(`${displayName} (${user.user_id.substring(0, 10)}...)`, user.user_id);
+                        option.dataset.userName = displayName; // 儲存顯示名稱
+                        userSelectElement.add(option);
+                    });
+                    userSelectElement.style.display = 'block'; // 顯示下拉選單
+                } else {
+                    userSelectElement.style.display = 'none'; // 沒結果就隱藏
+                    // 可以選擇性地提示找不到用戶，或讓用戶直接輸入臨時名稱
+                }
+            } catch (error) {
+                console.error("搜尋顧客失敗:", error);
+                ui.toast.error(`搜尋顧客時發生錯誤: ${error.message}`); // 使用 ui.toast 提示錯誤
+                userSelectElement.style.display = 'none';
+            }
+            // --- ▲▲▲ 補全結束 ▲▲▲ ---
+        });
         userSearchInput.dataset.inputListenerAttached = 'true';
     }
     if (userSelect && !userSelect.dataset.changeListenerAttached) {
-        userSelect.addEventListener('change', () => { /* ... 選擇使用者 ... */ });
+        userSelect.addEventListener('change', () => {
+            // /* ... 選擇使用者 ... */
+            // --- ▼▼▼ 補全開始 ▼▼▼ ---
+            const selectedOption = userSelect.options[userSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) { // 確保不是選擇 "-- 請選擇顧客 --"
+                const userId = selectedOption.value;
+                const userName = selectedOption.dataset.userName; // 從 dataset 讀取名稱
+                setSelectedUser(userId, userName); // 呼叫已有的函式來更新介面
+
+                // (可選) 選擇後自動帶入電話
+                const selectedUser = allUsers.find(u => u.user_id === userId); // 假設 allUsers 已載入
+                if (selectedUser && selectedUser.phone) {
+                     const phoneInput = document.getElementById('booking-phone-input');
+                     if(phoneInput) phoneInput.value = selectedUser.phone;
+                }
+
+            }
+            // 如果選擇了 "-- 請選擇顧客 --"，可以選擇性地不做任何事或重置
+            // --- ▲▲▲ 補全結束 ▲▲▲ ---
+        });
         userSelect.dataset.changeListenerAttached = 'true';
     }
+     // blur 事件監聽器通常用於處理當使用者輸入完畢，但未從下拉選單選擇時的情況
+     // 在目前的 handleCreateBookingSubmit 邏輯中，已處理了這種情況（視為臨時顧客）
+     // 因此這裡的 blur 監聽器可以暫時不加特定邏輯，或用於清除下拉選單等 UI 操作
      if (!userSearchInput.dataset.blurListenerAttached) {
-          userSearchInput.addEventListener('blur', () => { /* ... 處理臨時顧客 ... */ });
+          userSearchInput.addEventListener('blur', () => {
+            /* ... 處理臨時顧客 ... */
+            // --- ▼▼▼ 補全開始 (範例：延遲隱藏下拉選單，給使用者點擊的時間) ▼▼▼ ---
+            // 使用 setTimeout 避免在點擊下拉選項前就因 blur 而隱藏
+            setTimeout(() => {
+                const userSelectElement = document.getElementById('booking-user-select');
+                // 檢查是否已經選擇了用戶（selected-user-view 是否顯示）
+                const isUserSelected = document.getElementById('selected-user-view').style.display === 'flex';
+                if (userSelectElement && !isUserSelected) {
+                     // 如果下拉選單還在且尚未選擇用戶，可以選擇隱藏它
+                     // userSelectElement.style.display = 'none';
+                     // 或者保留，讓 handleCreateBookingSubmit 判斷
+                     console.log("Blur event on user search input, no user selected from dropdown yet.");
+                }
+            }, 200); // 延遲 200 毫秒
+            // --- ▲▲▲ 補全結束 ▲▲▲ ---
+          });
           userSearchInput.dataset.blurListenerAttached = 'true';
      }
      const changeUserBtn = document.getElementById('change-user-btn');
      if (changeUserBtn && !changeUserBtn.dataset.clickListenerAttached) {
-          changeUserBtn.addEventListener('click', () => { /* ... 更換使用者 ... */ });
+          changeUserBtn.addEventListener('click', () => {
+            /* ... 更換使用者 ... */
+            // --- ▼▼▼ 補全開始 ▼▼▼ ---
+            // 重置使用者選擇介面
+            document.getElementById('selected-user-id').value = '';
+            document.getElementById('selected-user-display').textContent = '';
+            document.getElementById('selected-user-view').style.display = 'none';
+
+            // 顯示搜尋輸入框並清空
+            const searchInput = document.getElementById('booking-user-search');
+            searchInput.value = '';
+            document.getElementById('user-selection-container').style.display = 'block';
+
+            // 清空並隱藏下拉選單
+            const selectElement = document.getElementById('booking-user-select');
+            selectElement.innerHTML = '';
+            selectElement.style.display = 'none';
+
+            // (可選) 清空電話
+            const phoneInput = document.getElementById('booking-phone-input');
+            if(phoneInput) phoneInput.value = '';
+
+            // 讓搜尋框獲得焦點，方便重新輸入
+            searchInput.focus();
+            // --- ▲▲▲ 補全結束 ▲▲▲ ---
+          });
           changeUserBtn.dataset.clickListenerAttached = 'true';
      }
 

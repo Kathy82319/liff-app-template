@@ -47,11 +47,11 @@ export async function onRequest(context) {
              RETURNING booking_id`
         );
         // ▼▼▼ 修改點：將 contactPhone 傳入資料庫 ▼▼▼
-        const { booking_id } = await bookingStmt.bind(
-            userId, contactName.trim(), contactPhone.trim() || null, bookingDate, 
-            timeSlot ? timeSlot.trim() : null,
-            timeSlot, people, totalAmount || null, notes || null
-        ).first();
+const { booking_id } = await bookingStmt.bind(
+    userId, contactName.trim(), contactPhone.trim() || null, bookingDate,
+    timeSlot ? timeSlot.trim() : null, // 僅保留這一個 timeSlot
+    people, totalAmount || null, notes || null
+).first();
 
         if (!booking_id) {
             throw new Error('無法建立預約主紀錄，請稍後再試。');

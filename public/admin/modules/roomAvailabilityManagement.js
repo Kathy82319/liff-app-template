@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
+let bulkEditDatePicker = null; // 批次修改日期選擇器實例
 let currentProducts = []; // 存放房型資料 (只存 category='房型' 的)
 let currentInventoryData = {}; // 存放讀取的庫存資料 { "房型ID": { "日期": { status, quantity, price } } }
 let dateRangePicker = null; // 日期範圍選擇器實例
@@ -75,10 +76,14 @@ function renderAvailabilityGrid() {
 
         if (status === 'Open') {
             if (quantity > 0) {
-                if (price !== null) { // 狀態開啟，數量>0，價格已定
-                    isBookable = true;
-                    tooltip = `可預訂 (${quantity} 間, ${price === 0 ? '免費' : '$'+price})`;
+                if (price === null || price === 0) { // 狀態開啟，數量>0，價格已定
+                    icon = '<span style="color: red; font-weight: bold; margin-left: 5px;" title="價格未定或為零">!</span>';
+                    isBookable = false;
+                    tooltip += (tooltip ? ', ' : '') + (price === null ? '價格未定' : '價格為零');                    
                     cellStyle = ''; // 預設背景 (白色)
+                if (status === 'Open' && cellStyle === '') { // 只有在原本是白色背景時才改為黃色
+                 cellStyle = 'background-color: #fff3cd;'; // 黃色提示價格問題
+                    }    
                 } else { // 狀態開啟，數量>0，但價格未定
                     isBookable = false;
                     tooltip = `價格未定 (${quantity} 間可用)`;
@@ -214,14 +219,26 @@ function bindCellEvents() {
             }
             if (String(newValue) !== oldValue) { // 比較字串避免型別問題
                  updateData.quantity = newValue;
-                 valueChanged = true;
-                 target.dataset.originalValue = newValue; // 更新原始值記錄
-                 console.log(`更新 ${productId} 在 ${date} 的數量為 ${newValue}`);
-                 // 更新背景色
-                 cell.style.backgroundColor = (newValue === 0) ? '#fff3cd' : ''; // 黃色或預設
-            }
+             valueChanged = true;
+             target.dataset.originalValue = newValueStr; // 更新原始值記錄
+             console.log(`更新 ${productId} 在 ${date} 的價格為 ${newValue === null ? '預設' : newValue}`);
+            // **加入**: 更新驚嘆號顯示
+             const iconSpan = cell.querySelector('span'); // 假設驚嘆號是唯一的 span
+             if (iconSpan) {
+                 iconSpan.style.display = (newValue === null || newValue === 0) ? 'inline' : 'none';
+                 iconSpan.title = (newValue === null) ? '價格未定' : (newValue === 0 ? '價格為零' : '');
+             }
+             // **加入**: 更新背景色 (如果價格變為空/零且狀態為 Open)
+             if ((newValue === null || newValue === 0) && cell.querySelector('.status-toggle')?.dataset.status === 'Open') {
+                  cell.style.backgroundColor = '#fff3cd'; // 黃色
+             } else if (newValue !== null && newValue !== 0 && cell.querySelector('.status-toggle')?.dataset.status === 'Open' && parseInt(cell.querySelector('.quantity-input')?.value || '0') > 0) {
+                  // 如果價格有效，狀態開啟，且數量>0，則恢復預設背景
+            cell.style.backgroundColor = '';
+             }
+        }
 
-        } else if (target.matches('.price-input')) {
+        } 
+            else if (target.matches('.price-input')) {
             const oldValue = target.dataset.originalValue || target.defaultValue;
             const newValueStr = target.value.trim();
             const newValue = newValueStr === '' ? null : parseInt(newValueStr, 10); // 允許空值=恢復預設
@@ -321,35 +338,40 @@ async function loadInventoryData() {
 }
 
 // --- 處理批次修改 ---
+// --- 處理批次修改 (使用獨立日期選擇器) ---
 function openBulkEditModal() {
     const productSelect = document.getElementById('rav-product-select');
     const selectedProductId = productSelect.value;
-    const dateRange = dateRangePicker ? dateRangePicker.selectedDates : [];
-
-    if (dateRange.length < 2) {
-         ui.toast.error('請先選擇日期範圍');
-         return;
-    }
-     const startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
-     const endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
+    // 不再需要讀取主日期範圍
 
     // 更新 Modal 中的資訊
-     const infoEl = document.getElementById('bulk-edit-info');
-     if (infoEl) {
-         infoEl.textContent = selectedProductId === 'all'
-             ? '所有已篩選房型' // 或者顯示所有房型名稱
-             : currentProducts.find(p=>p.product_id === selectedProductId)?.name || '選定房型';
-     }
-     const dateRangeInput = document.getElementById('bulk-edit-date-range');
-     if (dateRangeInput) {
-         dateRangeInput.value = `${startDate} 至 ${endDate}`;
-     }
-
+    const infoEl = document.getElementById('bulk-edit-info');
+    if (infoEl) {
+        infoEl.textContent = selectedProductId === 'all'
+            ? '所有已篩選房型'
+            : currentProducts.find(p=>p.product_id === selectedProductId)?.name || '選定房型';
+    }
 
     // 重設表單
-     const form = document.getElementById('rav-bulk-edit-form');
-     if(form) form.reset();
-     document.querySelectorAll('#bulk-edit-weekdays input').forEach(cb => cb.checked = true); // 預設全選星期
+    const form = document.getElementById('rav-bulk-edit-form');
+    if(form) form.reset();
+    document.querySelectorAll('#bulk-edit-weekdays input').forEach(cb => cb.checked = true); // 預設全選星期
+
+    // **新增**: 初始化獨立的日期選擇器
+    const dateInput = document.getElementById('bulk-edit-date-picker');
+    if (dateInput) {
+         // 先銷毀舊的實例 (如果存在)
+         if (bulkEditDatePicker) {
+              bulkEditDatePicker.destroy();
+         }
+         bulkEditDatePicker = flatpickr(dateInput, {
+              mode: "range",
+              dateFormat: "Y-m-d",
+              locale: "zh_tw",
+              // 可以設定預設值，例如主選擇器的範圍
+              // defaultDate: dateRangePicker ? dateRangePicker.selectedDates : []
+         });
+    }
 
     ui.showModal('#rav-bulk-edit-modal');
 }
@@ -359,6 +381,13 @@ async function handleBulkEditSubmit(event) {
     const form = event.target;
     const productSelect = document.getElementById('rav-product-select');
     const selectedProductId = productSelect.value; // 重新獲取一次
+    const bulkDates = bulkEditDatePicker ? bulkEditDatePicker.selectedDates : [];
+    if (bulkDates.length < 2) {
+         ui.toast.error('請在批次修改視窗中選擇日期範圍');
+         return;
+    }
+    const startDate = flatpickr.formatDate(bulkDates[0], "Y-m-d");
+    const endDate = flatpickr.formatDate(bulkDates[1], "Y-m-d");
     const dateRange = dateRangePicker ? dateRangePicker.selectedDates : [];
     if (dateRange.length < 2) return; // 防禦
 

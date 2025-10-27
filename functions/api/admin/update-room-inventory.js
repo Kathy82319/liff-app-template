@@ -21,24 +21,38 @@ function getDayOfWeek(dateString) {
 // D1 Upsert 輔助函式 (INSERT ... ON CONFLICT ... DO UPDATE)
 // 根據提供的欄位動態生成更新語句
 // D1 Upsert 輔助函式 (修正資料類型處理)
+// D1 Upsert 輔助函式 (修正 key 檢查與資料類型處理)
 function prepareUpsertStatement(db, updates) {
     const baseFields = ['product_id', 'inventory_date'];
     const conflictTarget = '(product_id, inventory_date)';
-    const possibleUpdateFields = ['status', 'quantity_available', 'base_price'];
+
+    // 檢查前端可能傳來的 key
+    const possibleFrontendKeys = {
+        status: 'status', // 前端 key: DB 欄位
+        quantity: 'quantity_available',
+        price: 'base_price'
+    };
+
     const updatePlaceholders = [];
     const updateSetClauses = [];
-    const bindValuesOrder = []; // 記錄需要綁定的欄位 key 的順序
+    const bindValuesOrder = []; // 記錄 DB 欄位順序
 
     const firstUpdate = updates[0];
-    possibleUpdateFields.forEach(field => {
-        if (firstUpdate.hasOwnProperty(field)) {
+
+    // 遍歷前端可能傳來的 key
+    for (const frontendKey in possibleFrontendKeys) {
+        // 檢查第一筆 update 資料是否包含這個前端 key
+        if (firstUpdate.hasOwnProperty(frontendKey)) {
+            const dbField = possibleFrontendKeys[frontendKey]; // 取得對應的 DB 欄位
             updatePlaceholders.push('?');
-            updateSetClauses.push(`${field} = excluded.${field}`);
-            bindValuesOrder.push(field); // 記錄欄位 key
+            updateSetClauses.push(`${dbField} = excluded.${dbField}`); // SQL 使用 DB 欄位
+            bindValuesOrder.push(dbField); // 記錄 DB 欄位以便後續綁定
         }
-    });
+    }
+
 
     if (bindValuesOrder.length === 0) {
+        // 這個錯誤訊息現在是正確的，因為確實沒有收到 status, quantity, price 任一項
         throw new Error("沒有提供任何有效的更新欄位 (status, quantity, price)");
     }
 
@@ -52,12 +66,12 @@ function prepareUpsertStatement(db, updates) {
         ${updateSetClauses.join(', ')}
     `;
 
-    console.log("[prepareUpsertStatement] SQL:", sql); // 除錯用
-    console.log("[prepareUpsertStatement] Fields to Bind:", [...baseFields, ...bindValuesOrder]); // 除錯用
+    console.log("[prepareUpsertStatement v2] SQL:", sql);
+    console.log("[prepareUpsertStatement v2] Fields to Bind:", [...baseFields, ...bindValuesOrder]);
 
     return {
         stmt: db.prepare(sql),
-        fieldsToBind: [...baseFields, ...bindValuesOrder] // 傳回欄位順序
+        fieldsToBind: [...baseFields, ...bindValuesOrder] // 傳回 DB 欄位順序
     };
 }
 
@@ -105,37 +119,61 @@ export async function onRequest(context) {
 
 // 為每一筆更新生成綁定操作
         operations = updatesArray.map(update => {
-             const values = fieldsToBind.map(field => {
-                 let valueToBind;
-                 switch (field) {
-                     case 'product_id':
-                         valueToBind = update.productId; // 前端使用 productId
-                         break;
-                     case 'inventory_date':
-                         valueToBind = update.date; // 前端使用 date
-                         break;
-                     case 'status':
-                         valueToBind = update.status; // TEXT
-                         break;
-                     case 'quantity_available':
-                         // 確保傳入 INTEGER 或 NULL
-                         valueToBind = update.quantity !== undefined && update.quantity !== null ? Number(update.quantity) : null;
-                         break;
-                     case 'base_price':
-                         // 確保傳入 INTEGER 或 NULL
-                         valueToBind = update.price !== undefined && update.price !== null ? Number(update.price) : null;
-                         break;
-                     default:
-                         valueToBind = update[field]; // 其他欄位直接取值 (雖然此例中應該沒有)
-                 }
-                 // 除錯用: 檢查每個綁定值和類型
-                 // console.log(`Binding field: ${field}, Value: ${valueToBind}, Type: ${typeof valueToBind}`);
-                 return valueToBind;
-             });
-             // 除錯用: 顯示最終綁定陣列
-             // console.log("Binding values for row:", values);
-             return stmt.bind(...values);
-        });
+// 在 operations = updatesArray.map(...) 內
+         const values = fieldsToBind.map(field => {
+             let valueToBind;
+             switch (field) { // 這裡的 field 是 DB 欄位名
+                 case 'product_id':
+                     valueToBind = update.productId;
+                     break;
+                 case 'inventory_date':
+                     valueToBind = update.date;
+                     break;
+                 case 'status':
+                     valueToBind = update.status; // TEXT
+                     break;
+                 case 'quantity_available':
+                     // 前端傳的是 quantity
+                     valueToBind = update.quantity !== undefined && update.quantity !== null ? Number(update.quantity) : null;
+                     break;
+                 case 'base_price':
+                     // 前端傳的是 price
+                     valueToBind = update.price !== undefined && update.price !== null ? Number(update.price) : null;
+                     break;
+                 default:
+                     valueToBind = update[field];
+             }
+             return valueToBind;
+         });
+         return stmt.bind(...values);
+
+         // --- 以及在 operations = targetDates.map(...) 內 ---
+         const values = fieldsToBind.map(field => {
+             let valueToBind;
+             switch (field) { // 這裡的 field 是 DB 欄位名
+                 case 'product_id':
+                     valueToBind = productId;
+                     break;
+                 case 'inventory_date':
+                     valueToBind = dateStr;
+                     break;
+                 case 'status':
+                     valueToBind = updateValues.status; // TEXT
+                     break;
+                 case 'quantity_available':
+                     // 前端傳的是 quantity
+                     valueToBind = updateValues.quantity !== undefined && updateValues.quantity !== null ? Number(updateValues.quantity) : null;
+                     break;
+                 case 'base_price':
+                     // 前端傳的是 price
+                     valueToBind = updateValues.price !== undefined && updateValues.price !== null ? Number(updateValues.price) : null;
+                     break;
+                 default:
+                     valueToBind = updateValues[field];
+             }
+             return valueToBind;
+         });
+         return stmt.bind(...values);
 
         // 類型 2: 批次範圍更新 (來自批次修改功能)
         } else if (body.productId && body.startDate && body.endDate && Array.isArray(body.weekdays) && body.updateValues) {

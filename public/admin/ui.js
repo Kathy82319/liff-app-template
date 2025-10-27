@@ -113,11 +113,17 @@ export const ui = {
      * @param {string} modalId - Modal 的 ID
      */
     hideModal(modalId) {
-        const modal = document.querySelector(modalId);
-        if (modal) {
-            modal.style.display = 'none';
+    const modal = document.querySelector(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        // **加入**: 如果是批次修改 Modal，銷毀日期選擇器
+        if (modalId === '#rav-bulk-edit-modal') {
+             // 需要從 roomAvailabilityManagement 模組或其他地方獲取實例並銷毀
+             // 這需要調整架構，暫時先不加，但提醒您有此需求
+             // bulkEditDatePicker?.destroy(); // 假設可以訪問到
         }
-    },
+    }
+},
 
     /**
      * 初始化全域共享的事件監聽器 (例如：所有 Modal 的關閉按鈕)

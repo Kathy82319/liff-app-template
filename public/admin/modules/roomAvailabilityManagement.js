@@ -63,58 +63,58 @@ function renderAvailabilityGrid() {
             const quantity = inventory?.quantity_available ?? 0; // 預設 0
             const price = inventory?.base_price; // 可能為 null
 
-            // --- 判斷視覺提示 ---
-            let cellStyle = '';
-            let priceText = price !== null ? String(price) : ''; // 顯示空字串而非 'null'
-            let statusText = status === 'Open' ? '開啟' : '關閉';
-            let statusClass = status === 'Open' ? 'status-open' : 'status-closed';
-            let tooltip = ''; // 滑鼠提示
-            let icon = '';
+// --- 判斷視覺提示 ---
+        let cellStyle = ''; // 儲存背景色樣式
+        let priceText = price !== null ? String(price) : ''; // 顯示空字串而非 'null'
+        let statusText = status === 'Open' ? '開啟' : '關閉';
+        let statusClass = status === 'Open' ? 'status-open' : 'status-closed';
+        let tooltip = ''; // 滑鼠提示
+        let icon = ''; // 驚嘆號
+        let isBookable = false; // 標記是否可預訂
 
-            // 優先判斷是否關閉
-            if (status === 'Closed') {
-                cellStyle = 'background-color: #f8d7da;'; // 紅色背景表示關閉
-                tooltip = '房間關閉';
-            }
-            // 數量為空或 0
-            else if (quantity === 0) {
-                 cellStyle = 'background-color: #fff3cd;'; // 黃色背景表示無庫存
-                 tooltip = '數量為 0';
-            }
-            // 價格為空 (即使狀態是 Open 且數量 > 0)
-            if (price === null) {
-                // 這裡不再改背景色，只加驚嘆號
-                icon = '<span style="color: red; font-weight: bold; margin-left: 5px;">!</span>';
-                tooltip += (tooltip ? ', ' : '') + '價格未定';
-                // 如果價格為空，即使狀態是 Open，也應該視為不可訂
-                if (status === 'Open') {
-                     // 可以選擇是否改變狀態顯示，例如：
-                     // statusText = '價格 ?';
-                     // statusClass = 'status-warning';
+        if (status === 'Open') {
+            if (quantity > 0) {
+                if (price !== null) { // 狀態開啟，數量>0，價格已定
+                    isBookable = true;
+                    tooltip = `可預訂 (${quantity} 間, ${price === 0 ? '免費' : '$'+price})`;
+                    cellStyle = ''; // 預設背景 (白色)
+                } else { // 狀態開啟，數量>0，但價格未定
+                    isBookable = false;
+                    tooltip = `價格未定 (${quantity} 間可用)`;
+                    icon = '<span style="color: red; font-weight: bold; margin-left: 5px;" title="價格未定">!</span>';
+                    cellStyle = 'background-color: #fff3cd;'; // 黃色提示價格問題
                 }
+            } else { // 狀態開啟，但數量為 0
+                isBookable = false;
+                tooltip = '已售罄';
+                cellStyle = 'background-color: #fff3cd;'; // 黃色表示數量問題
             }
+        } else { // status === 'Closed'
+            isBookable = false;
+            tooltip = '房間關閉';
+            cellStyle = 'background-color: #f8d7da;'; // 紅色表示關閉
+        }
 
-
-            // 組裝格子的 HTML
-            tableHtml += `
-                <td style="border: 1px solid var(--color-border); padding: 5px; text-align: center; vertical-align: top; ${cellStyle}"
-                    data-product-id="${product.product_id}" data-date="${dateStr}" title="${tooltip}">
-                    <div style="margin-bottom: 3px;">
-                        <button class="status-toggle action-btn ${statusClass}" data-status="${status}"
-                                style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${status === 'Open' ? 'var(--color-success)' : 'var(--color-danger)'};">
-                            ${statusText}
-                        </button>
-                    </div>
-                    <div style="margin-bottom: 3px;">
-                        <input type="number" class="quantity-input" value="${quantity}" min="0"
-                               style="width: 90%; text-align: center; font-size: 0.9em; padding: 2px;" ${status === 'Closed' ? 'disabled' : ''}>
-                    </div>
-                    <div>
-                        <input type="number" class="price-input" value="${priceText}" placeholder="預設" min="0"
-                               style="width: 90%; text-align: center; font-size: 0.9em; padding: 2px;" ${status === 'Closed' ? 'disabled' : ''}>
-                        ${icon}
-                    </div>
-                </td>`;
+        // 組裝格子的 HTML
+        tableHtml += `
+            <td style="border: 1px solid var(--color-border); padding: 5px; text-align: center; vertical-align: top; ${cellStyle}"
+                data-product-id="${product.product_id}" data-date="${dateStr}" title="${tooltip}">
+                <div style="margin-bottom: 3px;">
+                    <button class="status-toggle action-btn ${statusClass}" data-status="${status}"
+                            style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${status === 'Open' ? 'var(--color-success)' : 'var(--color-danger)'};">
+                        ${statusText}
+                    </button>
+                </div>
+                <div style="margin-bottom: 3px;">
+                    <input type="number" class="quantity-input" value="${quantity}" min="0" data-original-value="${quantity}"
+                           style="width: 90%; text-align: center; font-size: 0.9em; padding: 2px;" ${status === 'Closed' ? 'disabled' : ''}>
+                </div>
+                <div>
+                    <input type="number" class="price-input" value="${priceText}" placeholder="預設" min="0" data-original-value="${priceText}"
+                           style="width: 90%; text-align: center; font-size: 0.9em; padding: 2px;" ${status === 'Closed' ? 'disabled' : ''}>
+                    ${icon}
+                </div>
+            </td>`;
         });
         tableHtml += `</tr>`;
     });
@@ -215,8 +215,7 @@ function bindCellEvents() {
                  target.dataset.originalValue = newValue; // 更新原始值記錄
                  console.log(`更新 ${productId} 在 ${date} 的數量為 ${newValue}`);
                  // 更新背景色
-                 cell.style.backgroundColor = (newValue === 0) ? '#fff3cd' : ''; // 黃色或預設
-            }
+                cell.style.backgroundColor = (newValue === 0 && cell.querySelector('.status-toggle')?.dataset.status === 'Open') ? '#fff3cd' : ''; // 數量為0且狀態開啟才變黃            }
 
         } else if (target.matches('.price-input')) {
             const oldValue = target.dataset.originalValue || target.defaultValue;
@@ -516,8 +515,7 @@ export const init = async () => {
             console.log("roomAvailabilityManagement init: currentProducts 為空，呼叫 api.getProducts...");
             const allProds = await api.getProducts();
             // **篩選出民宿房型，假設 category 是 '房型'**
-            currentProducts = allProds.filter(p => p.category === '房型');
-             console.log(`roomAvailabilityManagement init: 篩選後得到 ${currentProducts.length} 個房型`);
+                currentProducts = allProds; // 直接使用所有產品
              if (currentProducts.length === 0) {
                  console.warn("在 Products 中找不到 category 為 '房型' 的項目，房型下拉選單將是空的。");
                  // 即使沒有房型，還是繼續執行 setupEventListeners

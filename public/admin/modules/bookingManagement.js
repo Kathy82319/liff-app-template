@@ -288,30 +288,40 @@ function resetCreateBookingModal() {
 }
 
 
-// public/admin/modules/bookingManagement.js
-
 async function initializeCreateBookingModal() {
-    // --- 【修正】將 addBtn 的事件綁定移到函數末尾，確保 DOM 元素已準備好 ---
-
-    // --- 防止重複初始化 ---
     const userSearchInput = document.getElementById('booking-user-search');
+    // ---【增加】更早的初始化檢查 ---
     if (!userSearchInput || userSearchInput.dataset.initialized === 'true') {
         console.log("initializeCreateBookingModal: 已初始化或找不到 userSearchInput，跳過。");
+         // 【新增】如果已初始化，仍需確保產品列表有資料
+         if (allProducts.length === 0) {
+             console.warn("initializeCreateBookingModal: 重新檢查 allProducts...");
+             try {
+                  allProducts = await api.getProducts(); // 嘗試重新獲取
+                  console.log(`initializeCreateBookingModal: 重新獲取了 ${allProducts.length} 個產品。`);
+             } catch(e) { console.error("initializeCreateBookingModal: 重新獲取產品失敗", e); }
+         }
         return;
     }
     console.log("initializeCreateBookingModal: 執行初始化...");
 
-
-    // --- 獲取產品資料 ---
+    // --- 確保先獲取產品資料 ---
     try {
         if(allProducts.length === 0) {
              console.log("initializeCreateBookingModal: 正在獲取產品列表...");
-             allProducts = await api.getProducts();
+             allProducts = await api.getProducts(); // <--- await 確保執行完畢
              console.log(`initializeCreateBookingModal: 成功獲取 ${allProducts.length} 個產品。`);
+             if (allProducts.length === 0) {
+                  console.warn("initializeCreateBookingModal: 獲取的產品列表為空！");
+                  ui.toast.error("無法載入預約項目，產品列表為空。"); // 提示使用者
+             }
+        } else {
+             console.log(`initializeCreateBookingModal: 使用快取的 ${allProducts.length} 個產品。`);
         }
     } catch(e) {
          console.error("initializeCreateBookingModal: 無法載入產品列表供預約使用", e);
-         // 可以在 Modal 中顯示錯誤提示
+         ui.toast.error(`載入預約項目失敗: ${e.message}`); // 提示使用者
+         // 即使產品載入失敗，還是繼續初始化其他部分，但下拉選單會是空的
     }
 
     // --- 初始化日期選擇器並加入 onChange 事件 ---

@@ -540,6 +540,33 @@
         margin-top: 0; /* 移除 modal-body 的 margin-bottom 後這裡可以設 0 */
         border-top: 1px solid var(--color-border);
     }
+
+    .rav-table {
+    border-collapse: separate; /* Needed for sticky header/column borders */
+    border-spacing: 0;
+}
+.rav-table th,
+.rav-table td {
+    border: 1px solid var(--color-border, #CCC);
+    /* 其他樣式 */
+}
+.rav-table thead th {
+    position: sticky;
+    top: 0; /* Adjust based on your header height if needed */
+    background: var(--color-sidebar-bg, #FFF);
+    z-index: 2; /* Higher than sticky column */
+}
+.rav-table tbody td:first-child { /* First column (room name) */
+    position: sticky;
+    left: 0;
+    background: var(--color-sidebar-bg, #FFF);
+    z-index: 1;
+    border-right: 1px solid var(--color-border, #CCC); /* Ensure border shows */
+}
+.rav-table thead th:first-child { /* Top-left corner cell */
+    left: 0;
+    z-index: 3; /* Highest z-index */
+}
 </style>
 
 </head>

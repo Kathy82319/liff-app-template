@@ -308,7 +308,8 @@ function resetCreateBookingModal() {
     const itemsContainer = document.getElementById('admin-booking-items-container');
     if (itemsContainer) {
         itemsContainer.innerHTML = '';
-        addAdminBookingItemRow();
+        // 移除 addAdminBookingItemRow()，因為 initializeCreateBookingModal 會呼叫
+        // addAdminBookingItemRow();
     }
 
     const selectedUserId = document.getElementById('booking-selected-user-id');
@@ -316,7 +317,7 @@ function resetCreateBookingModal() {
 
     const selectedUserView = document.getElementById('selected-user-view');
     if (selectedUserView) selectedUserView.style.display = 'none';
-    
+
     const userSelectionContainer = document.getElementById('user-selection-container');
     if (userSelectionContainer) userSelectionContainer.style.display = 'block';
 
@@ -325,6 +326,17 @@ function resetCreateBookingModal() {
         userSelect.style.display = 'none';
         userSelect.innerHTML = '';
     }
+
+    // --- ▼▼▼ 新增：重置提交按鈕狀態 ▼▼▼ ---
+    const submitButton = form?.querySelector('button[type="submit"]'); // 獲取提交按鈕
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = '確認建立';
+        console.log("resetCreateBookingModal: 已重置提交按鈕狀態。"); // 加入日誌
+    } else {
+        console.error("resetCreateBookingModal: 找不到提交按鈕！");
+    }
+    // --- ▲▲▲ 新增結束 ▲▲▲ ---
 }
 
 

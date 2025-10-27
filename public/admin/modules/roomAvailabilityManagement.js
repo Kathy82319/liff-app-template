@@ -512,48 +512,111 @@ function setupEventListeners() {
 
 
 
-// --- **新增**: 專門初始化日期選擇器的函數 ---
+// public/admin/modules/roomAvailabilityManagement.js
+
+// **全域變數 isDatePickerInitialized 保持不變**
+// let isDatePickerInitialized = false;
+
 export function initializeDatePickers() {
-     // 防止重複初始化
+     console.log("%c[roomAvailabilityManagement] initializeDatePickers CALLED", "color: blue; font-weight: bold;");
+
+     // 防止重複初始化 (保持)
      if (isDatePickerInitialized) {
-          console.log("roomAvailabilityManagement: 日期選擇器已初始化，跳過。");
+          console.log("[roomAvailabilityManagement] initializeDatePickers: Already initialized, skipping.");
           return;
      }
-     console.log("roomAvailabilityManagement: 執行 initializeDatePickers...");
-     const dateRangeInput = document.getElementById('rav-date-range');
-     if (dateRangeInput) {
-          console.log("roomAvailabilityManagement: 找到 #rav-date-range，初始化主日期選擇器...");
-          dateRangePicker = flatpickr(dateRangeInput, {
-              mode: "range",
-              dateFormat: "Y-m-d",
-              locale: "zh_tw",
-              defaultDate: [
-                   new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                   new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-              ],
-              onReady: function(selectedDates, dateStr, instance) {
-                   console.log("主日期選擇器 onReady");
-                   if (Array.isArray(selectedDates) && selectedDates.length === 2) {
-                        console.log("主日期選擇器 onReady: 觸發初始 loadInventoryData...");
-                        // 確保表格事件已綁定 (雖然應該在 setupEventListeners 就綁好了)
-                        // bindCellEvents(); // 如果 renderAvailabilityGrid 內部沒有呼叫 bindCellEvents, 則在此處呼叫
-                        loadInventoryData();
-                   } else {
-                        console.log("主日期選擇器 onReady: 初始日期範圍未選定或無效。");
-                   }
-              },
-              // **新增**: onError 處理
-              onError: function(error) {
-                  console.error("主日期選擇器 Flatpickr 錯誤:", error);
-                  ui.toast.error("初始化主日期選擇器失敗: " + error.message);
-              }
-          });
-          isDatePickerInitialized = true; // 標記已初始化
-     } else {
-          console.error("roomAvailabilityManagement initializeDatePickers: 找不到 #rav-date-range 元素！");
-          ui.toast.error("無法初始化主日期選擇器。");
+
+     // ***** 顯式檢查頁面容器是否存在且可見 *****
+     const pageContainer = document.getElementById('page-room-availability');
+     if (!pageContainer) {
+         console.error("%c[roomAvailabilityManagement] initializeDatePickers: CRITICAL - Page container #page-room-availability NOT FOUND!", "color: red; font-weight: bold;");
+         ui.toast.error("房量控管頁面容器不存在！");
+         return; // 頁面容器不存在，無法繼續
      }
-     // 批次修改的日期選擇器在 openBulkEditModal 中處理
+     const isPageVisible = window.getComputedStyle(pageContainer).display !== 'none';
+     console.log(`[roomAvailabilityManagement] initializeDatePickers: Is #page-room-availability visible? ${isPageVisible}`);
+     if (!isPageVisible) {
+         console.warn("[roomAvailabilityManagement] initializeDatePickers: Page container #page-room-availability is not visible yet. Aborting initialization attempt.");
+         // 理論上 app.js 的 RAF 應該能避免這種情況，但多一層保險
+         // return; // 可以選擇在這裡中止，或者繼續嘗試查找元素
+     }
+
+     // ***** 顯式查找元素 *****
+     console.log("[roomAvailabilityManagement] initializeDatePickers: Attempting to find #rav-date-range using getElementById...");
+     const dateRangeInput = document.getElementById('rav-date-range');
+
+     // ***** 關鍵偵錯點 *****
+     if (dateRangeInput) {
+          console.log("%c[roomAvailabilityManagement] initializeDatePickers: FOUND #rav-date-range via getElementById!", "color: green;");
+          console.log("[roomAvailabilityManagement] Element details:", dateRangeInput);
+
+          console.log("%c[roomAvailabilityManagement] === PAUSING EXECUTION ===", "background: yellow; color: black; font-weight: bold;");
+          console.log("1. Go to the 'Elements' tab in DevTools.");
+          console.log("2. Verify that the element with ID 'rav-date-range' exists and is an <input> tag.");
+          console.log("3. Check its computed styles, especially 'display'. It should not be 'none'.");
+          console.log("4. Resume execution in the 'Sources' tab (F8 or Play button).");
+          debugger; // <--- 在這裡暫停執行
+
+          try {
+                console.log("[roomAvailabilityManagement] initializeDatePickers: Initializing main date picker (dateRangePicker)...");
+                // *** 增加 onOpen 和 onClose 日誌 ***
+                dateRangePicker = flatpickr(dateRangeInput, {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    locale: "zh_tw",
+                    defaultDate: [
+                         new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                         new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+                    ],
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        console.log("[Flatpickr] Main date picker opened.");
+                    },
+                    onClose: function(selectedDates, dateStr, instance) {
+                        console.log("[Flatpickr] Main date picker closed.");
+                    },
+                    onReady: function(selectedDates, dateStr, instance) {
+                         console.log("[roomAvailabilityManagement] Main date picker (dateRangePicker) onReady triggered.");
+                         if (Array.isArray(selectedDates) && selectedDates.length === 2) {
+                              console.log("[roomAvailabilityManagement] Main date picker onReady: Dates selected, triggering loadInventoryData...");
+                              loadInventoryData(); // 觸發初始資料載入
+                         } else {
+                              console.warn("[roomAvailabilityManagement] Main date picker onReady: Initial date range invalid or not selected.");
+                         }
+                    },
+                    onError: function(error) {
+                        console.error("[roomAvailabilityManagement] Main date picker Flatpickr Error:", error);
+                        ui.toast.error("初始化主日期選擇器失敗: " + error.message);
+                    }
+                });
+                console.log("[roomAvailabilityManagement] initializeDatePickers: Main date picker initialization attempted.");
+                // *** 稍微延遲後檢查 Flatpickr 實例是否成功附加 ***
+                setTimeout(() => {
+                     if (dateRangeInput._flatpickr) {
+                          console.log("%c[roomAvailabilityManagement] Flatpickr instance successfully attached to #rav-date-range.", "color: green;");
+                          isDatePickerInitialized = true; // 標記初始化成功
+                     } else {
+                          console.error("%c[roomAvailabilityManagement] Flatpickr instance FAILED to attach to #rav-date-range after initialization attempt.", "color: red;");
+                          ui.toast.error("Flatpickr 初始化後未能附加到元素！");
+                     }
+                }, 100); // 延遲 100ms 檢查
+
+          } catch (initError) {
+              console.error("[roomAvailabilityManagement] initializeDatePickers: Error DURING Flatpickr initialization:", initError);
+              ui.toast.error(`Flatpickr 初始化錯誤: ${initError.message}`);
+          }
+
+     } else {
+          console.error("%c[roomAvailabilityManagement] initializeDatePickers: FAILED to find #rav-date-range element via getElementById!", "color: red; font-weight: bold;");
+          ui.toast.error("無法初始化主日期選擇器 (找不到元素)。");
+          // *** 增加更多上下文日誌 ***
+          console.log("[roomAvailabilityManagement] initializeDatePickers: Searching within page container...");
+          const foundViaQuerySelector = pageContainer.querySelector('#rav-date-range');
+          console.log("[roomAvailabilityManagement] initializeDatePickers: Found via querySelector inside page container?", !!foundViaQuerySelector);
+          console.log("[roomAvailabilityManagement] initializeDatePickers: Inner HTML of #page-room-availability at time of error:\n", pageContainer.innerHTML.substring(0, 800) + "..."); // 記錄更多 HTML 內容
+     }
+
+     // 批次修改的日期選擇器初始化保持在 openBulkEditModal 中
+     console.log("[roomAvailabilityManagement] initializeDatePickers finished execution.");
 }
 
 

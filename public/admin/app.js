@@ -66,14 +66,24 @@ const App = {
 
                     await pageModule.init(); 
                 // ******** 新增判斷 ********
+                // ******** 修改：使用 requestAnimationFrame ********
                 if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
-                    console.log("[App.js] Calling initializeDatePickers for room-availability...");
-                    // 使用 setTimeout 給予 DOM 更多時間反應 ui.showPage
-                    setTimeout(() => {
-                        pageModule.initializeDatePickers();
-                    }, 50); // 稍微延遲後再初始化 Flatpickr
+                    console.log("[App.js] Requesting animation frame to call initializeDatePickers for room-availability...");
+                    // 使用 requestAnimationFrame 確保 DOM 更新後再執行
+                    requestAnimationFrame(() => {
+                        // 可以再包一層以增加可靠性，等待下一幀繪製
+                        requestAnimationFrame(() => {
+                            console.log("[App.js] Inside requestAnimationFrame, calling initializeDatePickers...");
+                            try {
+                                pageModule.initializeDatePickers();
+                            } catch (pickerError) {
+                                console.error("[App.js] Error calling initializeDatePickers:", pickerError);
+                                ui.toast.error(`初始化日期選擇器失敗: ${pickerError.message}`);
+                            }
+                        });
+                    });
                 }
-                // ******** 新增結束 ********
+                // ******** 修改結束 ********
                 } else {
                      console.warn(`[App Delay Check] Module ${modulePath} has no init function.`);
                 }

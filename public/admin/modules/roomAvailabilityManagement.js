@@ -556,7 +556,7 @@ export function initializeDatePickers() {
      // 批次修改的日期選擇器在 openBulkEditModal 中處理
 }
 
-// --- 初始化函式 (init) - 移除 Flatpickr 初始化 ---
+
 export const init = async () => {
     console.log("roomAvailabilityManagement: init 開始 (v5)...");
     const page = document.getElementById('page-room-availability');
@@ -573,7 +573,7 @@ export const init = async () => {
     try {
         if (currentProducts.length === 0) {
             const allProds = await api.getProducts();
-            currentProducts = allProds;
+            currentProducts = allProds; // <--- 修正：這裡應該是 currentProducts = allProds
             console.log(`roomAvailabilityManagement init: 載入 ${currentProducts.length} 個房型/產品`);
         } else {
              console.log(`roomAvailabilityManagement init: 使用快取的 ${currentProducts.length} 個房型/產品。`);
@@ -582,7 +582,7 @@ export const init = async () => {
         // 先綁定非 Flatpickr 的事件
         setupEventListeners();
 
-        // **移除**: 不在此處初始化 Flatpickr 或觸發載入
+        // **確保這裡沒有呼叫 initializeDatePickers()**
 
     } catch (error) {
         console.error("初始化房量控管頁面失敗:", error);

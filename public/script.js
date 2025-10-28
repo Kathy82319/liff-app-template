@@ -791,28 +791,49 @@ async function initializeBookingDetailsPage(data) {
         return;
     }
 
-    loadingEl.style.display = 'block';
+loadingEl.style.display = 'block';
     contentContainer.style.display = 'none';
-    cancelBtn.style.display = 'none'; // 預設隱藏取消按鈕
+    cancelBtn.style.display = 'none';
 
     try {
-        // 並行獲取預約詳情和政策
         const [bookingRes, policyRes] = await Promise.all([
             fetch(`/api/my-bookings?userId=${userProfile.userId}&bookingId=${data.bookingId}`),
             fetch('/api/get-booking-policy')
         ]);
 
-        if (!bookingRes.ok) throw new Error('無法獲取預約詳情');
-        const bookingResult = await bookingRes.json();
-        // API 可能回傳陣列，即使只有一筆
-        const booking = Array.isArray(bookingResult) ? bookingResult[0] : bookingResult;
-        if (!booking) throw new Error('找不到指定的預約紀錄');
+        // --- 【修改】更安全的處理 bookingRes ---
+        let booking = null;
+        if (bookingRes.ok) {
+            const contentType = bookingRes.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const bookingResult = await bookingRes.json(); //
+                booking = Array.isArray(bookingResult) ? bookingResult[0] : bookingResult;
+                if (!booking) throw new Error('找不到指定的預約紀錄 (API 回傳空)'); //
+            } else {
+                // 回應不是 JSON
+                const text = await bookingRes.text();
+                throw new Error(`無法獲取預約詳情：伺服器回應非預期格式 (${contentType}). 回應內容: ${text.substring(0, 100)}...`);
+            }
+        } else {
+             // fetch 請求失敗 (例如 404, 500)
+             const errorText = await bookingRes.text(); // 嘗試讀取錯誤訊息文字
+             throw new Error(`無法獲取預約詳情 (HTTP ${bookingRes.status}): ${errorText.substring(0, 100)}...`); //
+        }
+        // --- 【修改結束】---
 
+        // --- 【修改】更安全的處理 policyRes ---
         let policy = { cancellationPolicy: '未設定', checkInInstructions: '未設定' };
         if (policyRes.ok) {
-            policy = await policyRes.json();
+            const contentType = policyRes.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                policy = await policyRes.json(); //
+            } else {
+                 const text = await policyRes.text();
+                 console.warn(`無法獲取預約政策：伺服器回應非預期格式 (${contentType}). 使用預設值. 回應內容: ${text.substring(0, 100)}...`); //
+            }
         } else {
-            console.warn("無法獲取預約政策，將使用預設文字。");
+             const errorText = await policyRes.text();
+             console.warn(`無法獲取預約政策 (HTTP ${policyRes.status}): ${errorText.substring(0, 100)}... 使用預設值.`); //
         }
 
         // --- 填充頁面內容 ---
@@ -827,42 +848,50 @@ async function initializeBookingDetailsPage(data) {
             } catch(e) { console.error("計算晚數失敗:", e); }
         }
 
-        document.getElementById('details-check-in-date').textContent = startDate || '-';
-        document.getElementById('details-check-out-date').textContent = endDate || '-';
-        document.getElementById('details-nights').textContent = nights;
+document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
+        document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-'; //
+        let nights = '-';
+        if (booking.booking_date && booking.check_out_date) {
+            try {
+                const start = new Date(booking.booking_date + 'T00:00:00');
+                const end = new Date(booking.check_out_date + 'T00:00:00');
+                nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+            } catch(e) { console.error("計算晚數失敗:", e); }
+        }
+        document.getElementById('details-nights').textContent = nights; //
 
         const itemsListEl = document.getElementById('details-items-list');
         if (booking.items && booking.items.length > 0) {
             itemsListEl.innerHTML = booking.items.map(item =>
                 `<p>- ${item.item_name} x ${item.quantity} (小計: $${item.price !== null ? item.price * item.quantity : 'N/A'})</p>`
-            ).join('');
+            ).join(''); //
         } else {
-            itemsListEl.innerHTML = '<p>無項目資訊</p>';
+            itemsListEl.innerHTML = '<p>無項目資訊</p>'; //
         }
 
-        document.getElementById('details-total-amount').textContent = booking.total_amount !== null ? `$${booking.total_amount}` : '-';
-        document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy || '未設定';
-        document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions || '未設定';
+        document.getElementById('details-total-amount').textContent = booking.total_amount !== null ? `$${booking.total_amount}` : '-'; //
+        document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy; //
+        document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions; //
 
-        // --- 處理取消按鈕 ---
-        if (booking.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) {
-            cancelBtn.style.display = 'block';
-            // 移除舊監聽器再添加，防止重複綁定
-            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
-            document.getElementById('details-cancel-booking-btn').addEventListener('click', () => {
-                 if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-                     handleCancelBooking(booking.booking_id);
+
+        // --- (處理取消按鈕的程式碼保持不變) ---
+        if (booking.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) { //
+            cancelBtn.style.display = 'block'; //
+            cancelBtn.replaceWith(cancelBtn.cloneNode(true)); //
+            document.getElementById('details-cancel-booking-btn').addEventListener('click', () => { //
+                 if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) { //
+                     handleCancelBooking(booking.booking_id); //
                  }
             });
         }
 
-        loadingEl.style.display = 'none';
-        contentContainer.style.display = 'block';
+        loadingEl.style.display = 'none'; //
+        contentContainer.style.display = 'block'; //
 
     } catch (error) {
         console.error("載入預約詳情失敗:", error);
-        loadingEl.innerHTML = `<p style="color: red;">載入失敗：${error.message}</p>`;
-        contentContainer.style.display = 'none';
+        loadingEl.innerHTML = `<p style="color: red;">載入失敗：${error.message}</p>`; // 顯示更詳細的錯誤 //
+        contentContainer.style.display = 'none'; //
     }
 }
 

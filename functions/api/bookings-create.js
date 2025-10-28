@@ -86,24 +86,20 @@ export async function onRequest(context) {
             // --- 建立預訂記錄 & 更新庫存 (使用 Batch) ---
             const operations = [];
 
-            // 1. 插入 Bookings 主表 (注意欄位差異)
-            //    - 使用 startDate, endDate
-            //    - total_amount 需要計算 (或從前端傳入 - 但後端計算較安全)
-            //    - time_slot, num_of_people 可能不需要或設為 NULL
-            //    - status 預設為 'confirmed'
-        const bookingStmt = db.prepare(
-            `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot)
-             VALUES (?, ?, ?, ?, ?, 'confirmed', ?) RETURNING booking_id` // **<-- 加入 time_slot 和 ?**
-        );
-         // 執行插入 Booking 並立即獲取 booking_id
-         const { booking_id } = await bookingStmt.bind(
-             userId,
-             contactName,
-             contactPhone,
-             startDate,
-             endDate,
-             '' // **<-- 綁定空字串給 time_slot**
-         ).first();
+            const bookingStmt = db.prepare(
+                `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot, num_of_people)
+                 VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING booking_id` // **<-- 加入 num_of_people 和 ?**
+            );
+             // 執行插入 Booking 並立即獲取 booking_id
+             const { booking_id } = await bookingStmt.bind(
+                 userId,
+                 contactName,
+                 contactPhone,
+                 startDate,
+                 endDate,
+                 '', // time_slot
+                 0  // **<-- 綁定 0 給 num_of_people**
+             ).first();
 
              if (!booking_id) {
                  throw new Error('無法建立預約主紀錄，請稍後再試。');

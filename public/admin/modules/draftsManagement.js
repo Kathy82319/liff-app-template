@@ -1,4 +1,4 @@
-// public/admin/modules/draftsManagement.js (v2 - Handle Fixed Drafts & Policy JSON)
+// public/admin/modules/draftsManagement.js (v4 - Define FIXED_DRAFT_TITLES, Keep Error Handling)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -10,8 +10,16 @@ const FIXED_DRAFT_IDS = {
     AUTO_CONFIRMATION: 2
 };
 
+// --- 【新增】固定草稿的標題 (與後端一致) ---
+const FIXED_DRAFT_TITLES = {
+    [FIXED_DRAFT_IDS.POLICY]: "入住須知編輯欄",
+    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "入住自動發送的通知"
+};
+
+
 // 渲染草稿列表 (加入固定草稿的處理)
 function renderDraftList(drafts) {
+    // ... (此函式內容不變，省略以節省篇幅) ...
     const draftListTbody = document.getElementById('draft-list-tbody');
     if (!draftListTbody) return;
 
@@ -24,18 +32,20 @@ function renderDraftList(drafts) {
     drafts.forEach(draft => {
         const row = draftListTbody.insertRow();
         let contentPreview = '';
-        const isFixed = draft.is_fixed || draft.draft_id === FIXED_DRAFT_IDS.POLICY || draft.draft_id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION; // 雙重檢查
+        // 修正 isFixed 判斷，確保即使後端沒傳 is_fixed 也能判斷
+        const isFixed = draft.is_fixed || draft.draft_id === FIXED_DRAFT_IDS.POLICY || draft.draft_id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION;
 
         // 特殊處理政策草稿的預覽
         if (draft.draft_id === FIXED_DRAFT_IDS.POLICY) {
             try {
-                const policyData = JSON.parse(draft.content);
-                contentPreview = `取消政策: ${policyData.cancellationPolicy.substring(0, 20)}... | 入住須知: ${policyData.checkInInstructions.substring(0, 20)}...`;
+                // 嘗試解析，如果內容不是JSON，提供提示
+                const policyData = JSON.parse(draft.content || '{}');
+                contentPreview = `取消政策: ${String(policyData.cancellationPolicy || '').substring(0, 20)}... | 入住須知: ${String(policyData.checkInInstructions || '').substring(0, 20)}...`;
             } catch (e) {
-                contentPreview = '[格式錯誤] 無法預覽政策內容';
+                contentPreview = '[內容非標準格式] 無法預覽';
             }
         } else {
-            contentPreview = draft.content.substring(0, 50) + (draft.content.length > 50 ? '...' : '');
+            contentPreview = String(draft.content || '').substring(0, 50) + (String(draft.content || '').length > 50 ? '...' : '');
         }
 
         row.innerHTML = `
@@ -52,9 +62,10 @@ function renderDraftList(drafts) {
     });
 }
 
-// 開啟編輯/新增草稿的 Modal (大幅修改以處理固定草稿)
+
 // 開啟編輯/新增草稿的 Modal (v3 - 修正 JSON 解析邏輯)
 function openEditDraftModal(draft = null) {
+    // ... (前半部分程式碼不變，省略) ...
     const editDraftModal = document.getElementById('edit-draft-modal');
     const editDraftForm = document.getElementById('edit-draft-form');
     if (!editDraftModal || !editDraftForm) return;
@@ -76,10 +87,11 @@ function openEditDraftModal(draft = null) {
     draftIdInput.value = draftId || '';
     editDraftForm.querySelector('.form-actions').style.display = 'flex'; // 顯示按鈕區
 
+
     // --- 根據草稿類型顯示不同欄位 ---
     if (draftId === FIXED_DRAFT_IDS.POLICY) { // **<-- 嚴格判斷 ID 1**
         // --- 編輯政策草稿 ---
-        modalTitle.textContent = '編輯 入住須知/取消政策';
+        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.POLICY]}`; // 使用常數
         policyGroup.style.display = 'block'; // 顯示政策編輯區塊
         titleInput.closest('.form-group').style.display = 'none'; // 隱藏標題輸入
         contentTextarea.closest('.form-group').style.display = 'none'; // 隱藏一般內容輸入
@@ -94,15 +106,15 @@ function openEditDraftModal(draft = null) {
             console.error(`解析政策內容 (ID: ${draftId}) 失敗:`, e, "原始內容:", draft.content); // 加入 Log
             ui.toast.error("讀取政策內容時發生錯誤，將顯示原始文字。");
             // **錯誤處理**：如果解析失敗，顯示原始(可能錯誤的)文字，讓使用者修正
-            cancellationPolicyTextarea.value = `[格式錯誤，請修正]\n${draft.content}`;
-            checkInInstructionsTextarea.value = `[格式錯誤，請修正]\n${draft.content}`;
+            cancellationPolicyTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
+            checkInInstructionsTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
         }
 
     } else if (draftId === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) { // **<-- 嚴格判斷 ID 2**
         // --- 編輯自動通知草稿 ---
-        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]}`;
+        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]}`; // **<-- 使用常數**
         titleInput.closest('.form-group').style.display = 'block'; // 顯示標題
-        titleInput.value = FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION];
+        titleInput.value = FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]; // **<-- 使用常數**
         titleInput.readOnly = true; // 標題不可修改
         titleInput.style.backgroundColor = '#e9ecef'; // 灰底提示
         contentTextarea.closest('.form-group').style.display = 'block'; // 顯示內容編輯
@@ -135,8 +147,10 @@ function openEditDraftModal(draft = null) {
     ui.showModal('#edit-draft-modal');
 }
 
+
 // 綁定事件監聽器
 function setupEventListeners() {
+    // ... (此函式內容不變，省略) ...
     const page = document.getElementById('page-drafts');
     // 防止重複綁定
     if (!page || page.dataset.initialized === 'true') {
@@ -179,7 +193,8 @@ function setupEventListeners() {
 
 // 處理刪除邏輯 (加入固定草稿檢查)
 async function handleDeleteDraft(draftId) {
-    const id = Number(draftId);
+    // ... (此函式內容不變，省略) ...
+     const id = Number(draftId);
     // --- 檢查是否為固定草稿 ---
     if (id === FIXED_DRAFT_IDS.POLICY || id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) {
         ui.toast.error('無法刪除系統保留的草稿！');
@@ -199,6 +214,7 @@ async function handleDeleteDraft(draftId) {
 
 // 處理表單提交邏輯 (新增/編輯，包含特殊處理)
 async function handleFormSubmit(event) {
+    // ... (此函式內容不變，省略) ...
     event.preventDefault();
     const draftIdInput = document.getElementById('edit-draft-id');
     const draftId = draftIdInput ? Number(draftIdInput.value) : null;
@@ -252,7 +268,8 @@ async function handleFormSubmit(event) {
 
 // 模組初始化函式
 export const init = async () => {
-    const draftListTbody = document.getElementById('draft-list-tbody');
+    // ... (此函式內容不變，省略) ...
+     const draftListTbody = document.getElementById('draft-list-tbody');
     if (!draftListTbody) return;
 
     draftListTbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">正在載入草稿...</td></tr>';

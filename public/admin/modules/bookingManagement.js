@@ -1035,36 +1035,32 @@ async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMe
 }
 
 
-// --- 【修改】renderBookingList ---
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     if (!bookingListTbody) return;
     bookingListTbody.innerHTML = '';
     if (!bookings || bookings.length === 0) {
-        bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">找不到符合條件的預約。</td></tr>'; // Adjusted colspan
+        bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">找不到符合條件的預約。</td></tr>';
         return;
     }
     bookings.forEach(booking => {
+        // ... (原有的 row.innerHTML 生成邏輯保持不變) ...
         const row = bookingListTbody.insertRow();
-        row.dataset.bookingId = booking.booking_id; // Keep this for modal opening
+        row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
-        // --- 狀態文字與樣式 ---
         let statusText = '未知', statusClass = '';
         const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
         const checkInText = isGuesthouse ? '已入住' : '已報到';
 
         if (booking.status === 'confirmed') { statusText = '預約成功'; statusClass = 'status-confirmed'; }
-        if (booking.status === 'checked-in') { statusText = checkInText; statusClass = 'status-checked-in'; } // Combined text
+        if (booking.status === 'checked-in') { statusText = checkInText; statusClass = 'status-checked-in'; }
         if (booking.status === 'cancelled') { statusText = '已取消'; statusClass = 'status-cancelled'; }
-        if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; } // 使用 no-show class
+        if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; }
 
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
-
-        // --- 【修改】決定 "標記" 按鈕是否禁用 ---
         const isMarkDisabled = ['checked-in', 'cancelled', 'no-show'].includes(booking.status);
 
-        // --- 【修改】表格欄位數與內容 ---
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div></td>
             <td class="compound-cell"><div class="main-info">${booking.contact_name}</div><div class="sub-info">${itemSummary}</div></td>
@@ -1074,9 +1070,79 @@ function renderBookingList(bookings) {
             <td class="actions-cell">
                 <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
             </td>
-        `; // Colspan is 6
+        `;
     });
+
+    // --- ▼▼▼ 【新增/修改】在這裡綁定 tbody 的點擊事件 ▼▼▼ ---
+    // 先移除舊監聽器，避免重複綁定 (如果之前有綁過)
+    const oldListener = bookingListTbody.handler; // 假設之前將 listener 存在 handler 屬性
+    if (oldListener) {
+        bookingListTbody.removeEventListener('click', oldListener);
+        console.log("Removed old tbody click listener.");
+    }
+
+    // 定義新的監聽器函數
+    const tbodyClickListener = async (e) => {
+        const target = e.target;
+        console.log("Tbody click event triggered on:", target); // 偵錯
+
+        // --- 處理 "標記" 按鈕 ---
+        const markStatusBtn = target.closest('.btn-mark-status');
+        if (markStatusBtn && !markStatusBtn.disabled) {
+            e.stopPropagation(); // 阻止觸發行點擊
+            console.log("標記按鈕被點擊 (tbody listener), bookingId:", markStatusBtn.dataset.bookingId);
+            createStatusMenu(markStatusBtn);
+             // Add originatingBookingId after creation for the outside click check
+             if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
+            return; // 已處理
+        }
+
+        // --- 處理 "快速取消" 按鈕 ---
+        const quickCancelBtn = target.closest('.btn-quick-cancel'); // 這個按鈕可能在日曆視圖，但也檢查一下
+        if (quickCancelBtn) {
+            e.stopPropagation();
+            // ... (快速取消的邏輯，同 setupEventListeners 中的版本) ...
+             const bookingId = quickCancelBtn.dataset.bookingId;
+            console.log("點擊快速取消按鈕 (tbody listener), bookingId:", bookingId);
+            if (!bookingId) return;
+            const confirmed = await ui.confirm('確定要取消此預約嗎？');
+            if (confirmed) {
+                try {
+                    quickCancelBtn.disabled = true;
+                    await api.updateBookingStatus(Number(bookingId), 'cancelled');
+                    ui.toast.success('預約已取消');
+                    const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                    await fetchDataAndRender(activeFilter);
+                } catch(err) {
+                    ui.toast.error(`錯誤：${err.message}`);
+                    quickCancelBtn.disabled = false;
+                }
+            }
+            return; // 已處理
+        }
+
+
+        // --- 處理點擊 "行" (開啟 Modal) ---
+        const bookingRow = target.closest('tr[data-booking-id]');
+        // 確保點擊的不是操作按鈕本身
+        if (bookingRow && !target.closest('.action-btn')) {
+            const bookingId = bookingRow.dataset.bookingId;
+            console.log("點擊行 (tbody listener), bookingId:", bookingId);
+            if (bookingId) {
+                openBookingDetailsModal(bookingId);
+            }
+            return; // 已處理
+        }
+         console.log("Tbody click event did not match any specific action."); // 偵錯
+    };
+
+    // 綁定新的監聽器
+    bookingListTbody.addEventListener('click', tbodyClickListener);
+    bookingListTbody.handler = tbodyClickListener; // 將 listener 存起來以便下次移除
+    console.log("Attached new click listener to tbody.");
+    // --- ▲▲▲ 綁定結束 ▲▲▲ ---
 }
+
 
 // --- 【新增】Helper function to create and show the status menu ---
 function createStatusMenu(targetButton) {
@@ -1292,158 +1358,129 @@ async function fetchDataAndRender(filter = 'today') {
 
 
 
-// --- 綁定事件監聽器 (修正後完整版) ---
-// public/admin/modules/bookingManagement.js
-
-// ... (保留其他函數 createStatusMenu, closeStatusMenu, etc.) ...
-
+// --- 【修改】setupEventListeners ---
+// 這個函數現在只負責綁定頁面級別的靜態元素事件 (例如篩選按鈕、新增按鈕等)
 function setupEventListeners() {
-    console.log("setupEventListeners 函數觸發");
+    console.log("setupEventListeners 函數觸發 (只綁定靜態元素)");
     const page = document.getElementById('page-bookings');
     if (!page) {
-         console.error("setupEventListeners: 找不到 #page-bookings 元素！");
-         return;
+        console.error("setupEventListeners: 找不到 #page-bookings 元素！");
+        return;
     }
-    // 【修改】移除舊的初始化標記檢查，確保每次 init 都會檢查綁定
-    // if (page.dataset.initialized === 'true') {
-    //      console.log("setupEventListeners: 事件已初始化，跳過。");
-    //      return;
-    // }
+    // 使用 dataset 標記來防止重複綁定頁面級別的靜態事件
+    if (page.dataset.staticListenersAttached === 'true') {
+        console.log("靜態事件已綁定，跳過。");
+        return;
+    }
 
-    // --- 【修改】使用事件委派處理頁面點擊 ---
-    // 檢查是否已綁定 page 級別的 click listener
-    if (!page.dataset.clickListenerAttached) {
-        page.addEventListener('click', async e => {
-            const target = e.target;
-            console.log("頁面點擊事件觸發:", target);
+    // --- 只綁定不需要每次列表刷新都重新綁定的事件 ---
+    page.addEventListener('click', async e => {
+        const target = e.target;
+        // --- 切換日曆/列表檢視按鈕 ---
+        if (target.id === 'switch-to-calendar-view-btn') {
+            console.log("點擊切換檢視按鈕");
+           const listView = document.getElementById('list-view-container');
+           const calendarView = document.getElementById('calendar-view-container');
+            if (!listView || !calendarView) return;
+           const isListVisible = listView.style.display !== 'none';
+           listView.style.display = isListVisible ? 'none' : 'block';
+           calendarView.style.display = isListVisible ? 'block' : 'none';
+           target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
+           fetchDataAndRender(); // 重新載入數據
+            return;
+        }
 
-            // --- 【修改】Handle "Mark" button click ---
-            const markStatusBtn = target.closest('.btn-mark-status');
-            if (markStatusBtn && !markStatusBtn.disabled) {
-                e.stopPropagation(); // IMPORTANT: Prevent row click from opening modal
-                console.log("點擊標記按鈕, bookingId:", markStatusBtn.dataset.bookingId);
-                // Add dataset to menu for outside click check
-                // This needs to be done *inside* createStatusMenu ideally, or passed
-                createStatusMenu(markStatusBtn); // Show status options
-                // Add originatingBookingId after creation for the outside click check
-                if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
-                return; // Handled
+        // --- 列表狀態篩選按鈕 ---
+        const filterButton = target.closest('#booking-status-filter button');
+        if (filterButton) {
+            console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
+            document.querySelector('#booking-status-filter .active')?.classList.remove('active');
+            filterButton.classList.add('active');
+            fetchDataAndRender(filterButton.dataset.filter);
+            return;
+        }
+
+        // --- 手動建立預約按鈕 ---
+        if (target.id === 'create-booking-btn') {
+            console.log("點擊手動建立預約按鈕");
+            resetCreateBookingModal();
+            initializeCreateBookingModal();
+            ui.showModal('#create-booking-modal');
+            return;
+        }
+
+        // --- 管理公休日按鈕 ---
+        if (target.id === 'manage-booking-dates-btn') {
+            console.log("點擊管理公休日按鈕");
+            try {
+                enabledDates = await api.getBookingSettings();
+                console.log("獲取的可預約日期:", enabledDates);
+                if (bookingDatepicker) bookingDatepicker.destroy();
+                bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
+                    inline: true, mode: "multiple", dateFormat: "Y-m-d", defaultDate: enabledDates,
+                });
+                ui.showModal('#booking-settings-modal');
+            } catch (error) {
+                 ui.toast.error("初始化公休日設定失敗: " + error.message);
             }
+            return;
+        }
 
-            // --- 取消按鈕 (列表或日曆) ---
-            // ... (保持不變) ...
-            const quickCancelBtn = target.closest('.btn-quick-cancel');
-            if (quickCancelBtn) {
-                e.stopPropagation(); // 防止觸發外層事件
-                const bookingId = quickCancelBtn.dataset.bookingId;
-                console.log("點擊快速取消按鈕, bookingId:", bookingId);
-                if (!bookingId) {
-                     console.error("取消按鈕缺少 bookingId");
-                     return;
-                }
-                const confirmed = await ui.confirm('確定要取消此預約嗎？');
-                if (confirmed) {
-                    try {
-                        quickCancelBtn.disabled = true;
-                        await api.updateBookingStatus(Number(bookingId), 'cancelled');
-                        ui.toast.success('預約已取消');
-                        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-                        await fetchDataAndRender(activeFilter);
-                    } catch(err) {
-                        console.error("取消預約失敗:", err);
-                        ui.toast.error(`錯誤：${err.message}`);
-                        quickCancelBtn.disabled = false;
-                    }
-                }
-                return; // 處理完畢
-            }
+         // --- 日曆月份切換 --- (從舊的 page click 移過來)
+        if (target.id === 'calendar-prev-month-btn') {
+            console.log("點擊上個月按鈕");
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+            updateCalendar(); // 只更新日曆格子，不重新獲取數據
+            return;
+        }
+        if (target.id === 'calendar-next-month-btn') {
+            console.log("點擊下個月按鈕");
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+            updateCalendar(); // 只更新日曆格子，不重新獲取數據
+            return;
+        }
 
-
-            // --- 點擊看詳情 (日曆項目或列表行) ---
-            const calendarBooking = target.closest('.calendar-booking:not(.btn-quick-cancel)');
-            const bookingRow = target.closest('tr[data-booking-id]');
-
-            // 【修改】確保點擊的不是 "標記" 按鈕本身 或 "快速取消" 按鈕
-            if ((calendarBooking || bookingRow) && !target.closest('.btn-mark-status') && !target.closest('.btn-quick-cancel')) {
-                const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
-                console.log("點擊查看詳情, bookingId:", bookingId);
-                if (bookingId) {
-                    openBookingDetailsModal(bookingId);
-                } else {
-                     console.error("無法從點擊目標獲取 bookingId");
-                }
-                return; // Handled
-            }
-
-            // --- 切換日曆/列表檢視按鈕 ---
-            // ... (保持不變) ...
-            if (target.id === 'switch-to-calendar-view-btn') {
-                 console.log("點擊切換檢視按鈕");
-                const listView = document.getElementById('list-view-container');
-                const calendarView = document.getElementById('calendar-view-container');
-                 if (!listView || !calendarView) {
-                      console.error("找不到 listView 或 calendarView 容器");
-                      return;
+         // --- 日曆格子內的取消按鈕 --- (從舊的 page click 移過來)
+         const quickCancelBtnCalendar = target.closest('.calendar-booking .btn-quick-cancel');
+         if (quickCancelBtnCalendar) {
+             e.stopPropagation();
+             const bookingId = quickCancelBtnCalendar.dataset.bookingId;
+             console.log("點擊日曆快速取消按鈕, bookingId:", bookingId);
+             if (!bookingId) return;
+             const confirmed = await ui.confirm('確定要取消此預約嗎？');
+             if (confirmed) {
+                 try {
+                     quickCancelBtnCalendar.disabled = true;
+                     await api.updateBookingStatus(Number(bookingId), 'cancelled');
+                     ui.toast.success('預約已取消');
+                     // 日曆模式下，取消後只需要更新日曆格子
+                     // 找到對應的 booking 並從 allBookings 移除或更新狀態
+                     const index = allBookings.findIndex(b => b.booking_id == bookingId);
+                     if (index > -1) allBookings[index].status = 'cancelled';
+                     updateCalendar(); // 重新渲染日曆格子
+                 } catch(err) {
+                     ui.toast.error(`錯誤：${err.message}`);
+                     quickCancelBtnCalendar.disabled = false;
                  }
-                const isListVisible = listView.style.display !== 'none';
-                listView.style.display = isListVisible ? 'none' : 'block';
-                calendarView.style.display = isListVisible ? 'block' : 'none';
-                target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
-                fetchDataAndRender(); // 重新載入數據以適應新視圖
-                 return; // 處理完畢
-            }
+             }
+             return;
+         }
 
-            // --- 列表狀態篩選按鈕 ---
-            // ... (保持不變) ...
-            const filterButton = target.closest('#booking-status-filter button');
-            if (filterButton) {
-                console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
-                document.querySelector('#booking-status-filter .active')?.classList.remove('active');
-                filterButton.classList.add('active');
-                fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 條件載入數據
-                 return; // 處理完畢
-            }
+         // --- 日曆格子內的項目點擊 (開啟 Modal) --- (從舊的 page click 移過來)
+         const calendarBookingItem = target.closest('.calendar-booking');
+         if (calendarBookingItem && !target.closest('.btn-quick-cancel')) { // 確保不是點到取消按鈕
+             const bookingId = calendarBookingItem.dataset.bookingId;
+             console.log("點擊日曆項目, bookingId:", bookingId);
+             if (bookingId) {
+                 openBookingDetailsModal(bookingId);
+             }
+             return;
+         }
 
 
-            // --- 手動建立預約按鈕 ---
-            // ... (保持不變) ...
-             if (target.id === 'create-booking-btn') {
-                console.log("點擊手動建立預約按鈕");
-                resetCreateBookingModal();
-                initializeCreateBookingModal(); // Ensure it initializes if needed
-                ui.showModal('#create-booking-modal');
-                 return; // 處理完畢
-            }
-
-
-            // --- 管理公休日按鈕 ---
-            // ... (保持不變) ...
-            if (target.id === 'manage-booking-dates-btn') {
-                console.log("點擊管理公休日按鈕");
-                try {
-                    enabledDates = await api.getBookingSettings();
-                    console.log("獲取的可預約日期:", enabledDates);
-                    if (bookingDatepicker) {
-                         console.log("銷毀舊的 bookingDatepicker (管理用)");
-                         bookingDatepicker.destroy();
-                    }
-                    bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
-                        inline: true, mode: "multiple", dateFormat: "Y-m-d", defaultDate: enabledDates,
-                    });
-                    ui.showModal('#booking-settings-modal');
-                } catch (error) {
-                     console.error("初始化公休日設定失敗:", error);
-                     ui.toast.error("初始化公休日設定失敗: " + error.message);
-                }
-                 return; // 處理完畢
-            }
-
-        });
-        page.dataset.clickListenerAttached = 'true'; // 標記已綁定 page click listener
-        console.log("綁定 page click 事件委派。");
-    } else {
-        console.log("Page click listener 已綁定，跳過。");
-    }
+    });
+    page.dataset.staticListenersAttached = 'true'; // 標記已綁定靜態事件
+    console.log("靜態元素事件監聽器綁定完成。");
 
 
     // --- 綁定 Modal 表單提交事件 (保持不變) ---
@@ -1462,36 +1499,19 @@ function setupEventListeners() {
         console.log("綁定 save-booking-settings-btn click 事件。");
     }
 
-    // --- 綁定日曆月份切換按鈕事件 (保持不變) ---
-    const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
-    if (prevMonthBtn && !prevMonthBtn.dataset.clickListenerAttached) {
-        prevMonthBtn.addEventListener('click', () => {
-             console.log("點擊上個月按鈕");
-             currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
-             updateCalendar();
-        });
-        prevMonthBtn.dataset.clickListenerAttached = 'true';
-    }
+    // --- 移除日曆月份切換綁定 (已移到 page click 委派) ---
+    // const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
+    // if (prevMonthBtn && !prevMonthBtn.dataset.clickListenerAttached) { ... }
+    // const nextMonthBtn = document.getElementById('calendar-next-month-btn');
+    // if (nextMonthBtn && !nextMonthBtn.dataset.clickListenerAttached) { ... }
 
-    const nextMonthBtn = document.getElementById('calendar-next-month-btn');
-    if (nextMonthBtn && !nextMonthBtn.dataset.clickListenerAttached) {
-        nextMonthBtn.addEventListener('click', () => {
-             console.log("點擊下個月按鈕");
-             currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
-             updateCalendar();
-        });
-        nextMonthBtn.dataset.clickListenerAttached = 'true';
-    }
-
-    // --- 【移除】不再需要初始化標記 ---
-    // page.dataset.initialized = 'true';
-    console.log("setupEventListeners 完成。");
+    console.log("setupEventListeners (靜態部分) 完成。");
 }
+
 
 // --- init 函數保持不變 ---
 export const init = async () => {
-    // ---【修正】確保 setupEventListeners 在 fetchDataAndRender 之前執行 ---
-    setupEventListeners(); // 先綁定好所有靜態事件
-    await fetchDataAndRender('today'); // 然後載入初始數據
+    // 【修改】確保 setupEventListeners 先執行，綁定好靜態按鈕
+    setupEventListeners();
+    await fetchDataAndRender('today');
 };
-

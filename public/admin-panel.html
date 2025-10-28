@@ -1156,17 +1156,31 @@
             </div>
             <form id="edit-draft-form">
                 <input type="hidden" id="edit-draft-id">
+
                 <div class="form-group">
                     <label for="edit-draft-title">草稿標題</label>
                     <input type="text" id="edit-draft-title" required placeholder="方便您辨識的標題，不會傳送給顧客">
                 </div>
+
                 <div class="form-group">
                     <label for="edit-draft-content">訊息內容</label>
                     <textarea id="edit-draft-content" rows="6" required placeholder="這是將會傳送給顧客的實際內容"></textarea>
                 </div>
+
+                <div id="policy-edit-group" class="form-group" style="display: none;">
+                    <hr>
+                    <div class="form-group">
+                        <label for="edit-cancellation-policy">取消政策</label>
+                        <textarea id="edit-cancellation-policy" rows="8" placeholder="請輸入取消政策詳細說明..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-check-in-instructions">入住須知</label>
+                        <textarea id="edit-check-in-instructions" rows="8" placeholder="請輸入入住須知，例如入住/退房時間、注意事項等..."></textarea>
+                    </div>
+                </div>
+
                 <div class="form-actions">
-                    <button type="button" class="action-btn btn-cancel">取消</button>
-                    <button type="submit" class="action-btn btn-save">儲存草稿</button>
+                    <button type="button" class="action-btn btn-cancel modal-close">取消</button> <button type="submit" class="action-btn btn-save">儲存草稿</button>
                 </div>
             </form>
         </div>

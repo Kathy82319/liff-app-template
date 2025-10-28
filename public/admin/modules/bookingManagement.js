@@ -179,14 +179,10 @@ contentEl.innerHTML = `
                      `<div><label>退房日期:</label><input type="text" id="edit-checkout-date" value="${booking.check_out_date || ''}"></div>` :
                      `<div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>`
                  }
-                 {/* 【修改】確保 value 正確設置 */}
                  <div><label>${isGuesthouse ? '入住人數(參考)' : '總人數'}:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people || ''}" min="1" ${isGuesthouse ? 'readonly title="民宿人數由房型數量決定"' : ''}></div>
-                 {/* 【修改】確保 value 正確設置 */}
                  <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0" ${isGuesthouse ? 'readonly title="民宿總額由系統計算"' : ''}></div>
-                 {/* 【修改】確保 value 正確設置 */}
                  <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
             </div>
-            {/* 【修改】確保 value 正確設置 */}
             <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
             <h4>預約項目 (編輯中)</h4>
             <table class="items-table">

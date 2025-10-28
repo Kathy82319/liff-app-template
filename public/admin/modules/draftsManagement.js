@@ -64,86 +64,88 @@ function renderDraftList(drafts) {
 
 
 // 開啟編輯/新增草稿的 Modal (v3 - 修正 JSON 解析邏輯)
+// 開啟編輯/新增草稿的 Modal (v5 - 精確顯示/隱藏)
 function openEditDraftModal(draft = null) {
-    // ... (前半部分程式碼不變，省略) ...
     const editDraftModal = document.getElementById('edit-draft-modal');
     const editDraftForm = document.getElementById('edit-draft-form');
     if (!editDraftModal || !editDraftForm) return;
 
-    // --- 先隱藏所有欄位，再根據情況顯示 ---
-    editDraftForm.reset();
-    const allFormGroups = editDraftForm.querySelectorAll('.form-group');
-    allFormGroups.forEach(group => group.style.display = 'none');
-    const titleInput = document.getElementById('edit-draft-title');
-    const contentTextarea = document.getElementById('edit-draft-content');
-    const policyGroup = document.getElementById('policy-edit-group'); // 新增的政策編輯區塊 ID
+    editDraftForm.reset(); // 重置表單值
+
+    // --- 獲取所有需要控制顯隱的元素 ---
+    const titleGroup = document.getElementById('edit-draft-title').closest('.form-group');
+    const contentGroup = document.getElementById('edit-draft-content').closest('.form-group');
+    const policyGroup = document.getElementById('policy-edit-group');
     const cancellationPolicyTextarea = document.getElementById('edit-cancellation-policy');
     const checkInInstructionsTextarea = document.getElementById('edit-check-in-instructions');
     const modalTitle = editDraftModal.querySelector('#modal-draft-title');
     const draftIdInput = document.getElementById('edit-draft-id');
+    const titleInput = document.getElementById('edit-draft-title');
+    const contentTextarea = document.getElementById('edit-draft-content');
 
-    // --- 顯示共用欄位 ---
-    const draftId = draft ? Number(draft.draft_id) : null; // 將 ID 轉為數字
+    // --- 預設全部隱藏 (除了按鈕區) ---
+    if (titleGroup) titleGroup.style.display = 'none';
+    if (contentGroup) contentGroup.style.display = 'none';
+    if (policyGroup) policyGroup.style.display = 'none';
+    editDraftForm.querySelector('.form-actions').style.display = 'flex'; // 按鈕區總是顯示
+
+    // --- 獲取草稿 ID ---
+    const draftId = draft ? Number(draft.draft_id) : null;
     draftIdInput.value = draftId || '';
-    editDraftForm.querySelector('.form-actions').style.display = 'flex'; // 顯示按鈕區
 
+    // --- 根據草稿類型顯示對應欄位 ---
+    if (draftId === FIXED_DRAFT_IDS.POLICY) {
+        // --- 編輯政策草稿 (ID 1) ---
+        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.POLICY]}`;
+        if (policyGroup) policyGroup.style.display = 'block'; // **顯示政策區塊**
 
-    // --- 根據草稿類型顯示不同欄位 ---
-    if (draftId === FIXED_DRAFT_IDS.POLICY) { // **<-- 嚴格判斷 ID 1**
-        // --- 編輯政策草稿 ---
-        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.POLICY]}`; // 使用常數
-        // 先隱藏通用欄位
-        titleInput.closest('.form-group').style.display = 'none';
-        contentTextarea.closest('.form-group').style.display = 'none';
-        // 再顯示政策專用欄位 (確保覆蓋初始隱藏)
-        policyGroup.style.display = 'block'; // <--- **確保這行在隱藏通用欄位之後**
-
-        // 解析 JSON 填入 (只在此處解析)
+        // 解析 JSON 填入
         try {
-            // ... (JSON 解析邏輯不變) ...
-             const policyData = JSON.parse(draft.content || '{}');
-             cancellationPolicyTextarea.value = policyData.cancellationPolicy || '';
-             checkInInstructionsTextarea.value = policyData.checkInInstructions || '';
+            const policyData = JSON.parse(draft.content || '{}');
+            if (cancellationPolicyTextarea) cancellationPolicyTextarea.value = policyData.cancellationPolicy || '';
+            if (checkInInstructionsTextarea) checkInInstructionsTextarea.value = policyData.checkInInstructions || '';
         } catch (e) {
-            // ... (錯誤處理邏輯不變) ...
-             console.error(`解析政策內容 (ID: ${draftId}) 失敗:`, e, "原始內容:", draft.content);
-             ui.toast.error("讀取政策內容時發生錯誤，將顯示原始文字。");
-             cancellationPolicyTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
-             checkInInstructionsTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
+            console.error(`解析政策內容 (ID: ${draftId}) 失敗:`, e, "原始內容:", draft.content);
+            ui.toast.error("讀取政策內容時發生錯誤，將顯示原始文字。");
+            if (cancellationPolicyTextarea) cancellationPolicyTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
+            if (checkInInstructionsTextarea) checkInInstructionsTextarea.value = ''; // 第二個 Textarea 清空或顯示相同錯誤
         }
 
-    } else if (draftId === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) { // **<-- 嚴格判斷 ID 2**
-        // --- 編輯自動通知草稿 ---
-        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]}`; // **<-- 使用常數**
-        titleInput.closest('.form-group').style.display = 'block'; // 顯示標題
-        titleInput.value = FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]; // **<-- 使用常數**
-        titleInput.readOnly = true; // 標題不可修改
-        titleInput.style.backgroundColor = '#e9ecef'; // 灰底提示
-        contentTextarea.closest('.form-group').style.display = 'block'; // 顯示內容編輯
-        contentTextarea.value = draft.content; // 直接使用原始 content (字串)
-        policyGroup.style.display = 'none'; // 隱藏政策編輯
+    } else if (draftId === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) {
+        // --- 編輯自動通知草稿 (ID 2) ---
+        modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION]}`;
+        if (titleGroup) titleGroup.style.display = 'block'; // **顯示標題**
+        if (contentGroup) contentGroup.style.display = 'block'; // **顯示內容**
+        if (titleInput) {
+            titleInput.value = FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.AUTO_CONFIRMATION];
+            titleInput.readOnly = true;
+            titleInput.style.backgroundColor = '#e9ecef';
+        }
+        if (contentTextarea) contentTextarea.value = draft.content || '';
 
-    } else if (draft) { // **<-- 處理其他已存在的草稿 (ID 不是 1 或 2)**
-        // --- 編輯一般草稿 ---
+    } else if (draft) {
+        // --- 編輯一般草稿 (ID > 2) ---
         modalTitle.textContent = '編輯訊息草稿';
-        titleInput.closest('.form-group').style.display = 'block'; // 顯示標題
-        titleInput.value = draft.title;
-        titleInput.readOnly = false; // 允許修改
-        titleInput.style.backgroundColor = '';
-        contentTextarea.closest('.form-group').style.display = 'block'; // 顯示內容編輯
-        contentTextarea.value = draft.content; // 直接使用原始 content (字串)
-        policyGroup.style.display = 'none'; // 隱藏政策編輯
+        if (titleGroup) titleGroup.style.display = 'block'; // **顯示標題**
+        if (contentGroup) contentGroup.style.display = 'block'; // **顯示內容**
+        if (titleInput) {
+            titleInput.value = draft.title || '';
+            titleInput.readOnly = false;
+            titleInput.style.backgroundColor = '';
+        }
+        if (contentTextarea) contentTextarea.value = draft.content || '';
 
-    } else { // **<-- 新增草稿 (draft 為 null)**
+    } else {
         // --- 新增一般草稿 ---
         modalTitle.textContent = '新增訊息草稿';
-        titleInput.closest('.form-group').style.display = 'block'; // 顯示標題
-        titleInput.value = '';
-        titleInput.readOnly = false;
-        titleInput.style.backgroundColor = '';
-        contentTextarea.closest('.form-group').style.display = 'block'; // 顯示內容編輯
-        contentTextarea.value = '';
-        policyGroup.style.display = 'none'; // 隱藏政策編輯
+        if (titleGroup) titleGroup.style.display = 'block'; // **顯示標題**
+        if (contentGroup) contentGroup.style.display = 'block'; // **顯示內容**
+        if (titleInput) {
+             titleInput.value = '';
+             titleInput.readOnly = false;
+             titleInput.style.backgroundColor = '';
+        }
+        if (contentTextarea) contentTextarea.value = '';
     }
 
     ui.showModal('#edit-draft-modal');

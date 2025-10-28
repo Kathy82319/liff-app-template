@@ -141,14 +141,18 @@ export async function onRequest(context) {
                  }
             }
 
-            // --- 執行更新 (使用 Upsert) ---
+        // --- 執行更新 (使用 Upsert) ---
             await db.prepare(
                 `INSERT INTO MessageDrafts (draft_id, title, content) VALUES (?, ?, ?)
                  ON CONFLICT(draft_id) DO UPDATE SET title=excluded.title, content=excluded.content`
             ).bind(draft_id, title, content).run();
 
-            return new Response(JSON.stringify({ success: true }), { status: 200 });
-        }
+            // --- 修改點：明確指定 Content-Type ---
+            return new Response(JSON.stringify({ success: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' } // <-- 明確加入 Header
+            });
+        } // --- PUT 請求結束 ---
 
         // --- DELETE 請求 (阻止刪除固定草稿) ---
         if (request.method === 'DELETE') {

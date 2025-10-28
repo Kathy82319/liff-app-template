@@ -51,6 +51,7 @@ function getPriceForDate(dateString, product) {
 
 
 async function renderBookingDetails(booking, userProfile, isEditing = false) {
+    // ... (保留開頭的元素獲取和檢查) ...
     const contentEl = document.getElementById('booking-details-content');
     const modalContent = document.getElementById('booking-details-modal')?.querySelector('.modal-content');
     if (!contentEl || !modalContent) {
@@ -65,8 +66,6 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
 
     if (!isEditing) { // --- VIEW MODE ---
 
-        // --- 1. 顧客資訊 (優先顯示) ---
-        // 【修改】將 += 改為 =
 html = `<h4>顧客資訊</h4>`;
         if (userProfile) {
             html += `
@@ -157,7 +156,6 @@ html = `<h4>顧客資訊</h4>`;
         contentEl.innerHTML = html;
 
     } else { // --- EDIT MODE ---
-        // --- 【修改】移除 isGuesthouse 的錯誤提示，改為顯示編輯表單 ---
         let itemsHtml = '';
         booking.items.forEach((item, index) => {
              itemsHtml += `
@@ -172,48 +170,92 @@ html = `<h4>顧客資訊</h4>`;
              `;
         });
 
-         contentEl.innerHTML = `
-             <h4>預約資訊 (編輯中)</h4>
-             <div id="booking-edit-form" class="details-grid-container">
-                  <div><strong>預約單號:</strong> ${booking.booking_id}</div>
-                  <div><label>${isGuesthouse ? '入住' : '預約'}日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
-                  ${isGuesthouse ?
-                      `<div><label>退房日期:</label><input type="text" id="edit-checkout-date" value="${booking.check_out_date || ''}"></div>` :
-                      `<div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>`
-                  }
-                  <div><label>${isGuesthouse ? '入住人數(參考)' : '總人數'}:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people}" min="1" ${isGuesthouse ? 'readonly title="民宿人數由房型數量決定"' : ''}></div>
-                  <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0" ${isGuesthouse ? 'readonly title="民宿總額由系統計算"' : ''}></div>
-                  <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
-             </div>
-             <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
-             <h4>預約項目 (編輯中)</h4>
-             <table class="items-table">
-                 <thead><tr><th>${isGuesthouse ? '房型' : '項目名稱'}</th><th>數量</th><th>${isGuesthouse ? '單間總價' : '單價'}</th></tr></thead>
-                 <tbody id="editable-items-tbody">${itemsHtml}</tbody>
-             </table>
-         `;
+contentEl.innerHTML = `
+            <h4>預約資訊 (編輯中)</h4>
+            <div id="booking-edit-form" class="details-grid-container">
+                 <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                 <div><label>${isGuesthouse ? '入住' : '預約'}日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
+                 ${isGuesthouse ?
+                     `<div><label>退房日期:</label><input type="text" id="edit-checkout-date" value="${booking.check_out_date || ''}"></div>` :
+                     `<div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>`
+                 }
+                 {/* 【修改】確保 value 正確設置 */}
+                 <div><label>${isGuesthouse ? '入住人數(參考)' : '總人數'}:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people || ''}" min="1" ${isGuesthouse ? 'readonly title="民宿人數由房型數量決定"' : ''}></div>
+                 {/* 【修改】確保 value 正確設置 */}
+                 <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0" ${isGuesthouse ? 'readonly title="民宿總額由系統計算"' : ''}></div>
+                 {/* 【修改】確保 value 正確設置 */}
+                 <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
+            </div>
+            {/* 【修改】確保 value 正確設置 */}
+            <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
+            <h4>預約項目 (編輯中)</h4>
+            <table class="items-table">
+                <thead><tr><th>${isGuesthouse ? '房型' : '項目名稱'}</th><th>數量</th><th>${isGuesthouse ? '單間總價' : '單價'}</th></tr></thead>
+                <tbody id="editable-items-tbody">${itemsHtml}</tbody>
+            </table>
+        `;
 
-         // 初始化 Flatpickr
-         flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" });
-         if (isGuesthouse) {
-             flatpickr("#edit-checkout-date", { dateFormat: "Y-m-d" });
-         }
+        // 初始化 Flatpickr
+        flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" });
+        if (isGuesthouse) {
+            flatpickr("#edit-checkout-date", { dateFormat: "Y-m-d", defaultDate: booking.check_out_date || null }); 
+        }
+    }
+}
+
+
+async function handleSaveBookingChanges(bookingId) {
+    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+
+    const originalNumOfPeople = currentBookingInModal ? currentBookingInModal.num_of_people : 1; 
+
+    const payload = {
+        bookingId: bookingId,
+        bookingDate: document.getElementById('edit-booking-date').value,
+        contactPhone: document.getElementById('edit-booking-phone').value.trim() || null,
+        notes: document.getElementById('edit-booking-notes').value.trim() || null,
+        items: []
+    };
+
+    // 根據樣板添加特定欄位
+    if (isGuesthouse) {
+        payload.check_out_date = document.getElementById('edit-checkout-date').value || null;
+        payload.timeSlot = ''; 
+        payload.numOfPeople = originalNumOfPeople; 
+        payload.totalAmount = null; 
+    } else {
+        payload.timeSlot = document.getElementById('edit-booking-slot').value.trim() || '';
+        payload.numOfPeople = parseInt(document.getElementById('edit-booking-people').value, 10) || originalNumOfPeople; 
+        payload.totalAmount = parseFloat(document.getElementById('edit-booking-amount').value) || null;
+        payload.check_out_date = null; // 工作室 check_out_date 為 null
     }
 
-    // --- (延遲計算滾動的 setTimeout 保持不變) ---
-    setTimeout(() => {
-        // ... (原有的計算滾動邏輯) ...
-        const modalRect = modalContent.getBoundingClientRect();
-        const contentRect = contentEl.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        if (contentRect.height + 60 > viewportHeight * 0.9) { // 60 is approx padding
-            modalContent.style.maxHeight = '90vh';
-            modalContent.style.overflowY = 'auto';
-        }
-    }, 0);
+    document.querySelectorAll('#editable-items-tbody .editable-item-row').forEach(row => {
+         payload.items.push({
+             name: row.querySelector('.edit-item-name').value,
+             qty: parseInt(row.querySelector('.edit-item-qty').value, 10),
+             price: parseFloat(row.querySelector('.edit-item-price').value) || null,
+         });
+    });
+
+    if (!payload.bookingDate) { ui.toast.error('預約/入住日期為必填！'); return; }
+    if (isGuesthouse && !payload.check_out_date) { ui.toast.error('退房日期為必填！'); return; }
+    if (isGuesthouse && new Date(payload.bookingDate) >= new Date(payload.check_out_date)) { ui.toast.error('退房日期必須晚於入住日期！'); return; }
+    if (!isGuesthouse && !payload.timeSlot) { ui.toast.error('預約時段為必填！'); return; }
+    if (payload.items.length === 0) { ui.toast.error('必須至少包含一個項目！'); return; }
+
+    try {
+        await api.updateBookingDetails(payload);
+        ui.toast.success('預約更新成功！');
+        ui.hideModal('#booking-details-modal');
+        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+        await fetchDataAndRender(activeFilter);
+
+    } catch (error) {
+        ui.toast.error(`儲存失敗：${error.message}`);
+    }
 }
-// --- 修改 handleSaveBookingChanges (編輯儲存) ---
-// (BookingItems.price 是使用者在編輯時手動輸入的，無需自動計算)
+
 async function handleSaveBookingChanges(bookingId) {
     const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
 
@@ -1313,177 +1355,198 @@ async function fetchDataAndRender(filter = 'today') {
 
 
 // --- 綁定事件監聽器 (修正後完整版) ---
+// public/admin/modules/bookingManagement.js
+
+// ... (保留其他函數 createStatusMenu, closeStatusMenu, etc.) ...
+
 function setupEventListeners() {
-    console.log("setupEventListeners 函數觸發"); // 加入日誌
+    console.log("setupEventListeners 函數觸發");
     const page = document.getElementById('page-bookings');
-    // ---【修正】檢查 page 是否存在，以及是否已初始化 ---
-    if (!page || page.dataset.initialized === 'true') return;
+    if (!page) {
+         console.error("setupEventListeners: 找不到 #page-bookings 元素！");
+         return;
+    }
+    // 【修改】移除舊的初始化標記檢查，確保每次 init 都會檢查綁定
+    // if (page.dataset.initialized === 'true') {
+    //      console.log("setupEventListeners: 事件已初始化，跳過。");
+    //      return;
+    // }
 
-    // --- 使用事件委派處理頁面點擊 ---
+    // --- 【修改】使用事件委派處理頁面點擊 ---
+    // 檢查是否已綁定 page 級別的 click listener
+    if (!page.dataset.clickListenerAttached) {
         page.addEventListener('click', async e => {
-        const target = e.target;
-        console.log("頁面點擊事件觸發:", target);
+            const target = e.target;
+            console.log("頁面點擊事件觸發:", target);
 
-        // --- 【修改】Handle "Mark" button click ---
-        const markStatusBtn = target.closest('.btn-mark-status');
-        if (markStatusBtn && !markStatusBtn.disabled) { // 檢查按鈕是否禁用
-            e.stopPropagation(); // IMPORTANT: Prevent row click from opening modal
-            console.log("點擊標記按鈕, bookingId:", markStatusBtn.dataset.bookingId);
-            // Add dataset to menu for outside click check
-            if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
-            createStatusMenu(markStatusBtn); // Show status options
-            return; // Handled
-        }
-        
-        // --- 取消按鈕 (列表或日曆) ---
-        const quickCancelBtn = target.closest('.btn-quick-cancel');
-        if (quickCancelBtn) {
-            e.stopPropagation(); // 防止觸發外層事件
-            const bookingId = quickCancelBtn.dataset.bookingId;
-            console.log("點擊快速取消按鈕, bookingId:", bookingId);
-            if (!bookingId) {
-                 console.error("取消按鈕缺少 bookingId");
-                 return;
+            // --- 【修改】Handle "Mark" button click ---
+            const markStatusBtn = target.closest('.btn-mark-status');
+            if (markStatusBtn && !markStatusBtn.disabled) {
+                e.stopPropagation(); // IMPORTANT: Prevent row click from opening modal
+                console.log("點擊標記按鈕, bookingId:", markStatusBtn.dataset.bookingId);
+                // Add dataset to menu for outside click check
+                // This needs to be done *inside* createStatusMenu ideally, or passed
+                createStatusMenu(markStatusBtn); // Show status options
+                // Add originatingBookingId after creation for the outside click check
+                if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
+                return; // Handled
             }
-            const confirmed = await ui.confirm('確定要取消此預約嗎？');
-            if (confirmed) {
+
+            // --- 取消按鈕 (列表或日曆) ---
+            // ... (保持不變) ...
+            const quickCancelBtn = target.closest('.btn-quick-cancel');
+            if (quickCancelBtn) {
+                e.stopPropagation(); // 防止觸發外層事件
+                const bookingId = quickCancelBtn.dataset.bookingId;
+                console.log("點擊快速取消按鈕, bookingId:", bookingId);
+                if (!bookingId) {
+                     console.error("取消按鈕缺少 bookingId");
+                     return;
+                }
+                const confirmed = await ui.confirm('確定要取消此預約嗎？');
+                if (confirmed) {
+                    try {
+                        quickCancelBtn.disabled = true;
+                        await api.updateBookingStatus(Number(bookingId), 'cancelled');
+                        ui.toast.success('預約已取消');
+                        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                        await fetchDataAndRender(activeFilter);
+                    } catch(err) {
+                        console.error("取消預約失敗:", err);
+                        ui.toast.error(`錯誤：${err.message}`);
+                        quickCancelBtn.disabled = false;
+                    }
+                }
+                return; // 處理完畢
+            }
+
+
+            // --- 點擊看詳情 (日曆項目或列表行) ---
+            const calendarBooking = target.closest('.calendar-booking:not(.btn-quick-cancel)');
+            const bookingRow = target.closest('tr[data-booking-id]');
+
+            // 【修改】確保點擊的不是 "標記" 按鈕本身 或 "快速取消" 按鈕
+            if ((calendarBooking || bookingRow) && !target.closest('.btn-mark-status') && !target.closest('.btn-quick-cancel')) {
+                const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
+                console.log("點擊查看詳情, bookingId:", bookingId);
+                if (bookingId) {
+                    openBookingDetailsModal(bookingId);
+                } else {
+                     console.error("無法從點擊目標獲取 bookingId");
+                }
+                return; // Handled
+            }
+
+            // --- 切換日曆/列表檢視按鈕 ---
+            // ... (保持不變) ...
+            if (target.id === 'switch-to-calendar-view-btn') {
+                 console.log("點擊切換檢視按鈕");
+                const listView = document.getElementById('list-view-container');
+                const calendarView = document.getElementById('calendar-view-container');
+                 if (!listView || !calendarView) {
+                      console.error("找不到 listView 或 calendarView 容器");
+                      return;
+                 }
+                const isListVisible = listView.style.display !== 'none';
+                listView.style.display = isListVisible ? 'none' : 'block';
+                calendarView.style.display = isListVisible ? 'block' : 'none';
+                target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
+                fetchDataAndRender(); // 重新載入數據以適應新視圖
+                 return; // 處理完畢
+            }
+
+            // --- 列表狀態篩選按鈕 ---
+            // ... (保持不變) ...
+            const filterButton = target.closest('#booking-status-filter button');
+            if (filterButton) {
+                console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
+                document.querySelector('#booking-status-filter .active')?.classList.remove('active');
+                filterButton.classList.add('active');
+                fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 條件載入數據
+                 return; // 處理完畢
+            }
+
+
+            // --- 手動建立預約按鈕 ---
+            // ... (保持不變) ...
+             if (target.id === 'create-booking-btn') {
+                console.log("點擊手動建立預約按鈕");
+                resetCreateBookingModal();
+                initializeCreateBookingModal(); // Ensure it initializes if needed
+                ui.showModal('#create-booking-modal');
+                 return; // 處理完畢
+            }
+
+
+            // --- 管理公休日按鈕 ---
+            // ... (保持不變) ...
+            if (target.id === 'manage-booking-dates-btn') {
+                console.log("點擊管理公休日按鈕");
                 try {
-                    quickCancelBtn.disabled = true;
-                    await api.updateBookingStatus(Number(bookingId), 'cancelled');
-                    ui.toast.success('預約已取消');
-                    // 重新載入當前篩選條件的數據
-                    const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-                    await fetchDataAndRender(activeFilter);
-                } catch(err) {
-                    console.error("取消預約失敗:", err);
-                    ui.toast.error(`錯誤：${err.message}`);
-                    quickCancelBtn.disabled = false; // 失敗時恢復按鈕
+                    enabledDates = await api.getBookingSettings();
+                    console.log("獲取的可預約日期:", enabledDates);
+                    if (bookingDatepicker) {
+                         console.log("銷毀舊的 bookingDatepicker (管理用)");
+                         bookingDatepicker.destroy();
+                    }
+                    bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
+                        inline: true, mode: "multiple", dateFormat: "Y-m-d", defaultDate: enabledDates,
+                    });
+                    ui.showModal('#booking-settings-modal');
+                } catch (error) {
+                     console.error("初始化公休日設定失敗:", error);
+                     ui.toast.error("初始化公休日設定失敗: " + error.message);
                 }
+                 return; // 處理完畢
             }
-            return; // 處理完畢
-        }
 
-        // --- 點擊看詳情 (日曆項目或列表行) ---
-        const calendarBooking = target.closest('.calendar-booking:not(.btn-mark-status)');  
-        const bookingRow = target.closest('tr[data-booking-id]:not(.btn-mark-status)'); // Also exclude mark btn parent row if needed? No, row click is fine.
+        });
+        page.dataset.clickListenerAttached = 'true'; // 標記已綁定 page click listener
+        console.log("綁定 page click 事件委派。");
+    } else {
+        console.log("Page click listener 已綁定，跳過。");
+    }
 
-        if ((calendarBooking || bookingRow) && !target.closest('.btn-mark-status')) {
-            const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
-            console.log("點擊查看詳情, bookingId:", bookingId);
-            if (bookingId) {
-                openBookingDetailsModal(bookingId); // Open details modal
-            } else {
-                 console.error("無法從點擊目標獲取 bookingId");
-            }
-            return; // Handled
-        }
 
-        // --- 切換日曆/列表檢視按鈕 ---
-        if (target.id === 'switch-to-calendar-view-btn') {
-             console.log("點擊切換檢視按鈕");
-            const listView = document.getElementById('list-view-container');
-            const calendarView = document.getElementById('calendar-view-container');
-             // ---【新增】防禦性檢查 ---
-             if (!listView || !calendarView) {
-                  console.error("找不到 listView 或 calendarView 容器");
-                  return;
-             }
-            const isListVisible = listView.style.display !== 'none';
-            listView.style.display = isListVisible ? 'none' : 'block';
-            calendarView.style.display = isListVisible ? 'block' : 'none';
-            target.textContent = isListVisible ? '切換至列表' : '切換至行事曆';
-            fetchDataAndRender(); // 重新載入數據以適應新視圖
-             return; // 處理完畢
-        }
-
-        // --- 列表狀態篩選按鈕 ---
-        const filterButton = target.closest('#booking-status-filter button');
-        if (filterButton) {
-            console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
-            document.querySelector('#booking-status-filter .active')?.classList.remove('active');
-            filterButton.classList.add('active');
-            fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 條件載入數據
-             return; // 處理完畢
-        }
-
-        // --- 手動建立預約按鈕 ---
-        if (target.id === 'create-booking-btn') {
-            console.log("點擊手動建立預約按鈕");
-            resetCreateBookingModal(); // 重置 Modal 內容
-            initializeCreateBookingModal(); // 確保 Modal 初始化 (包含事件綁定)
-            ui.showModal('#create-booking-modal'); // 顯示 Modal
-             return; // 處理完畢
-        }
-
-        // --- 管理公休日按鈕 ---
-        if (target.id === 'manage-booking-dates-btn') {
-            console.log("點擊管理公休日按鈕");
-            try {
-                enabledDates = await api.getBookingSettings();
-                console.log("獲取的可預約日期:", enabledDates);
-                if (bookingDatepicker) {
-                     console.log("銷毀舊的 bookingDatepicker (管理用)");
-                     bookingDatepicker.destroy();
-                }
-                bookingDatepicker = flatpickr("#booking-datepicker-admin-container", {
-                    inline: true, mode: "multiple", dateFormat: "Y-m-d", defaultDate: enabledDates,
-                });
-                ui.showModal('#booking-settings-modal');
-            } catch (error) {
-                 console.error("初始化公休日設定失敗:", error);
-                 ui.toast.error("初始化公休日設定失敗: " + error.message);
-            }
-             return; // 處理完畢
-        }
-    });
-
-    // ---【修正】確保在 setupEventListeners 中只呼叫 initializeCreateBookingModal 一次 ---
-    // initializeCreateBookingModal(); // <--- 不在這裡直接呼叫，改為點擊按鈕時呼叫
-
-    // --- 綁定 Modal 表單提交事件 ---
+    // --- 綁定 Modal 表單提交事件 (保持不變) ---
     const createBookingForm = document.getElementById('create-booking-form');
-    // ---【修正】使用 dataset 標記防止重複綁定 ---
     if (createBookingForm && !createBookingForm.dataset.submitListenerAttached) {
         createBookingForm.addEventListener('submit', handleCreateBookingSubmit);
         createBookingForm.dataset.submitListenerAttached = 'true';
         console.log("綁定 create-booking-form submit 事件。");
     }
 
-    // --- 綁定儲存公休日按鈕事件 ---
+    // --- 綁定儲存公休日按鈕事件 (保持不變) ---
     const saveSettingsBtn = document.getElementById('save-booking-settings-btn');
-     // ---【修正】使用 dataset 標記防止重複綁定 ---
     if (saveSettingsBtn && !saveSettingsBtn.dataset.clickListenerAttached) {
         saveSettingsBtn.addEventListener('click', handleSaveBookingSettings);
         saveSettingsBtn.dataset.clickListenerAttached = 'true';
         console.log("綁定 save-booking-settings-btn click 事件。");
     }
 
-    // --- 綁定日曆月份切換按鈕事件 ---
+    // --- 綁定日曆月份切換按鈕事件 (保持不變) ---
     const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
-    // ---【修正】使用 dataset 標記防止重複綁定 ---
     if (prevMonthBtn && !prevMonthBtn.dataset.clickListenerAttached) {
         prevMonthBtn.addEventListener('click', () => {
              console.log("點擊上個月按鈕");
              currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
-             updateCalendar(); // 更新日曆顯示
+             updateCalendar();
         });
         prevMonthBtn.dataset.clickListenerAttached = 'true';
     }
 
     const nextMonthBtn = document.getElementById('calendar-next-month-btn');
-     // ---【修正】使用 dataset 標記防止重複綁定 ---
     if (nextMonthBtn && !nextMonthBtn.dataset.clickListenerAttached) {
         nextMonthBtn.addEventListener('click', () => {
              console.log("點擊下個月按鈕");
              currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
-             updateCalendar(); // 更新日曆顯示
+             updateCalendar();
         });
         nextMonthBtn.dataset.clickListenerAttached = 'true';
     }
 
-
-    // --- 標記頁面事件已初始化 ---
-    page.dataset.initialized = 'true';
+    // --- 【移除】不再需要初始化標記 ---
+    // page.dataset.initialized = 'true';
     console.log("setupEventListeners 完成。");
 }
 

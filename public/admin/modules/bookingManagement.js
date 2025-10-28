@@ -11,7 +11,7 @@ let bookingDatepicker = null; // For settings modal
 let enabledDates = [];
 let currentBookingInModal = null;
 let currentStatusMenu = null;
-
+let bookingListDateRangePicker = null; // 【新增】列表日期範圍選擇器實例
 // --- 【新增】複製 getPriceForDate 輔助函式過來 ---
 /**
  * 根據日期和產品資料獲取當日價格
@@ -49,6 +49,69 @@ function getPriceForDate(dateString, product) {
      return product.price_weekday !== null ? product.price_weekday : null;
 }
 
+
+async function fetchDataAndRender(filter = null) {
+    const bookingListTbody = document.getElementById('booking-list-tbody');
+    const calendarView = document.getElementById('calendar-view-container');
+    const searchInput = document.getElementById('booking-search-input');
+    // 【新增】獲取日期範圍選擇器的值
+    const dateRange = bookingListDateRangePicker ? bookingListDateRangePicker.selectedDates : [];
+    let startDate = '';
+    let endDate = '';
+    if (dateRange.length === 2) {
+        startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
+        endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
+    }
+
+    try {
+        if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
+
+        const isCalendarView = calendarView && getComputedStyle(calendarView).display !== 'none';
+        // 【修改】如果 filter 為 null，嘗試從 active 按鈕讀取
+        let activeFilterValue = filter;
+        if (activeFilterValue === null) {
+            activeFilterValue = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+        }
+
+        console.log(`fetchDataAndRender - Filter: ${activeFilterValue}, Search: ${searchInput.value}, Start: ${startDate}, End: ${endDate}, Calendar: ${isCalendarView}`);
+
+        // 【修改】構建 API 參數
+        const params = new URLSearchParams();
+        // 只有在非日曆視圖下才應用所有篩選器
+        if (!isCalendarView) {
+            // 狀態篩選器: 'all' 表示不傳 status 參數 (或後端需處理 'all')
+            if (activeFilterValue !== 'all') {
+                 params.append('status', activeFilterValue);
+            }
+             // 關鍵字搜尋
+             if (searchInput.value) {
+                 params.append('search', searchInput.value.trim());
+             }
+             // 日期範圍
+             if (startDate && endDate) {
+                 params.append('startDate', startDate);
+                 params.append('endDate', endDate);
+             }
+        } else {
+             // 日曆視圖通常只看 'all_upcoming' 或許可以增加參數看特定月份
+             params.append('status', 'all_upcoming'); // 或根據 currentCalendarDate 調整月份參數
+        }
+
+
+        // 【修改】API 呼叫
+        console.log(`Calling API: /api/get-bookings?${params.toString()}`);
+        allBookings = await api.getBookings(params.toString()); // 直接傳遞 params 字串
+
+        if (!isCalendarView) {
+            renderBookingList(allBookings);
+        } else {
+            updateCalendar();
+        }
+    } catch (error) {
+        console.error('獲取預約列表失敗:', error);
+        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">${error.message}</td></tr>`;
+    }
+}
 
 async function renderBookingDetails(booking, userProfile, isEditing = false) {
     // ... (保留開頭的元素獲取和檢查) ...
@@ -1059,7 +1122,9 @@ function renderBookingList(bookings) {
         if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; }
 
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
-        const isMarkDisabled = ['checked-in', 'cancelled', 'no-show'].includes(booking.status);
+        // --- 【修改】決定 "標記" 按鈕是否禁用 ---
+        // 只在 'cancelled' 或 'no-show' 時禁用
+        const isMarkDisabled = ['cancelled', 'no-show'].includes(booking.status);
 
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div></td>
@@ -1075,10 +1140,9 @@ function renderBookingList(bookings) {
 
     // --- ▼▼▼ 【新增/修改】在這裡綁定 tbody 的點擊事件 ▼▼▼ ---
     // 先移除舊監聽器，避免重複綁定 (如果之前有綁過)
-    const oldListener = bookingListTbody.handler; // 假設之前將 listener 存在 handler 屬性
+    const oldListener = bookingListTbody.handler;
     if (oldListener) {
         bookingListTbody.removeEventListener('click', oldListener);
-        console.log("Removed old tbody click listener.");
     }
 
     // 定義新的監聽器函數
@@ -1390,15 +1454,35 @@ function setupEventListeners() {
             return;
         }
 
-        // --- 列表狀態篩選按鈕 ---
+        // --- 狀態篩選按鈕 ---
         const filterButton = target.closest('#booking-status-filter button');
         if (filterButton) {
             console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             filterButton.classList.add('active');
-            fetchDataAndRender(filterButton.dataset.filter);
+            // 【修改】點擊狀態按鈕時，清空進階篩選並重新查詢
+            clearAdvancedFilters(); // 清空搜尋框和日期
+            fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 載入數據
             return;
         }
+
+        // --- 【新增】進階查詢按鈕 ---
+        if (target.id === 'apply-advanced-filters-btn') {
+            console.log("點擊進階查詢按鈕");
+            // 直接呼叫 fetchDataAndRender，它會讀取搜尋框和日期的值
+            // filter 值會從當前 active 的狀態按鈕讀取
+            fetchDataAndRender();
+            return;
+        }
+
+        // --- 【新增】清除進階篩選按鈕 ---
+        if (target.id === 'clear-advanced-filters-btn') {
+            console.log("點擊清除進階篩選按鈕");
+            clearAdvancedFilters();
+            // 清除後，觸發一次查詢 (使用當前選中的狀態按鈕)
+            fetchDataAndRender();
+            return;
+        }        
 
         // --- 手動建立預約按鈕 ---
         if (target.id === 'create-booking-btn') {
@@ -1498,20 +1582,43 @@ function setupEventListeners() {
         saveSettingsBtn.dataset.clickListenerAttached = 'true';
         console.log("綁定 save-booking-settings-btn click 事件。");
     }
+// --- 【新增】初始化列表的日期範圍選擇器 ---
+    const dateRangeInput = document.getElementById('booking-date-range-filter');
+    if (dateRangeInput && !dateRangeInput.dataset.flatpickrInstance) { // 檢查是否已初始化
+        try {
+            bookingListDateRangePicker = flatpickr(dateRangeInput, {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                locale: "zh_tw",
+                onClose: (selectedDates, dateStr, instance) => {
+                     // 選完日期範圍後可以選擇是否自動觸發查詢，目前是點擊查詢按鈕才查
+                     console.log("列表日期範圍選擇:", dateStr);
+                }
+            });
+            dateRangeInput.dataset.flatpickrInstance = 'true'; // 標記已初始化
+            console.log("列表日期範圍選擇器初始化完成。");
+        } catch(e) {
+            console.error("初始化列表日期範圍選擇器失敗:", e);
+            ui.toast.error("日期篩選器初始化失敗");
+        }
+    }
 
-    // --- 移除日曆月份切換綁定 (已移到 page click 委派) ---
-    // const prevMonthBtn = document.getElementById('calendar-prev-month-btn');
-    // if (prevMonthBtn && !prevMonthBtn.dataset.clickListenerAttached) { ... }
-    // const nextMonthBtn = document.getElementById('calendar-next-month-btn');
-    // if (nextMonthBtn && !nextMonthBtn.dataset.clickListenerAttached) { ... }
 
     console.log("setupEventListeners (靜態部分) 完成。");
+}
+
+// --- 【新增】清除進階篩選的輔助函數 ---
+function clearAdvancedFilters() {
+    const searchInput = document.getElementById('booking-search-input');
+    if (searchInput) searchInput.value = '';
+    if (bookingListDateRangePicker) bookingListDateRangePicker.clear();
+    console.log("已清除進階篩選條件。");
 }
 
 
 // --- init 函數保持不變 ---
 export const init = async () => {
-    // 【修改】確保 setupEventListeners 先執行，綁定好靜態按鈕
+    // 【修改】確保 setupEventListeners 先執行
     setupEventListeners();
-    await fetchDataAndRender('today');
+    await fetchDataAndRender('today'); // 載入初始數據
 };

@@ -849,15 +849,9 @@ loadingEl.style.display = 'block';
         }
         // --- 【修改結束】---
 
-document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
+        document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
         document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-'; //
-        if (booking.booking_date && booking.check_out_date) {
-            try {
-                const start = new Date(booking.booking_date + 'T00:00:00');
-                const end = new Date(booking.check_out_date + 'T00:00:00');
-                nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-            } catch(e) { console.error("計算晚數失敗:", e); }
-        }
+
         document.getElementById('details-nights').textContent = nights; //
 
         const itemsListEl = document.getElementById('details-items-list');

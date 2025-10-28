@@ -193,7 +193,14 @@
 
     /* CRM Modal */
     #user-details-modal .modal-content { max-width: 800px; }
-    .details-grid { display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; }
+    .details-grid {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 1.5rem;
+        /* 將 align-items 改為 flex-start 或 stretch */
+        align-items: flex-start; /* 確保子項目從頂部開始對齊 */
+        /* 或者 align-items: stretch; 讓子項目填滿高度 */
+    }
     .profile-summary img {
         width: 100px; height: 100px; border-radius: 50%;
         margin-bottom: 1rem; background-color: #f0f0f0;

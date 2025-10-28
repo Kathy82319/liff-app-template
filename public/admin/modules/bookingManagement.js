@@ -901,7 +901,7 @@ async function handleSaveBookingSettings() {
 
 
 
-sync function openBookingDetailsModal(bookingId) {
+async function openBookingDetailsModal(bookingId) {
     const modal = document.getElementById('booking-details-modal');
     const contentEl = document.getElementById('booking-details-content');
     const actionsContainer = document.getElementById('booking-details-actions'); // Ensure this ID exists on the actions div

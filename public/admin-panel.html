@@ -404,20 +404,21 @@
 }
 .details-notes {
         margin-top: 15px;
-        align-self: flex-start; /* Force this container to align top */
-        width: 100%; /* Ensure it takes full width */
+        width: 100%;
+        text-align: left; /* 確保容器本身靠左 */
     }
-    .details-notes strong { /* Ensure label aligns correctly */
+    .details-notes strong {
+        display: block;
         margin-bottom: 5px;
+        text-align: left; /* 確保標籤靠左 */
     }
     .details-notes pre {
         white-space: pre-wrap;
         background-color: #f8f9fa;
         padding: 10px;
         border-radius: var(--border-radius);
-        margin: 0; /* Remove default margins */
-        text-align: left; /* Ensure text inside aligns left */
-        /* Add min-height if you want it to have some height even when empty */
+        margin: 0;
+        text-align: left; /* 確保內部文字靠左 */
         min-height: 3em;
     }
 .items-table {
@@ -623,22 +624,17 @@
         border: 1px solid #ffe58f;
         max-height: 5em; /* Keep max-height */
         overflow-y: auto; /* Keep overflow */
-        /* align-self: flex-start; */ /* May not be needed without flex parent */
-        /* display: flex; */  /* --- REMOVE --- */
-        /* flex-direction: column; */ /* --- REMOVE --- */
+        /* display: block; */ /* Ensure it's a block element */
     }
     .crm-notes-section h4 { /* Matches h4 used in userManagement.js */
-         margin-top: 0; /* Ensure heading is at the top */
-         margin-bottom: 0.5rem; /* Space below heading */
-         /* flex-shrink: 0; */ /* --- REMOVE --- */
+         margin-top: 0;
+         margin-bottom: 0.5rem;
     }
     .crm-notes-section p {
-        margin-top: 0; /* Ensure paragraph starts right below heading */
-        margin-bottom: 0; /* Remove bottom margin */
-        /* align-self: flex-start; */ /* --- REMOVE --- */
-        text-align: left; /* Ensure text is left-aligned */
-        width: 100%; /* Ensure it takes full width */
-        white-space: pre-wrap; /* Keep this from original JS */
+        margin: 0; /* 【修改】確保上下 margin 都是 0 */
+        text-align: left;
+        width: 100%;
+        white-space: pre-wrap;
     }
     .status-tag.status-noshow, .calendar-booking.status-noshow { /* 新增 no-show 樣式 */
     background-color: var(--color-warning);

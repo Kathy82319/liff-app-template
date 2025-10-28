@@ -256,64 +256,6 @@ async function handleSaveBookingChanges(bookingId) {
     }
 }
 
-async function handleSaveBookingChanges(bookingId) {
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
-
-    const payload = {
-        bookingId: bookingId,
-        bookingDate: document.getElementById('edit-booking-date').value,
-        contactPhone: document.getElementById('edit-booking-phone').value.trim() || null,
-        notes: document.getElementById('edit-booking-notes').value.trim() || null,
-        items: []
-    };
-
-    // 根據樣板添加特定欄位
-    if (isGuesthouse) {
-        payload.check_out_date = document.getElementById('edit-checkout-date').value || null;
-        // 民宿的 numOfPeople 和 totalAmount 由後端計算或不允許前端修改，這裡不傳
-        payload.timeSlot = ''; // 民宿 timeSlot 為空
-        payload.numOfPeople = null; // Let backend recalculate if needed
-        payload.totalAmount = null; // Let backend recalculate
-    } else {
-        payload.timeSlot = document.getElementById('edit-booking-slot').value.trim() || '';
-        payload.numOfPeople = parseInt(document.getElementById('edit-booking-people').value, 10);
-        payload.totalAmount = parseFloat(document.getElementById('edit-booking-amount').value) || null;
-        payload.check_out_date = null; // 工作室 check_out_date 為 null
-    }
-
-    // 讀取項目
-    document.querySelectorAll('#editable-items-tbody .editable-item-row').forEach(row => {
-         payload.items.push({
-             // 民宿的 item_name 不允許修改，工作室可以
-             name: row.querySelector('.edit-item-name').value,
-             qty: parseInt(row.querySelector('.edit-item-qty').value, 10),
-             // 價格允許修改 (後端 API 會處理)
-             price: parseFloat(row.querySelector('.edit-item-price').value) || null,
-         });
-    });
-
-    // --- 基本驗證 ---
-    if (!payload.bookingDate) { ui.toast.error('預約/入住日期為必填！'); return; }
-    if (isGuesthouse && !payload.check_out_date) { ui.toast.error('退房日期為必填！'); return; }
-    if (isGuesthouse && new Date(payload.bookingDate) >= new Date(payload.check_out_date)) { ui.toast.error('退房日期必須晚於入住日期！'); return; }
-    if (!isGuesthouse && !payload.timeSlot) { ui.toast.error('預約時段為必填！'); return; }
-    if (payload.items.length === 0) { ui.toast.error('必須至少包含一個項目！'); return; }
-    // 可加入更詳細的驗證...
-
-    try {
-        await api.updateBookingDetails(payload); // 後端 API 已支援 check_out_date
-        ui.toast.success('預約更新成功！');
-        ui.hideModal('#booking-details-modal');
-        // ---【修改】確保 fetchDataAndRender 呼叫正確 ---
-        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-        await fetchDataAndRender(activeFilter); // 重新整理列表
-
-    } catch (error) {
-        ui.toast.error(`儲存失敗：${error.message}`);
-    }
-}
-
-
 // --- 修改 updateItemsSubtotal (手動建立預約時計算小計) ---
 function updateItemsSubtotal() {
     let subtotal = 0;

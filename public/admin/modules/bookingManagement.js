@@ -1004,7 +1004,7 @@ function renderBookingList(bookings) {
 
         let statusText = '未知', statusClass = '';
         if (booking.status === 'confirmed') { statusText = '預約成功'; statusClass = 'status-confirmed'; }
-        if (booking.status === 'checked-in') { statusText = '已報到/入住'; statusClass = 'status-checked-in'; } // Combined text
+        if (booking.status === 'checked-in') { statusText = '已入住'; statusClass = 'status-checked-in'; } // Combined text
         if (booking.status === 'cancelled') { statusText = '已取消'; statusClass = 'status-cancelled'; }
         if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; }
 
@@ -1048,7 +1048,7 @@ function createStatusMenu(targetButton) {
     menu.style.minWidth = '100px';
 
     const options = [
-        { text: '已入住/報到', value: 'checked-in', style: 'color: var(--color-success);' },
+        { text: '已入住', value: 'checked-in', style: 'color: var(--color-success);' },
         { text: '未如期入住', value: 'no-show', style: 'color: var(--color-warning);' },
         { text: '取消預約', value: 'cancelled', style: 'color: var(--color-danger);' }
     ];

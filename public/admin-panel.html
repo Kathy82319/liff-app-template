@@ -403,15 +403,24 @@
     padding: 5px 0;
 }
 .details-notes {
-    margin-top: 15px;
-}
-.details-notes pre {
-    white-space: pre-wrap;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-radius: var(--border-radius);
-    margin: 5px 0 0 0;
-}
+        margin-top: 15px;
+        align-self: flex-start; /* Force this container to align top */
+        width: 100%; /* Ensure it takes full width */
+    }
+    .details-notes strong { /* Ensure label aligns correctly */
+        display: block; /* Make label take its own line */
+        margin-bottom: 5px;
+    }
+    .details-notes pre {
+        white-space: pre-wrap;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: var(--border-radius);
+        margin: 0; /* Remove default margins */
+        text-align: left; /* Ensure text inside aligns left */
+        /* Add min-height if you want it to have some height even when empty */
+        min-height: 3em;
+    }
 .items-table {
     margin-top: 10px;
 }
@@ -607,21 +616,31 @@
     left: 0;
     z-index: 3; /* Highest z-index */
 }
-    .crm-notes-section {
+.crm-notes-section {
         margin-bottom: 1rem;
         padding: 0.8rem;
         background-color: #fffbe6;
         border-radius: 6px;
         border: 1px solid #ffe58f;
-        max-height: 5em;
-        overflow-y: auto;
-        align-self: flex-start; /* 強制此元素在交叉軸上從起始位置對齊 */
+        max-height: 5em; /* Keep max-height */
+        overflow-y: auto; /* Keep overflow */
+        align-self: flex-start; /* Keep this */
+        display: flex; /* Ensure it's a flex container if needed */
+        flex-direction: column; /* Ensure vertical layout */
     }
-    .crm-notes-section h4 { /* 讓標題靠上 */
-        margin-top: 0;
+    .crm-notes-section h5 { /* Keep title aligned top */
+         margin-top: 0;
+         margin-bottom: 0.5rem; /* Add some space below title */
+         flex-shrink: 0; /* Prevent title from shrinking */
     }
-    .crm-notes-section p { /* 讓段落也靠上 */
-        margin-top: 0;
+    .crm-notes-section p {
+        margin-top: 0; /* Remove default top margin */
+        margin-bottom: 0; /* Remove default bottom margin */
+        align-self: flex-start; /* Align paragraph itself to the start */
+        /* Optional: If text itself is centered */
+        text-align: left;
+        /* Ensure it can take full width if needed */
+        width: 100%;
     }
 </style>
 

@@ -391,39 +391,6 @@
         border-color: var(--color-danger);
     }
 
-
-/* --- 預約詳情視窗專用樣式 --- */
-.details-grid-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 10px 20px;
-    padding: 10px 0;
-}
-.details-grid-container div {
-    padding: 5px 0;
-}
-.details-notes {
-        margin-top: 5px;
-        width: 100%;
-        text-align: left; /* 確保容器本身靠左 */
-    }
-    .details-notes strong {
-        display: block;
-        margin-bottom: 5px;
-        text-align: left; /* 確保標籤靠左 */
-    }
-    .details-notes pre {
-        white-space: pre-wrap;
-        background-color: #f8f9fa;
-        padding: 10px;
-        border-radius: var(--border-radius);
-        margin: 0;
-        text-align: left; /* 確保內部文字靠左 */
-        min-height: 3em;
-    }
-.items-table {
-    margin-top: 10px;
-}
 #booking-details-content h4 {
     border-bottom: 2px solid var(--color-primary);
     padding-bottom: 8px;
@@ -616,26 +583,6 @@
     left: 0;
     z-index: 3; /* Highest z-index */
 }
-.crm-notes-section {
-        margin-bottom: 1rem;
-        padding: 0.8rem;
-        background-color: #fffbe6;
-        border-radius: 6px;
-        border: 1px solid #ffe58f;
-        max-height: 5em; /* Keep max-height */
-        overflow-y: auto; /* Keep overflow */
-        /* display: block; */ /* Ensure it's a block element */
-    }
-    .crm-notes-section h4 { /* Matches h4 used in userManagement.js */
-         margin-top: 0;
-         margin-bottom: 0.5rem;
-    }
-    .crm-notes-section p {
-        margin: 0; /* 【修改】確保上下 margin 都是 0 */
-        text-align: left;
-        width: 100%;
-        white-space: pre-wrap;
-    }
     .status-tag.status-noshow, .calendar-booking.status-noshow { /* 新增 no-show 樣式 */
     background-color: var(--color-warning);
     color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
@@ -662,6 +609,83 @@
     .status-menu-option:hover {
         background-color: #f0f0f0; /* Basic hover effect */
     }
+
+
+.crm-notes-section {
+    margin-bottom: 1rem; /* 可調整與下方元素的距離 */
+    padding: 0.8rem;
+    background-color: #fffbe6;
+    border-radius: 6px;
+    border: 1px solid #ffe58f;
+    max-height: 5em; /* 保留最大高度 */
+    overflow-y: auto; /* 保留滾動 */
+    /* display: block; */ /* 預設就是 block，通常不需要指定 */
+}
+.crm-notes-section h5 { /* 【新增/修改】 */
+     margin-top: 0; /* 確保標題頂部沒有多餘間距 */
+     margin-bottom: 0.5rem; /* 保留標題和內容間的距離 */
+     text-align: left; /* 明確指定靠左 */
+}
+.crm-notes-section p {
+    margin: 0; /* 確保內容上下沒有多餘間距 */
+    text-align: left; /* 明確指定靠左 */
+    width: 100%;
+    white-space: pre-wrap; /* 保留換行 */
+}
+
+/* --- 【新增】預約詳情視窗專用樣式 (從 admin-panel.html 搬移過來並整理) --- */
+.details-grid-container {
+    display: grid;
+    /* grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); */ /* 使用固定兩欄可能更整齊 */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px 20px; /* 減少垂直間距 */
+    padding: 10px 0;
+}
+.details-grid-container div {
+    padding: 3px 0; /* 減少 div 內上下 padding */
+}
+.details-notes {
+    margin-top: 5px; /* 減少與上方元素的距離 */
+    width: 100%;
+    text-align: left;
+}
+.details-notes strong {
+    display: block;
+    margin-bottom: 5px;
+    text-align: left;
+}
+.details-notes pre {
+    white-space: pre-wrap;
+    background-color: #f8f9fa; /* 用淺灰色背景 */
+    padding: 10px;
+    border-radius: var(--border-radius);
+    margin: 0;
+    text-align: left;
+    min-height: 3em;
+    border: 1px solid var(--color-border); /* 加個邊框 */
+}
+.items-table {
+    margin-top: 10px;
+}
+/* Style h4 within booking details modal specifically */
+#booking-details-modal .modal-body h4 {
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 8px;
+    margin-top: 20px;
+    margin-bottom: 15px;
+    color: var(--color-primary);
+    font-size: 1.1rem; /* 稍微縮小字體 */
+}
+#booking-details-modal .modal-body h4:first-child {
+    margin-top: 0;
+}
+
+/* --- 【新增】No-Show Status Tag Style (從 bookingManagement.js 搬過來) --- */
+.status-tag.status-noshow {
+    background-color: var(--color-warning);
+    color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
+    opacity: 0.8;
+}
 
 </style>
 

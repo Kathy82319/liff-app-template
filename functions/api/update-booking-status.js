@@ -7,8 +7,7 @@ export async function onRequest(context) {
     }
 
     const { bookingId, status } = await context.request.json();
-    const ALLOWED_STATUSES = ['confirmed', 'checked-in', 'cancelled'];
-
+    const ALLOWED_STATUSES = ['confirmed', 'checked-in', 'cancelled', 'no-show']; //
     // --- 後端安全驗證 ---
     if (!bookingId || typeof bookingId !== 'number') {
       return new Response(JSON.stringify({ error: '缺少有效的預約 ID。' }), { status: 400 });

@@ -640,6 +640,11 @@
         width: 100%; /* Ensure it takes full width */
         white-space: pre-wrap; /* Keep this from original JS */
     }
+    .status-tag.status-noshow, .calendar-booking.status-noshow { /* 新增 no-show 樣式 */
+    background-color: var(--color-warning);
+    color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
+    opacity: 0.8;
+    }
 </style>
 
 </head>
@@ -1286,9 +1291,9 @@
             <div id="booking-details-content" class="modal-body" style="padding-top: 15px;">
                 <p>讀取中...</p>
             </div>
-            <div class="form-actions">
-                <button type="button" class="action-btn btn-cancel">關閉</button>
-                <button type="button" id="booking-details-edit-btn" class="action-btn btn-save">編輯</button>
+            {/* */}
+            <div id="booking-details-actions" class="form-actions">
+                {/* 按鈕將由 JS 動態生成 */}
             </div>
         </div>
     </div>

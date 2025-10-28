@@ -885,7 +885,7 @@ function updateCalendar() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     calendarMonthYear.textContent = `${year} 年 ${month + 1} 月`;
-    calendarGrid.innerHTML = '';
+    calendarGrid.innerHTML = ''; // 清空舊內容
 
     const days = ['日', '一', '二', '三', '四', '五', '六'];
     days.forEach(day => {
@@ -895,32 +895,82 @@ function updateCalendar() {
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.innerHTML += `<div></div>`;
+    // 建立一個 Map 來儲存每天的預約 (提高查找效率)
+    const bookingsByDate = new Map();
+    allBookings.filter(b => b.status !== 'cancelled').forEach(booking => { //
+        // --- 【修改】處理民宿跨日預約 ---
+        if (booking.check_out_date && booking.booking_date !== booking.check_out_date) {
+            try {
+                const startDate = new Date(booking.booking_date + 'T00:00:00');
+                const endDate = new Date(booking.check_out_date + 'T00:00:00'); // 退房日當天不包含
+                let currentDate = new Date(startDate);
 
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const bookingsForDay = allBookings.filter(b => b.booking_date === dateStr && b.status !== 'cancelled');
-        
-        // ▼▼▼ 從這裡開始是修改重點 ▼▼▼
-        let dayHtml = `<div class="calendar-day"><span class="day-number">${day}</span>`;
-        bookingsForDay.forEach(b => {
-            let statusClass = '';
-            if (b.status === 'confirmed') statusClass = 'status-confirmed';
-            if (b.status === 'checked-in') statusClass = 'status-checked-in';
+                while (currentDate < endDate) {
+                    // 只處理當前月份的日期
+                    if (currentDate.getFullYear() === year && currentDate.getMonth() === month) {
+                         const dateStr = currentDate.toISOString().split('T')[0];
+                         if (!bookingsByDate.has(dateStr)) {
+                            bookingsByDate.set(dateStr, []);
+                         }
+                         bookingsByDate.get(dateStr).push(booking);
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+            } catch (e) {
+                console.error("處理跨日預約日期錯誤:", e, booking);
+                 // 如果日期處理出錯，還是嘗試顯示在第一天
+                 const dateStr = booking.booking_date;
+                 if (dateStr && new Date(dateStr).getFullYear() === year && new Date(dateStr).getMonth() === month) {
+                      if (!bookingsByDate.has(dateStr)) bookingsByDate.set(dateStr, []);
+                      bookingsByDate.get(dateStr).push(booking);
+                 }
+            }
+        }
+        // --- 【修改】處理單日預約 (工作室或民宿只訂一晚) ---
+        else {
+             const dateStr = booking.booking_date; //
+             // 確保日期是當前顯示的月份
+             try {
+                const bookingDateObj = new Date(dateStr + 'T00:00:00');
+                if (bookingDateObj.getFullYear() === year && bookingDateObj.getMonth() === month) {
+                    if (!bookingsByDate.has(dateStr)) {
+                        bookingsByDate.set(dateStr, []);
+                    }
+                    bookingsByDate.get(dateStr).push(booking); //
+                }
+             } catch(e){ console.error("處理單日預約日期錯誤:", e, booking); }
+        }
+    });
 
-            dayHtml += `
+    for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.innerHTML += `<div></div>`; //
+
+    for (let day = 1; day <= daysInMonth; day++) { //
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; //
+        const bookingsForDay = bookingsByDate.get(dateStr) || []; //
+
+        // --- 【修改】將預約項目放入可滾動的 div ---
+        let bookingsHtml = '<div class="calendar-bookings-container">'; // 新增容器
+        bookingsForDay.forEach(b => { //
+            let statusClass = ''; //
+            if (b.status === 'confirmed') statusClass = 'status-confirmed'; //
+            if (b.status === 'checked-in') statusClass = 'status-checked-in'; //
+
+            // 顯示名稱和時段 (如果有的話)
+            const timeDisplay = b.time_slot ? `${b.time_slot} ` : '';
+            bookingsHtml += `
                 <div class="calendar-booking ${statusClass}" data-booking-id="${b.booking_id}" style="cursor: pointer;">
-                    <span>${b.time_slot} ${b.contact_name}</span>
+                    <span>${timeDisplay}${b.contact_name}</span>
                     <button class="btn-quick-cancel" data-booking-id="${b.booking_id}">&times;</button>
                 </div>
-            `;
+            `; //
         });
-        dayHtml += `</div>`;
-        calendarGrid.innerHTML += dayHtml;
-        // ▲▲▲ 修改重點結束 ▲▲▲
+        bookingsHtml += '</div>'; // 結束容器
+
+        let dayHtml = `<div class="calendar-day"><span class="day-number">${day}</span>${bookingsHtml}</div>`; //
+        calendarGrid.innerHTML += dayHtml; //
+        // --- 【修改結束】 ---
     }
 }
-
 
 async function fetchDataAndRender(filter = 'today') {
     const bookingListTbody = document.getElementById('booking-list-tbody');

@@ -1,4 +1,4 @@
-// functions/api/bookings-create.js (v3 - Guesthouse & Studio Support with Inventory Check)
+// functions/api/bookings-create.js (v4 - Incorporate Message Draft)
 
 // 輔助函式：產生指定日期範圍內的所有日期字串 (YYYY-MM-DD)
 // 注意：這個版本不包含 endDate 本身 (用於庫存檢查)
@@ -13,6 +13,13 @@ function getDateRange(startDateStr, endDateStr) {
     return dates;
 }
 
+// --- 【新增】複製 message-drafts.js 中的固定 ID 和預設內容 ---
+const FIXED_DRAFT_IDS = {
+    AUTO_CONFIRMATION: 2
+};
+const DEFAULT_AUTO_CONFIRMATION_CONTENT = "感謝您的預訂！\n\n您的訂房資訊如下：\n入住日期：{{startDate}}\n退房日期：{{endDate}}\n房型：{{roomSummary}}\n總金額：{{totalAmount}}\n\n期待您的光臨！";
+// --- 【新增結束】 ---
+
 export async function onRequest(context) {
     try {
         if (context.request.method !== 'POST') {
@@ -21,7 +28,7 @@ export async function onRequest(context) {
 
         const db = context.env.DB;
         const body = await context.request.json();
-        console.log("[bookings-create] Received Payload:", JSON.stringify(body)); // Log 收到的資料
+        console.log("[bookings-create] Received Payload:", JSON.stringify(body));
 
         // --- 根據 bookingType 判斷是哪種預約 ---
         if (body.bookingType === 'guesthouse') {
@@ -35,7 +42,6 @@ export async function onRequest(context) {
             if (new Date(startDate) >= new Date(endDate)) {
                  return new Response(JSON.stringify({ error: '退房日期必須晚於入住日期。' }), { status: 400 });
             }
-            // 驗證 items 結構
             for (const item of items) {
                  if (!item.productId || !Number.isInteger(item.quantity) || item.quantity <= 0) {
                      return new Response(JSON.stringify({ error: '預訂項目格式錯誤 (缺少 productId 或 quantity 無效)。' }), { status: 400 });
@@ -43,40 +49,32 @@ export async function onRequest(context) {
             }
 
             // --- 核心：庫存檢查 ---
-            const bookingDates = getDateRange(startDate, endDate); // 獲取需要檢查庫存的日期列表
+            const bookingDates = getDateRange(startDate, endDate);
             if (bookingDates.length === 0) {
                  return new Response(JSON.stringify({ error: '無效的入住天數。' }), { status: 400 });
             }
 
             console.log(`[bookings-create] Checking inventory for ${items.length} products across ${bookingDates.length} dates: ${bookingDates.join(', ')}`);
 
-            // 準備一個查詢來獲取所有相關日期的庫存
             const productIdsToCheck = items.map(item => item.productId);
-            const datePlaceholders = bookingDates.map(() => '?').join(','); // ?,?,?
-            const productPlaceholders = productIdsToCheck.map(() => '?').join(','); // ?,?,?
+            const datePlaceholders = bookingDates.map(() => '?').join(',');
+            const productPlaceholders = productIdsToCheck.map(() => '?').join(',');
 
             const inventoryCheckStmt = db.prepare(
-                `SELECT inventory_date, product_id, status, quantity_available
+                `SELECT inventory_date, product_id, status, quantity_available, base_price
                  FROM RoomInventory
                  WHERE inventory_date IN (${datePlaceholders}) AND product_id IN (${productPlaceholders})`
             );
             const { results: currentInventory } = await inventoryCheckStmt.bind(...bookingDates, ...productIdsToCheck).all();
 
-            // 逐一檢查每個預訂項目在每一天的庫存
             for (const item of items) {
                 for (const dateStr of bookingDates) {
                     const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
-
-                    // 檢查條件：
-                    // 1. 必須找到記錄 (如果找不到，代表那天預設是 Closed)
-                    // 2. 狀態必須是 'Open'
-                    // 3. 可用數量必須 >= 預訂數量
                     if (!inventoryRecord || inventoryRecord.status !== 'Open' || inventoryRecord.quantity_available < item.quantity) {
                         console.error(`[bookings-create] Inventory Check FAILED for ${item.productId} on ${dateStr}. Record:`, inventoryRecord, `Requested: ${item.quantity}`);
-                        // 嘗試查詢房型名稱以提供更友善的錯誤訊息
                         const productInfo = await db.prepare("SELECT name FROM Products WHERE product_id = ?").bind(item.productId).first();
                         const productName = productInfo ? productInfo.name : item.productId;
-                        return new Response(JSON.stringify({ error: `抱歉，房型 "${productName}" 在 ${dateStr} 的數量不足或未開放預訂。` }), { status: 409 }); // 409 Conflict
+                        return new Response(JSON.stringify({ error: `抱歉，房型 "${productName}" 在 ${dateStr} 的數量不足或未開放預訂。` }), { status: 409 });
                     }
                      console.log(`[bookings-create] Inventory Check OK for ${item.productId} on ${dateStr}. Available: ${inventoryRecord.quantity_available}, Requested: ${item.quantity}`);
                 }
@@ -84,78 +82,80 @@ export async function onRequest(context) {
             console.log("[bookings-create] Inventory check passed for all items and dates.");
 
             // --- 計算總預訂房間數 ---
-            const totalQuantityBooked = items.reduce((sum, item) => sum + item.quantity, 0); // <-- 新增計算
-            console.log(`[bookings-create] Total quantity calculated: ${totalQuantityBooked}`); // <-- 新增 Log
+            const totalQuantityBooked = items.reduce((sum, item) => sum + item.quantity, 0);
+            console.log(`[bookings-create] Total quantity calculated: ${totalQuantityBooked}`);
 
             // --- 建立預訂記錄 & 更新庫存 (使用 Batch) ---
             const operations = [];
+            let booking_id; // Declare booking_id here
 
-            // 1. 插入 Bookings 主表 (注意欄位差異)
-            const bookingStmt = db.prepare(
-                // SQL 語句保持上次修改後的樣子 (包含 num_of_people)
+             // 1. 插入 Bookings 主表 (注意欄位差異)
+             const bookingStmt = db.prepare(
                 `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot, num_of_people)
                  VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING booking_id`
             );
-             // 執行插入 Booking 並立即獲取 booking_id
-             const { booking_id } = await bookingStmt.bind(
+             // Execute insert Booking and get booking_id immediately
+             const bookingResult = await bookingStmt.bind(
                  userId,
                  contactName,
                  contactPhone,
                  startDate,
                  endDate,
                  '', // time_slot
-                 totalQuantityBooked // **<-- 使用計算出的總房間數**
+                 totalQuantityBooked // Use the calculated total room count
              ).first();
 
-             if (!booking_id) {
+             if (!bookingResult || !bookingResult.booking_id) { // Check if bookingResult and booking_id exist
                  throw new Error('無法建立預約主紀錄，請稍後再試。');
              }
+             booking_id = bookingResult.booking_id; // Assign booking_id
              console.log(`[bookings-create] Booking record created with ID: ${booking_id}`);
+
 
             // 2. 插入 BookingItems (需要 productId, quantity, price - price 需後端計算)
             const itemInsertStmt = db.prepare(
                 `INSERT INTO BookingItems (booking_id, product_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)`
             );
-            // 準備查詢 Products 以獲取名稱和預設價格
+            // Prepare query for Products to get name and default prices
              const productsInfoStmt = db.prepare(`SELECT product_id, name, price_weekday, price_friday, price_saturday FROM Products WHERE product_id IN (${productPlaceholders})`);
              const { results: productsInfo } = await productsInfoStmt.bind(...productIdsToCheck).all();
 
-            let calculatedTotalAmount = 0; // 後端計算總金額
+            let calculatedTotalAmount = 0; // Backend calculates total amount
 
-            // 計算每個 item 的總價並準備插入 BookingItems
+            // Calculate total price for each item and prepare insert for BookingItems
             for (const item of items) {
                  const productDetails = productsInfo.find(p => p.product_id === item.productId);
                  if (!productDetails) {
-                      throw new Error(`找不到產品資訊: ${item.productId}`); // 應該不會發生，因為前面檢查過庫存
+                      throw new Error(`找不到產品資訊: ${item.productId}`);
                  }
                  let itemTotalPrice = 0;
-                 // 逐日計算價格
+                 // Calculate price day by day
                  for (const dateStr of bookingDates) {
                      const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
-                     let dailyPrice = inventoryRecord?.base_price; // 優先使用當日自訂價
+                     let dailyPrice = inventoryRecord?.base_price; // Prioritize custom daily price
 
-                     if (dailyPrice === null || dailyPrice === undefined) { // 若無自訂價，參考預設價
+                     if (dailyPrice === null || dailyPrice === undefined) { // If no custom price, refer to default price
                          const date = new Date(dateStr + 'T00:00:00');
                          const dayOfWeek = date.getDay();
                          if (dayOfWeek === 5) dailyPrice = productDetails.price_friday ?? productDetails.price_weekday;
                          else if (dayOfWeek === 6) dailyPrice = productDetails.price_saturday ?? productDetails.price_weekday;
                          else dailyPrice = productDetails.price_weekday;
                      }
-                     // 如果最終價格仍無效或 <= 0，這在庫存檢查階段就該被擋下，但加個保險
+                     // Insurance check: price should be valid (>0) at this stage due to inventory check
                      if (dailyPrice === null || dailyPrice === undefined || dailyPrice <= 0) {
                           throw new Error(`房型 "${productDetails.name}" 在 ${dateStr} 價格無效，無法完成預訂。`);
                      }
-                     itemTotalPrice += dailyPrice; // 累加每日價格 (單間房的總價)
+                     itemTotalPrice += dailyPrice; // Accumulate daily price (total price for one room)
                  }
-                 const pricePerItem = itemTotalPrice; // 這是單間房在入住期間的總價
-                 calculatedTotalAmount += pricePerItem * item.quantity; // 總金額 = (單間總價 * 數量) 的加總
+                 const pricePerItem = itemTotalPrice; // This is the total price for one room for the duration
+                 calculatedTotalAmount += pricePerItem * item.quantity; // Total amount = sum of (pricePerItem * quantity)
 
                  operations.push(itemInsertStmt.bind(
                       booking_id,
                       item.productId,
-                      productDetails.name, // 從 Products 獲取名稱
+                      productDetails.name, // Get name from Products
                       item.quantity,
-                      pricePerItem // 儲存單間房的總價
+                      pricePerItem // Store the total price for one room
                  ));
             }
              console.log(`[bookings-create] Calculated Total Amount: ${calculatedTotalAmount}`);
@@ -163,7 +163,7 @@ export async function onRequest(context) {
             // 3. 更新 RoomInventory (扣減數量)
             const inventoryUpdateStmt = db.prepare(
                 `UPDATE RoomInventory SET quantity_available = quantity_available - ?
-                 WHERE inventory_date = ? AND product_id = ? AND quantity_available >= ?` // 增加條件確保不會減成負數
+                 WHERE inventory_date = ? AND product_id = ? AND quantity_available >= ?` // Add condition to prevent negative quantity
             );
             for (const item of items) {
                 for (const dateStr of bookingDates) {
@@ -171,7 +171,7 @@ export async function onRequest(context) {
                 }
             }
 
-             // 4. (可選) 更新 Bookings 主表的 total_amount
+             // 4. (Optional) Update total_amount in the main Bookings table
              const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ? WHERE booking_id = ?");
              operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, booking_id));
 
@@ -180,14 +180,42 @@ export async function onRequest(context) {
             await db.batch(operations);
             console.log(`[bookings-create] Batch operations completed.`);
 
-            // --- 準備回傳訊息 ---
-            const itemSummary = items.map(item => {
-                 const name = productsInfo.find(p => p.product_id === item.productId)?.name || item.productId;
-                 return `${name} x${item.quantity}`;
-            }).join(', ');
-            const message = `您已成功預訂 ${startDate} 至 ${endDate} (${bookingDates.length}晚)，預訂房型：${itemSummary}。總金額 $${calculatedTotalAmount}。此訊息僅為通知，若有問題請聯絡店家。`;
+            // --- 【修改】讀取草稿並替換內容 ---
+            let messageContent = DEFAULT_AUTO_CONFIRMATION_CONTENT;
+            try {
+                const draftStmt = db.prepare("SELECT content FROM MessageDrafts WHERE draft_id = ?");
+                const draft = await draftStmt.bind(FIXED_DRAFT_IDS.AUTO_CONFIRMATION).first();
+                if (draft && draft.content) {
+                    messageContent = draft.content;
+                } else {
+                    console.warn(`[bookings-create] Draft ID ${FIXED_DRAFT_IDS.AUTO_CONFIRMATION} not found or content empty, using default message.`);
+                }
 
-            // --- 新增: 寫入活動紀錄 ---
+                // 準備房型摘要
+                 const roomSummary = items.map(item => {
+                     const name = productsInfo.find(p => p.product_id === item.productId)?.name || item.productId;
+                     return `${name} x${item.quantity}`;
+                 }).join(', ');
+
+                // 替換預留位置
+                messageContent = messageContent
+                    .replace(/{{startDate}}/g, startDate)
+                    .replace(/{{endDate}}/g, endDate)
+                    .replace(/{{roomSummary}}/g, roomSummary)
+                    .replace(/{{totalAmount}}/g, `$${calculatedTotalAmount}`);
+
+            } catch (draftError) {
+                console.error("[bookings-create] Error fetching or processing message draft:", draftError);
+                // 如果讀取或處理草稿失敗，還是使用預設訊息格式，但確保資料正確
+                 const roomSummary = items.map(item => {
+                     const name = productsInfo.find(p => p.product_id === item.productId)?.name || item.productId;
+                     return `${name} x${item.quantity}`;
+                 }).join(', ');
+                 messageContent = `您已成功預訂 ${startDate} 至 ${endDate} (${bookingDates.length}晚)，預訂房型：${roomSummary}。總金額 $${calculatedTotalAmount}。此訊息僅為通知，若有問題請聯絡店家。`;
+            }
+            // --- 【修改結束】 ---
+
+            // --- (寫入活動紀錄保持不變) ---
             const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
             context.waitUntil(activityStmt.bind('new_booking', `顧客 ${contactName} 預訂了 ${startDate} 的房間`, '#bookings').run());
 
@@ -195,11 +223,11 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({
                 success: true,
                 message: '訂房成功！',
-                confirmationMessage: message
+                confirmationMessage: messageContent // 回傳處理過的訊息
             }), { status: 201, headers: { 'Content-Type': 'application/json' } });
 
         } else if (body.bookingType === 'studio' || !body.bookingType) { // 如果是工作室預約或未指定類型
-            // --- 工作室預約邏輯 (基本保持舊版，但加入 RETURNING booking_id 和 Activities) ---
+            // --- 工作室預約邏輯 ---
             const { userId, bookingDate, timeSlot, numOfPeople, contactName, contactPhone, items } = body;
 
             // --- 後端驗證 ---
@@ -209,72 +237,100 @@ export async function onRequest(context) {
             if (!Array.isArray(items) || items.length === 0) {
                 return new Response(JSON.stringify({ error: '預約必須至少包含一個項目。' }), { status: 400 });
             }
-            // 驗證項目價格
             for (const item of items) {
                  if (item.price === null || item.price === undefined || isNaN(item.price) || item.price < 0) {
                      return new Response(JSON.stringify({ error: `預約項目 "${item.name}" 缺少有效價格。` }), { status: 400 });
                  }
             }
 
-
             // --- 使用 Batch 模擬交易 ---
+            let booking_id; // Declare booking_id here
             const bookingStmt = db.prepare(
                 'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people) VALUES (?, ?, ?, ?, ?, ?) RETURNING booking_id'
             );
-             // 執行插入 Booking 並立即獲取 booking_id
-             const { booking_id } = await bookingStmt.bind(userId, contactName, contactPhone, bookingDate, timeSlot, numOfPeople).first();
+             // Execute insert Booking and get booking_id immediately
+             const bookingResult = await bookingStmt.bind(userId, contactName, contactPhone, bookingDate, timeSlot, numOfPeople).first();
 
-             if (!booking_id) {
+             if (!bookingResult || !bookingResult.booking_id) { // Check if bookingResult and booking_id exist
                  throw new Error('無法建立預約主紀錄，請稍後再試。');
              }
+             booking_id = bookingResult.booking_id; // Assign booking_id
              console.log(`[bookings-create] Studio Booking record created with ID: ${booking_id}`);
 
 
             const itemOperations = [];
             const itemStmt = db.prepare(
-                'INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)' // 增加 product_id
+                'INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)' // Add product_id
             );
-             // 準備查詢 Products 以獲取 product_id (如果前端沒傳)
+             // Prepare query for Products to get product_id (if not sent from frontend)
              const itemNames = items.map(item => item.name);
              const namePlaceholders = itemNames.map(() => '?').join(',');
-             const productsInfoStmt = db.prepare(`SELECT name, product_id FROM Products WHERE name IN (${namePlaceholders})`);
-             const { results: productsInfo } = await productsInfoStmt.bind(...itemNames).all();
+             let productsInfo = []; // Initialize productsInfo
+             if (itemNames.length > 0) { // Only query if there are items
+                const productsInfoStmt = db.prepare(`SELECT name, product_id FROM Products WHERE name IN (${namePlaceholders})`);
+                const { results: fetchedProductsInfo } = await productsInfoStmt.bind(...itemNames).all();
+                productsInfo = fetchedProductsInfo || []; // Assign fetched results or empty array
+             }
 
 
-            let calculatedTotalAmount = 0; // 後端計算總金額
+            let calculatedTotalAmount = 0; // Backend calculates total amount
             items.forEach(item => {
                 const productDetails = productsInfo.find(p => p.name === item.name);
-                calculatedTotalAmount += (item.price * item.quantity); // 工作室直接用前端傳來的 price
+                calculatedTotalAmount += (item.price * item.quantity); // Studio uses price sent from frontend
                 itemOperations.push(itemStmt.bind(
                     booking_id,
                     item.name,
                     item.quantity,
-                    item.price, // 使用前端傳來的價格
-                    productDetails ? productDetails.product_id : null // 嘗試關聯 product_id
+                    item.price, // Use price sent from frontend
+                    productDetails ? productDetails.product_id : null // Try to associate product_id
                 ));
             });
 
-             // (可選) 更新 Bookings 主表的 total_amount
+             // (Optional) Update total_amount in the main Bookings table
              const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ? WHERE booking_id = ?");
              itemOperations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, booking_id));
 
-            // 一次性執行所有 item 的插入和總金額更新
+            // Execute all item inserts and total amount update at once
             await db.batch(itemOperations);
             console.log(`[bookings-create] Studio Items inserted and total amount updated.`);
 
+             // --- 【修改】讀取工作室草稿並替換 ---
+             let messageContent = `感謝您的預約！\n\n您的預約資訊如下：\n日期：{{bookingDate}}\n時段：{{timeSlot}}\n項目：{{itemSummary}}\n\n期待您的光臨！`; // Default message
+             try {
+                const draftStmt = db.prepare("SELECT content FROM MessageDrafts WHERE draft_id = ?");
+                const draft = await draftStmt.bind(FIXED_DRAFT_IDS.AUTO_CONFIRMATION).first();
+                if (draft && draft.content) {
+                    messageContent = draft.content;
+                } else {
+                     console.warn(`[bookings-create] Draft ID ${FIXED_DRAFT_IDS.AUTO_CONFIRMATION} not found or content empty, using default message for studio.`);
+                }
 
-            // --- 準備回傳給顧客的確認訊息 ---
-            const itemSummary = items.map(item => `${item.name} x${item.qty}`).join(', ');
-            const message = `您已成功預約 ${bookingDate} ${timeSlot}，預約項目：${itemSummary}。此訊息僅為通知，若有問題請聯絡店家。`;
+                // 準備項目摘要
+                 const itemSummary = items.map(item => `${item.name} x${item.quantity}`).join(', ');
 
-            // --- 新增: 寫入活動紀錄 ---
+                // 替換預留位置 (工作室可能需要的預留位置不同)
+                messageContent = messageContent
+                    .replace(/{{bookingDate}}/g, bookingDate)
+                    .replace(/{{timeSlot}}/g, timeSlot || '未指定')
+                    .replace(/{{itemSummary}}/g, itemSummary)
+                    .replace(/{{totalAmount}}/g, `$${calculatedTotalAmount}`); // 工作室也加入總金額替換
+
+             } catch (draftError) {
+                 console.error("[bookings-create] Error fetching or processing message draft for studio:", draftError);
+                 // 使用預設訊息格式
+                 const itemSummary = items.map(item => `${item.name} x${item.quantity}`).join(', ');
+                 messageContent = `您已成功預約 ${bookingDate} ${timeSlot || ''}，預約項目：${itemSummary}。此訊息僅為通知，若有問題請聯絡店家。`;
+             }
+             // --- 【修改結束】 ---
+
+            // --- (寫入活動紀錄保持不變) ---
             const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
             context.waitUntil(activityStmt.bind('new_booking', `顧客 ${contactName} 預約了 ${bookingDate} 的服務`, '#bookings').run());
 
             return new Response(JSON.stringify({
                 success: true,
                 message: '預約成功！',
-                confirmationMessage: message
+                confirmationMessage: messageContent // 回傳處理過的訊息
             }), { status: 201, headers: { 'Content-Type': 'application/json' } });
 
         } else {

@@ -272,22 +272,55 @@
         border-radius: var(--border-radius);
         box-shadow: var(--box-shadow);
     }
-    .calendar-weekday, .calendar-day {
-        text-align: center;
-        padding: 8px 4px;
-    }
-    .calendar-weekday {
-        font-weight: bold;
-        color: var(--color-text-light);
-    }
+
     .calendar-day {
         border: 1px solid var(--color-border);
-        min-height: 100px;
+        min-height: 100px; /* 保持最小高度 */
         position: relative;
+        display: flex; /* 改為 flex 佈局 */
+        flex-direction: column; /* 垂直排列 */
+        padding: 4px; /* 減少內邊距 */
+        box-sizing: border-box; /* 確保 padding 不會增加格子大小 */
     }
     .calendar-day .day-number {
         font-weight: 500;
+        text-align: center; /* 數字置中 */
+        margin-bottom: 4px; /* 與下方內容間隔 */
+        flex-shrink: 0; /* 防止數字被壓縮 */
     }
+    /* --- 【新增】滾動容器樣式 --- */
+    .calendar-bookings-container {
+        flex-grow: 1; /* 佔滿剩餘空間 */
+        overflow-y: auto; /* 內容超出時顯示垂直滾動條 */
+        /* 可選：美化滾動條 (WebKit 瀏覽器) */
+        scrollbar-width: thin; /* Firefox */
+        scrollbar-color: var(--color-secondary) var(--color-bg); /* Firefox */
+    }
+    .calendar-bookings-container::-webkit-scrollbar {
+        width: 5px;
+    }
+    .calendar-bookings-container::-webkit-scrollbar-track {
+        background: var(--color-bg);
+    }
+    .calendar-bookings-container::-webkit-scrollbar-thumb {
+        background-color: var(--color-secondary);
+        border-radius: 5px;
+    }
+
+    .calendar-booking {
+        font-size: 0.75rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-top: 2px; /* 項目間距 */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: flex; /* 讓取消按鈕能靠右 */
+        justify-content: space-between; /* 同 calendar-booking 樣式 */
+        align-items: center; /* 同 calendar-booking 樣式 */
+    }
+
+
     .calendar-booking {
         font-size: 0.75rem;
         padding: 2px 4px;

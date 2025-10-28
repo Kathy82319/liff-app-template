@@ -10,6 +10,7 @@ let createBookingDatepicker = null;
 let bookingDatepicker = null; // For settings modal
 let enabledDates = [];
 let currentBookingInModal = null;
+let currentStatusMenu = null;
 
 // --- 【新增】複製 getPriceForDate 輔助函式過來 ---
 /**
@@ -900,142 +901,91 @@ async function handleSaveBookingSettings() {
 
 
 
-async function openBookingDetailsModal(bookingId) {
+sync function openBookingDetailsModal(bookingId) {
     const modal = document.getElementById('booking-details-modal');
-    const contentEl = document.getElementById('booking-details-content'); // Get content element
-    const actionsContainer = document.getElementById('booking-details-actions'); // 【新增】獲取按鈕容器
-    // 【修改】移除 editBtn 的獲取，因為我們會動態生成按鈕
-    // const editBtn = document.getElementById('booking-details-edit-btn');
+    const contentEl = document.getElementById('booking-details-content');
+    const actionsContainer = document.getElementById('booking-details-actions'); // Ensure this ID exists on the actions div
 
-    // 【修改】增加 actionsContainer 的檢查
-    if (!modal || !contentEl || !actionsContainer ) return;
-
+    if (!modal || !contentEl || !actionsContainer) {
+        console.error("openBookingDetailsModal: Missing required modal elements.");
+        return;
+    }
 
     ui.showModal('#booking-details-modal');
     contentEl.innerHTML = '<p>正在載入預約資料...</p>';
-    actionsContainer.innerHTML = ''; // 【新增】清空舊按鈕
-
+    actionsContainer.innerHTML = ''; // Clear previous buttons
 
     try {
-        currentBookingInModal = allBookings.find(b => b.booking_id == bookingId); //
-        if (!currentBookingInModal) throw new Error('找不到預約資料'); //
+        currentBookingInModal = allBookings.find(b => b.booking_id == bookingId);
+        if (!currentBookingInModal) throw new Error('找不到預約資料');
 
         let userProfile = null;
-        if (currentBookingInModal.user_id && !currentBookingInModal.user_id.startsWith('walk-in-')) { //
-            // --- 【修改】使用 await 獲取顧客完整資料 ---
+        if (currentBookingInModal.user_id && !currentBookingInModal.user_id.startsWith('walk-in-')) {
             try {
-                 const userDetails = await api.getUserDetails(currentBookingInModal.user_id); //
-                 userProfile = userDetails.profile; //
+                 const userDetails = await api.getUserDetails(currentBookingInModal.user_id);
+                 userProfile = userDetails.profile;
             } catch (userError) {
                  console.warn(`無法載入顧客 ${currentBookingInModal.user_id} 的詳細資料:`, userError);
-                 // 即使顧客資料載入失敗，仍然繼續顯示預約資訊
             }
         }
 
-        await renderBookingDetails(currentBookingInModal, userProfile, false); // await render
+        await renderBookingDetails(currentBookingInModal, userProfile, false); // Render view mode
 
-// --- 【修改】動態生成按鈕 ---
-        // 1. 關閉按鈕 (固定存在)
+        // ---【修改】Only add Close and Edit (if applicable) buttons ---
+        // 1. Close Button (Always add)
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
-        closeButton.className = 'action-btn btn-cancel modal-close'; // 使用 modal-close class
+        closeButton.className = 'action-btn btn-cancel modal-close'; // Use modal-close class
         closeButton.textContent = '關閉';
         actionsContainer.appendChild(closeButton);
 
-        // 2. 編輯按鈕 (工作室樣板才有)
+        // 2. Edit Button (Only for non-Guesthouse)
         const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
         if (!isGuesthouse) {
             const editButton = document.createElement('button');
             editButton.type = 'button';
-            editButton.id = 'booking-details-edit-btn'; // 保留 ID
+            editButton.id = 'booking-details-edit-btn'; // Keep ID if needed
             editButton.className = 'action-btn btn-save';
             editButton.textContent = '編輯';
-            editButton.onclick = () => { // 綁定編輯/儲存邏輯
+            editButton.onclick = () => { // Keep edit/save logic
                 const isEditing = editButton.textContent === '儲存變更';
                 if (isEditing) {
                     handleSaveBookingChanges(currentBookingInModal.booking_id);
                 } else {
                     renderBookingDetails(currentBookingInModal, userProfile, true);
                     editButton.textContent = '儲存變更';
-                    // 編輯時隱藏其他操作按鈕
-                    actionsContainer.querySelectorAll('.action-btn:not(#booking-details-edit-btn):not(.btn-cancel)').forEach(btn => btn.style.display = 'none');
+                    // Optionally hide Close button during edit? Maybe not necessary.
+                    // closeButton.style.display = 'none'; // Example
                 }
             };
             actionsContainer.appendChild(editButton);
         }
-
-        // 3. 標記入住按鈕 (民宿或工作室，狀態為 confirmed)
-        if (currentBookingInModal.status === 'confirmed') {
-            const checkinButton = document.createElement('button');
-            checkinButton.type = 'button';
-            checkinButton.className = 'action-btn';
-            checkinButton.style.backgroundColor = 'var(--color-success)';
-            checkinButton.textContent = isGuesthouse ? '標記入住' : '標記報到';
-            checkinButton.onclick = async () => {
-                await handleStatusUpdate(checkinButton, currentBookingInModal.booking_id, 'checked-in', '標記入住/報到成功！');
-            };
-            actionsContainer.appendChild(checkinButton);
-        }
-
-        // --- 【新增】4. 標記未入住按鈕 ---
-        // 條件：狀態是 confirmed 且 預約日期已過
-        const today = new Date().toISOString().split('T')[0];
-        if (currentBookingInModal.status === 'confirmed' && currentBookingInModal.booking_date < today) {
-            const noShowButton = document.createElement('button');
-            noShowButton.type = 'button';
-            noShowButton.className = 'action-btn';
-            noShowButton.style.backgroundColor = 'var(--color-warning)';
-            noShowButton.style.color = 'var(--color-text-dark)'; // 黃色背景配深色字
-            noShowButton.textContent = '標記未入住';
-            noShowButton.onclick = async () => {
-                 const confirmed = await ui.confirm('確定要將此預約標記為「未如期入住」嗎？');
-                 if (confirmed) {
-                     await handleStatusUpdate(noShowButton, currentBookingInModal.booking_id, 'no-show', '已標記為未入住');
-                 }
-            };
-            actionsContainer.appendChild(noShowButton);
-        }
-
-        // 5. 取消預約按鈕 (狀態不是 cancelled)
-        if (currentBookingInModal.status !== 'cancelled') {
-             const cancelButton = document.createElement('button');
-             cancelButton.type = 'button';
-             cancelButton.className = 'action-btn';
-             cancelButton.style.backgroundColor = 'var(--color-danger)';
-             cancelButton.textContent = '取消預約';
-             cancelButton.onclick = async () => {
-                 const confirmed = await ui.confirm('確定要取消此預約嗎？');
-                 if (confirmed) {
-                    await handleStatusUpdate(cancelButton, currentBookingInModal.booking_id, 'cancelled', '預約已取消');
-                 }
-             };
-             actionsContainer.appendChild(cancelButton);
-        }
+        // ---【修改結束】---
 
     } catch (error) {
-        contentEl.innerHTML = `<p style="color: red;">讀取資料失敗：${error.message}</p>`; //
+        contentEl.innerHTML = `<p style="color: red;">讀取資料失敗：${error.message}</p>`;
     }
 }
 
 // --- 【新增】處理狀態更新的共用函數 ---
 async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMessage) {
-    if (!buttonElement) return;
-    const originalText = buttonElement.textContent;
-    buttonElement.disabled = true;
-    buttonElement.textContent = '處理中...';
-    try {
+    // ... (Keep existing implementation) ...
+    if (!buttonElement) return; //
+    const originalText = buttonElement.textContent; //
+    buttonElement.disabled = true; //
+    buttonElement.textContent = '處理中...'; //
+    try { //
         await api.updateBookingStatus(Number(bookingId), newStatus); //
-        ui.toast.success(successMessage);
-        ui.hideModal('#booking-details-modal');
-        // 重新載入當前列表/日曆
-        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-        await fetchDataAndRender(activeFilter);
-    } catch (err) {
-        ui.toast.error(`更新失敗: ${err.message}`);
-        buttonElement.disabled = false;
-        buttonElement.textContent = originalText;
+        ui.toast.success(successMessage); //
+        ui.hideModal('#booking-details-modal'); //
+        const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today'; //
+        await fetchDataAndRender(activeFilter); //
+    } catch (err) { //
+        ui.toast.error(`更新失敗: ${err.message}`); //
+        buttonElement.disabled = false; //
+        buttonElement.textContent = originalText; //
     }
-    // 成功時 Modal 已關閉，無需恢復按鈕
+
 }
 
 
@@ -1044,21 +994,24 @@ function renderBookingList(bookings) {
     if (!bookingListTbody) return;
     bookingListTbody.innerHTML = '';
     if (!bookings || bookings.length === 0) {
-        bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">找不到符合條件的預約。</td></tr>';
+        bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">找不到符合條件的預約。</td></tr>'; // Adjusted colspan if needed
         return;
     }
     bookings.forEach(booking => {
         const row = bookingListTbody.insertRow();
-        row.dataset.bookingId = booking.booking_id;
+        row.dataset.bookingId = booking.booking_id; // Keep this for modal opening
         row.style.cursor = 'pointer';
 
         let statusText = '未知', statusClass = '';
         if (booking.status === 'confirmed') { statusText = '預約成功'; statusClass = 'status-confirmed'; }
-        if (booking.status === 'checked-in') { statusText = '已報到'; statusClass = 'status-checked-in'; }
+        if (booking.status === 'checked-in') { statusText = '已報到/入住'; statusClass = 'status-checked-in'; } // Combined text
         if (booking.status === 'cancelled') { statusText = '已取消'; statusClass = 'status-cancelled'; }
-        if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; } // 使用新的 class 或沿用 cancelled
+        if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; }
 
         const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
+
+        // Determine if the "Mark" button should be disabled (already completed/cancelled/no-show)
+        const isMarkDisabled = ['checked-in', 'cancelled', 'no-show'].includes(booking.status);
 
         row.innerHTML = `
             <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div></td>
@@ -1067,12 +1020,101 @@ function renderBookingList(bookings) {
             <td>${booking.total_amount || 'N/A'}</td>
             <td><span class="status-tag ${statusClass}">${statusText}</span></td>
             <td class="actions-cell">
-                <button class="action-btn btn-edit-booking" data-booking-id="${booking.booking_id}" style="background-color: var(--color-primary);">查看</button>
-                {/* 取消按鈕現在移到 Modal 內，這裡可以移除或保留作為快速操作 */}
-                {/* <button class="action-btn btn-quick-cancel" data-booking-id="${booking.booking_id}" style="background-color: var(--color-danger);" ${booking.status === 'cancelled' || booking.status === 'no-show' ? 'disabled' : ''}>取消</button> */}
+                {/* ---【修改】用 "標記" 按鈕取代之前的按鈕 --- */}
+                <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
+                {/* 保留查看詳情的觸發機制 (點擊整行) */}
             </td>
-        `; //
+        `;
     });
+}
+
+
+// --- 【新增】Helper function to create and show the status menu ---
+function createStatusMenu(targetButton) {
+    // Close any existing menu
+    closeStatusMenu();
+
+    const bookingId = targetButton.dataset.bookingId;
+    if (!bookingId) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'status-menu'; // Add class for styling
+    menu.style.position = 'absolute';
+    menu.style.backgroundColor = 'var(--color-sidebar-bg, #FFF)'; // Use variable or fallback
+    menu.style.border = '1px solid var(--color-border, #CCC)';
+    menu.style.borderRadius = 'var(--border-radius, 4px)';
+    menu.style.boxShadow = 'var(--box-shadow, 0 2px 5px rgba(0,0,0,0.2))';
+    menu.style.zIndex = '1001'; // Ensure it's above other elements
+    menu.style.minWidth = '100px';
+
+    const options = [
+        { text: '已入住/報到', value: 'checked-in', style: 'color: var(--color-success);' },
+        { text: '未如期入住', value: 'no-show', style: 'color: var(--color-warning);' },
+        { text: '取消預約', value: 'cancelled', style: 'color: var(--color-danger);' }
+    ];
+
+    options.forEach(opt => {
+        const optionEl = document.createElement('div');
+        optionEl.className = 'status-menu-option'; // Add class for styling
+        optionEl.textContent = opt.text;
+        optionEl.dataset.status = opt.value;
+        optionEl.style.cssText = `padding: 8px 12px; cursor: pointer; ${opt.style}`;
+        optionEl.addEventListener('mouseenter', () => optionEl.style.backgroundColor = '#f0f0f0');
+        optionEl.addEventListener('mouseleave', () => optionEl.style.backgroundColor = '');
+
+        optionEl.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent triggering row click
+            closeStatusMenu(); // Close menu after selection
+            const confirmed = await ui.confirm(`確定要將此預約標記為「${opt.text}」嗎？`);
+            if (confirmed) {
+                // Use a temporary button object for handleStatusUpdate feedback
+                const feedbackTarget = {
+                    textContent: targetButton.textContent, // Store original text
+                    disabled: false // Initial state
+                };
+                 await handleStatusUpdate(feedbackTarget, bookingId, opt.value, `已標記為 ${opt.text}`);
+                 // Note: handleStatusUpdate will refresh the list, removing the need to update the button directly
+            }
+        });
+        menu.appendChild(optionEl);
+    });
+
+    // Position the menu below the button
+    const rect = targetButton.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + window.scrollY + 2}px`; // Below button + 2px gap
+    menu.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(menu);
+    currentStatusMenu = menu;
+
+    // Add listener to close menu when clicking outside
+    // Use setTimeout to allow the current click event to finish
+    setTimeout(() => {
+        document.addEventListener('click', closeStatusMenuOnClickOutside, { capture: true, once: true });
+    }, 0);
+}
+
+// --- 【新增】Helper function to close the status menu ---
+function closeStatusMenu() {
+    if (currentStatusMenu) {
+        currentStatusMenu.remove();
+        currentStatusMenu = null;
+        document.removeEventListener('click', closeStatusMenuOnClickOutside, { capture: true });
+    }
+}
+
+// --- 【新增】Listener function to close menu on outside click ---
+function closeStatusMenuOnClickOutside(event) {
+    if (currentStatusMenu && !currentStatusMenu.contains(event.target)) {
+        // Only close if the click was outside the menu itself
+        closeStatusMenu();
+    } else if (currentStatusMenu && currentStatusMenu.contains(event.target)) {
+         // If click was inside, re-attach the listener for the next click
+         // Use setTimeout to avoid immediate re-triggering if the click was on an option
+        setTimeout(() => {
+             document.addEventListener('click', closeStatusMenuOnClickOutside, { capture: true, once: true });
+         }, 0);
+    }
 }
 
 function updateCalendar() {
@@ -1158,8 +1200,7 @@ function updateCalendar() {
              bookingsHtml += `
                 <div class="calendar-booking ${statusClass}" data-booking-id="${b.booking_id}" style="cursor: pointer;">
                     <span>${timeDisplay}${b.contact_name}</span>
-                    {/* 移除日曆上的快速取消按鈕 */}
-                    {/* <button class="btn-quick-cancel" data-booking-id="${b.booking_id}">&times;</button> */}
+                    <button class="btn-quick-cancel" data-booking-id="${b.booking_id}">&times;</button>
                 </div>
              `; //
         });
@@ -1210,10 +1251,19 @@ function setupEventListeners() {
     }
 
     // --- 使用事件委派處理頁面點擊 ---
-    page.addEventListener('click', async e => {
+page.addEventListener('click', async e => {
         const target = e.target;
-        console.log("頁面點擊事件觸發:", target); // 加入日誌
+        console.log("頁面點擊事件觸發:", target);
 
+        // --- 【新增】Handle "Mark" button click ---
+        const markStatusBtn = target.closest('.btn-mark-status');
+        if (markStatusBtn) {
+            e.stopPropagation(); // IMPORTANT: Prevent row click from opening modal
+            console.log("點擊標記按鈕, bookingId:", markStatusBtn.dataset.bookingId);
+            createStatusMenu(markStatusBtn); // Show status options
+            return; // Handled
+        }
+        
         // --- 取消按鈕 (列表或日曆) ---
         const quickCancelBtn = target.closest('.btn-quick-cancel');
         if (quickCancelBtn) {
@@ -1243,17 +1293,18 @@ function setupEventListeners() {
         }
 
         // --- 點擊看詳情 (日曆項目或列表行) ---
-        const calendarBooking = target.closest('.calendar-booking');
-        const bookingRow = target.closest('tr[data-booking-id]');
-        if (calendarBooking || bookingRow) {
+        const calendarBooking = target.closest('.calendar-booking:not(.btn-mark-status)');  
+        const bookingRow = target.closest('tr[data-booking-id]:not(.btn-mark-status)'); // Also exclude mark btn parent row if needed? No, row click is fine.
+
+        if ((calendarBooking || bookingRow) && !target.closest('.btn-mark-status')) { // Check again it wasn't the mark button
             const bookingId = calendarBooking?.dataset.bookingId || bookingRow?.dataset.bookingId;
-             console.log("點擊查看詳情, bookingId:", bookingId);
-             if (bookingId) {
-                openBookingDetailsModal(bookingId); // 打開詳情 Modal
-             } else {
-                  console.error("無法從點擊目標獲取 bookingId");
-             }
-            return; // 處理完畢
+            console.log("點擊查看詳情, bookingId:", bookingId);
+            if (bookingId) {
+                openBookingDetailsModal(bookingId); // Open details modal
+            } else {
+                 console.error("無法從點擊目標獲取 bookingId");
+            }
+            return; // Handled
         }
 
         // --- 切換日曆/列表檢視按鈕 ---

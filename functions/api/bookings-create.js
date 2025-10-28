@@ -91,12 +91,19 @@ export async function onRequest(context) {
             //    - total_amount 需要計算 (或從前端傳入 - 但後端計算較安全)
             //    - time_slot, num_of_people 可能不需要或設為 NULL
             //    - status 預設為 'confirmed'
-            const bookingStmt = db.prepare(
-                `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status)
-                 VALUES (?, ?, ?, ?, ?, 'confirmed') RETURNING booking_id` // 使用 booking_date 代表 startDate, 新增 check_out_date
-            );
-             // 執行插入 Booking 並立即獲取 booking_id
-             const { booking_id } = await bookingStmt.bind(userId, contactName, contactPhone, startDate, endDate).first();
+        const bookingStmt = db.prepare(
+            `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot)
+             VALUES (?, ?, ?, ?, ?, 'confirmed', ?) RETURNING booking_id` // **<-- 加入 time_slot 和 ?**
+        );
+         // 執行插入 Booking 並立即獲取 booking_id
+         const { booking_id } = await bookingStmt.bind(
+             userId,
+             contactName,
+             contactPhone,
+             startDate,
+             endDate,
+             '' // **<-- 綁定空字串給 time_slot**
+         ).first();
 
              if (!booking_id) {
                  throw new Error('無法建立預約主紀錄，請稍後再試。');

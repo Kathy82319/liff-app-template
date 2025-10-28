@@ -51,80 +51,172 @@ function getPriceForDate(dateString, product) {
 
 // --- 修改 renderBookingDetails (View Mode) ---
 // (顯示詳情時，BookingItems.price 應該已經是當時的正確價格，無需修改)
-function renderBookingDetails(booking, userProfile, isEditing = false) {
+async function renderBookingDetails(booking, userProfile, isEditing = false) { // 變成 async
     const contentEl = document.getElementById('booking-details-content');
-    if (!contentEl) return;
+    const modalContent = document.getElementById('booking-details-modal').querySelector('.modal-content'); // 獲取 modal content
+    if (!contentEl || !modalContent) return;
+    // --- 【修改】判斷是否為民宿樣板 ---
+    const isGuesthouse = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+
+
+    modalContent.style.maxHeight = ''; // 清除舊的最大高度
+    modalContent.style.overflowY = ''; // 清除舊的滾動設置
 
     const contactName = userProfile ? (userProfile.nickname || userProfile.line_display_name) : booking.contact_name;
 
     // View Mode HTML (此部分**不需**修改價格顯示邏輯，因為 booking.items[x].price 應為正確值)
-    if (!isEditing) {
-        let html = `
-            <h4>預約資訊</h4>
-            <div class="details-grid-container">
-                <div><strong>預約單號:</strong> ${booking.booking_id}</div>
-                <div><strong>預約日期:</strong> ${booking.booking_date}</div>
-                <div><strong>預約時段:</strong> ${booking.time_slot}</div>
-                <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
-                <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
-                <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
-            </div>
-            <div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>
+if (!isEditing) { // --- VIEW MODE ---
 
-            <h4>預約項目</h4>
-            <table class="items-table">
-                <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
-                <tbody>
-        `;
-        // --- 這裡直接使用 booking.items[x].price ---
-        booking.items.forEach(item => {
-            html += `<tr><td>${item.item_name}</td><td>${item.quantity}</td><td>${item.price !== null ? '$' + item.price : 'N/A'}</td></tr>`;
-        });
-        html += '</tbody></table>';
-
-        if (userProfile) {
+        // --- 1. 顧客資訊 (優先顯示) ---
+        html += `<h4>顧客資訊</h4>`;
+        if (userProfile) { // 如果是註冊會員
             html += `
-                <hr><h4>顧客資訊 (會員)</h4>
-                <p><strong>顧客姓名:</strong> ${contactName}</p>
-                `;
-        } else {
-            html += `<hr><h4>顧客資訊 (臨時顧客)</h4><p><strong>顧客姓名:</strong> ${contactName}</p>`;
-        }
-        contentEl.innerHTML = html;
-    }
-    // Edit Mode HTML (此部分**不需**修改價格顯示邏輯，理由同上)
-    else {
-        let itemsHtml = '';
-        booking.items.forEach((item, index) => {
-            itemsHtml += `
-                <tr class="editable-item-row">
-                    <td><input type="text" class="edit-item-name" value="${item.item_name}"></td>
-                    <td><input type="number" class="edit-item-qty" value="${item.quantity}" min="1"></td>
-                    <td><input type="number" class="edit-item-price" value="${item.price || ''}" min="0"></td>
-                </tr>
+                <div class="details-grid-container">
+                    <div><strong>姓名:</strong> ${userProfile.real_name || userProfile.nickname || userProfile.line_display_name || booking.contact_name}</div>
+                    <div><strong>電話:</strong> ${userProfile.phone || booking.contact_phone || '未提供'}</div>
+                    <div><strong>等級:</strong> ${userProfile.level || '-'}</div>
+                    <div><strong>會員方案:</strong> ${userProfile.class || '無'}</div>
+                    <div><strong>標籤:</strong> ${userProfile.tag || '無'}</div>
+                </div>
+                ${userProfile.notes ? `<div class="crm-notes-section" style="margin-top: 10px; margin-bottom: 1rem; padding: 0.8rem; background-color: #fffbe6; border-radius: 6px; border: 1px solid #ffe58f; max-height: 5em; overflow-y: auto;"><h5>顧客備註</h5><p style="white-space: pre-wrap; margin: 0;">${userProfile.notes}</p></div>` : ''}
             `;
-        });
-        // ... (其餘 Edit Mode HTML 保持不變) ...
-         contentEl.innerHTML = `
-            <h4>預約資訊 (編輯中)</h4>
-            <div id="booking-edit-form" class="details-grid-container">
-                 <div><strong>預約單號:</strong> ${booking.booking_id}</div>
-                 <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
-                 <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>
-                 <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people}" min="1"></div>
-                 <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
-                 <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
-            </div>
-            <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
-            <h4>預約項目 (編輯中)</h4>
-            <table class="items-table">
-                <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
-                <tbody id="editable-items-tbody">${itemsHtml}</tbody>
-            </table>
-        `;
-         flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" });
+        } else { // 臨時顧客
+            html += `<p><strong>姓名:</strong> ${booking.contact_name}</p>`;
+            html += `<p><strong>電話:</strong> ${booking.contact_phone || '未提供'}</p>`;
+            html += `<p>(臨時顧客)</p>`;
+        }
 
+        // --- 2. 預約資訊 ---
+        html += `<h4>預約資訊</h4>`;
+        if (isGuesthouse) { // 民宿樣板
+            const startDate = booking.booking_date || '';
+            const endDate = booking.check_out_date || '';
+            let nights = '-';
+            if (startDate && endDate) {
+                try {
+                    const start = new Date(startDate + 'T00:00:00');
+                    const end = new Date(endDate + 'T00:00:00');
+                    nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                } catch(e) { /* ignore */ }
+            }
+            html += `
+                <div class="details-grid-container">
+                    <div><strong>住宿日期:</strong> ${startDate}</div>
+                    <div><strong>退房日期:</strong> ${endDate}</div>
+                    <div><strong>住宿晚數:</strong> ${nights} 晚</div>
+                    <div><strong>訂單狀態:</strong> ${booking.status}</div>
+                </div>
+            `;
+        } else { // 工作室或其他樣板
+            html += `
+                <div class="details-grid-container">
+                    <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                    <div><strong>預約日期:</strong> ${booking.booking_date}</div>
+                    <div><strong>預約時段:</strong> ${booking.time_slot}</div>
+                    <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
+                    <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
+                    <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
+                </div>
+            `;
+        }
+        html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>`;
+
+        // --- 3. 預約項目 ---
+        html += `<h4>預約項目</h4>`;
+        if (booking.items && booking.items.length > 0) {
+            html += `<table class="items-table"><thead><tr>`;
+            if (isGuesthouse) {
+                // 民宿表格標頭 (可選加入日期)
+                 html += `<th>房型</th><th>數量</th><th>單間總價</th><th>小計</th>`;
+            } else {
+                html += `<th>項目名稱</th><th>數量</th><th>單價</th><th>小計</th>`;
+            }
+            html += `</tr></thead><tbody>`;
+
+            let calculatedTotal = 0;
+            booking.items.forEach(item => {
+                const price = item.price !== null ? Number(item.price) : 0; // 單價或單間總價
+                const quantity = Number(item.quantity) || 0;
+                const subtotal = price * quantity;
+                calculatedTotal += subtotal;
+
+                html += `<tr>`;
+                if (isGuesthouse) {
+                     html += `<td>${item.item_name}</td>`; // 房型名稱
+                     html += `<td>${quantity}</td>`; // 數量
+                     html += `<td>$${price}</td>`; // 單間總價
+                     html += `<td>$${subtotal}</td>`; // 小計
+                } else {
+                     html += `<td>${item.item_name}</td>`; // 項目名稱
+                     html += `<td>${quantity}</td>`; // 數量
+                     html += `<td>$${price}</td>`; // 單價
+                     html += `<td>$${subtotal}</td>`; // 小計
+                }
+                html += `</tr>`;
+            });
+            html += `</tbody>`;
+            // --- 新增：顯示總金額 ---
+            html += `<tfoot><tr><td colspan="${isGuesthouse ? 3 : 3}" style="text-align: right; font-weight: bold;">訂單總金額:</td><td style="font-weight: bold;">$${calculatedTotal}</td></tr></tfoot>`;
+            html += `</table>`;
+        } else {
+            html += `<p>無預約項目資訊</p>`;
+        }
+
+        contentEl.innerHTML = html;
+
+    } else { // --- EDIT MODE ---
+        // --- 【注意】編輯模式目前主要為工作室設計，民宿編輯需要額外處理 ---
+        if (isGuesthouse) {
+             contentEl.innerHTML = `<p style="color:red;">民宿預約暫不支援在此介面編輯，請使用「房量控管」功能調整。</p>`;
+             // 同時隱藏編輯按鈕
+             const editBtn = document.getElementById('booking-details-edit-btn');
+             if(editBtn) editBtn.style.display = 'none';
+        } else {
+            // ... (工作室的編輯模式 HTML 保持不變) ...
+            let itemsHtml = ''; //
+            booking.items.forEach((item, index) => { //
+                itemsHtml += `
+                    <tr class="editable-item-row">
+                        <td><input type="text" class="edit-item-name" value="${item.item_name}"></td>
+                        <td><input type="number" class="edit-item-qty" value="${item.quantity}" min="1"></td>
+                        <td><input type="number" class="edit-item-price" value="${item.price || ''}" min="0"></td>
+                    </tr>
+                `; //
+            });
+             contentEl.innerHTML = `
+                <h4>預約資訊 (編輯中)</h4>
+                <div id="booking-edit-form" class="details-grid-container">
+                     <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                     <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
+                     <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>
+                     <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people}" min="1"></div>
+                     <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
+                     <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
+                </div>
+                <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
+                <h4>預約項目 (編輯中)</h4>
+                <table class="items-table">
+                    <thead><tr><th>項目名稱</th><th>數量</th><th>單價</th></tr></thead>
+                    <tbody id="editable-items-tbody">${itemsHtml}</tbody>
+                </table>
+            `; //
+             flatpickr("#edit-booking-date", { dateFormat: "Y-m-d" }); //
+        }
     }
+
+    // --- 【新增】延遲計算並設置滾動 ---
+    // 使用 setTimeout 確保 DOM 更新完成後再計算高度
+    setTimeout(() => {
+        const modalRect = modalContent.getBoundingClientRect();
+        const contentRect = contentEl.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+
+        // 如果內容高度 + Modal 的 padding 超出視窗高度的 90%
+        if (contentRect.height + 60 > viewportHeight * 0.9) {
+            modalContent.style.maxHeight = '90vh'; // 限制最大高度
+            modalContent.style.overflowY = 'auto'; // 啟用滾動
+        }
+    }, 0); // 延遲 0ms 執行
 }
 
 // --- 修改 handleSaveBookingChanges (編輯儲存) ---
@@ -806,7 +898,7 @@ async function handleSaveBookingSettings() {
 
 
 
-async function openBookingDetailsModal(bookingId) {
+async function openBookingDetailsModal(bookingId) { // 加上 async
     const modal = document.getElementById('booking-details-modal');
     const editBtn = document.getElementById('booking-details-edit-btn');
     if (!modal || !editBtn) return;
@@ -814,31 +906,38 @@ async function openBookingDetailsModal(bookingId) {
     ui.showModal('#booking-details-modal');
     document.getElementById('booking-details-content').innerHTML = '<p>正在載入預約資料...</p>';
     editBtn.textContent = '編輯'; // 重置按鈕文字
+    editBtn.style.display = ''; // 確保編輯按鈕預設顯示
 
     try {
-        currentBookingInModal = allBookings.find(b => b.booking_id == bookingId);
-        if (!currentBookingInModal) throw new Error('找不到預約資料');
+        currentBookingInModal = allBookings.find(b => b.booking_id == bookingId); //
+        if (!currentBookingInModal) throw new Error('找不到預約資料'); //
 
         let userProfile = null;
-        if (currentBookingInModal.user_id && !currentBookingInModal.user_id.startsWith('walk-in-')) {
-            const userDetails = await api.getUserDetails(currentBookingInModal.user_id);
-            userProfile = userDetails.profile;
+        if (currentBookingInModal.user_id && !currentBookingInModal.user_id.startsWith('walk-in-')) { //
+            // --- 【修改】使用 await 獲取顧客完整資料 ---
+            try {
+                 const userDetails = await api.getUserDetails(currentBookingInModal.user_id); //
+                 userProfile = userDetails.profile; //
+            } catch (userError) {
+                 console.warn(`無法載入顧客 ${currentBookingInModal.user_id} 的詳細資料:`, userError);
+                 // 即使顧客資料載入失敗，仍然繼續顯示預約資訊
+            }
         }
 
-        renderBookingDetails(currentBookingInModal, userProfile, false); 
+        await renderBookingDetails(currentBookingInModal, userProfile, false); // await render
 
         editBtn.onclick = () => {
-            const isEditing = editBtn.textContent === '儲存變更';
+            const isEditing = editBtn.textContent === '儲存變更'; //
             if (isEditing) {
-                handleSaveBookingChanges(currentBookingInModal.booking_id);
+                handleSaveBookingChanges(currentBookingInModal.booking_id); //
             } else {
-                renderBookingDetails(currentBookingInModal, userProfile, true); 
-                editBtn.textContent = '儲存變更';
+                renderBookingDetails(currentBookingInModal, userProfile, true); // No need to await here //
+                editBtn.textContent = '儲存變更'; //
             }
         };
 
     } catch (error) {
-        document.getElementById('booking-details-content').innerHTML = `<p style="color: red;">讀取資料失敗：${error.message}</p>`;
+        document.getElementById('booking-details-content').innerHTML = `<p style="color: red;">讀取資料失敗：${error.message}</p>`; //
     }
 }
 

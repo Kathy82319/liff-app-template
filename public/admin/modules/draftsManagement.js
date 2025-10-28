@@ -126,24 +126,32 @@ function openEditDraftModal(draft = null) {
         }
         if (contentTextarea) contentTextarea.value = draft.content || '';
 
-        // --- 【新增】顯示並生成預留位置按鈕 ---
+        // --- 【修改】顯示並生成預留位置按鈕 (使用中文標籤) ---
         if (placeholderButtonsContainer && contentTextarea) {
             placeholderButtonsContainer.innerHTML = '<small style="width: 100%; margin-bottom: 5px; color: var(--color-text-light);">點擊下方按鈕插入預留位置：</small>'; // Reset content
-            const placeholders = ['{{startDate}}', '{{endDate}}', '{{roomSummary}}', '{{totalAmount}}']; // 民宿樣板的預留位置
-            // TODO: 未來可以根據當前啟用的樣板 (e.g., window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE) 動態決定 placeholders 陣列內容
+            
+            // --- 使用物件陣列定義標籤和值 ---
+            const placeholders = [
+                { label: '入住日期', value: '{{startDate}}' },
+                { label: '退房日期', value: '{{endDate}}' },
+                { label: '房型摘要', value: '{{roomSummary}}' },
+                { label: '總金額', value: '{{totalAmount}}' }
+                // 您可以根據需要為工作室樣板定義不同的 placeholders
+            ];
+            
             placeholders.forEach(placeholder => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.textContent = placeholder;
+                button.textContent = placeholder.label; // 顯示中文標籤
                 button.style.cssText = 'padding: 4px 8px; font-size: 0.8em; border: 1px solid var(--color-secondary); background: transparent; color: var(--color-secondary); border-radius: 4px; cursor: pointer;';
                 button.onclick = () => {
-                    insertPlaceholder(contentTextarea, placeholder);
+                    insertPlaceholder(contentTextarea, placeholder.value); // 插入英文值
                 };
                 placeholderButtonsContainer.appendChild(button);
             });
             placeholderButtonsContainer.style.display = 'flex'; // 顯示容器
         }
-        // --- 【新增結束】 ---
+        // --- 【修改結束】 ---
 
 
     } else if (draft) {

@@ -836,17 +836,18 @@ loadingEl.style.display = 'block';
              console.warn(`無法獲取預約政策 (HTTP ${policyRes.status}): ${errorText.substring(0, 100)}... 使用預設值.`); //
         }
 
-        // --- 填充頁面內容 ---
-        const startDate = booking.booking_date || '';
-        const endDate = booking.check_out_date || '';
-
-        if (startDate && endDate) {
-            try {
-                const start = new Date(startDate + 'T00:00:00');
-                const end = new Date(endDate + 'T00:00:00');
-                nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-            } catch(e) { console.error("計算晚數失敗:", e); }
+        // --- 【修改】填充頁面內容，並在計算 nights 前宣告 ---
+        const startDate = booking.booking_date || ''; //
+        const endDate = booking.check_out_date || ''; //
+        let nights = '-'; // <--- 在這裡先宣告並給予預設值
+        if (startDate && endDate) { //
+            try { //
+                const start = new Date(startDate + 'T00:00:00'); //
+                const end = new Date(endDate + 'T00:00:00'); //
+                nights = Math.round((end - start) / (1000 * 60 * 60 * 24)); //
+            } catch(e) { console.error("計算晚數失敗:", e); } //
         }
+        // --- 【修改結束】---
 
 document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
         document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-'; //

@@ -82,12 +82,15 @@ function openEditDraftModal(draft = null) {
     const draftIdInput = document.getElementById('edit-draft-id');
     const titleInput = document.getElementById('edit-draft-title');
     const contentTextarea = document.getElementById('edit-draft-content');
-
+    const placeholderButtonsContainer = document.getElementById('placeholder-buttons-container');
+    
     // --- 預設全部隱藏 (除了按鈕區) ---
     if (titleGroup) titleGroup.style.display = 'none';
     if (contentGroup) contentGroup.style.display = 'none';
     if (policyGroup) policyGroup.style.display = 'none';
-    editDraftForm.querySelector('.form-actions').style.display = 'flex'; // 按鈕區總是顯示
+    editDraftForm.querySelector('.form-actions').style.display = 'flex'; 
+    if (placeholderButtonsContainer) placeholderButtonsContainer.style.display = 'none';
+    editDraftForm.querySelector('.form-actions').style.display = 'flex'; //
 
     // --- 獲取草稿 ID ---
     const draftId = draft ? Number(draft.draft_id) : null;
@@ -123,6 +126,26 @@ function openEditDraftModal(draft = null) {
         }
         if (contentTextarea) contentTextarea.value = draft.content || '';
 
+        // --- 【新增】顯示並生成預留位置按鈕 ---
+        if (placeholderButtonsContainer && contentTextarea) {
+            placeholderButtonsContainer.innerHTML = '<small style="width: 100%; margin-bottom: 5px; color: var(--color-text-light);">點擊下方按鈕插入預留位置：</small>'; // Reset content
+            const placeholders = ['{{startDate}}', '{{endDate}}', '{{roomSummary}}', '{{totalAmount}}']; // 民宿樣板的預留位置
+            // TODO: 未來可以根據當前啟用的樣板 (e.g., window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE) 動態決定 placeholders 陣列內容
+            placeholders.forEach(placeholder => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = placeholder;
+                button.style.cssText = 'padding: 4px 8px; font-size: 0.8em; border: 1px solid var(--color-secondary); background: transparent; color: var(--color-secondary); border-radius: 4px; cursor: pointer;';
+                button.onclick = () => {
+                    insertPlaceholder(contentTextarea, placeholder);
+                };
+                placeholderButtonsContainer.appendChild(button);
+            });
+            placeholderButtonsContainer.style.display = 'flex'; // 顯示容器
+        }
+        // --- 【新增結束】 ---
+
+
     } else if (draft) {
         // --- 編輯一般草稿 (ID > 2) ---
         modalTitle.textContent = '編輯訊息草稿';
@@ -149,6 +172,18 @@ function openEditDraftModal(draft = null) {
     }
 
     ui.showModal('#edit-draft-modal');
+}
+
+// --- 【新增】輔助函式：在 textarea 插入文字 ---
+function insertPlaceholder(textarea, text) {
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+    textarea.value = currentText.substring(0, start) + text + currentText.substring(end);
+    // 將光標移到插入文字之後
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
 }
 
 

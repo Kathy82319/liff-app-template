@@ -851,7 +851,6 @@ loadingEl.style.display = 'block';
 
 document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
         document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-'; //
-        let nights = '-';
         if (booking.booking_date && booking.check_out_date) {
             try {
                 const start = new Date(booking.booking_date + 'T00:00:00');

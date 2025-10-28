@@ -144,7 +144,7 @@ export async function onRequest(context) {
                 minAvailableQuantity: minQuantity,              // 期間最小剩餘數量
                 totalPrice: isAvailableOverall ? totalCalculatedPrice : null, // 只有整體可訂才提供總價
                 pricePerNight: avgPricePerNight,                // 平均每晚價格
-                // dailyDetails: dailyDetails // (可選擇是否回傳每日細節給前端)
+                dailyDetails: dailyDetails // (可選擇是否回傳每日細節給前端)
             };
         }); // --- 房型遍歷結束 ---
 

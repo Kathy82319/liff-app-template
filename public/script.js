@@ -87,7 +87,7 @@ function calculateTotalPrice() {
 }
 
 /**
- * 根據 API 回應渲染可預訂的房型列表
+ * 根據 API 回應渲染房型列表 (v2 - 顯示不可訂原因)
  * @param {object} availabilityData - 從 /api/room-availability 獲取的資料
  * @param {string} startDate - 入住日期 YYYY-MM-DD
  * @param {string} endDate - 退房日期 YYYY-MM-DD
@@ -100,65 +100,133 @@ function renderRoomList(availabilityData, startDate, endDate) {
     guesthouseBookingData.roomAvailability = availabilityData; // 儲存 API 回應供後續使用
     guesthouseBookingData.selectedRooms = {}; // 重置顧客選擇
 
-    // 篩選出可見且在指定日期範圍內可預訂的房型
-    const bookableProducts = allProducts.filter(p => p.is_visible && availabilityData[p.product_id]?.isAvailable);
+    // **修改點 1: 不再預先過濾，而是渲染所有 is_visible 的房型**
+    const productsToRender = allProducts.filter(p => p.is_visible);
 
-    if (bookableProducts.length === 0) {
-        container.innerHTML = '<p>抱歉，您選擇的日期範圍內沒有可預訂的房型。</p>';
-        detailsForm.style.display = 'none'; // 如果沒有可訂房型，隱藏聯絡資訊表單
+    if (productsToRender.length === 0) {
+        // 這個情況應該很少見，因為 allProducts 通常會有東西
+        container.innerHTML = '<p>目前沒有可顯示的房型。</p>';
+        detailsForm.style.display = 'none';
         return;
     }
 
+    let hasAnyBookableRoom = false; // 標記是否有任何一個房型是可訂的
+
     // 產生房型列表的 HTML
-    container.innerHTML = bookableProducts.map(product => {
+    container.innerHTML = productsToRender.map(product => {
         const roomInfo = availabilityData[product.product_id];
-        const maxQuantity = roomInfo.minAvailableQuantity || 0; // 最大可訂數量
-        // 顯示每晚平均價格
-        const priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight} / 晚` : '價格洽詢';
+        let isOverallAvailable = false;
+        let maxQuantity = 0;
+        let priceText = '價格洽詢';
+        let unavailabilityMessage = ''; // 儲存不可訂原因的訊息
+        let disableQuantitySelector = true; // 預設禁用數量選擇
+
+        if (roomInfo) { // 確保 API 有回傳此房型的資料
+             isOverallAvailable = roomInfo.isAvailable;
+             maxQuantity = roomInfo.minAvailableQuantity || 0;
+             priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight} / 晚` : '價格洽詢';
+
+            // **修改點 2: 檢查不可訂的原因**
+            if (!isOverallAvailable && roomInfo.dailyDetails && roomInfo.dailyDetails.length > 0) {
+                const unavailableDatesInfo = []; // 儲存不可訂的日期和原因
+                for (const daily of roomInfo.dailyDetails) {
+                    if (!daily.isBookable) { // isBookable 是後端 API 計算好的當日是否可訂
+                        let reason = '';
+                        // 根據後端 dailyDetails 的內容判斷原因 (需與後端 API 一致)
+                        const inventoryRecord = roomInfo.dailyDetails.find(d => d.date === daily.date); // 獲取完整每日資料
+                        if (inventoryRecord) {
+                            if(inventoryRecord.status === 'Closed'){
+                                reason = '未開放';
+                            } else if (inventoryRecord.available <= 0) {
+                                reason = '已售完';
+                            } else if (inventoryRecord.price === null || inventoryRecord.price <= 0) {
+                                reason = '價格未定';
+                            } else {
+                                reason = '暫不可訂'; // 其他未知原因
+                            }
+                        } else {
+                             reason = '狀態未知'; // 理論上不該發生
+                        }
+                        // 將 月/日 格式加入
+                        const dateParts = daily.date.split('-');
+                        unavailableDatesInfo.push(`${dateParts[1]}/${dateParts[2]} ${reason}`);
+                    }
+                }
+                // 只顯示前幾個不可訂的日期，避免訊息過長
+                if (unavailableDatesInfo.length > 0) {
+                    unavailabilityMessage = `(${unavailableDatesInfo.slice(0, 3).join(', ')}${unavailableDatesInfo.length > 3 ? '...' : ''})`;
+                }
+            }
+
+            // **修改點 3: 只有整體可訂時才啟用數量選擇**
+            if (isOverallAvailable) {
+                 disableQuantitySelector = false;
+                 hasAnyBookableRoom = true; // 標記至少有一個房型可訂
+            }
+        } else {
+             // 如果 API 沒有回傳這個房型的資料，視為不可用
+             unavailabilityMessage = '(此期間不可預訂)';
+        }
+
         const images = JSON.parse(product.images || '[]');
         const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x80/112240/ccd6f6?text=Room'; // 預設圖片
 
         // 產生數量下拉選單的選項 (0 到 最大可訂數量)
-        let quantityOptions = '';
-        for (let i = 0; i <= maxQuantity; i++) {
-            quantityOptions += `<option value="${i}">${i}</option>`;
+        // **修改點 4: 如果禁用，只顯示 0 選項**
+        let quantityOptions = '<option value="0">0</option>';
+        if (!disableQuantitySelector) {
+            for (let i = 1; i <= maxQuantity; i++) {
+                quantityOptions += `<option value="${i}">${i}</option>`;
+            }
         }
 
-        // 每個房型的 HTML 結構
+        // 每個房型的 HTML 結構 (加入 unavailabilityMessage)
         return `
-            <div class="room-selection-item" data-product-id="${product.product_id}" style="display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 15px;">
+            <div class="room-selection-item ${!isOverallAvailable ? 'unavailable-room' : ''}" data-product-id="${product.product_id}" style="display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 15px; ${!isOverallAvailable ? 'opacity: 0.6;' : ''}">
                 <img src="${imageUrl}" alt="${product.name}" style="width: 100px; height: 80px; object-fit: cover; border-radius: var(--border-radius);">
                 <div style="flex-grow: 1;">
-                    <h4 style="margin: 0 0 5px 0;">${product.name}</h4>
+                    <h4 style="margin: 0 0 5px 0;">
+                        ${product.name}
+                        ${unavailabilityMessage ? `<span style="font-size: 0.8em; color: var(--color-danger); font-weight: normal; margin-left: 5px;">${unavailabilityMessage}</span>` : ''}
+                    </h4>
                     <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--color-text-secondary);">${product.description ? product.description.substring(0, 50) + '...' : ''}</p>
                     <p style="margin: 0; font-weight: bold; color: var(--color-primary);">${priceText}</p>
                 </div>
                 <div style="width: 80px;">
                     <label for="room-qty-${product.product_id}" style="font-size: 0.8em; display: block; margin-bottom: 5px;">數量:</label>
-                    <select id="room-qty-${product.product_id}" class="room-quantity-select" data-product-id="${product.product_id}" style="width: 100%;">
+                    <select id="room-qty-${product.product_id}" class="room-quantity-select" data-product-id="${product.product_id}" style="width: 100%;" ${disableQuantitySelector ? 'disabled' : ''}>
                         ${quantityOptions}
                     </select>
-                    <p style="font-size: 0.8em; color: var(--color-text-secondary); margin-top: 5px;">剩 ${maxQuantity} 間</p>
+                    ${!disableQuantitySelector ? `<p style="font-size: 0.8em; color: var(--color-text-secondary); margin-top: 5px;">剩 ${maxQuantity} 間</p>` : ''}
                 </div>
             </div>
         `;
     }).join('');
 
-    // 為新產生的數量下拉選單綁定事件監聽器
-    container.querySelectorAll('.room-quantity-select').forEach(select => {
+    // 為 **未被禁用** 的數量下拉選單綁定事件監聽器
+    container.querySelectorAll('.room-quantity-select:not([disabled])').forEach(select => {
         select.addEventListener('change', (e) => {
             const productId = e.target.dataset.productId;
             const quantity = parseInt(e.target.value, 10);
             if (quantity > 0) {
                 guesthouseBookingData.selectedRooms[productId] = quantity; // 更新選擇狀態
             } else {
-                delete guesthouseBookingData.selectedRooms[productId]; // 如果數量改為 0，則移除選擇
+                delete guesthouseBookingData.selectedRooms[productId]; // 如果数量改为 0，则移除选择
             }
-            calculateTotalPrice(); // 重新計算總價
+            calculateTotalPrice(); // 重新计算总价
         });
     });
 
-    detailsForm.style.display = 'block'; // 顯示聯絡資訊和確認按鈕區塊
+    // **修改點 5: 只有當有任何可訂房型時才顯示聯絡表單**
+    detailsForm.style.display = hasAnyBookableRoom ? 'block' : 'none';
+    if (!hasAnyBookableRoom && bookableProducts.length > 0) {
+         // 如果有房型但都不能訂，顯示特定提示
+         container.innerHTML += '<p style="text-align: center; color: var(--color-danger);">您選擇的日期範圍內所有房型皆無法預訂。</p>';
+    } else if (bookableProducts.length === 0 && productsToRender.length > 0) {
+         // 如果 API 完全沒回傳任何房型資料 (理論上不該發生，除非 API 錯誤)
+         container.innerHTML = '<p style="text-align: center; color: var(--color-danger);">無法獲取您選擇日期範圍的房況資訊。</p>';
+    }
+
     calculateTotalPrice(); // 計算初始總價 (應為 $0)
 }
 

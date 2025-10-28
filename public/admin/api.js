@@ -28,36 +28,19 @@ async function request(url, options = {}) {
             console.error(`API Error Data for ${url}:`, errorData);
             throw new Error(errorData.error || '未知的 API 錯誤');
         }
-    if (contentType && contentType.includes("application/json")) {
-            console.log(`[API Response] ${url} - Content-Type: ${contentType}. Parsing JSON.`); // Log
+        if (response.status === 204) return { success: true };
+        // *** 修改：如果 Content-Type 不是 JSON，嘗試回傳 text ***
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
             return await response.json();
         } else {
-            // 如果不是 JSON，記錄警告並嘗試回傳文字 (如果狀態碼是成功的)
-            const responseText = await response.text();
-            console.warn(`[API Response] ${url} - Received non-JSON Content-Type: ${contentType || 'N/A'}. Body Text:`, responseText.substring(0, 100)); // Log
-
-            // 如果狀態碼是 2xx (成功)，但 Content-Type 不對，我們可能還是要視為成功，
-            // 但回傳一個標記，或嘗試解析文字看是否剛好是 '{"success":true}'
-            if (response.status >= 200 && response.status < 300) {
-                 // 嘗試解析看看，以防萬一
-                 try {
-                      const parsedText = JSON.parse(responseText);
-                      console.warn(`[API Response] ${url} - Parsed non-JSON response as JSON anyway.`);
-                      return parsedText;
-                 } catch(e) {
-                      // 解析失敗，回傳一個代表成功但內容未知的物件
-                      console.warn(`[API Response] ${url} - Could not parse non-JSON success response.`);
-                      return { success: true, warning: 'Response Content-Type was not JSON', raw: responseText };
-                 }
-            } else {
-                 // 如果狀態碼也是錯誤的，回傳錯誤
-                 return { success: false, error: `非預期的回應格式: ${responseText}` };
-            }
+            // 如果不是 JSON，例如 404 頁面，嘗試讀取文字避免 JSON 解析錯誤
+            console.warn(`API ${url} 回應非 JSON 格式 (${contentType})`);
+            return { success: false, error: `非預期的回應格式: ${await response.text()}` };
         }
     } catch (error) {
-        // ... (catch 區塊不變) ...
         console.error(`API 請求失敗 (in catch): ${url}`, error);
-        throw error;
+        throw error; // 將錯誤重新拋出
     }
 }
 

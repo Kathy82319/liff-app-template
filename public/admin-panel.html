@@ -623,23 +623,22 @@
         border: 1px solid #ffe58f;
         max-height: 5em; /* Keep max-height */
         overflow-y: auto; /* Keep overflow */
-        align-self: flex-start; /* Keep this */
-        display: flex; /* Ensure it's a flex container if needed */
-        flex-direction: column; /* Ensure vertical layout */
+        /* align-self: flex-start; */ /* May not be needed without flex parent */
+        /* display: flex; */  /* --- REMOVE --- */
+        /* flex-direction: column; */ /* --- REMOVE --- */
     }
-    .crm-notes-section h5 { /* Keep title aligned top */
-         margin-top: 0;
-         margin-bottom: 0.5rem; /* Add some space below title */
-         flex-shrink: 0; /* Prevent title from shrinking */
+    .crm-notes-section h4 { /* Matches h4 used in userManagement.js */
+         margin-top: 0; /* Ensure heading is at the top */
+         margin-bottom: 0.5rem; /* Space below heading */
+         /* flex-shrink: 0; */ /* --- REMOVE --- */
     }
     .crm-notes-section p {
-        margin-top: 0; /* Remove default top margin */
-        margin-bottom: 0; /* Remove default bottom margin */
-        align-self: flex-start; /* Align paragraph itself to the start */
-        /* Optional: If text itself is centered */
-        text-align: left;
-        /* Ensure it can take full width if needed */
-        width: 100%;
+        margin-top: 0; /* Ensure paragraph starts right below heading */
+        margin-bottom: 0; /* Remove bottom margin */
+        /* align-self: flex-start; */ /* --- REMOVE --- */
+        text-align: left; /* Ensure text is left-aligned */
+        width: 100%; /* Ensure it takes full width */
+        white-space: pre-wrap; /* Keep this from original JS */
     }
 </style>
 

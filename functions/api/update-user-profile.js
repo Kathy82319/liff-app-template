@@ -2,74 +2,6 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import * as jose from 'jose';
 
-async function syncProfileUpdateToSheet(env, userData) {
-    try {
-        console.log(`背景任務：開始同步使用者 ${userData.userId} 的個人資料...`);
-        const {
-          GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          GOOGLE_PRIVATE_KEY,
-          GOOGLE_SHEET_ID,
-          USERS_SHEET_NAME
-        } = env;
-
-        if (!USERS_SHEET_NAME) {
-            console.error('背景同步(Profile Update)失敗：缺少 USERS_SHEET_NAME 環境變數。');
-            return;
-        }
-
-        const privateKey = await jose.importPKCS8(GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), 'RS256');
-        const jwt = await new jose.SignJWT({ scope: 'https://www.googleapis.com/auth/spreadsheets' })
-          .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-          .setIssuer(GOOGLE_SERVICE_ACCOUNT_EMAIL)
-          .setAudience('https://oauth2.googleapis.com/token')
-          .setSubject(GOOGLE_SERVICE_ACCOUNT_EMAIL)
-          .setIssuedAt()
-          .setExpirationTime('1h')
-          .sign(privateKey);
-
-        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
-        });
-
-        if (!tokenResponse.ok) throw new Error('背景同步(Profile Update)：從 Google 取得 access token 失敗。');
-        const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
-        
-        const simpleAuth = { getRequestHeaders: () => ({ 'Authorization': `Bearer ${accessToken}` }) };
-        const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, simpleAuth);
-        await doc.loadInfo();
-
-        const sheet = doc.sheetsByTitle[USERS_SHEET_NAME];
-        if (!sheet) throw new Error(`背景同步(Profile Update)：找不到名為 "${USERS_SHEET_NAME}" 的工作表。`);
-
-        const rows = await sheet.getRows();
-        const userRow = rows.find(row => row.get('user_id') === userData.userId);
-
-        if (userRow) {
-            userRow.assign({
-                'real_name': userData.realName, // 同步 real_name
-                'nickname': userData.nickname,
-                'phone': userData.phone,
-                'email': userData.email,
-                'preferred_product': userData.preferredproduct,
-                'line_display_name': userData.displayName,
-                'line_picture_url': userData.pictureUrl
-            });
-            
-            await userRow.save();
-            console.log(`背景任務：成功更新使用者 ${userData.userId} 在 Google Sheet 的資料。`);
-        } else {
-            console.warn(`背景任務：在 Google Sheet 中找不到 user_id 為 ${userData.userId} 的使用者，無法更新。`);
-        }
-
-    } catch (error) {
-        console.error('背景同步使用者個人資料失敗:', error);
-    }
-}
-
-
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -136,7 +68,7 @@ export async function onRequest(context) {
 
     return new Response(JSON.stringify({ 
         success: true, 
-        message: '成功更新冒險者登錄資料！' 
+        message: '成功更新使用者登錄資料！' 
     }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });

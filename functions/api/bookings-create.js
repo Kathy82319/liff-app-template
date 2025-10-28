@@ -83,12 +83,18 @@ export async function onRequest(context) {
             }
             console.log("[bookings-create] Inventory check passed for all items and dates.");
 
+            // --- 計算總預訂房間數 ---
+            const totalQuantityBooked = items.reduce((sum, item) => sum + item.quantity, 0); // <-- 新增計算
+            console.log(`[bookings-create] Total quantity calculated: ${totalQuantityBooked}`); // <-- 新增 Log
+
             // --- 建立預訂記錄 & 更新庫存 (使用 Batch) ---
             const operations = [];
 
+            // 1. 插入 Bookings 主表 (注意欄位差異)
             const bookingStmt = db.prepare(
+                // SQL 語句保持上次修改後的樣子 (包含 num_of_people)
                 `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot, num_of_people)
-                 VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING booking_id` // **<-- 加入 num_of_people 和 ?**
+                 VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING booking_id`
             );
              // 執行插入 Booking 並立即獲取 booking_id
              const { booking_id } = await bookingStmt.bind(
@@ -98,7 +104,7 @@ export async function onRequest(context) {
                  startDate,
                  endDate,
                  '', // time_slot
-                 0  // **<-- 綁定 0 給 num_of_people**
+                 totalQuantityBooked // **<-- 使用計算出的總房間數**
              ).first();
 
              if (!booking_id) {

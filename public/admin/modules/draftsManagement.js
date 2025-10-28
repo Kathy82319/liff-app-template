@@ -218,38 +218,35 @@ async function handleDeleteDraft(draftId) {
 
 // 處理表單提交邏輯 (新增/編輯，包含特殊處理)
 async function handleFormSubmit(event) {
-    // ... (此函式內容不變，省略) ...
     event.preventDefault();
     const draftIdInput = document.getElementById('edit-draft-id');
     const draftId = draftIdInput ? Number(draftIdInput.value) : null;
     let draftData = {};
     let apiAction;
+    const saveButton = event.target.querySelector('button[type="submit"]'); // 獲取提交按鈕
 
     // --- 根據 draftId 決定要提交的資料和 API ---
     if (draftId === FIXED_DRAFT_IDS.POLICY) {
-        // --- 儲存政策草稿 ---
         draftData = {
             draft_id: draftId,
-            // title 由後端固定
             cancellationPolicy: document.getElementById('edit-cancellation-policy').value,
             checkInInstructions: document.getElementById('edit-check-in-instructions').value,
         };
-        apiAction = api.updateMessageDraft; // 使用更新 API
+        apiAction = api.updateMessageDraft;
     } else {
-        // --- 儲存一般草稿或自動通知草稿 ---
         draftData = {
             title: document.getElementById('edit-draft-title').value,
             content: document.getElementById('edit-draft-content').value,
         };
-        if (draftId) { // 如果是編輯
+        if (draftId) {
             draftData.draft_id = draftId;
             apiAction = api.updateMessageDraft;
-        } else { // 如果是新增
+        } else {
             apiAction = api.createMessageDraft;
         }
     }
 
-    // 簡單前端驗證 (後端會做更嚴格驗證)
+    // 簡單前端驗證
     if (draftId !== FIXED_DRAFT_IDS.POLICY && (!draftData.title || !draftData.content)) {
          ui.toast.error('標題和內容為必填！');
          return;
@@ -259,15 +256,37 @@ async function handleFormSubmit(event) {
          return;
     }
 
+    // --- 禁用按鈕 ---
+    if(saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = '儲存中...';
+    }
 
     try {
-        await apiAction(draftData); // 呼叫對應的 API
+        await apiAction(draftData); // 呼叫 API
         ui.toast.success('草稿儲存成功！');
-        ui.hideModal('#edit-draft-modal');
-        await init(); // 重新載入列表
+        ui.hideModal('#edit-draft-modal'); // 關閉 Modal
+
+        // --- **新增：手動設置焦點** ---
+        const addDraftButton = document.getElementById('add-draft-btn');
+        if (addDraftButton) {
+            addDraftButton.focus(); // 將焦點移回 "新增草稿" 按鈕
+        } else {
+             document.body.focus(); // 備用方案：移除表單焦點
+        }
+        // --- **焦點設置結束** ---
+
+        await init(); // 重新載入列表 (在焦點設置之後)
+
     } catch (error) {
         ui.toast.error(`儲存失敗： ${error.message}`);
+        // --- 錯誤時恢復按鈕 ---
+        if(saveButton) {
+             saveButton.disabled = false;
+             saveButton.textContent = '儲存草稿';
+        }
     }
+    // 注意：成功時不需要恢復按鈕，因為 Modal 已關閉
 }
 
 // 模組初始化函式

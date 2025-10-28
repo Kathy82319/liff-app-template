@@ -46,13 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-home': initializeHomePage,
         'page-products': initializeProductsPage,
         'page-profile': initializeProfilePage,
-        'page-my-bookings': initializeMyBookingsPage,
+        'page-my-bookings': initializeMyBookingsPage, // Keep existing
         'page-my-exp-history': initializeMyExpHistoryPage,
         'page-booking': initializeBookingPage,
         'page-info': initializeInfoPage,
         'page-edit-profile': initializeEditProfilePage,
         'page-product-details': (data) => renderProductDetails(data.product),
-        'page-news-details': (data) => renderNewsDetails(data.news),        
+        'page-news-details': (data) => renderNewsDetails(data.news),
+        'page-booking-details': initializeBookingDetailsPage, // Add the new initializer
     };
 
 
@@ -495,29 +496,61 @@ function getPriceForDate(dateString, product) {
         }
     }
 
-// public/script.js -> renderBookings function (修改後)
 
 function renderBookings(bookings, container, isPast = false) {
     if (!container) return;
-    if (bookings.length === 0) {
+    if (!bookings || bookings.length === 0) { // 確保 bookings 是陣列
         container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
         return;
     }
+
     container.innerHTML = bookings.map(b => {
-        const itemHTML = b.item ? `<p><strong>項目:</strong> ${b.item}</p>` : '';
+        let cardContentHTML = '';
+        const bookingId = b.booking_id; // 獲取 booking_id
 
-        // 【新增】取消按鈕的邏輯
-        const cancelButtonHTML = (!isPast && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION)
-            ? `<button class="cta-button cancel-booking-btn" data-booking-id="${b.booking_id}" style="background-color: var(--color-danger); margin-top: 10px; padding: 8px;">取消預約</button>`
-            : '';
+        // --- 民宿樣板 ---
+        if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
+            const startDate = b.booking_date || '未知日期';
+            const endDate = b.check_out_date || '未知日期';
+            let nights = '-';
+            if (b.booking_date && b.check_out_date) {
+                try {
+                    const start = new Date(b.booking_date + 'T00:00:00');
+                    const end = new Date(b.check_out_date + 'T00:00:00');
+                    nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                } catch(e) { console.error("計算晚數失敗:", e); }
+            }
+            const itemSummary = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊';
+            const totalAmountText = b.total_amount !== null ? `$${b.total_amount}` : '待確認';
 
-        return `
-            <div class="booking-info-card" id="booking-card-${b.booking_id}">
+            cardContentHTML = `
+                <p><strong>入住:</strong> ${startDate}</p>
+                <p><strong>退房:</strong> ${endDate} (${nights} 晚)</p>
+                <p><strong>房型:</strong> ${itemSummary}</p>
+                <p><strong>總金額:</strong> ${totalAmountText}</p>
+                <p><strong>狀態:</strong> ${b.status_text}</p>
+            `;
+        }
+        // --- 工作室或其他樣板 (保持原樣) ---
+        else {
+            const itemHTML = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊'; // 顯示所有項目
+            cardContentHTML = `
                 <p><strong>日期:</strong> ${b.booking_date}</p>
                 <p><strong>時段:</strong> ${b.time_slot}</p>
-                ${itemHTML} 
-                <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT}</p>
+                <p><strong>項目:</strong> ${itemHTML}</p>
+                <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT || '人'}</p>
                 <p><strong>狀態:</strong> ${b.status_text}</p>
+            `;
+        }
+
+        const cancelButtonHTML = (!isPast && b.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) // 只有 confirmed 狀態才能取消
+            ? `<button class="cta-button cancel-booking-btn" data-booking-id="${bookingId}" style="background-color: var(--color-danger); margin-top: 10px; padding: 8px;">取消預約</button>`
+            : '';
+
+        // --- 將 data-booking-id 加到最外層 div ---
+        return `
+            <div class="booking-info-card" id="booking-card-${bookingId}" data-booking-id="${bookingId}" style="cursor: pointer;">
+                ${cardContentHTML}
                 ${cancelButtonHTML}
             </div>
         `;
@@ -701,20 +734,137 @@ function renderBookings(bookings, container, isPast = false) {
         }
     }
 
-    async function initializeMyBookingsPage() {
-        if (!userProfile) return;
-        const container = document.getElementById('my-bookings-container');
-        if (!container) return;
-        container.innerHTML = '<p>查詢中...</p>';
-        try {
-            const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=current`);
-            if (!response.ok) throw new Error('查詢預約失敗');
-            const bookings = await response.json();
-            renderBookings(bookings, container, false);
-        } catch (error) {
-            container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
-        }
+async function initializeMyBookingsPage() {
+    if (!userProfile) return;
+    const container = document.getElementById('my-bookings-container');
+    const pastContainer = document.getElementById('past-bookings-container'); // Past container
+    const toggleBtn = document.getElementById('toggle-past-bookings-btn');    // Toggle button
+
+    if (!container || !pastContainer || !toggleBtn) return; // Make sure all elements exist
+
+    // Reset view
+    container.innerHTML = '<p>查詢中...</p>';
+    pastContainer.style.display = 'none';
+    toggleBtn.textContent = '查看過往紀錄';
+    // Remove previous listener if exists to prevent duplicates
+    toggleBtn.replaceWith(toggleBtn.cloneNode(true));
+    document.getElementById('toggle-past-bookings-btn').addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', document.getElementById('toggle-past-bookings-btn')));
+
+
+    try {
+        const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=current`);
+        if (!response.ok) throw new Error('查詢預約失敗');
+        const bookings = await response.json();
+        renderBookings(bookings, container, false);
+
+        // --- 新增：為卡片添加點擊事件監聽 (事件委派) ---
+        container.removeEventListener('click', handleBookingCardClick); // 移除舊監聽器 (如果有的話)
+        container.addEventListener('click', handleBookingCardClick);
+        pastContainer.removeEventListener('click', handleBookingCardClick); // 也為過往紀錄添加
+        pastContainer.addEventListener('click', handleBookingCardClick);
+        // --- 新增結束 ---
+
+    } catch (error) {
+        container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
     }
+}
+
+// --- 新增：處理卡片點擊的獨立函數 ---
+function handleBookingCardClick(event) {
+    const card = event.target.closest('.booking-info-card[data-booking-id]');
+    // 確保點擊的不是取消按鈕
+    if (card && !event.target.classList.contains('cancel-booking-btn')) {
+        const bookingId = card.dataset.bookingId;
+        console.log("點擊預約卡片:", bookingId);
+        showPage('page-booking-details', { bookingId: Number(bookingId) }); // 傳遞 bookingId
+    }
+}
+
+// --- 新增：初始化預約詳情頁面 ---
+async function initializeBookingDetailsPage(data) {
+    const loadingEl = document.getElementById('booking-details-loading');
+    const contentContainer = document.getElementById('booking-details-content-container');
+    const cancelBtn = document.getElementById('details-cancel-booking-btn');
+
+    if (!data || !data.bookingId || !loadingEl || !contentContainer || !cancelBtn) {
+        appContent.innerHTML = `<p style="color:red;">頁面載入錯誤：缺少預約 ID 或頁面元素。</p>`;
+        return;
+    }
+
+    loadingEl.style.display = 'block';
+    contentContainer.style.display = 'none';
+    cancelBtn.style.display = 'none'; // 預設隱藏取消按鈕
+
+    try {
+        // 並行獲取預約詳情和政策
+        const [bookingRes, policyRes] = await Promise.all([
+            fetch(`/api/my-bookings?userId=${userProfile.userId}&bookingId=${data.bookingId}`),
+            fetch('/api/get-booking-policy')
+        ]);
+
+        if (!bookingRes.ok) throw new Error('無法獲取預約詳情');
+        const bookingResult = await bookingRes.json();
+        // API 可能回傳陣列，即使只有一筆
+        const booking = Array.isArray(bookingResult) ? bookingResult[0] : bookingResult;
+        if (!booking) throw new Error('找不到指定的預約紀錄');
+
+        let policy = { cancellationPolicy: '未設定', checkInInstructions: '未設定' };
+        if (policyRes.ok) {
+            policy = await policyRes.json();
+        } else {
+            console.warn("無法獲取預約政策，將使用預設文字。");
+        }
+
+        // --- 填充頁面內容 ---
+        const startDate = booking.booking_date || '';
+        const endDate = booking.check_out_date || '';
+        let nights = '-';
+        if (startDate && endDate) {
+            try {
+                const start = new Date(startDate + 'T00:00:00');
+                const end = new Date(endDate + 'T00:00:00');
+                nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+            } catch(e) { console.error("計算晚數失敗:", e); }
+        }
+
+        document.getElementById('details-check-in-date').textContent = startDate || '-';
+        document.getElementById('details-check-out-date').textContent = endDate || '-';
+        document.getElementById('details-nights').textContent = nights;
+
+        const itemsListEl = document.getElementById('details-items-list');
+        if (booking.items && booking.items.length > 0) {
+            itemsListEl.innerHTML = booking.items.map(item =>
+                `<p>- ${item.item_name} x ${item.quantity} (小計: $${item.price !== null ? item.price * item.quantity : 'N/A'})</p>`
+            ).join('');
+        } else {
+            itemsListEl.innerHTML = '<p>無項目資訊</p>';
+        }
+
+        document.getElementById('details-total-amount').textContent = booking.total_amount !== null ? `$${booking.total_amount}` : '-';
+        document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy || '未設定';
+        document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions || '未設定';
+
+        // --- 處理取消按鈕 ---
+        if (booking.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) {
+            cancelBtn.style.display = 'block';
+            // 移除舊監聽器再添加，防止重複綁定
+            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+            document.getElementById('details-cancel-booking-btn').addEventListener('click', () => {
+                 if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+                     handleCancelBooking(booking.booking_id);
+                 }
+            });
+        }
+
+        loadingEl.style.display = 'none';
+        contentContainer.style.display = 'block';
+
+    } catch (error) {
+        console.error("載入預約詳情失敗:", error);
+        loadingEl.innerHTML = `<p style="color: red;">載入失敗：${error.message}</p>`;
+        contentContainer.style.display = 'none';
+    }
+}
 
     async function initializeMyExpHistoryPage() {
         if (!userProfile) return;

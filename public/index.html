@@ -4,64 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店務管理系統</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cwtex+Fangsong&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* 新增 page-booking-details 的樣式 */
+        #page-booking-details .details-section { margin-bottom: 15px; }
+        #page-booking-details h2, #page-booking-details h3 { color: var(--color-primary); margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px; }
+        #page-booking-details h2:first-of-type, #page-booking-details h3:first-of-type { margin-top: 0; }
+        #page-booking-details p { margin: 8px 0; }
+        #page-booking-details strong { color: var(--color-text-secondary); margin-right: 5px; }
+        #page-booking-details .room-item-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--color-secondary); }
+        #page-booking-details .policy-section { white-space: pre-wrap; background-color: var(--color-card-bg); padding: 10px; border-radius: var(--border-radius); border: 1px solid var(--color-secondary); margin-top: 10px; font-size: 0.9rem; }
+        #page-booking-details .cancel-booking-btn { background-color: var(--color-danger); margin-top: 20px; } /* 確保取消按鈕樣式 */
+    </style>
 </head>
 <body>
     <main id="app-content" class="page"></main>
 
     <div id="page-templates" style="display: none;">
 
-        
-<div id="page-product-details">
-    <button class="details-back-button">← 返回</button>
-    <h1 class="details-title page-main-title"></h1>
-    <div class="details-section">
-        <div class="details-gallery" style="display: none;">
-            <img src="https://placehold.co/600x400/112240/ccd6f6?text=Image" class="details-image-main">
-            <div class="details-image-thumbnails"></div>
-        </div>
-        
-        <div id="product-details-content">
+        <div id="page-product-details">
+            <button class="details-back-button">← 返回</button>
+            <h1 class="details-title page-main-title"></h1>
+            <div class="details-section">
+                <div class="details-gallery" style="display: none;">
+                    <img src="https://placehold.co/600x400/112240/ccd6f6?text=Image" class="details-image-main">
+                    <div class="details-image-thumbnails"></div>
+                </div>
+                <div id="product-details-content">
+                </div>
             </div>
-    </div>
-</div>      
+        </div>
 
-    <div id="page-news-details">
-        <button class="details-back-button">← 返回</button>
-        <h1 id="news-details-title" class="page-main-title"></h1>
-        <div class="details-section">
-            <div class="news-card-header">
-                <span id="news-details-category"></span>
-                <span id="news-details-date"></span>
+        <div id="page-news-details">
+            <button class="details-back-button">← 返回</button>
+            <h1 id="news-details-title" class="page-main-title"></h1>
+            <div class="details-section">
+                <div class="news-card-header">
+                    <span id="news-details-category"></span>
+                    <span id="news-details-date"></span>
+                </div>
+                <img id="news-details-image" src="" alt="" style="width: 100%; display: none;">
+                <div id="news-details-content" style="white-space: pre-wrap;"></div>
             </div>
-            <img id="news-details-image" src="" alt="" style="width: 100%; display: none;">
-            <div id="news-details-content" style="white-space: pre-wrap;"></div>
         </div>
-    </div>
 
-    <div id="page-home">
-        <div class="news-header">
-            <div class="news-header-decoration"></div>
-            <h1 class="page-main-title">最新情報</h1>
+        <div id="page-home">
+            <div class="news-header">
+                <div class="news-header-decoration"></div>
+                <h1 class="page-main-title">最新情報</h1>
+            </div>
+            <div id="news-filter-container"><p>讀取中...</p></div>
+            <div id="news-list-container"><p>正在載入最新情報...</p></div>
         </div>
-        <div id="news-filter-container"><p>讀取中...</p></div>
-        <div id="news-list-container"><p>正在載入最新情報...</p></div>
-    </div>
 
         <div id="page-products">
             <h1 class="page-main-title">產品型錄</h1>
             <div id="filter-controls">
                 <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
                 <div id="dynamic-filter-container" class="filter-group">
-                    </div>
+                </div>
                 <button id="clear-filters" class="filter-action-btn">清除所有篩選</button>
-            </div>            
+            </div>
             <div id="product-view-controls">
                 <div class="layout-switcher">
                     <button id="view-list-btn">列表</button>
@@ -74,102 +83,125 @@
             <div id="product-list-container" class="view-grid"><p>正在載入資料...</p></div>
         </div>
 
-    <div id="page-my-exp-history">
-        <h1 class="page-main-title">我的消費紀錄</h1>
-        <div id="my-exp-history-container"><p>查詢中...</p></div>
-        <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+        <div id="page-my-exp-history">
+            <h1 class="page-main-title">我的消費紀錄</h1>
+            <div id="my-exp-history-container"><p>查詢中...</p></div>
+            <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+        </div>
+
+        <div id="page-my-bookings">
+            <h1 class="page-main-title">我的預約紀錄</h1>
+            <div class="filter-group" style="margin-bottom: 20px;">
+                <button id="toggle-past-bookings-btn" class="cta-button" style="width: auto; padding: 10px 20px;">查看過往/已取消紀錄</button>
+            </div>
+            <h2>進行中的預約</h2>
+            <div id="my-bookings-container"><p>查詢中...</p></div>
+            <div id="past-bookings-container" style="display: none;">
+                <h2 style="margin-top: 30px;">過往/已取消的預約</h2>
+            </div>
+            <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+        </div>
+
+<div id="page-booking-details">
+        <button class="details-back-button">← 返回我的預約</button>
+        <h1 class="page-main-title">預約詳細資訊</h1>
+        <div class="details-section">
+            <div id="booking-details-loading"><p>載入中...</p></div>
+            <div id="booking-details-content-container" style="display: none;">
+                <h4>住宿資訊</h4>
+                <p><strong>入住日期:</strong> <span id="details-check-in-date">-</span></p>
+                <p><strong>退房日期:</strong> <span id="details-check-out-date">-</span></p>
+                <p><strong>入住晚數:</strong> <span id="details-nights">-</span> 晚</p>
+
+                <h4>房型資訊</h4>
+                <div id="details-items-list"></div>
+                <p style="text-align: right; font-weight: bold; margin-top: 10px;"><strong>訂單總金額:</strong> <span id="details-total-amount">$-</span></p>
+
+                <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+
+                <h4>取消政策</h4>
+                <p id="details-cancellation-policy" style="white-space: pre-wrap;">-</p>
+
+                <h4>入住須知</h4>
+                <p id="details-check-in-instructions" style="white-space: pre-wrap;">-</p>
+
+                <button id="details-cancel-booking-btn" class="cta-button" style="background-color: var(--color-danger); margin-top: 20px; display: none;">取消預約</button>
+            </div>
+        </div>
     </div>
-
-    
-    <div id="page-my-bookings">
-        <h1 class="page-main-title"></h1>
-        <div class="filter-group" style="margin-bottom: 20px;">
-            <button id="toggle-past-bookings-btn" class="cta-button" style="width: auto; padding: 10px 20px;">查看過往紀錄</button>
-        </div>
-        <h2>進行中的預約</h2>
-        <div id="my-bookings-container"><p>查詢中...</p></div>
-        <div id="past-bookings-container" style="display: none;">
-            <h2 style="margin-top: 30px;">過往的預約</h2>
-        </div>
-        <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
-    </div>    
-
-
-    <div id="page-profile">
-        <h1 class="page-main-title">會員中心</h1>
-        <div id="qrcode-container">
-            <div id="qrcode"></div>
-        </div>
-        <div class="profile-details-grid">
-            <div class="profile-avatar">
-                <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
+        <div id="page-profile">
+            <h1 class="page-main-title">會員中心</h1>
+            <div id="qrcode-container">
+                <div id="qrcode"></div>
             </div>
-            <div class="profile-stats">
-                <h2 id="display-name">讀取中...</h2>
-                <p><strong></strong><span id="user-class"></span></p>
-                <p><strong></strong><span id="user-level"></span></p>
-                <p><strong></strong><span id="user-exp"></span></p>
-            </div>
-        </div>
-        <div id="user-perk-line" class="perk-display" style="display: none;"></div>
-        <div class="profile-actions">
-            <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
-            <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
-            <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
-        </div>
-    </div>
-
-
-<div id="page-edit-profile">
-    <h1 class="page-main-title">編輯個人資料</h1>
-    <div class="details-section">
-        <form id="edit-profile-form">
-            <div class="form-group">
-                <label for="edit-profile-name">LINE 名稱 (不可修改)</label>
-                <input type="text" id="edit-profile-name" readonly style="background-color: #333; color: #888;">
-            </div>
-            <div class="form-group">
-                <label for="edit-profile-nickname">您的暱稱</label>
-                <input type="text" id="edit-profile-nickname" required>
-            </div>
-            <div class="form-group">
-                <label for="edit-profile-real-name">真實姓名 (選填)</label>
-                <input type="text" id="edit-profile-real-name">
-            </div>
-            <div class="form-group">
-                <label for="edit-profile-phone">聯絡電話</label>
-                <input type="tel" id="edit-profile-phone" required>
-            </div>
-            <div class="form-group">
-                <label for="edit-profile-email">電子信箱 (選填)</label>
-                <input type="email" id="edit-profile-email">
-            </div>
-            <div class="form-group">
-                <label>偏好的類型 (選填)</label>
-                <div id="preferred-product-container" class="tag-selection-container"></div>
-                <div id="preferred-product-other-container" style="display: none; margin-top: 10px;">
-                    <input type="text" id="preferred-product-other-input" placeholder="請輸入其他類型，以逗號分隔">
+            <div class="profile-details-grid">
+                <div class="profile-avatar">
+                    <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
+                </div>
+                <div class="profile-stats">
+                    <h2 id="display-name">讀取中...</h2>
+                    <p><strong></strong><span id="user-class"></span></p>
+                    <p><strong></strong><span id="user-level"></span></p>
+                    <p><strong></strong><span id="user-exp"></span></p>
                 </div>
             </div>
-            <p id="edit-profile-form-status" style="text-align: center; min-height: 1.2em;"></p>
-            <button type="submit" class="cta-button">儲存變更</button>
-        </form>
-    </div>
-    <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
-</div>
-
-    <div id="page-checkout">
-        <h1 class="page-main-title">購物車與結帳</h1>
-        <div class="details-section">
-            <p>這裡是購物車與結帳功能的展示頁面。</p>
-            <p>測試用的</p>
-            <p>這是一個為未來金流功能預留的介面，之後有空再建置。</p>
+            <div id="user-perk-line" class="perk-display" style="display: none;"></div>
+            <div class="profile-actions">
+                <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
+                <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
+                <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
+            </div>
         </div>
-    </div>
-    
-<div id="page-booking">
-            <h1 class="page-main-title">線上預約</h1>
 
+        <div id="page-edit-profile">
+            <h1 class="page-main-title">編輯個人資料</h1>
+            <div class="details-section">
+                <form id="edit-profile-form">
+                    <div class="form-group">
+                        <label for="edit-profile-name">LINE 名稱 (不可修改)</label>
+                        <input type="text" id="edit-profile-name" readonly style="background-color: #333; color: #888;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-profile-nickname">您的暱稱</label>
+                        <input type="text" id="edit-profile-nickname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-profile-real-name">真實姓名 (選填)</label>
+                        <input type="text" id="edit-profile-real-name">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-profile-phone">聯絡電話</label>
+                        <input type="tel" id="edit-profile-phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-profile-email">電子信箱 (選填)</label>
+                        <input type="email" id="edit-profile-email">
+                    </div>
+                    <div class="form-group">
+                        <label>偏好的類型 (選填)</label>
+                        <div id="preferred-product-container" class="tag-selection-container"></div>
+                        <div id="preferred-product-other-container" style="display: none; margin-top: 10px;">
+                            <input type="text" id="preferred-product-other-input" placeholder="請輸入其他類型，以逗號分隔">
+                        </div>
+                    </div>
+                    <p id="edit-profile-form-status" style="text-align: center; min-height: 1.2em;"></p>
+                    <button type="submit" class="cta-button">儲存變更</button>
+                </form>
+            </div>
+            <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+        </div>
+
+        <div id="page-checkout">
+            <h1 class="page-main-title">購物車與結帳</h1>
+            <div class="details-section">
+                <p>這裡是購物車與結帳功能的展示頁面。</p>
+                <p>測試用的</p>
+                <p>這是一個為未來金流功能預留的介面，之後有空再建置。</p>
+            </div>
+        </div>
+
+        <div id="page-booking">
+            <h1 class="page-main-title">線上預約</h1>
             <div class="details-section">
                 <h3>1. 選擇入住與退房日期</h3>
                 <div class="form-group">
@@ -177,16 +209,12 @@
                     <input type="text" id="booking-date-range-picker" placeholder="請點擊選擇日期範圍">
                 </div>
                 </div>
-
             <div id="booking-details-form" class="details-section" style="display: none;">
-
                 <h3>2. 選擇房型與數量</h3>
                 <div id="room-selection-container" style="margin-bottom: 20px;">
                     <p>請先選擇入住與退房日期以查看房型。</p>
                 </div>
-
                 <hr style="border-color: var(--color-secondary); margin: 20px 0;">
-
                 <h3>3. 填寫聯絡資訊</h3>
                 <div class="form-group">
                     <label for="contact-name">預約姓名</label>
@@ -196,14 +224,11 @@
                     <label for="contact-phone">聯絡電話</label>
                     <input type="tel" id="contact-phone" placeholder="請輸入您的手機號碼 (09開頭)" maxlength="10">
                 </div>
-
                 <div class="booking-summary" style="margin-top: 20px; text-align: right; font-weight: bold; font-size: 1.1rem; color: var(--color-primary);">
                     預計總金額：<span id="estimated-total-price">$0</span>
                 </div>
-
                 <button id="confirm-booking-btn" class="cta-button" style="margin-top: 15px;">確認訂房</button>
             </div>
-
             <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px; background-color: var(--color-secondary);">查看我的預約</button>
         </div>
 
@@ -228,7 +253,7 @@
                 </div>
             </div>
         </div>
-        
+
     </div>
 
 <nav id="tab-bar">

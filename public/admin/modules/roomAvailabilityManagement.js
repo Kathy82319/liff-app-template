@@ -17,7 +17,7 @@ function renderAvailabilityGrid() {
     console.log("[RenderGrid] Starting grid rendering...");
     const container = document.getElementById('rav-grid-container');
     const productSelect = document.getElementById('rav-product-select');
-    if (!container || !productSelect) {
+if (!container || !productSelect) {
         console.error("[RenderGrid] Error: Container or product select not found.");
         return;
     }
@@ -38,6 +38,7 @@ function renderAvailabilityGrid() {
         return;
     }
 
+
     // --- 表格 HTML 生成 ---
     let tableHtml = '<table class="rav-table" style="width: 100%; border-collapse: collapse;">';
 
@@ -48,7 +49,6 @@ function renderAvailabilityGrid() {
         const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
         const dayOfWeek = weekdayShort[date.getDay()];
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        // 增加 text-align: center
         tableHtml += `<th style="min-width: 110px; text-align: center; ${isWeekend ? 'color: var(--color-primary, blue);' : ''}">${monthDay}<br>${dayOfWeek}</th>`;
     });
     tableHtml += '</tr></thead>';
@@ -62,23 +62,22 @@ function renderAvailabilityGrid() {
 
         displayedDates.forEach(dateStr => {
             const inventory = currentInventoryData[product.product_id]?.[dateStr];
-            // 從 currentInventoryData 取值，若無則使用預設值
             const status = inventory?.status || 'Closed';
-            const quantity = inventory?.quantity_available ?? 0; // 使用 quantity_available
-            const price = inventory?.base_price; // 使用 base_price (可能是 null 或 數字)
-            const priceText = (price === null || price === undefined) ? '' : String(price); // 價格輸入框顯示空字串或數字
+            const quantity = inventory?.quantity_available ?? 0;
+            const price = inventory?.base_price;
+            const priceText = (price === null || price === undefined) ? '' : String(price);
 
             // --- 根據規則計算視覺樣式和提示 ---
-            const visuals = calculateCellVisuals(status, quantity, price);
+            const visuals = calculateCellVisuals(status, quantity, price); // 使用更新後的 calculateCellVisuals
 
             // --- 生成單元格 HTML ---
             tableHtml += `
                 <td style="border: 1px solid var(--color-border, #CCC); padding: 5px; text-align: center; vertical-align: top; background-color: ${visuals.bgColor};"
                     data-product-id="${product.product_id}" data-date="${dateStr}" title="${visuals.tooltip}">
                     <div style="margin-bottom: 3px;">
-                        <button class="status-toggle action-btn ${status === 'Open' ? 'status-open' : 'status-closed'}" data-status="${status}"
-                                style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${status === 'Open' ? 'var(--color-success, green)' : 'var(--color-danger, red)'}; color: white;">
-                            ${status === 'Open' ? '開啟' : '關閉'}
+                        <button class="status-toggle action-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}" data-status="${status}"
+                                style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};">
+                            ${visuals.buttonText}
                         </button>
                     </div>
                     <div style="margin-bottom: 3px;">
@@ -98,40 +97,73 @@ function renderAvailabilityGrid() {
 
     container.innerHTML = tableHtml;
     console.log("[RenderGrid] Grid rendering finished.");
-    // 事件綁定移至 setupEventListeners
+    // bindCellEvents(); // 事件綁定移至 setupEventListeners 或 loadInventoryData 成功後
 }
 
 // --- 輔助：計算單元格視覺樣式 (v5 - 符合新設計) ---
+// public/admin/modules/roomAvailabilityManagement.js
+
+// --- 輔助：計算單元格視覺樣式 (v6 - "售完" 狀態) ---
 function calculateCellVisuals(status, quantity, price) {
     let bgColor = 'var(--color-sidebar-bg, #FFF)'; // 預設白色
     let tooltip = '';
     let iconHtml = '';
     let inputsDisabled = false;
+    // --- 新增：按鈕樣式 ---
+    let buttonBgColor = '';
+    let buttonText = '';
+    let buttonTextColor = 'white'; // 預設按鈕文字顏色
 
     if (status === 'Open') {
         const isValidPrice = (price !== null && price !== undefined && price > 0);
-        if (isValidPrice) { // 價格有效(>0)
-             if (quantity > 0) { // 且數量 > 0 -> 可預訂
+
+        if (quantity > 0) { // --- 數量 > 0 ---
+            if (isValidPrice) { // 價格有效 -> 可預訂
                 tooltip = `可預訂 (${quantity} 間, $${price})`;
+                buttonBgColor = 'var(--color-success, green)';
+                buttonText = '開啟';
                 // bgColor 保持預設白色
-            } else { // 價格有效但數量為 0 -> 已售罄
-                tooltip = '已售罄';
-                bgColor = '#fff3cd'; // 黃色
+            } else { // 價格未定或為零 -> 價格問題
+                const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
+                tooltip = `${reason} (${quantity} 間可用)`;
+                iconHtml = `<span class="price-warning-icon" style="color: red; font-weight: bold; margin-left: 2px; cursor: help;" title="${reason}">!</span>`;
+                bgColor = '#fff3cd'; // 黃色背景
+                buttonBgColor = 'var(--color-success, green)'; // 按鈕仍是綠色
+                buttonText = '開啟';
             }
-        } else { // 價格未定(null/undefined) 或 為零(0) -> 價格問題
-            const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
-            tooltip = `${reason}${quantity > 0 ? ' ('+quantity+' 間可用)' : ''}`;
-            // 驚嘆號 icon
-            iconHtml = `<span style="color: red; font-weight: bold; margin-left: 2px; cursor: help;" title="${reason}">!</span>`;
-            bgColor = '#fff3cd'; // 黃色
+        } else { // --- 數量 = 0 -> 售完 ---
+            tooltip = '已售罄';
+            // bgColor 保持預設白色
+            buttonBgColor = 'var(--color-warning, #ffc107)'; // 按鈕變黃色
+            buttonText = '售完';
+            buttonTextColor = 'var(--color-text-dark, #212529)'; // 黃色背景配深色文字較清楚
+
+            // 如果同時價格也有問題，也要顯示驚嘆號
+            if (!isValidPrice) {
+                 const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
+                 tooltip += ` (${reason})`; // 在售罄提示後追加原因
+                 iconHtml = `<span class="price-warning-icon" style="color: red; font-weight: bold; margin-left: 2px; cursor: help;" title="${reason}">!</span>`;
+                 // 背景也變黃色，因為價格問題優先級更高
+                 bgColor = '#fff3cd';
+            }
         }
     } else { // status === 'Closed' -> 房間關閉
         tooltip = '房間關閉';
-        bgColor = '#f8d7da'; // 紅色
+        bgColor = '#f8d7da'; // 紅色背景
         inputsDisabled = true;
+        buttonBgColor = 'var(--color-danger, red)';
+        buttonText = '關閉';
     }
 
-    return { bgColor, tooltip, iconHtml, inputsDisabled };
+    return {
+        bgColor,
+        tooltip,
+        iconHtml,
+        inputsDisabled,
+        buttonBgColor,
+        buttonText,    
+        buttonTextColor 
+    };
 }
 
 
@@ -315,32 +347,48 @@ function updateCellVisuals(cell) {
     }
 
     const status = statusBtn.dataset.status;
-    // 確保從 input 讀取的是當前顯示的值
-    const quantity = parseInt(qtyInput.value, 10);
+    const quantity = parseInt(qtyInput.value, 10); // 從 input 讀取當前值
     const priceStr = priceInput.value.trim();
-    // 價格為空字串時視為 null
-    const price = (priceStr === '') ? null : parseInt(priceStr, 10);
+    const price = (priceStr === '') ? null : parseInt(priceStr, 10); // 從 input 讀取當前值
 
-    // 重新計算視覺樣式
+    // --- 重新計算視覺樣式 ---
     const visuals = calculateCellVisuals(status, quantity, price);
 
-    // 應用樣式
-    cell.style.backgroundColor = visuals.bgColor;
-    cell.title = visuals.tooltip; // 更新 tooltip
+    // --- 應用樣式 ---
+    cell.style.backgroundColor = visuals.bgColor; // 更新格子背景
+    cell.title = visuals.tooltip;                 // 更新 tooltip
+
+    // --- 更新按鈕 ---
+    statusBtn.style.backgroundColor = visuals.buttonBgColor;
+    statusBtn.style.color = visuals.buttonTextColor;
+    statusBtn.textContent = visuals.buttonText;
+    // 更新按鈕的 class (可選，用於 CSS)
+    statusBtn.classList.remove('status-open', 'status-soldout', 'status-closed');
+    if (status === 'Closed') {
+        statusBtn.classList.add('status-closed');
+    } else if (quantity > 0) {
+        statusBtn.classList.add('status-open');
+    } else {
+        statusBtn.classList.add('status-soldout');
+    }
+
 
     // 更新或移除驚嘆號 icon
     let iconSpan = cell.querySelector('.price-warning-icon');
     if (visuals.iconHtml) {
         if (!iconSpan) {
             iconSpan = document.createElement('span');
-            iconSpan.className = 'price-warning-icon'; // 給 icon 一個 class
-            // 插入到 price input 之後
+            iconSpan.className = 'price-warning-icon';
             priceInput.parentNode.insertBefore(iconSpan, priceInput.nextSibling);
         }
-        iconSpan.innerHTML = visuals.iconHtml; // 更新 icon 內容 (包含 title)
-        iconSpan.style.display = 'inline'; // 確保顯示
+        // 直接設置 innerHTML，因為 visuals.iconHtml 包含完整的 span 元素
+        iconSpan.outerHTML = visuals.iconHtml;
+         // outerHTML 替換後需要重新獲取 iconSpan (雖然下面沒再用到，但以防萬一)
+         // iconSpan = cell.querySelector('.price-warning-icon');
+         // if(iconSpan) iconSpan.style.display = 'inline'; // 確保顯示 (如果 innerHTML 沒包含 style)
+
     } else if (iconSpan) {
-        iconSpan.style.display = 'none'; // 隱藏 icon
+        iconSpan.remove(); // 直接移除元素
     }
 
     // 更新輸入框禁用狀態

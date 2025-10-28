@@ -828,18 +828,18 @@
 
     <div id="list-view-container">
         <div class="filter-bar">
-            {/* */}
+    
             <div id="booking-status-filter" class="filter-group">
+                <button data-filter="all">全部</button>
                 <button class="active" data-filter="today">今日預約</button>
                 <button data-filter="confirmed">未來預約</button>
-                <button data-filter="checked-in">已報到/入住</button>
-                <button data-filter="no-show">未入住</button> {/* */}
+                <button data-filter="checked-in">已入住</button>
                 <button data-filter="cancelled">已取消</button>
-                <button data-filter="all">全部</button> {/* */}
-            </div>
+                <button data-filter="no-show">未如期入住</button> 
+                            </div>
         </div>
 
-        {/* */}
+     
         <div class="advanced-filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #fff; border-radius: var(--border-radius); box-shadow: var(--box-shadow);">
             <div style="flex-grow: 1; min-width: 200px;">
                 <label for="booking-search-input" style="font-size: 0.8em; color: var(--color-text-light);">關鍵字搜尋:</label>
@@ -852,10 +852,9 @@
             <button id="apply-advanced-filters-btn" class="action-btn btn-save" style="align-self: flex-end;">查詢</button>
             <button type="button" id="clear-advanced-filters-btn" class="action-btn btn-cancel" style="align-self: flex-end; background-color: var(--color-secondary);">清除</button>
         </div>
-        {/* */}
+    
 
         <table>
-            {/* */}
             <thead>
                 <tr>
                     <th>時間</th>

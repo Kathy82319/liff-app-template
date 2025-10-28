@@ -839,7 +839,7 @@ loadingEl.style.display = 'block';
         // --- 填充頁面內容 ---
         const startDate = booking.booking_date || '';
         const endDate = booking.check_out_date || '';
-        let nights = '-';
+
         if (startDate && endDate) {
             try {
                 const start = new Date(startDate + 'T00:00:00');

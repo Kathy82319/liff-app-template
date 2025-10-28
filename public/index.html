@@ -168,46 +168,44 @@
     </div>
     
 <div id="page-booking">
-    <h1 class="page-main-title">線上預約</h1>
+            <h1 class="page-main-title">線上預約</h1>
 
-    <div class="details-section">
-        <h3>1. 選擇日期與時段</h3>
-        <div id="booking-datepicker-container"></div>
-        <div id="booking-time-slot-container" style="margin-top: 20px; display: none;">
-            <label for="time-slot-select" style="display: block; margin-bottom: 10px;">請選擇時段：</label>
-            <select id="time-slot-select"></select>
-        </div>
-    </div>
-
-    <div id="booking-details-form" class="details-section" style="display: none;">
-        <h3>2. 填寫預約資訊</h3>
-        
-        <div class="form-group">
-            <label>預約項目</label>
-            <div id="booking-items-container">
+            <div class="details-section">
+                <h3>1. 選擇入住與退房日期</h3>
+                <div class="form-group">
+                     <label for="booking-date-range-picker">入住 / 退房日期:</label>
+                    <input type="text" id="booking-date-range-picker" placeholder="請點擊選擇日期範圍">
                 </div>
-            <button type="button" id="add-booking-item-btn" class="cta-button" style="margin-top: 10px; background-color: var(--color-secondary); font-size: 0.9rem; padding: 8px;">⊕ 新增項目</button>
-        </div>
-        
-        <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+                </div>
 
-        <div class="form-group">
-            <label for="booking-people">總人數</label>
-            <input type="number" id="booking-people" value="1" min="1">
-        </div>
-        <div class="form-group">
-            <label for="contact-name">預約姓名</label>
-            <input type="text" id="contact-name" placeholder="請輸入您的姓名">
-        </div>
-        <div class="form-group">
-            <label for="contact-phone">聯絡電話</label>
-            <input type="tel" id="contact-phone" placeholder="請輸入您的電話" maxlength="10">
-        </div>
-        <button id="confirm-booking-btn" class="cta-button">確認預約</button>
-    </div>
+            <div id="booking-details-form" class="details-section" style="display: none;">
 
-    <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px; background-color: var(--color-secondary);">查看我的預約</button>
-</div>
+                <h3>2. 選擇房型與數量</h3>
+                <div id="room-selection-container" style="margin-bottom: 20px;">
+                    <p>請先選擇入住與退房日期以查看房型。</p>
+                </div>
+
+                <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+
+                <h3>3. 填寫聯絡資訊</h3>
+                <div class="form-group">
+                    <label for="contact-name">預約姓名</label>
+                    <input type="text" id="contact-name" placeholder="請輸入您的姓名">
+                </div>
+                <div class="form-group">
+                    <label for="contact-phone">聯絡電話</label>
+                    <input type="tel" id="contact-phone" placeholder="請輸入您的手機號碼 (09開頭)" maxlength="10">
+                </div>
+
+                <div class="booking-summary" style="margin-top: 20px; text-align: right; font-weight: bold; font-size: 1.1rem; color: var(--color-primary);">
+                    預計總金額：<span id="estimated-total-price">$0</span>
+                </div>
+
+                <button id="confirm-booking-btn" class="cta-button" style="margin-top: 15px;">確認訂房</button>
+            </div>
+
+            <button id="view-my-bookings-btn" class="cta-button" style="margin-top: 20px; background-color: var(--color-secondary);">查看我的預約</button>
+        </div>
 
         <div id="page-info">
             <h1 class="page-main-title">店家資訊</h1>

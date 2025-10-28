@@ -49,27 +49,30 @@ function getPriceForDate(dateString, product) {
 }
 
 
-// --- 修改 renderBookingDetails (View Mode) ---
-// (顯示詳情時，BookingItems.price 應該已經是當時的正確價格，無需修改)
-async function renderBookingDetails(booking, userProfile, isEditing = false) { // 變成 async
+async function renderBookingDetails(booking, userProfile, isEditing = false) { // 保持 async
     const contentEl = document.getElementById('booking-details-content');
-    const modalContent = document.getElementById('booking-details-modal').querySelector('.modal-content'); // 獲取 modal content
-    if (!contentEl || !modalContent) return;
-    // --- 【修改】判斷是否為民宿樣板 ---
-    const isGuesthouse = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    const modalContent = document.getElementById('booking-details-modal')?.querySelector('.modal-content'); // ?. 安全訪問
+    // 【修改】增加 modalContent 的檢查
+    if (!contentEl || !modalContent) {
+        console.error("renderBookingDetails: 找不到 contentEl 或 modalContent 元素");
+        return; // 如果找不到必要元素，提前退出
+    }
 
 
-    modalContent.style.maxHeight = ''; // 清除舊的最大高度
-    modalContent.style.overflowY = ''; // 清除舊的滾動設置
+    modalContent.style.maxHeight = '';
+    modalContent.style.overflowY = '';
 
-    const contactName = userProfile ? (userProfile.nickname || userProfile.line_display_name) : booking.contact_name;
+    // --- 【關鍵修正】在這裡初始化 html 變數 ---
+    let html = ''; // <--- 在這裡宣告並初始化 html 變數
 
-    // View Mode HTML (此部分**不需**修改價格顯示邏輯，因為 booking.items[x].price 應為正確值)
-if (!isEditing) { // --- VIEW MODE ---
+    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template'; // ?. 安全訪問
+
+    if (!isEditing) { // --- VIEW MODE ---
 
         // --- 1. 顧客資訊 (優先顯示) ---
-        html += `<h4>顧客資訊</h4>`;
-        if (userProfile) { // 如果是註冊會員
+        // 【修改】將 += 改為 =
+        html = `<h4>顧客資訊</h4>`; // <--- 使用 = 而不是 +=
+        if (userProfile) {
             html += `
                 <div class="details-grid-container">
                     <div><strong>姓名:</strong> ${userProfile.real_name || userProfile.nickname || userProfile.line_display_name || booking.contact_name}</div>
@@ -79,25 +82,26 @@ if (!isEditing) { // --- VIEW MODE ---
                     <div><strong>標籤:</strong> ${userProfile.tag || '無'}</div>
                 </div>
                 ${userProfile.notes ? `<div class="crm-notes-section" style="margin-top: 10px; margin-bottom: 1rem; padding: 0.8rem; background-color: #fffbe6; border-radius: 6px; border: 1px solid #ffe58f; max-height: 5em; overflow-y: auto;"><h5>顧客備註</h5><p style="white-space: pre-wrap; margin: 0;">${userProfile.notes}</p></div>` : ''}
-            `;
-        } else { // 臨時顧客
-            html += `<p><strong>姓名:</strong> ${booking.contact_name}</p>`;
-            html += `<p><strong>電話:</strong> ${booking.contact_phone || '未提供'}</p>`;
-            html += `<p>(臨時顧客)</p>`;
+            `; //
+        } else {
+            html += `<p><strong>姓名:</strong> ${booking.contact_name}</p>`; //
+            html += `<p><strong>電話:</strong> ${booking.contact_phone || '未提供'}</p>`; //
+            html += `<p>(臨時顧客)</p>`; //
         }
 
         // --- 2. 預約資訊 ---
-        html += `<h4>預約資訊</h4>`;
-        if (isGuesthouse) { // 民宿樣板
-            const startDate = booking.booking_date || '';
-            const endDate = booking.check_out_date || '';
-            let nights = '-';
-            if (startDate && endDate) {
-                try {
-                    const start = new Date(startDate + 'T00:00:00');
-                    const end = new Date(endDate + 'T00:00:00');
-                    nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                } catch(e) { /* ignore */ }
+        // (後續的 html += ... 保持不變)
+        html += `<h4>預約資訊</h4>`; //
+        if (isGuesthouse) { // 民宿樣板 //
+            const startDate = booking.booking_date || ''; //
+            const endDate = booking.check_out_date || ''; //
+            let nights = '-'; //
+            if (startDate && endDate) { //
+                try { //
+                    const start = new Date(startDate + 'T00:00:00'); //
+                    const end = new Date(endDate + 'T00:00:00'); //
+                    nights = Math.round((end - start) / (1000 * 60 * 60 * 24)); //
+                } catch(e) { /* ignore */ } //
             }
             html += `
                 <div class="details-grid-container">
@@ -106,8 +110,8 @@ if (!isEditing) { // --- VIEW MODE ---
                     <div><strong>住宿晚數:</strong> ${nights} 晚</div>
                     <div><strong>訂單狀態:</strong> ${booking.status}</div>
                 </div>
-            `;
-        } else { // 工作室或其他樣板
+            `; //
+        } else { // 工作室或其他樣板 //
             html += `
                 <div class="details-grid-container">
                     <div><strong>預約單號:</strong> ${booking.booking_id}</div>
@@ -117,49 +121,47 @@ if (!isEditing) { // --- VIEW MODE ---
                     <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
                     <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
                 </div>
-            `;
+            `; //
         }
-        html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>`;
+        html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>`; //
 
         // --- 3. 預約項目 ---
-        html += `<h4>預約項目</h4>`;
-        if (booking.items && booking.items.length > 0) {
-            html += `<table class="items-table"><thead><tr>`;
-            if (isGuesthouse) {
-                // 民宿表格標頭 (可選加入日期)
-                 html += `<th>房型</th><th>數量</th><th>單間總價</th><th>小計</th>`;
+        html += `<h4>預約項目</h4>`; //
+        if (booking.items && booking.items.length > 0) { //
+            html += `<table class="items-table"><thead><tr>`; //
+            if (isGuesthouse) { //
+                 html += `<th>房型</th><th>數量</th><th>單間總價</th><th>小計</th>`; //
             } else {
-                html += `<th>項目名稱</th><th>數量</th><th>單價</th><th>小計</th>`;
+                html += `<th>項目名稱</th><th>數量</th><th>單價</th><th>小計</th>`; //
             }
-            html += `</tr></thead><tbody>`;
+            html += `</tr></thead><tbody>`; //
 
-            let calculatedTotal = 0;
-            booking.items.forEach(item => {
-                const price = item.price !== null ? Number(item.price) : 0; // 單價或單間總價
-                const quantity = Number(item.quantity) || 0;
-                const subtotal = price * quantity;
-                calculatedTotal += subtotal;
+            let calculatedTotal = 0; //
+            booking.items.forEach(item => { //
+                const price = item.price !== null ? Number(item.price) : 0; //
+                const quantity = Number(item.quantity) || 0; //
+                const subtotal = price * quantity; //
+                calculatedTotal += subtotal; //
 
-                html += `<tr>`;
-                if (isGuesthouse) {
-                     html += `<td>${item.item_name}</td>`; // 房型名稱
-                     html += `<td>${quantity}</td>`; // 數量
-                     html += `<td>$${price}</td>`; // 單間總價
-                     html += `<td>$${subtotal}</td>`; // 小計
+                html += `<tr>`; //
+                if (isGuesthouse) { //
+                     html += `<td>${item.item_name}</td>`; //
+                     html += `<td>${quantity}</td>`; //
+                     html += `<td>$${price}</td>`; //
+                     html += `<td>$${subtotal}</td>`; //
                 } else {
-                     html += `<td>${item.item_name}</td>`; // 項目名稱
-                     html += `<td>${quantity}</td>`; // 數量
-                     html += `<td>$${price}</td>`; // 單價
-                     html += `<td>$${subtotal}</td>`; // 小計
+                     html += `<td>${item.item_name}</td>`; //
+                     html += `<td>${quantity}</td>`; //
+                     html += `<td>$${price}</td>`; //
+                     html += `<td>$${subtotal}</td>`; //
                 }
-                html += `</tr>`;
+                html += `</tr>`; //
             });
-            html += `</tbody>`;
-            // --- 新增：顯示總金額 ---
-            html += `<tfoot><tr><td colspan="${isGuesthouse ? 3 : 3}" style="text-align: right; font-weight: bold;">訂單總金額:</td><td style="font-weight: bold;">$${calculatedTotal}</td></tr></tfoot>`;
-            html += `</table>`;
+            html += `</tbody>`; //
+            html += `<tfoot><tr><td colspan="${isGuesthouse ? 3 : 3}" style="text-align: right; font-weight: bold;">訂單總金額:</td><td style="font-weight: bold;">$${calculatedTotal}</td></tr></tfoot>`; //
+            html += `</table>`; //
         } else {
-            html += `<p>無預約項目資訊</p>`;
+            html += `<p>無預約項目資訊</p>`; //
         }
 
         contentEl.innerHTML = html;

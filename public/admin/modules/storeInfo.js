@@ -1,5 +1,6 @@
 // public/admin/modules/storeInfo.js
 import { api } from '../api.js';
+import { ui } from '../ui.js'; 
 
 // 填充表單資料
 function populateStoreInfoForm(info) {

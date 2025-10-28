@@ -92,22 +92,24 @@ function openEditDraftModal(draft = null) {
     if (draftId === FIXED_DRAFT_IDS.POLICY) { // **<-- 嚴格判斷 ID 1**
         // --- 編輯政策草稿 ---
         modalTitle.textContent = `編輯 ${FIXED_DRAFT_TITLES[FIXED_DRAFT_IDS.POLICY]}`; // 使用常數
-        policyGroup.style.display = 'block'; // 顯示政策編輯區塊
-        titleInput.closest('.form-group').style.display = 'none'; // 隱藏標題輸入
-        contentTextarea.closest('.form-group').style.display = 'none'; // 隱藏一般內容輸入
+        // 先隱藏通用欄位
+        titleInput.closest('.form-group').style.display = 'none';
+        contentTextarea.closest('.form-group').style.display = 'none';
+        // 再顯示政策專用欄位 (確保覆蓋初始隱藏)
+        policyGroup.style.display = 'block'; // <--- **確保這行在隱藏通用欄位之後**
 
         // 解析 JSON 填入 (只在此處解析)
         try {
-            // 提供預設空物件，避免 draft.content 為空或 null 時 JSON.parse 報錯
-            const policyData = JSON.parse(draft.content || '{}');
-            cancellationPolicyTextarea.value = policyData.cancellationPolicy || '';
-            checkInInstructionsTextarea.value = policyData.checkInInstructions || '';
+            // ... (JSON 解析邏輯不變) ...
+             const policyData = JSON.parse(draft.content || '{}');
+             cancellationPolicyTextarea.value = policyData.cancellationPolicy || '';
+             checkInInstructionsTextarea.value = policyData.checkInInstructions || '';
         } catch (e) {
-            console.error(`解析政策內容 (ID: ${draftId}) 失敗:`, e, "原始內容:", draft.content); // 加入 Log
-            ui.toast.error("讀取政策內容時發生錯誤，將顯示原始文字。");
-            // **錯誤處理**：如果解析失敗，顯示原始(可能錯誤的)文字，讓使用者修正
-            cancellationPolicyTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
-            checkInInstructionsTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
+            // ... (錯誤處理邏輯不變) ...
+             console.error(`解析政策內容 (ID: ${draftId}) 失敗:`, e, "原始內容:", draft.content);
+             ui.toast.error("讀取政策內容時發生錯誤，將顯示原始文字。");
+             cancellationPolicyTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
+             checkInInstructionsTextarea.value = `[內容非標準JSON格式，請修正或覆蓋]\n${draft.content || ''}`;
         }
 
     } else if (draftId === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) { // **<-- 嚴格判斷 ID 2**

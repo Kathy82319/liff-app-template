@@ -50,68 +50,6 @@ function getPriceForDate(dateString, product) {
 }
 
 
-async function fetchDataAndRender(filter = null) {
-    const bookingListTbody = document.getElementById('booking-list-tbody');
-    const calendarView = document.getElementById('calendar-view-container');
-    const searchInput = document.getElementById('booking-search-input');
-    // 【新增】獲取日期範圍選擇器的值
-    const dateRange = bookingListDateRangePicker ? bookingListDateRangePicker.selectedDates : [];
-    let startDate = '';
-    let endDate = '';
-    if (dateRange.length === 2) {
-        startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
-        endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
-    }
-
-    try {
-        if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
-
-        const isCalendarView = calendarView && getComputedStyle(calendarView).display !== 'none';
-        // 【修改】如果 filter 為 null，嘗試從 active 按鈕讀取
-        let activeFilterValue = filter;
-        if (activeFilterValue === null) {
-            activeFilterValue = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-        }
-
-        console.log(`fetchDataAndRender - Filter: ${activeFilterValue}, Search: ${searchInput.value}, Start: ${startDate}, End: ${endDate}, Calendar: ${isCalendarView}`);
-
-        // 【修改】構建 API 參數
-        const params = new URLSearchParams();
-        // 只有在非日曆視圖下才應用所有篩選器
-        if (!isCalendarView) {
-            // 狀態篩選器: 'all' 表示不傳 status 參數 (或後端需處理 'all')
-            if (activeFilterValue !== 'all') {
-                 params.append('status', activeFilterValue);
-            }
-             // 關鍵字搜尋
-             if (searchInput.value) {
-                 params.append('search', searchInput.value.trim());
-             }
-             // 日期範圍
-             if (startDate && endDate) {
-                 params.append('startDate', startDate);
-                 params.append('endDate', endDate);
-             }
-        } else {
-             // 日曆視圖通常只看 'all_upcoming' 或許可以增加參數看特定月份
-             params.append('status', 'all_upcoming'); // 或根據 currentCalendarDate 調整月份參數
-        }
-
-
-        // 【修改】API 呼叫
-        console.log(`Calling API: /api/get-bookings?${params.toString()}`);
-        allBookings = await api.getBookings(params.toString()); // 直接傳遞 params 字串
-
-        if (!isCalendarView) {
-            renderBookingList(allBookings);
-        } else {
-            updateCalendar();
-        }
-    } catch (error) {
-        console.error('獲取預約列表失敗:', error);
-        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">${error.message}</td></tr>`;
-    }
-}
 
 async function renderBookingDetails(booking, userProfile, isEditing = false) {
     // ... (保留開頭的元素獲取和檢查) ...

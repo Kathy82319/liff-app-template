@@ -1020,9 +1020,7 @@ function renderBookingList(bookings) {
             <td>${booking.total_amount || 'N/A'}</td>
             <td><span class="status-tag ${statusClass}">${statusText}</span></td>
             <td class="actions-cell">
-                {/* ---【修改】用 "標記" 按鈕取代之前的按鈕 --- */}
                 <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
-                {/* 保留查看詳情的觸發機制 (點擊整行) */}
             </td>
         `;
     });

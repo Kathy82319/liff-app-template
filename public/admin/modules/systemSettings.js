@@ -235,23 +235,9 @@ function reconstructTemplateFromUI() {
     return { [selectedKey]: currentTemplate };
 }
 
-function renderTemplateSettings(templateKey) {
-    const template = templateDefinitions[templateKey];
-    if (!template) return;
-    const liffSettingsContainer = document.getElementById('liff-app-settings');
-    const adminSettingsContainer = document.getElementById('admin-panel-settings');
-    liffSettingsContainer.innerHTML = ''; 
-    adminSettingsContainer.innerHTML = ''; 
-    liffSettingsContainer.appendChild(createGlobalSettingsModule(template));
-    liffSettingsContainer.querySelector('.accordion-content')?.classList.add('open');
-    adminSettingsContainer.innerHTML = `<p>這裡是 "${template.name}" 的後台設定區塊。</p>`;
-}
 
 function renderOtherSettings() {
-    // ... (此函式內容不變) ...
-    // 此函式現在不再需要處理 LOGIC_ACTIVE_INDUSTRY_TEMPLATE
-    // 因為 active template 是由頂部的 template-selector 直接控制的
-    // 這部分邏輯可以簡化或移除，除非您還有其他非樣板藍圖內的獨立設定需要編輯
+
     const settingsContainer = document.getElementById('other-settings-container'); // 假設這個容器還存在
     if (!settingsContainer) return;
     settingsContainer.innerHTML = ''; // 清空

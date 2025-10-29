@@ -354,7 +354,6 @@ function getPriceForDate(dateString, product) {
 
                 setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE);
                 setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE);
-                setContent('#page-checkout .page-main-title', terms.CHECKOUT_PAGE_TITLE);
                 setContent('#page-profile .page-main-title', "會員中心");
                 setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || `${terms.BOOKING_NAME}服務`);
                 setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);

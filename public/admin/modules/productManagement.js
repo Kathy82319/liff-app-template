@@ -547,6 +547,37 @@ async function handleFormSubmit(event) {
      data.price_saturday = parseFloat(form.querySelector('[name="price_saturday"]').value) || null;
      const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
      data.images = JSON.stringify(images);
+     // --- 修改點：加入 Log 來偵錯規格欄位讀取 ---
+    console.log("--- 開始讀取規格欄位 ---");
+    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
+        const i = index + 1;
+        const nameInput = group.querySelector('[name="spec_name"]');
+        const valueInput = group.querySelector('[name="spec_value"]');
+
+        console.log(`處理第 ${i} 組規格 (.spec-input-group):`);
+        console.log("  找到 Name Input:", nameInput); // 看看是否找到元素
+        console.log("  找到 Value Input:", valueInput); // 看看是否找到元素
+
+        // 只有在找到 input 元素時才嘗試讀取 .value
+        if (nameInput) {
+            data[`spec_${i}_name`] = nameInput.value.trim() || null;
+            console.log(`  讀取 spec_${i}_name 值:`, nameInput.value, "-> 存入:", data[`spec_${i}_name`]);
+        } else {
+            console.error(`  錯誤：在第 ${i} 組找不到 [name="spec_name"]`);
+            data[`spec_${i}_name`] = null; // 找不到就設為 null
+        }
+
+        if (valueInput) {
+            data[`spec_${i}_value`] = valueInput.value.trim() || null;
+            console.log(`  讀取 spec_${i}_value 值:`, valueInput.value, "-> 存入:", data[`spec_${i}_value`]);
+        } else {
+            console.error(`  錯誤：在第 ${i} 組找不到 [name="spec_value"]`);
+            data[`spec_${i}_value`] = null; // 找不到就設為 null
+        }
+    });
+    console.log("--- 規格欄位讀取完畢 ---");
+    console.log("讀取後的 data 物件 (包含 specs):", JSON.stringify(data)); // 顯示最終要送出的 data
+    // --- Log 結束 ---
      document.querySelectorAll('.spec-input-group').forEach((group, index) => {
          const i = index + 1;
          data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim() || null;

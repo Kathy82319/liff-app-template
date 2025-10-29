@@ -1,55 +1,62 @@
-// functions/api/get-bookings.js
-
-export async function onRequest(context) {
-  try {
-    if (context.request.method !== 'GET') {
-      return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
+const statusFilter = url.searchParams.get('status');
+    // --- ▼▼▼ 新增詳細 Debug Log ▼▼▼ ---
+    if (statusFilter) {
+        console.log(`[API get-bookings v8 DEBUG] Raw statusFilter: "${statusFilter}"`);
+        console.log(`[API get-bookings v8 DEBUG] typeof statusFilter: ${typeof statusFilter}`);
+        console.log(`[API get-bookings v8 DEBUG] statusFilter length: ${statusFilter.length}`);
+        // 比較字串本身的 Character Code
+        const filterCodes = Array.from(statusFilter).map(char => char.charCodeAt(0)).join(',');
+        const literalCodes = Array.from('checked-in').map(char => char.charCodeAt(0)).join(',');
+        console.log(`[API get-bookings v8 DEBUG] statusFilter char codes: [${filterCodes}]`);
+        console.log(`[API get-bookings v8 DEBUG] "checked-in" char codes: [${literalCodes}]`);
+        console.log(`[API get-bookings v8 DEBUG] Strict comparison (=== 'checked-in'): ${statusFilter === 'checked-in'}`);
+        // 嘗試 trim 後比較
+        const trimmedStatusFilter = statusFilter.trim();
+        console.log(`[API get-bookings v8 DEBUG] Trimmed statusFilter: "${trimmedStatusFilter}"`);
+        console.log(`[API get-bookings v8 DEBUG] Trimmed comparison (=== 'checked-in'): ${trimmedStatusFilter === 'checked-in'}`);
+    } else {
+        console.log(`[API get-bookings v8 DEBUG] statusFilter is null or empty.`);
     }
-
-    const { request, env } = context;
-    const db = env.DB;
-    const url = new URL(request.url);
-    const statusFilter = url.searchParams.get('status');
-    const searchTerm = url.searchParams.get('search');
-    const startDate = url.searchParams.get('startDate');
-    const endDate = url.searchParams.get('endDate');
-
-    console.log(`[API get-bookings v7] Params - Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}`); // v7 Log
-
-    let query = "SELECT b.* FROM Bookings b"; // 使用別名
+    let query = "SELECT b.* FROM Bookings b"; // Alias table
     const conditions = [];
     const queryParams = [];
 
-    // --- 1. Status Filter (Revised Logic v7) ---
-    // 明確處理每種 statusFilter 的情況
-    if (statusFilter && statusFilter !== 'all') {
-        if (statusFilter === 'today') {
+    // --- 1. Status Filter (使用 trim() 增強判斷 v8) ---
+    const trimmedStatusFilter = statusFilter ? statusFilter.trim() : null; // <<<< 使用 Trimmed 版本比較
+
+    if (trimmedStatusFilter && trimmedStatusFilter !== 'all') {
+        // Log 進入哪個分支
+        if (trimmedStatusFilter === 'today') {
+            console.log("[API get-bookings v8 DEBUG] Matched: today");
             conditions.push("b.booking_date = date('now', 'localtime')");
             conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
-            // 不需要加入 queryParams
-        } else if (statusFilter === 'all_upcoming') {
+        } else if (trimmedStatusFilter === 'all_upcoming') {
+            console.log("[API get-bookings v8 DEBUG] Matched: all_upcoming");
             conditions.push("b.booking_date >= date('now', 'localtime')");
             conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
-            // 不需要加入 queryParams
-        } else if (statusFilter === 'confirmed') {
+        } else if (trimmedStatusFilter === 'confirmed') {
+             console.log("[API get-bookings v8 DEBUG] Matched: confirmed");
              conditions.push("b.booking_date >= date('now', 'localtime')");
              conditions.push(`b.status = ?${queryParams.length + 1}`);
              queryParams.push('confirmed');
-        } else if (statusFilter === 'checked-in') { // 明確判斷
+        } else if (trimmedStatusFilter === 'checked-in') {
+             console.log("[API get-bookings v8 DEBUG] Matched: checked-in"); // <<<< 預期這裡會 Log
              conditions.push(`b.status = ?${queryParams.length + 1}`);
              queryParams.push('checked-in');
-        } else if (statusFilter === 'no-show') { // 明確判斷
+        } else if (trimmedStatusFilter === 'no-show') {
+             console.log("[API get-bookings v8 DEBUG] Matched: no-show");
              conditions.push(`b.status = ?${queryParams.length + 1}`);
              queryParams.push('no-show');
-        } else if (statusFilter === 'cancelled') { // 明確判斷
+        } else if (trimmedStatusFilter === 'cancelled') {
+             console.log("[API get-bookings v8 DEBUG] Matched: cancelled");
              conditions.push(`b.status = ?${queryParams.length + 1}`);
              queryParams.push('cancelled');
         } else {
-             // 處理未知的 statusFilter 值
-             console.warn(`[API get-bookings v7] Ignored invalid status filter: ${statusFilter}`);
-             // 可以選擇忽略或回傳錯誤
-             // return new Response(JSON.stringify({ error: `無效的狀態篩選器: ${statusFilter}` }), { status: 400 });
+             // 只有在真的無法匹配時才 Log 警告
+             console.warn(`[API get-bookings v8] Could not match trimmed status filter: "${trimmedStatusFilter}"`);
         }
+    } else if (!trimmedStatusFilter) {
+        console.log("[API get-bookings v8 DEBUG] Status filter is null, empty, or 'all'. No status condition added.");
     }
     // else: statusFilter is 'all' or not provided -> 不加入 status 條件
 

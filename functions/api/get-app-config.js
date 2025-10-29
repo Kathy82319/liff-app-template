@@ -1,13 +1,14 @@
-// functions/api/get-app-config.js (修正版 v3 - 簡化合併邏輯)
+// functions/api/get-app-config.js (修正版 v4 - 通用 JSON 解析)
 
 export async function onRequest(context) {
     try {
         const db = context.env.DB;
-        console.log("[get-app-config v3] Fetching settings..."); // 標記版本
+        console.log("[get-app-config v4] Fetching settings..."); // 標記版本
+        // 從資料庫獲取所有設定，包含 type 欄位
         const { results } = await db.prepare("SELECT key, value, type FROM AppSettings").all();
 
         if (!results) {
-             console.error("[get-app-config v3] No settings found.");
+             console.error("[get-app-config v4] No settings found.");
              return new Response(JSON.stringify({ error: '在資料庫中找不到應用程式設定。' }), { status: 404 });
         }
 
@@ -17,77 +18,66 @@ export async function onRequest(context) {
             LOGIC: {} // 確保 LOGIC 物件已初始化
         };
 
-        // --- 步驟 1: 先處理所有非 JSON 和非樣板定義的設定 ---
         results.forEach(item => {
-            // 跳過樣板定義 JSON 字串，稍後處理
-            if (item.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS') {
-                return;
-            }
-
             let parsedValue;
-            switch (item.type) {
-                case 'boolean':
-                    parsedValue = (item.value === 'true');
-                    break;
-                case 'number':
-                    parsedValue = Number(item.value);
-                    break;
-                // 注意：這裡暫不處理 type='json'，除非您確定除了樣板定義外還有其他 JSON 設定
-                default:
-                    parsedValue = item.value;
-                    break;
-            }
+            let targetObject = null;
+            let subKey = null;
 
+            // 拆分 key
             const parts = item.key.split('_');
             const mainKey = parts[0]; // FEATURES, TERMS, LOGIC
-            const subKey = parts.slice(1).join('_');
-
-            if (config[mainKey] && subKey) { // 確保 mainKey 存在且 subKey 不是空的
-                config[mainKey][subKey] = parsedValue;
+            if (config.hasOwnProperty(mainKey) && parts.length > 1) {
+                targetObject = config[mainKey];
+                subKey = parts.slice(1).join('_');
             } else {
-                 console.warn(`[get-app-config v3] Skipping setting with invalid key structure: ${item.key}`);
+                 console.warn(`[get-app-config v4] Skipping setting with invalid key structure: ${item.key}`);
+                 return; // 跳過格式不符的 key
+            }
+
+            // --- ****** 核心修改：通用解析邏輯 ****** ---
+            try {
+                // 1. 優先根據資料庫 type 欄位判斷
+                if (item.type === 'boolean') {
+                    parsedValue = (item.value === 'true');
+                } else if (item.type === 'number') {
+                    parsedValue = Number(item.value);
+                // 2. 如果 type 是 'json'，或者 key 指明是樣板定義，或者值看起來像 JSON，則嘗試解析
+                } else if (item.type === 'json' || item.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS' || (item.value && (item.value.startsWith('{') || item.value.startsWith('[')))) {
+                    parsedValue = JSON.parse(item.value);
+                    console.log(`[get-app-config v4] Parsed JSON for key: ${item.key}`);
+                }
+                // 3. 否則視為普通字串
+                else {
+                    parsedValue = item.value;
+                }
+            } catch (e) {
+                // 解析失敗，可能是格式錯誤或非預期的 JSON
+                console.error(`[get-app-config v4] Failed to parse value for key: ${item.key}. Error: ${e.message}. Using raw value.`);
+                parsedValue = item.value; // 保留原始字串值，避免程式崩潰
+            }
+            // --- ****** 修改結束 ****** ---
+
+
+            // 將解析後的值存入 config 物件
+            if (targetObject && subKey) {
+                targetObject[subKey] = parsedValue;
             }
         });
-        console.log("[get-app-config v3] Initial config structure (before templates):", JSON.stringify(config, null, 2));
 
-        // --- 步驟 2: 獨立處理樣板定義 ---
-        const templateDefinitionsItem = results.find(item => item.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
-
-        if (templateDefinitionsItem && templateDefinitionsItem.value) {
-            try {
-                console.log("[get-app-config v3] Parsing LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS...");
-                const parsedDefinitions = JSON.parse(templateDefinitionsItem.value);
-
-                // **直接賦值給 config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS**
-                config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS = parsedDefinitions;
-                 console.log("[get-app-config v3] Successfully parsed and assigned INDUSTRY_TEMPLATE_DEFINITIONS.");
-
-                 // 添加更詳細的後端檢查
-                 const activeKey = config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-                 if (activeKey && config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey]) {
-                     const checkTemplate = config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey];
-                     console.log(`[get-app-config v3] Backend check for ${activeKey}: adminColumns exists?`, checkTemplate.hasOwnProperty('adminColumns'));
-                     console.log(`[get-app-config v3] Backend check for ${activeKey}: adminColumns is Array?`, Array.isArray(checkTemplate.adminColumns));
-                 } else {
-                     console.warn(`[get-app-config v3] Backend check: Active template key "${activeKey}" not found in definitions.`);
-                 }
-
-
-            } catch (e) {
-                console.error("[get-app-config v3] Failed to parse LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS:", e);
-                config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS = {}; // 解析失敗給空物件
-            }
-        } else {
-            console.warn("[get-app-config v3] LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS not found in DB results.");
-            config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS = {}; // 資料庫沒設定也給空物件
-        }
-
-        // --- 步驟 3: 確保 LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS 至少是空物件 ---
+        // --- 確保 LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS 至少是空物件 (以防萬一) ---
         if (typeof config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS !== 'object' || config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS === null) {
+            console.warn("[get-app-config v4] INDUSTRY_TEMPLATE_DEFINITIONS was not a valid object after processing. Setting to empty object.");
             config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS = {};
         }
+        // --- 同理，確保 LOGIC.PRODUCT_FILTERS 是陣列或 undefined ---
+         if (config.LOGIC.PRODUCT_FILTERS && !Array.isArray(config.LOGIC.PRODUCT_FILTERS)) {
+             console.warn("[get-app-config v4] PRODUCT_FILTERS was not an array after processing. Setting to empty array.");
+             // 如果解析後不是陣列 (例如解析失敗保留了字串)，給一個空陣列避免前端出錯
+             config.LOGIC.PRODUCT_FILTERS = [];
+         }
 
-        console.log("[get-app-config v3] Final config object being sent:", JSON.stringify(config, null, 2));
+
+        console.log("[get-app-config v4] Final config object being sent:", JSON.stringify(config, null, 2));
 
         return new Response(JSON.stringify(config), {
             status: 200,
@@ -97,7 +87,7 @@ export async function onRequest(context) {
         });
 
     } catch (error) {
-        console.error('[get-app-config v3] Error:', error);
+        console.error('[get-app-config v4] Error:', error);
         return new Response(JSON.stringify({ error: '獲取應用程式設定時發生錯誤。' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },

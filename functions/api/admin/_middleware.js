@@ -1,6 +1,4 @@
 // functions/api/admin/_middleware.js (簡化版 - 僅 Cookie 驗證)
-import * as jose from 'jose';
-
 async function authMiddleware(context) {
     const { request, env, next } = context;
     const url = new URL(request.url);

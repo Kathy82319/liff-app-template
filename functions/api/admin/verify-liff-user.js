@@ -1,5 +1,4 @@
 // functions/api/admin/verify-liff-user.js (修正後 - 會設定 Cookie)
-import * as jose from 'jose'; // <--- 【新增】引入 jose 函式庫
 
 export async function onRequest(context) {
     try {

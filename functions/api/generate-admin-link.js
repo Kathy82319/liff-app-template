@@ -1,6 +1,5 @@
 // functions/api/generate-admin-link.js (修改後 - 指向 magic-login)
 
-import * as jose from 'jose';
 
 export async function onRequest(context) {
     try {

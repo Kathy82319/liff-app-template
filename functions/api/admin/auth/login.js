@@ -1,5 +1,4 @@
 // functions/api/admin/auth/login.js
-import * as jose from 'jose';
 
 export async function onRequest(context) {
     if (context.request.method !== 'POST') {

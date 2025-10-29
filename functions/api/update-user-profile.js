@@ -1,6 +1,5 @@
 // functions/api/update-user-profile.js
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import * as jose from 'jose';
+
 
 export async function onRequest(context) {
   try {
@@ -64,7 +63,6 @@ export async function onRequest(context) {
     }
 
     const userDataToSync = { userId, realName: realName || '', nickname, phone, email: email || '', preferredproduct: preferredproductString, displayName, pictureUrl };
-    context.waitUntil(syncProfileUpdateToSheet(context.env, userDataToSync));
 
     return new Response(JSON.stringify({ 
         success: true, 

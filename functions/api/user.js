@@ -1,7 +1,4 @@
 // functions/api/user.js
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import * as jose from 'jose';
-
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -33,7 +30,7 @@ export async function onRequest(context) {
         user_id: userId, 
         line_display_name: displayName || '未提供名稱',
         line_picture_url: pictureUrl || '',
-        real_name: '', // 新增 real_name 預設值
+        real_name: '', 
         class: '無', 
         level: 1, 
         current_exp: 0, 
@@ -49,10 +46,6 @@ export async function onRequest(context) {
       const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
       context.waitUntil(activityStmt.bind('new_user', `新顧客 ${newUser.line_display_name} 已加入`, '#users').run());
       
-      const sheetData = { ...newUser };
-      delete sheetData.user_id;
-      context.waitUntil(addRowToSheet(context.env, context.env.USERS_SHEET_NAME, sheetData));
-
       return new Response(JSON.stringify({ ...newUser, expToNextLevel }), { status: 201, headers: { 'Content-Type': 'application/json' } });
     }
   } catch (error) {

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {},
   "dependencies": {
+    "jose": "^5.6.3",
     "nanoid": "^5.0.7"
   }
 }  

@@ -10,93 +10,96 @@ export async function onRequest(context) {
     const db = env.DB;
     const url = new URL(request.url);
     const statusFilter = url.searchParams.get('status');
-    // 【新增】讀取新參數
     const searchTerm = url.searchParams.get('search');
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
-    console.log(`[API get-bookings] Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}`); // Debug Log
+    console.log(`[API get-bookings] Params - Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}`); // Log incoming params
 
-    // --- 【修改】構建 SQL 查詢 ---
     let query = "SELECT * FROM Bookings";
     const conditions = [];
     const queryParams = [];
-    let paramIndex = 1; // D1 參數索引從 1 開始
+    let paramIndex = 1; // Parameter index starts at 1
 
-    // 1. 處理狀態篩選 (優先)
-    if (statusFilter && statusFilter !== 'all') { // 'all' 表示不過濾狀態
-        if (statusFilter === 'today') {
-            conditions.push("booking_date = date('now', 'localtime')");
-            // 今日預約包含 confirmed, checked-in, no-show
-            conditions.push("status IN ('confirmed', 'checked-in', 'no-show')");
-        } else if (statusFilter === 'all_upcoming') {
-            conditions.push("booking_date >= date('now', 'localtime')");
-            // 未來所有非取消的
-            conditions.push("status IN ('confirmed', 'checked-in', 'no-show')");
-        } else if (statusFilter === 'confirmed') { // 未來的預約 (只顯示 confirmed)
-            conditions.push("booking_date >= date('now', 'localtime')"); // 改為 >= 包含今天
-            conditions.push("status = 'confirmed'"); // 只看 confirmed
-        } else if (statusFilter === 'checked-in') {
-            conditions.push("status = 'checked-in'");
-        } else if (statusFilter === 'no-show') { // 新增 no-show 篩選
-            conditions.push("status = 'no-show'");
-        } else if (statusFilter === 'cancelled') {
-            conditions.push("status = 'cancelled'");
+    // 1. Status Filter (Using parameters)
+    if (statusFilter && statusFilter !== 'all') {
+        // Define allowed statuses to prevent SQL injection if statusFilter somehow contains malicious code
+        const allowedStatuses = ['today', 'all_upcoming', 'confirmed', 'checked-in', 'no-show', 'cancelled'];
+        if (allowedStatuses.includes(statusFilter)) {
+            if (statusFilter === 'today') {
+                conditions.push("booking_date = date('now', 'localtime')");
+                conditions.push("status IN ('confirmed', 'checked-in', 'no-show')");
+            } else if (statusFilter === 'all_upcoming') {
+                conditions.push("booking_date >= date('now', 'localtime')");
+                conditions.push("status IN ('confirmed', 'checked-in', 'no-show')");
+            } else if (statusFilter === 'confirmed') {
+                conditions.push("booking_date >= date('now', 'localtime')");
+                conditions.push(`status = ?${paramIndex}`);
+                queryParams.push('confirmed'); // Bind 'confirmed'
+                paramIndex++;
+            } else { // checked-in, no-show, cancelled
+                conditions.push(`status = ?${paramIndex}`);
+                queryParams.push(statusFilter); // Bind the specific status
+                paramIndex++;
+            }
+        } else {
+             console.warn(`[API get-bookings] Ignored invalid status filter: ${statusFilter}`);
+             // Optionally return an error or just ignore the invalid filter
         }
-        // 注意：這裡移除了舊的 'confirmed' 邏輯 (booking_date > today)
-        // 也移除了 else (預設 >= today)，因為 'all' 會處理
     }
-    // else: statusFilter is 'all' or not provided -> 不加 status 條件
+    // else: statusFilter is 'all' or not provided -> No status condition
 
-    // 2. 處理日期範圍篩選 (booking_date)
-    if (startDate && endDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    // 2. Date Range Filter (Using parameters)
+    // Validate date format before using
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const isValidStartDate = startDate && dateRegex.test(startDate);
+    const isValidEndDate = endDate && dateRegex.test(endDate);
+
+    if (isValidStartDate && isValidEndDate) {
          conditions.push(`booking_date BETWEEN ?${paramIndex} AND ?${paramIndex + 1}`);
          queryParams.push(startDate, endDate);
          paramIndex += 2;
-    } else if (startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-         // 如果只有開始日期
+    } else if (isValidStartDate) {
          conditions.push(`booking_date >= ?${paramIndex}`);
          queryParams.push(startDate);
          paramIndex += 1;
-    } else if (endDate && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-        // 如果只有結束日期
+    } else if (isValidEndDate) {
         conditions.push(`booking_date <= ?${paramIndex}`);
         queryParams.push(endDate);
         paramIndex += 1;
     }
+    // else: No valid date range provided
 
-
-    // 3. 處理關鍵字搜尋
+    // 3. Search Term Filter (Corrected Parameter Binding)
     if (searchTerm) {
         const searchQuery = `%${searchTerm}%`;
+        // Use separate parameter indices for each LIKE clause
         conditions.push(
-            `(contact_name LIKE ?${paramIndex} OR contact_phone LIKE ?${paramIndex} OR booking_id LIKE ?${paramIndex})`
+            `(contact_name LIKE ?${paramIndex} OR contact_phone LIKE ?${paramIndex + 1} OR booking_id LIKE ?${paramIndex + 2})`
         );
-        queryParams.push(searchQuery); // 綁定一次即可
-        paramIndex += 1;
+        // Bind the search query three times
+        queryParams.push(searchQuery, searchQuery, searchQuery);
+        paramIndex += 3; // Increment index by 3
     }
 
-    // 組合 WHERE 子句
+    // Combine WHERE clause
     if (conditions.length > 0) {
         query += " WHERE " + conditions.join(" AND ");
     }
 
-    // 排序 (保持不變)
-    query += " ORDER BY booking_date DESC, time_slot DESC"; // 按日期降序，然後時間降序
+    // Sorting (Unchanged)
+    query += " ORDER BY booking_date DESC, time_slot DESC";
 
-    console.log(`[API get-bookings] SQL: ${query}`); // Debug Log
-    console.log(`[API get-bookings] Params: ${JSON.stringify(queryParams)}`); // Debug Log
+    console.log(`[API get-bookings] Executing SQL: ${query}`); // Log the final SQL
+    console.log(`[API get-bookings] With Params: ${JSON.stringify(queryParams)}`); // Log the parameters
 
-
-    // 執行主要查詢
+    // Execute query
     const bookingsStmt = db.prepare(query).bind(...queryParams);
     const { results: bookings } = await bookingsStmt.all();
 
-    // 後續獲取 items 並組合的邏輯保持不變
+    // Fetch items and combine (Unchanged)
     if (!bookings || bookings.length === 0) {
-        return new Response(JSON.stringify([]), {
-            status: 200, headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     const bookingIds = bookings.map(b => b.booking_id);
     const placeholders = bookingIds.map(() => '?').join(',');
@@ -106,7 +109,6 @@ export async function onRequest(context) {
         const itemsForBooking = allItems.filter(item => item.booking_id === booking.booking_id);
         return { ...booking, items: itemsForBooking };
     });
-    // --- 【修改結束】 ---
 
     return new Response(JSON.stringify(bookingsWithItems), {
       status: 200,
@@ -114,7 +116,9 @@ export async function onRequest(context) {
     });
 
   } catch (error) {
-    console.error('[API get-bookings] Error:', error); // Debug Log Error
+    console.error('[API get-bookings] Error:', error);
+    // Include stack trace in log for better debugging
+    console.error(error.stack);
     return new Response(JSON.stringify({ error: '獲取預約列表失敗。', details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

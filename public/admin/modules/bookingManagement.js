@@ -1336,16 +1336,52 @@ function updateCalendar() {
     }
 }
 
-async function fetchDataAndRender(filter = 'today') {
+async function fetchDataAndRender(filter = null) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const calendarView = document.getElementById('calendar-view-container');
+    const dateRange = bookingListDateRangePicker ? bookingListDateRangePicker.selectedDates : [];
+    let startDate = '';
+    let endDate = '';
+    if (dateRange.length === 2) {
+        startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
+        endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
+    }
     try {
         if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
         
         const isCalendarView = calendarView && getComputedStyle(calendarView).display !== 'none';
+        let activeFilterValue = filter;
+        if (activeFilterValue === null) {
+            activeFilterValue = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+        }
         const apiFilter = isCalendarView ? 'all_upcoming' : filter;
-        
+        console.log(`fetchDataAndRender - Filter: ${activeFilterValue}, Search: ${searchInput.value}, Start: ${startDate}, End: ${endDate}, Calendar: ${isCalendarView}`);
         allBookings = await api.getBookings(apiFilter);
+        const params = new URLSearchParams();
+        if (!isCalendarView) {
+            if (activeFilterValue !== 'all') {
+                 params.append('status', activeFilterValue);
+            }
+             if (searchInput.value) { // 檢查 searchInput 是否存在
+                 params.append('search', searchInput.value.trim());
+             }
+             if (startDate && endDate) { // 確保有值才加入
+                 params.append('startDate', startDate);
+                 params.append('endDate', endDate);
+             }
+        } else {
+             params.append('status', 'all_upcoming');
+        }
+
+        // API 呼叫 (使用 params.toString())
+        console.log(`Calling API: /api/get-bookings?${params.toString()}`);
+        // 【修改】直接調用 api.getBookings 並傳遞 params 字串
+        // allBookings = await api.getBookings(activeFilterValue, searchInput.value, startDate, endDate); // 舊方式
+        allBookings = await fetch(`/api/get-bookings?${params.toString()}`).then(res => {
+             if (!res.ok) throw new Error(`API Error ${res.status}`);
+             return res.json();
+        }); // 改回 fetch 或確認 api.js 中的 getBookings 能接受字串
+
 
         if (!isCalendarView) {
             renderBookingList(allBookings);
@@ -1357,7 +1393,6 @@ async function fetchDataAndRender(filter = 'today') {
         if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">${error.message}</td></tr>`;
     }
 }
-
 
 
 // --- 【修改】setupEventListeners ---

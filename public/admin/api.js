@@ -109,8 +109,7 @@ export const api = {
     updateMessageDraft: (data) => request('/api/admin/message-drafts', { method: 'PUT', body: JSON.stringify(data) }),
     deleteMessageDraft: (draft_id) => request('/api/admin/message-drafts', { method: 'DELETE', body: JSON.stringify({ draft_id }) }),
 
-    // --- Admin Send Message ---
-    // Assuming sendMessage is admin only
+
     sendMessage: (userId, message) => request('/api/admin/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }),
 
     // --- Store Info ---
@@ -123,9 +122,4 @@ export const api = {
 
     // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
-
-    // --- Admin Sync ---
-    // Assuming Syncs are admin only
-    syncD1ToSheet: () => request('/api/admin/sync-d1-to-sheet', { method: 'POST' }), // Verify backend file location
-    syncProductsFromSheet: () => request('/api/admin/sync-products-from-sheet', { method: 'POST' }) // Verify backend file location
 };

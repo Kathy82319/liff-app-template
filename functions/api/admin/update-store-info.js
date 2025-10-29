@@ -1,12 +1,3 @@
-// functions/api/admin/update-store-info.js
-// --- 【移除】不再需要 Google Sheets 和 jose ---
-// import { GoogleSpreadsheet } from 'google-spreadsheet';
-// import * as jose from 'jose';
-
-// --- 【移除】Google Sheets 工具函式 ---
-// async function getAccessToken(env) { ... }
-// async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) { ... }
-
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') { //

@@ -1,13 +1,3 @@
-// functions/api/add-points.js
-// --- 【移除】不再需要 Google Sheets 和 jose ---
-// import { GoogleSpreadsheet } from 'google-spreadsheet';
-// import * as jose from 'jose';
-
-// --- 【移除】Google Sheets 工具函式 ---
-// async function getAccessToken(env) { ... }
-// async function updateRowInSheet(env, sheetName, matchColumn, matchValue, updateData) { ... }
-// async function syncSingleExpToSheet(env, expData) { ... }
-
 export const onRequest = async (context) => {
     try {
         if (context.request.method !== 'POST') { //
@@ -42,15 +32,12 @@ export const onRequest = async (context) => {
             currentLevel += 1; //
         }
 
-        // --- (資料庫操作保持不變，更新 Users 和插入 Purchasehistory) ---
         await db.batch([ //
           db.prepare('UPDATE Users SET level = ?, current_exp = ? WHERE user_id = ?').bind(currentLevel, currentExp, userId), //
           db.prepare('INSERT INTO Purchasehistory (user_id, exp_added, reason) VALUES (?, ?, ?)').bind(userId, exp, reason) //
         ]);
 
-        // --- 【移除】Google Sheets 同步 ---
-        // context.waitUntil(syncSingleExpToSheet(...));
-        // context.waitUntil(updateRowInSheet(...));
+
 
         return new Response(JSON.stringify({ //
             success: true, //
@@ -64,7 +51,6 @@ export const onRequest = async (context) => {
 
     } catch (error) {
         console.error('Error in add-points API:', error); //
-        // --- 【修改】回傳詳細錯誤 ---
         return new Response(JSON.stringify({ error: '伺服器內部錯誤，新增積分失敗。', details: error.message}), { status: 500, headers: { 'Content-Type': 'application/json' } }); //
     }
 };

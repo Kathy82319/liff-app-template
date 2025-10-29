@@ -1,7 +1,4 @@
 // functions/api/admin/create-news.js
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import * as jose from 'jose';
-
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -47,10 +44,6 @@ export async function onRequest(context) {
         is_published: is_published ? 'TRUE' : 'FALSE',
         created_at: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
     };
-    context.waitUntil(
-        addRowToSheet(context.env, context.env.NEWS_SHEET_NAME, newsDataToSync)
-        .catch(err => console.error("背景同步新增情報失敗:", err))
-    );
     
     return new Response(JSON.stringify({ success: true, message: '情報新增成功！', id: result.id }), {
       status: 201, headers: { 'Content-Type': 'application/json' },

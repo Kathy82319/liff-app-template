@@ -37,15 +37,26 @@ export async function onRequest(context) {
              console.warn(`[API get-bookings v5] Ignored invalid status filter: ${statusFilter}`);
         }
     }
-    // Handle special status filters without parameters
-    else if (statusFilter === 'today') {
+    if (statusFilter === 'today') {
         conditions.push("b.booking_date = date('now', 'localtime')");
         conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
     } else if (statusFilter === 'all_upcoming') {
         conditions.push("b.booking_date >= date('now', 'localtime')");
         conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
     }
-    // else: statusFilter is 'all' or not provided
+    // 再處理需要參數綁定的情況
+    else if (statusFilter && statusFilter !== 'all') { // 問題可能在這裡
+        if (statusFilter === 'confirmed') {
+             conditions.push("b.booking_date >= date('now', 'localtime')");
+             conditions.push(`b.status = ?${queryParams.length + 1}`);
+             queryParams.push('confirmed');
+        } else if (['checked-in', 'no-show', 'cancelled'].includes(statusFilter)) {
+             conditions.push(`b.status = ?${queryParams.length + 1}`);
+             queryParams.push(statusFilter);
+        } else {
+             console.warn(`[API get-bookings v6] Ignored invalid status filter: ${statusFilter}`);
+        }
+    }
 
     // --- 2. Date Range Filter ---
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;

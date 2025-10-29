@@ -29,18 +29,16 @@ async function request(url, options = {}) {
             throw new Error(errorData.error || '未知的 API 錯誤');
         }
         if (response.status === 204) return { success: true };
-        // *** 修改：如果 Content-Type 不是 JSON，嘗試回傳 text ***
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return await response.json();
         } else {
-            // 如果不是 JSON，例如 404 頁面，嘗試讀取文字避免 JSON 解析錯誤
             console.warn(`API ${url} 回應非 JSON 格式 (${contentType})`);
             return { success: false, error: `非預期的回應格式: ${await response.text()}` };
         }
     } catch (error) {
         console.error(`API 請求失敗 (in catch): ${url}`, error);
-        throw error; // 將錯誤重新拋出
+        throw error;
     }
 }
 
@@ -83,8 +81,12 @@ export const api = {
     updateRoomInventory: (data) => request('/api/admin/update-room-inventory', { method: 'POST', body: JSON.stringify(data) }),
 
     // --- Admin Booking Management ---
-    getBookings: (status = 'all_upcoming') => request(`/api/get-bookings?status=${status}`), // Keep /api/ for LIFF? Or move?
-    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // Keep /api/ for LIFF? Or move?
+    getBookings: (queryString = 'status=today') => {
+        // 直接將 queryString 附加到基礎 URL 後面
+        const url = `/api/get-bookings?${queryString}`;
+        console.log(`[api.js getBookings] Constructed URL: ${url}`); // Log 構造的 URL
+        return request(url); // 呼叫 request 函數
+    },    updateBookingStatus: (bookingId, status) => request('/api/update-booking-status', { method: 'POST', body: JSON.stringify({ bookingId, status }) }), // Keep /api/ for LIFF? Or move?
     getBookingSettings: () => request('/api/admin/booking-settings'),
     saveBookingSettings: (body) => request('/api/admin/booking-settings', { method: 'POST', body: JSON.stringify(body) }),
     createBooking: (data) => request('/api/admin/create-booking', { method: 'POST', body: JSON.stringify(data) }),

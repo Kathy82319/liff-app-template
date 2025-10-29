@@ -1432,13 +1432,12 @@ async function fetchDataAndRender(filter = null) {
 // --- 【修改】setupEventListeners ---
 // 這個函數現在只負責綁定頁面級別的靜態元素事件 (例如篩選按鈕、新增按鈕等)
 function setupEventListeners() {
-    console.log("setupEventListeners 函數觸發 (只綁定靜態元素)");
+    console.log("setupEventListeners 函數觸發 (綁定靜態元素)");
     const page = document.getElementById('page-bookings');
     if (!page) {
         console.error("setupEventListeners: 找不到 #page-bookings 元素！");
         return;
     }
-    // 使用 dataset 標記來防止重複綁定頁面級別的靜態事件
     if (page.dataset.staticListenersAttached === 'true') {
         console.log("靜態事件已綁定，跳過。");
         return;
@@ -1467,29 +1466,26 @@ function setupEventListeners() {
             console.log("點擊狀態篩選按鈕:", filterButton.dataset.filter);
             document.querySelector('#booking-status-filter .active')?.classList.remove('active');
             filterButton.classList.add('active');
-            // 【修改】點擊狀態按鈕時，清空進階篩選並重新查詢
-            clearAdvancedFilters(); // 清空搜尋框和日期
-            fetchDataAndRender(filterButton.dataset.filter); // 使用按鈕的 filter 載入數據
+            // --- 【修改】移除 clearAdvancedFilters() ---
+            // clearAdvancedFilters(); // <--- 註解或刪除此行
+            fetchDataAndRender(filterButton.dataset.filter); // 直接使用新狀態查詢 (會保留日期)
             return;
         }
 
-        // --- 【新增】進階查詢按鈕 ---
+        // --- 進階查詢按鈕 ---
         if (target.id === 'apply-advanced-filters-btn') {
             console.log("點擊進階查詢按鈕");
-            // 直接呼叫 fetchDataAndRender，它會讀取搜尋框和日期的值
-            // filter 值會從當前 active 的狀態按鈕讀取
-            fetchDataAndRender();
+            fetchDataAndRender(); // 使用當前所有篩選條件查詢
             return;
         }
 
-        // --- 【新增】清除進階篩選按鈕 ---
+        // --- 清除進階篩選按鈕 ---
         if (target.id === 'clear-advanced-filters-btn') {
             console.log("點擊清除進階篩選按鈕");
-            clearAdvancedFilters();
-            // 清除後，觸發一次查詢 (使用當前選中的狀態按鈕)
-            fetchDataAndRender();
+            clearAdvancedFilters(); // 清空搜尋和日期
+            fetchDataAndRender(); // 使用當前狀態按鈕 + 空的進階篩選查詢
             return;
-        }        
+        }
 
         // --- 手動建立預約按鈕 ---
         if (target.id === 'create-booking-btn') {
@@ -1614,12 +1610,12 @@ function setupEventListeners() {
     console.log("setupEventListeners (靜態部分) 完成。");
 }
 
-// --- 【新增】清除進階篩選的輔助函數 ---
+// --- (保留 clearAdvancedFilters 函數) ---
 function clearAdvancedFilters() {
     const searchInput = document.getElementById('booking-search-input');
     if (searchInput) searchInput.value = '';
     if (bookingListDateRangePicker) bookingListDateRangePicker.clear();
-    console.log("已清除進階篩選條件。");
+    console.log("已清除進階篩選條件 (搜尋框 & 日期)。");
 }
 
 

@@ -1336,53 +1336,83 @@ function updateCalendar() {
     }
 }
 
+// --- 完整的 fetchDataAndRender 函數 ---
 async function fetchDataAndRender(filter = null) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const calendarView = document.getElementById('calendar-view-container');
+    const searchInput = document.getElementById('booking-search-input');
+    // 獲取日期範圍選擇器的值
     const dateRange = bookingListDateRangePicker ? bookingListDateRangePicker.selectedDates : [];
     let startDate = '';
     let endDate = '';
+    // 確保選擇了兩個日期
     if (dateRange.length === 2) {
         startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
         endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
     }
+
     try {
+        // 顯示載入中...
         if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
-        
+
+        // 判斷是否為日曆視圖
         const isCalendarView = calendarView && getComputedStyle(calendarView).display !== 'none';
+        // 確定當前有效的狀態篩選器值
         let activeFilterValue = filter;
         if (activeFilterValue === null) {
+            // 如果 filter 沒傳入（例如通過進階查詢觸發），則讀取當前按鈕狀態
             activeFilterValue = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
         }
-        const apiFilter = isCalendarView ? 'all_upcoming' : filter;
-        console.log(`fetchDataAndRender - Filter: ${activeFilterValue}, Search: ${searchInput.value}, Start: ${startDate}, End: ${endDate}, Calendar: ${isCalendarView}`);
-        allBookings = await api.getBookings(apiFilter);
+
+        console.log(`[fetchDataAndRender] Effective Filter: ${activeFilterValue}, Search: ${searchInput?.value || 'N/A'}, Start: ${startDate || 'N/A'}, End: ${endDate || 'N/A'}, Calendar View: ${isCalendarView}`);
+
+        // 構建 API 請求的查詢參數
         const params = new URLSearchParams();
-        if (!isCalendarView) {
-            if (activeFilterValue !== 'all') {
+
+        if (!isCalendarView) { // 列表視圖才應用所有篩選
+            // 狀態篩選器: 'all' 表示不傳 status 參數
+            if (activeFilterValue && activeFilterValue !== 'all') {
                  params.append('status', activeFilterValue);
             }
-             if (searchInput.value) { // 檢查 searchInput 是否存在
+             // 關鍵字搜尋: 確保 searchInput 存在且有值
+             if (searchInput && searchInput.value.trim()) {
                  params.append('search', searchInput.value.trim());
              }
-             if (startDate && endDate) { // 確保有值才加入
+             // 日期範圍: 確保 startDate 和 endDate 都有值
+             if (startDate && endDate) {
                  params.append('startDate', startDate);
                  params.append('endDate', endDate);
              }
         } else {
+             // 日曆視圖通常只看 'all_upcoming' 或按月份查詢 (此處簡化為 all_upcoming)
              params.append('status', 'all_upcoming');
+             // 注意：日曆視圖目前不應用搜尋和日期範圍篩選器
         }
 
-        // API 呼叫 (使用 params.toString())
-        console.log(`Calling API: /api/get-bookings?${params.toString()}`);
-        // 【修改】直接調用 api.getBookings 並傳遞 params 字串
-        // allBookings = await api.getBookings(activeFilterValue, searchInput.value, startDate, endDate); // 舊方式
-        allBookings = await fetch(`/api/get-bookings?${params.toString()}`).then(res => {
-             if (!res.ok) throw new Error(`API Error ${res.status}`);
-             return res.json();
-        }); // 改回 fetch 或確認 api.js 中的 getBookings 能接受字串
+        // 組合成查詢字串
+        const queryString = params.toString();
+        console.log(`[fetchDataAndRender] Calling API: /api/get-bookings?${queryString}`);
+
+        // --- 【修改】使用 api.js 中的 getBookings ---
+        // 確保 api.js 中的 getBookings 函數能接受查詢字串
+        // 如果 api.getBookings 設計為只接受 status，則需要修改 api.js 或改回 fetch
+        // 假設 api.getBookings 可以接受完整的查詢字串:
+        try {
+            allBookings = await api.getBookings(queryString); // 傳遞完整的查詢字串
+        } catch (apiError) {
+             // 如果 api.js 中的 getBookings 不能處理字串，嘗試用 fetch
+             console.warn("api.getBookings might not accept query string, falling back to fetch.");
+             const response = await fetch(`/api/get-bookings?${queryString}`);
+             if (!response.ok) {
+                 const errorText = await response.text();
+                 throw new Error(`API Error ${response.status}: ${errorText}`);
+             }
+             allBookings = await response.json();
+        }
+        // --- 【修改結束】 ---
 
 
+        // 根據視圖渲染結果
         if (!isCalendarView) {
             renderBookingList(allBookings);
         } else {
@@ -1390,10 +1420,14 @@ async function fetchDataAndRender(filter = null) {
         }
     } catch (error) {
         console.error('獲取預約列表失敗:', error);
-        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">${error.message}</td></tr>`;
+        // 在表格中顯示錯誤
+        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
+        // 如果是日曆視圖，也可以在日曆容器顯示錯誤
+        if (isCalendarView && calendarView) {
+            calendarView.innerHTML = `<p style="color: red; text-align: center;">讀取日曆資料失敗: ${error.message}</p>`;
+        }
     }
 }
-
 
 // --- 【修改】setupEventListeners ---
 // 這個函數現在只負責綁定頁面級別的靜態元素事件 (例如篩選按鈕、新增按鈕等)

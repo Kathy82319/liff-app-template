@@ -1030,7 +1030,6 @@ loadingEl.style.display = 'block';
 
 
 function renderProductDetails(product) {
-    // --- 在函數開頭檢查傳入的 product 和 activeTemplate ---
     if (!product || typeof product !== 'object') {
         console.error("renderProductDetails 錯誤：傳入的 product 無效。", product);
         appContent.innerHTML = `<p style="color:red;">無法載入產品資料。</p>`; // 直接在 appContent 顯示錯誤
@@ -1043,11 +1042,12 @@ function renderProductDetails(product) {
     }
     console.log("Rendering details for product:", product); // 輸出收到的產品資料
 
-    // --- 檢查 DOM 元素是否存在 ---
+    // --- ****** 核心修正：將 contentContainer 宣告移到這裡 ****** ---
     const detailsTitle = appContent.querySelector('.details-title');
     const gallery = appContent.querySelector('.details-gallery');
+    const contentContainer = appContent.querySelector('#product-details-content'); // <-- 移到這裡
 
-    if (!detailsTitle || !gallery || !contentContainer) {
+    if (!detailsTitle || !gallery || !contentContainer) { // <-- 現在檢查 contentContainer
          console.error("renderProductDetails 錯誤：找不到必要的 DOM 元素 (title, gallery, or content container)。");
          appContent.innerHTML = `<p style="color:red;">頁面結構錯誤，無法顯示產品詳情。</p>`;
          return;
@@ -1056,27 +1056,26 @@ function renderProductDetails(product) {
     const thumbnails = gallery.querySelector('.details-image-thumbnails');
     if(!mainImage || !thumbnails){
          console.error("renderProductDetails 錯誤：找不到 gallery 內的 mainImage 或 thumbnails 元素。");
-         // 即使找不到圖片元素，也嘗試繼續渲染文字內容
          gallery.style.display = 'none'; // 隱藏圖片區塊
     }
+    // --- ****** 修正結束 ****** ---
 
 
     detailsTitle.textContent = product.name || "產品名稱載入失敗"; // 提供預設值
-    contentContainer.innerHTML = ''; // 清空內容
+    contentContainer.innerHTML = ''; // 清空內容 (現在可以安全使用)
 
     // --- 圖片處理 (增加 try-catch 和元素檢查) ---
     try {
          const images = JSON.parse(product.images || '[]');
-         if (images.length > 0 && mainImage && thumbnails) { // 再次檢查元素
+         if (images.length > 0 && mainImage && thumbnails) {
              mainImage.src = images[0];
              thumbnails.innerHTML = images.map((img, index) => `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`).join('');
              gallery.style.display = 'block';
 
-             // 清除舊監聽器 (如果有的話) 再綁定新的
-             thumbnails.replaceWith(thumbnails.cloneNode(true)); // 簡單粗暴但有效的方法
+             thumbnails.replaceWith(thumbnails.cloneNode(true)); // 清除舊監聽器
              appContent.querySelector('.details-gallery .details-image-thumbnails').addEventListener('click', e => {
                  if (e.target.tagName === 'IMG') {
-                      if(mainImage) mainImage.src = e.target.dataset.src; // 再次檢查 mainImage
+                      if(mainImage) mainImage.src = e.target.dataset.src;
                       appContent.querySelector('.details-gallery .details-image-thumbnails .active')?.classList.remove('active');
                       e.target.classList.add('active');
                  }
@@ -1090,45 +1089,41 @@ function renderProductDetails(product) {
     }
 
 
-    const contentContainer = appContent.querySelector('#product-details-content');
-    contentContainer.innerHTML = ''; // 清空內容
-
     // --- 顯示價格區塊 ---
     const priceSection = document.createElement('div');
-    priceSection.className = 'detail-field-section product-price-details'; // 給價格區塊加個 class
+    priceSection.className = 'detail-field-section product-price-details';
     const priceLabel = document.createElement('h3');
     priceLabel.textContent = '價格';
     const priceContent = document.createElement('p');
-    // 清楚列出三種價格
     priceContent.innerHTML = `
         平日 (日~四): ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
         週五: ${product.price_friday !== null ? '$' + product.price_friday : '同平日'}<br>
         週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '同平日'}
     `;
     priceSection.append(priceLabel, priceContent);
-    contentContainer.appendChild(priceSection);
+    contentContainer.appendChild(priceSection); // <-- 使用 contentContainer
 
     // --- 其他欄位 (增加檢查) ---
     try {
         activeTemplate.fields.forEach(field => {
+            // 修正：民宿樣板沒有 price_friday, price_saturday，這裡判斷需要更通用
+            // 直接排除所有 price_ 開頭的 key
             if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible' || field.key.startsWith('price_')) return;
             const value = product[field.key];
-            if (value !== null && typeof value !== 'undefined' && value !== '') { // 更嚴格的檢查
+            if (value !== null && typeof value !== 'undefined' && String(value).trim() !== '') { // 更嚴格的檢查，並轉換成字串檢查
                 const section = document.createElement('div');
                 section.className = 'detail-field-section';
                 const label = document.createElement('h3');
                 label.textContent = field.label;
                 const content = document.createElement('p');
-                // 確保 value 是字串再取代換行符
                 content.innerHTML = String(value).replace(/\n/g, '<br>');
                 section.append(label, content);
-                contentContainer.appendChild(section);
+                contentContainer.appendChild(section); // <-- 使用 contentContainer
             }
         });
     } catch (e) {
         console.error("渲染其他產品欄位時出錯:", e);
-        // 可以在 contentContainer 附加一個錯誤提示
-         contentContainer.innerHTML += `<p style="color:red;">部分欄位渲染失敗。</p>`;
+         contentContainer.innerHTML += `<p style="color:red;">部分欄位渲染失敗。</p>`; // <-- 使用 contentContainer
     }
 }
 

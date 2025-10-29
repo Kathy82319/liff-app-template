@@ -14,32 +14,30 @@ export async function onRequest(context) {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
-    console.log(`[API get-bookings v4] Params - Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}`); // v4 Log
+    // More detailed logging for debugging
+    console.log(`[API get-bookings v5] Received Params - Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}`);
 
-    let query = "SELECT b.* FROM Bookings b"; // Alias table
+    let query = "SELECT b.* FROM Bookings b";
     const conditions = [];
     const queryParams = [];
-    let paramIndex = 1;
 
     // --- 1. Status Filter ---
-    // 將所有需要參數綁定的 status 條件放在這裡
+    // Handle status filters that might require parameter binding first
     if (statusFilter && statusFilter !== 'all' && statusFilter !== 'today' && statusFilter !== 'all_upcoming') {
         if (statusFilter === 'confirmed') {
-             // 未來的 confirmed (包含今天)
+             // Future confirmed (includes today)
              conditions.push("b.booking_date >= date('now', 'localtime')");
-             conditions.push(`b.status = ?${paramIndex}`);
+             conditions.push(`b.status = ?${queryParams.length + 1}`); // Use current length + 1 for index
              queryParams.push('confirmed');
-             paramIndex++;
         } else if (['checked-in', 'no-show', 'cancelled'].includes(statusFilter)) {
-             // 其他特定狀態
-             conditions.push(`b.status = ?${paramIndex}`);
+             // Other specific statuses
+             conditions.push(`b.status = ?${queryParams.length + 1}`); // Use current length + 1 for index
              queryParams.push(statusFilter);
-             paramIndex++;
         } else {
-             console.warn(`[API get-bookings v4] Ignored invalid status filter: ${statusFilter}`);
+             console.warn(`[API get-bookings v5] Ignored invalid status filter: ${statusFilter}`);
         }
     }
-    // 特殊的 status 條件，不需參數綁定
+    // Handle special status filters without parameters
     else if (statusFilter === 'today') {
         conditions.push("b.booking_date = date('now', 'localtime')");
         conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
@@ -47,37 +45,31 @@ export async function onRequest(context) {
         conditions.push("b.booking_date >= date('now', 'localtime')");
         conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
     }
-    // else: statusFilter is 'all' or not provided -> No status condition added here
+    // else: statusFilter is 'all' or not provided
 
     // --- 2. Date Range Filter ---
-    // (這部分上次修改後應是正確的，保持不變)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     const isValidStartDate = startDate && dateRegex.test(startDate);
     const isValidEndDate = endDate && dateRegex.test(endDate);
 
     if (isValidStartDate && isValidEndDate) {
-         conditions.push(`b.booking_date BETWEEN ?${paramIndex} AND ?${paramIndex + 1}`);
+         conditions.push(`b.booking_date BETWEEN ?${queryParams.length + 1} AND ?${queryParams.length + 2}`); // Use current length + 1/2
          queryParams.push(startDate, endDate);
-         paramIndex += 2;
     } else if (isValidStartDate) {
-         conditions.push(`b.booking_date >= ?${paramIndex}`);
+         conditions.push(`b.booking_date >= ?${queryParams.length + 1}`); // Use current length + 1
          queryParams.push(startDate);
-         paramIndex += 1;
     } else if (isValidEndDate) {
-        conditions.push(`b.booking_date <= ?${paramIndex}`);
+        conditions.push(`b.booking_date <= ?${queryParams.length + 1}`); // Use current length + 1
         queryParams.push(endDate);
-        paramIndex += 1;
     }
 
     // --- 3. Search Term Filter ---
-    // (這部分上次修改後應是正確的，保持不變)
     if (searchTerm) {
         const searchQuery = `%${searchTerm}%`;
         conditions.push(
-            `(b.contact_name LIKE ?${paramIndex} OR b.contact_phone LIKE ?${paramIndex + 1} OR CAST(b.booking_id AS TEXT) LIKE ?${paramIndex + 2})`
+            `(b.contact_name LIKE ?${queryParams.length + 1} OR b.contact_phone LIKE ?${queryParams.length + 2} OR CAST(b.booking_id AS TEXT) LIKE ?${queryParams.length + 3})` // Use current length + 1/2/3
         );
         queryParams.push(searchQuery, searchQuery, searchQuery);
-        paramIndex += 3;
     }
 
     // --- Combine WHERE clause ---
@@ -88,37 +80,60 @@ export async function onRequest(context) {
     // --- Sorting ---
     query += " ORDER BY b.booking_date DESC, b.time_slot DESC";
 
-    console.log(`[API get-bookings v4] Final SQL: ${query}`);
-    console.log(`[API get-bookings v4] Final Params: ${JSON.stringify(queryParams)}`);
+    console.log(`[API get-bookings v5] Final SQL: ${query}`);
+    console.log(`[API get-bookings v5] Final Params: ${JSON.stringify(queryParams)}`);
 
     // --- Execute query ---
-    const bookingsStmt = db.prepare(query).bind(...queryParams);
+    // Ensure statement preparation and binding are correct
+    let bookingsStmt;
+    try {
+        bookingsStmt = db.prepare(query);
+        if (queryParams.length > 0) {
+             bookingsStmt = bookingsStmt.bind(...queryParams);
+        }
+    } catch (prepareError) {
+         console.error("[API get-bookings v5] Error preparing SQL statement:", prepareError);
+         console.error("SQL attempted:", query);
+         console.error("Params attempted:", JSON.stringify(queryParams));
+         throw new Error(`Failed to prepare SQL query: ${prepareError.message}`); // Re-throw a more specific error
+    }
+
     const { results: bookings } = await bookingsStmt.all();
 
-    // --- Fetch Items and Combine (保持不變) ---
+
+    // --- Fetch Items and Combine (No changes needed here) ---
     if (!bookings || bookings.length === 0) {
-        console.log("[API get-bookings v4] No bookings found matching criteria.");
+        console.log("[API get-bookings v5] No bookings found matching criteria.");
         return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
-    console.log(`[API get-bookings v4] Found ${bookings.length} bookings. Fetching items...`);
-    const bookingIds = bookings.map(b => b.booking_id);
-    const placeholders = bookingIds.map(() => '?').join(',');
-    const itemsStmt = db.prepare(`SELECT * FROM BookingItems WHERE booking_id IN (${placeholders})`);
-    const { results: allItems } = await itemsStmt.bind(...bookingIds).all();
-    const bookingsWithItems = bookings.map(booking => {
-        const itemsForBooking = allItems.filter(item => item.booking_id === booking.booking_id);
-        return { ...booking, items: itemsForBooking };
-    });
+    // ... (fetch items logic remains the same) ...
+     console.log(`[API get-bookings v5] Found ${bookings.length} bookings. Fetching items...`);
+     const bookingIds = bookings.map(b => b.booking_id);
+     const placeholders = bookingIds.map(() => '?').join(',');
+     // Ensure placeholders are generated correctly even for a single ID
+     if (bookingIds.length > 0) {
+        const itemsStmt = db.prepare(`SELECT * FROM BookingItems WHERE booking_id IN (${placeholders})`);
+        const { results: allItems } = await itemsStmt.bind(...bookingIds).all();
+        const bookingsWithItems = bookings.map(booking => {
+            const itemsForBooking = allItems.filter(item => item.booking_id === booking.booking_id);
+            return { ...booking, items: itemsForBooking };
+        });
 
-    console.log(`[API get-bookings v4] Returning ${bookingsWithItems.length} bookings with items.`);
-    return new Response(JSON.stringify(bookingsWithItems), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+        console.log(`[API get-bookings v5] Returning ${bookingsWithItems.length} bookings with items.`);
+        return new Response(JSON.stringify(bookingsWithItems), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+     } else {
+        // Should not happen if bookings.length > 0, but as a safeguard
+         console.log("[API get-bookings v5] No booking IDs found, returning empty items (this shouldn't happen).");
+         return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+     }
+
 
   } catch (error) {
-    console.error('[API get-bookings v4] Error:', error);
-    console.error(error.stack); // Log stack trace
+    console.error('[API get-bookings v5] Error:', error);
+    console.error(error.stack);
     return new Response(JSON.stringify({ error: '獲取預約列表失敗。', details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

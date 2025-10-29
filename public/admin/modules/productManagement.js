@@ -457,6 +457,9 @@ function openProductModal(product = null) {
 
     // 4. Populate data (Edit mode)
     if (product) {
+        if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
+            modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`; // <-- 設定 Modal 標題 (編輯)
+        }
         if (modalTitle) modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`;
 
         // Populate main fields (excluding special ones)
@@ -507,7 +510,9 @@ function openProductModal(product = null) {
          idInput.value = product.product_id;
 
     } else {
-        // --- Add mode ---
+        if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
+            modalTitle.textContent = `新增${activeTemplate.entityName}`; // <-- 設定 Modal 標題 (新增)
+        }
         if (modalTitle) modalTitle.textContent = `新增${activeTemplate.entityName}`;
          if (hasImages && imageInputs) addImageInputField(imageInputs);
          if (hasSpecs && specInputs) addSpecInputField(specInputs);
@@ -936,6 +941,9 @@ export const init = async () => {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
 
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
+    if (pageTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
+            pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`; // <-- 設定頁面標題
+        }
     if (pageTitle) {
         pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
     }

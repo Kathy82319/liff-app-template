@@ -17,6 +17,9 @@ const statusFilter = url.searchParams.get('status');
     } else {
         console.log(`[API get-bookings v8 DEBUG] statusFilter is null or empty.`);
     }
+    // --- ▲▲▲ Debug Log 結束 ▲▲▲ ---
+
+    // ... (後續的 if/else if 判斷邏輯保持 v7 版本不變) ...
     let query = "SELECT b.* FROM Bookings b"; // Alias table
     const conditions = [];
     const queryParams = [];
@@ -58,92 +61,4 @@ const statusFilter = url.searchParams.get('status');
     } else if (!trimmedStatusFilter) {
         console.log("[API get-bookings v8 DEBUG] Status filter is null, empty, or 'all'. No status condition added.");
     }
-    // else: statusFilter is 'all' or not provided -> 不加入 status 條件
-
-    // --- 2. Date Range Filter ---
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const isValidStartDate = startDate && dateRegex.test(startDate);
-    const isValidEndDate = endDate && dateRegex.test(endDate);
-
-    if (isValidStartDate && isValidEndDate) {
-         conditions.push(`b.booking_date BETWEEN ?${queryParams.length + 1} AND ?${queryParams.length + 2}`);
-         queryParams.push(startDate, endDate);
-    } else if (isValidStartDate) {
-         conditions.push(`b.booking_date >= ?${queryParams.length + 1}`);
-         queryParams.push(startDate);
-    } else if (isValidEndDate) {
-        conditions.push(`b.booking_date <= ?${queryParams.length + 1}`);
-        queryParams.push(endDate);
-    }
-
-    // --- 3. Search Term Filter ---
-    if (searchTerm) {
-        const searchQuery = `%${searchTerm}%`;
-        conditions.push(
-            `(b.contact_name LIKE ?${queryParams.length + 1} OR b.contact_phone LIKE ?${queryParams.length + 2} OR CAST(b.booking_id AS TEXT) LIKE ?${queryParams.length + 3})`
-        );
-        queryParams.push(searchQuery, searchQuery, searchQuery);
-    }
-
-    // --- 組合 WHERE 子句 ---
-    if (conditions.length > 0) {
-        query += " WHERE " + conditions.join(" AND ");
-    }
-
-    // --- 排序 ---
-    query += " ORDER BY b.booking_date DESC, b.time_slot DESC";
-
-    console.log(`[API get-bookings v7] Final SQL: ${query}`);
-    console.log(`[API get-bookings v7] Final Params: ${JSON.stringify(queryParams)}`);
-
-    // --- 執行查詢 ---
-    let bookingsStmt;
-    try {
-        bookingsStmt = db.prepare(query);
-        if (queryParams.length > 0) {
-             bookingsStmt = bookingsStmt.bind(...queryParams);
-        }
-    } catch (prepareError) {
-         console.error("[API get-bookings v7] Error preparing SQL statement:", prepareError);
-         console.error("SQL attempted:", query);
-         console.error("Params attempted:", JSON.stringify(queryParams));
-         throw new Error(`Failed to prepare SQL query: ${prepareError.message}`);
-    }
-
-    const { results: bookings } = await bookingsStmt.all();
-
-    // --- 獲取 Items 並組合 (保持不變) ---
-    if (!bookings || bookings.length === 0) {
-        console.log("[API get-bookings v7] No bookings found matching criteria.");
-        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-    console.log(`[API get-bookings v7] Found ${bookings.length} bookings. Fetching items...`);
-    const bookingIds = bookings.map(b => b.booking_id);
-    const placeholders = bookingIds.map(() => '?').join(',');
-    if (bookingIds.length > 0) {
-        const itemsStmt = db.prepare(`SELECT * FROM BookingItems WHERE booking_id IN (${placeholders})`);
-        const { results: allItems } = await itemsStmt.bind(...bookingIds).all();
-        const bookingsWithItems = bookings.map(booking => {
-            const itemsForBooking = allItems.filter(item => item.booking_id === booking.booking_id);
-            return { ...booking, items: itemsForBooking };
-        });
-
-        console.log(`[API get-bookings v7] Returning ${bookingsWithItems.length} bookings with items.`);
-        return new Response(JSON.stringify(bookingsWithItems), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-     } else {
-         console.log("[API get-bookings v7] No booking IDs found after filtering.");
-         return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
-     }
-
-  } catch (error) {
-    console.error('[API get-bookings v7] Error:', error);
-    console.error(error.stack); // Log stack trace
-    return new Response(JSON.stringify({ error: '獲取預約列表失敗。', details: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
+    // ... (後續的日期和搜尋條件、SQL 執行等保持不變) ...

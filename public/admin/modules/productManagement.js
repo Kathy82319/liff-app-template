@@ -520,12 +520,13 @@ function openProductModal(product = null) {
 }
 
 // 【大幅修改】處理表單提交
+// 【大幅修改】處理表單提交 (前端直接更新版本)
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
     const data = {};
 
-    // 1. Read main fields (excluding special ones)
+    // 1. 讀取表單資料 (這部分邏輯不變)
     activeTemplate.fields.forEach(field => {
         // --- Skip special fields ---
         if (field.key === 'price' || field.key === 'images' || field.key.startsWith('spec_') || field.key.startsWith('price_')) return;
@@ -535,20 +536,15 @@ async function handleFormSubmit(event) {
             if (field.type === 'boolean') {
                 data[field.key] = input.checked;
             } else {
-                // For number inputs, parse them correctly, handle empty strings as null
                  data[field.key] = (input.type === 'number')
                     ? (input.value === '' ? null : parseFloat(input.value))
                     : input.value;
             }
         }
     });
-
-     // --- Read NEW price fields ---
      data.price_weekday = parseFloat(form.querySelector('[name="price_weekday"]').value) || null;
      data.price_friday = parseFloat(form.querySelector('[name="price_friday"]').value) || null;
      data.price_saturday = parseFloat(form.querySelector('[name="price_saturday"]').value) || null;
-
-    // ... (rest of the logic for reading images, specs, checking required fields, handling ID remains the same) ...
      const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
      data.images = JSON.stringify(images);
      document.querySelectorAll('.spec-input-group').forEach((group, index) => {
@@ -556,35 +552,68 @@ async function handleFormSubmit(event) {
          data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim() || null;
          data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
      });
+
+    // 2. 檢查必填欄位 (這部分邏輯不變)
      for (const field of activeTemplate.fields) {
-         // --- Adjust required check if 'price' was required before ---
-          if (field.key === 'price') continue; // Skip old price field check
-         // --- Check new price fields if they are required (assuming they might be) ---
+          if (field.key === 'price') continue;
           if ( (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') && field.required && data[field.key] === null) {
               ui.toast.error(`「${field.label}」為必填欄位！`); return;
           }
-         // --- Original required check for other fields ---
           if (field.required && (!data.hasOwnProperty(field.key) || (typeof data[field.key] === 'string' && data[field.key].trim() === '') || data[field.key] === null) && !field.key.startsWith('price_')) {
              ui.toast.error(`「${field.label}」為必填欄位！`); return;
          }
      }
+
+    // 3. 判斷是新增還是編輯 (這部分邏輯不變)
      const idInput = form.querySelector('input[name="product_id"]');
      const isCreating = !idInput;
      if (!isCreating) { data.product_id = idInput.value; }
 
 
-    // 5. Submit API (logic remains the same)
+    // 4. 呼叫 API 並處理回應
     try {
+        let responseData; // 用來接收 API 回應
         if (isCreating) {
-            await api.createProduct(data);
+            // 假設 createProduct API 會回傳 { success: true, product: newProductData }
+            responseData = await api.createProduct(data);
+            if (!responseData || !responseData.product) {
+                 throw new Error("API 未回傳新增的產品資料。");
+            }
+            // 將新產品加入 allProducts 陣列
+            allProducts.push(responseData.product);
+            console.log("新增產品成功，已加入 allProducts:", responseData.product);
         } else {
-            await api.updateProductDetails(data);
+            // 假設 updateProductDetails API 會回傳 { success: true, readBack: updatedProductData }
+            responseData = await api.updateProductDetails(data);
+            if (!responseData || !responseData.readBack) {
+                 throw new Error("API 未回傳更新後的產品資料 (readBack)。");
+            }
+            // 更新 allProducts 陣列中對應的產品
+            const index = allProducts.findIndex(p => p.product_id === data.product_id);
+            if (index > -1) {
+                // 直接用 API 回傳的 readBack 資料覆蓋舊資料
+                allProducts[index] = responseData.readBack;
+                console.log("更新產品成功，已更新 allProducts:", allProducts[index]);
+            } else {
+                 console.warn(`找不到要更新的產品 ID (${data.product_id})，可能列表已過期，建議重新載入。`);
+                 // 或者可以選擇將 readBack 資料加入 allProducts，雖然理論上不該發生
+                 // allProducts.push(responseData.readBack);
+            }
         }
+
         ui.hideModal('#edit-product-modal');
-        await init(); // Reload data
+
+        // --- 取代 await init(); ---
+        // 5. 根據目前的篩選條件，使用更新後的 allProducts 重新渲染列表
+        allProducts.sort((a, b) => a.display_order - b.display_order); // 保持排序
+        applyProductFiltersAndRender();
+        // --- 修改結束 ---
+
         ui.toast.success('儲存成功！');
+
     } catch (error) {
         ui.toast.error(`儲存失敗：${error.message}`);
+        console.error("處理表單提交失敗:", error); // 保留錯誤日誌
     }
 }
 

@@ -1,4 +1,4 @@
-// functions/api/get-products.js (Google Sheet Sync Removed)
+// functions/api/get-products.js (No Google Sheet Sync, Added Cache Control)
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -11,8 +11,18 @@ export async function onRequest(context) {
             const stmt = db.prepare('SELECT * FROM Products ORDER BY display_order ASC');
             const { results } = await stmt.all();
             console.log(`[get-products API] Fetched ${results?.length || 0} products from D1.`); // Add log
+
+            // --- Return response with Cache-Control headers ---
             return new Response(JSON.stringify(results || []), {
-                status: 200, headers: { 'Content-Type': 'application/json' },
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    // --- Added Headers to prevent caching ---
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                    'Pragma': 'no-cache', // For HTTP/1.0 proxies/clients
+                    'Expires': '0' // Proxies
+                    // --- Headers End ---
+                },
             });
         }
 

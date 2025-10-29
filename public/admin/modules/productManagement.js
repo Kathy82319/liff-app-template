@@ -449,8 +449,8 @@ function openProductModal(product = null) {
      const hasImages = activeTemplate.fields.some(f => f.key === 'images');
      if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none';
      const hasSpecs = activeTemplate.fields.some(f => f.key.startsWith('spec_'));
-     if (specSection) specSection.style.display = hasSpecs ? 'block' : 'none';
-     const modalTitle = document.getElementById('modal-product-title');
+    if (specSection) {   specSection.style.display = 'block';    }     
+    const modalTitle = document.getElementById('modal-product-title');
      const pageTitle = document.querySelector('#page-inventory .page-header h2');
      if (pageTitle) pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
 

@@ -112,6 +112,25 @@ function createGlobalSettingsModule(template) {
         label: '點數/積分名稱', hint: '例如：會員點數、購物金、住宿積分。',
         key: 'TERMS_POINTS_NAME', value: terms.POINTS_NAME || '點數', type: 'text' // 提供預設值
     }));
+    // **新增** 其他 TERMS (請根據您的藍圖加入)
+     content.appendChild(createSettingRow({
+        label: '產品/服務名稱 (單數)', hint: '例如：服務、房型、商品。',
+        key: 'TERMS_PRODUCT_NAME', value: terms.PRODUCT_NAME || '項目', type: 'text'
+    }));
+     content.appendChild(createSettingRow({
+        label: '產品/服務目錄標題', hint: '例如：服務項目、房型介紹、線上商店。',
+        key: 'TERMS_PRODUCT_CATALOG_TITLE', value: terms.PRODUCT_CATALOG_TITLE || '產品型錄', type: 'text'
+    }));
+     content.appendChild(createSettingRow({
+        label: '預約/訂單名稱', hint: '例如：預約、訂房、訂單。',
+        key: 'TERMS_BOOKING_NAME', value: terms.BOOKING_NAME || '預約', type: 'text'
+    }));
+     content.appendChild(createSettingRow({
+        label: '最新情報頁面標題', hint: '例如：最新消息、住房優惠、促銷活動。',
+        key: 'TERMS_NEWS_PAGE_TITLE', value: terms.NEWS_PAGE_TITLE || '最新情報', type: 'text'
+    }));
+    // ... 可以繼續添加其他 TERMS ...
+
 
     // 導覽列設定 (確保 logic.navBar 和 logic.availablePages 存在)
     if (logic.navBar && logic.availablePages) {
@@ -133,7 +152,13 @@ function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) 
     const container = document.getElementById(containerId);
     if (!container) {
         console.error(`渲染後台欄位設定失敗：找不到容器 #${containerId}`);
-        container.innerHTML = `<p style="color:red;">錯誤：UI 容器 #${containerId} 不存在。</p>`;
+        // 在容器位置顯示錯誤，而不是完全不渲染
+        const errorP = document.createElement('p');
+        errorP.style.color = 'red';
+        errorP.textContent = `錯誤：UI 容器 #${containerId} 不存在。`;
+        // 嘗試找到父級容器來顯示錯誤
+        const parentContainer = document.querySelector(`#admin-panel-settings .accordion-content [data-container-id="${containerId}"]`) || document.getElementById('admin-panel-settings');
+        if(parentContainer) parentContainer.appendChild(errorP);
         return;
     }
     container.innerHTML = ''; // 清空內容
@@ -180,7 +205,7 @@ function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) 
 
             container.appendChild(row);
         } catch (e) {
-             console.error(`[renderAdminColumnsSettings] 渲染欄位 '${col.key}' 時發生錯誤:`, e);
+             console.error(`[renderAdminColumnsSettings] 渲染欄位 '${col.key}' (module: ${moduleKey}) 時發生錯誤:`, e);
              container.innerHTML += `<p style="color:red;">渲染欄位 ${col.key} 失敗。</p>`;
         }
     });
@@ -188,12 +213,18 @@ function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) 
     // 初始化 Sortable.js 並儲存實例
     if (sortableInstances[containerId]) sortableInstances[containerId].destroy();
     if (typeof Sortable !== 'undefined') {
-        sortableInstances[containerId] = new Sortable(container, {
-            animation: 150,
-            handle: '.drag-handle' // 指定拖曳控制柄
-        });
+        try {
+             sortableInstances[containerId] = new Sortable(container, {
+                 animation: 150,
+                 handle: '.drag-handle' // 指定拖曳控制柄
+             });
+        } catch(e) {
+             console.error(`初始化 Sortable 失敗於 #${containerId}:`, e);
+             container.innerHTML += `<p style="color:red;">拖曳排序功能初始化失敗。</p>`;
+        }
     } else {
         console.error("Sortable.js 未載入，無法啟用拖曳排序。");
+        container.innerHTML += `<p style="color:orange;">拖曳排序功能未載入。</p>`;
     }
 }
 
@@ -202,9 +233,11 @@ function renderTemplateSettings(templateKey) {
     const template = templateDefinitions[templateKey];
     if (!template) {
         console.error(`渲染樣板設定失敗：找不到樣板資料: ${templateKey}`);
-        // 可以選擇清空或顯示錯誤
-        document.getElementById('liff-app-settings').innerHTML = `<p style="color:red;">載入樣板 ${templateKey} 失敗。</p>`;
-        document.getElementById('admin-panel-settings').innerHTML = '';
+        // 清空兩個 Tab 的內容並顯示錯誤
+        const liffContainer = document.getElementById('liff-app-settings');
+        const adminContainer = document.getElementById('admin-panel-settings');
+        if (liffContainer) liffContainer.innerHTML = `<p style="color:red;">載入樣板 ${templateKey} 失敗。</p>`;
+        if (adminContainer) adminContainer.innerHTML = ''; // 清空後台設定區
         return;
     }
     console.log(`渲染樣板 '${templateKey}' 的設定...`);
@@ -212,38 +245,53 @@ function renderTemplateSettings(templateKey) {
     const liffSettingsContainer = document.getElementById('liff-app-settings');
     const adminSettingsContainer = document.getElementById('admin-panel-settings');
     if (!liffSettingsContainer || !adminSettingsContainer) {
-         console.error("渲染樣板設定失敗：找不到設定容器元素。");
+         console.error("渲染樣板設定失敗：找不到設定容器元素 (liff or admin)。");
          return;
     }
-
 
     // --- 渲染客戶端設定 ---
     liffSettingsContainer.innerHTML = ''; // 清空
     // 增加檢查確保 template 結構基本完整
     if (template.features && template.terms && template.logic) {
-        liffSettingsContainer.appendChild(createGlobalSettingsModule(template));
-        // Accordion 展開/收合事件由 setupEventListeners 統一處理
+        try {
+             liffSettingsContainer.appendChild(createGlobalSettingsModule(template));
+             // Accordion 展開/收合事件由 setupEventListeners 統一處理
+        } catch (e) {
+             console.error(`渲染客戶端全域設定模組時發生錯誤 (樣板: ${templateKey}):`, e);
+             liffSettingsContainer.innerHTML = `<p style="color:red;">渲染客戶端設定失敗: ${e.message}</p>`;
+        }
     } else {
         console.warn(`樣板 '${templateKey}' 缺少必要的設定區塊 (features, terms, or logic)。`);
         liffSettingsContainer.innerHTML = '<p style="color:orange;">此樣板缺少必要的客戶端設定區塊。</p>';
     }
 
     // --- 渲染商家後台設定 ---
-    adminSettingsContainer.querySelectorAll('.admin-columns-container').forEach(el => el.innerHTML = '<p>讀取中...</p>'); // 先顯示載入中
+    // 先恢復 HTML 結構，確保 Accordion 存在
+    adminSettingsContainer.innerHTML = `
+        <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的列表顯示欄位、順序與標題。</p>
+        <div class="accordion-item">
+            <div class="accordion-header"><h4>產品/服務管理 後台設定</h4><span>▼</span></div>
+            <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-product" class="admin-columns-container"><p>讀取中...</p></div></div></div>
+        </div>
+        <div class="accordion-item">
+            <div class="accordion-header"><h4>訂位/訂單管理 後台設定</h4><span>▼</span></div>
+            <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-booking" class="admin-columns-container"><p>讀取中...</p></div></div></div>
+        </div>
+        <div class="accordion-item">
+            <div class="accordion-header"><h4>顧客管理 後台設定</h4><span>▼</span></div>
+            <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-user" class="admin-columns-container"><p>讀取中...</p></div></div></div>
+        </div>
+    `;
 
     // 確保 template.logic 存在，若否則使用空物件
     const logic = template.logic || {};
 
-    // 渲染產品管理的 adminColumns (確保 logic.adminColumns 是陣列)
+    // 渲染各模組的 adminColumns
     renderAdminColumnsSettings('product', logic.adminColumns, 'admin-columns-product');
+    renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking');
+    renderAdminColumnsSettings('user', logic.adminUserColumns || [], 'admin-columns-user');
 
-    // 渲染訂位管理的 adminColumns (假設 key 是 adminBookingColumns)
-    renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking'); // 使用 || [] 避免 undefined
-
-    // 渲染顧客管理的 adminColumns (假設 key 是 adminUserColumns)
-    renderAdminColumnsSettings('user', logic.adminUserColumns || [], 'admin-columns-user'); // 使用 || [] 避免 undefined
-
-    // 手動觸發一次 Accordion 綁定 (因為商家後台設定是動態加入的)
+    // 為商家後台設定區塊綁定 Accordion 事件
     bindAccordionEvents(adminSettingsContainer);
 }
 
@@ -267,6 +315,8 @@ function reconstructTemplateFromUI() {
             if (!key) return; // 跳過沒有 data-key 的元素
 
             const keyParts = key.split('_');
+            if (keyParts.length < 2) return; // 跳過格式不符的 key
+
             const mainKey = keyParts[0].toLowerCase(); // features, terms
             const subKey = keyParts.slice(1).join('_');
 
@@ -279,7 +329,13 @@ function reconstructTemplateFromUI() {
             if (input.type === 'checkbox') {
                 currentTemplate[mainKey][subKey] = input.checked;
             } else {
-                currentTemplate[mainKey][subKey] = input.value;
+                 // 對數字類型嘗試轉換
+                 const originalSetting = allSettings.find(s => s.key === key);
+                 if (originalSetting && originalSetting.type === 'number') {
+                     currentTemplate[mainKey][subKey] = parseFloat(input.value) || 0; // 轉換失敗給 0
+                 } else {
+                     currentTemplate[mainKey][subKey] = input.value;
+                 }
             }
              // console.log(`讀取客戶端設定: ${mainKey}.${subKey} = ${currentTemplate[mainKey][subKey]}`);
         });
@@ -349,11 +405,12 @@ function reconstructTemplateFromUI() {
     return { [selectedKey]: currentTemplate }; // 回傳包含樣板 key 的物件
 }
 
-// (renderOtherSettings 已移除，因為不再需要)
+// (renderOtherSettings 已移除)
 
 // ****** 新增：綁定 Accordion 事件的獨立函式 ******
 function bindAccordionEvents(parentElement = document) {
     // console.log("綁定 Accordion 事件於:", parentElement);
+    if (!parentElement) return; // 如果父元素不存在，直接返回
     parentElement.querySelectorAll('.accordion-header').forEach(header => {
         // 先移除舊監聽器，避免重複綁定
         const oldClickHandler = header.clickHandler;
@@ -381,7 +438,7 @@ function bindAccordionEvents(parentElement = document) {
         header.clickHandler = clickHandler; // 存儲引用以便移除
         // console.log("新增 Accordion 監聽器:", header.nextElementSibling?.id || header.textContent);
 
-        // 確保初始狀態箭頭正確 (預設不展開)
+        // 確保初始狀態箭頭正確 (根據是否有 open class)
         const content = header.nextElementSibling;
         const arrow = header.querySelector('span');
         if (arrow && content) {
@@ -404,21 +461,23 @@ function setupEventListeners() {
     const templateSelector = document.getElementById('template-selector');
     const tabsContainer = document.querySelector('.settings-tabs');
     const settingsForm = document.getElementById('settings-form');
-    if (!templateSelector || !tabsContainer || !settingsForm) {
-         console.error("無法初始化設定頁面事件：缺少必要的元素 (selector, tabs, form)。");
+    // **增加** 對 Accordion 父容器的獲取
+    const liffSettingsContainer = document.getElementById('liff-app-settings');
+    const adminSettingsContainer = document.getElementById('admin-panel-settings');
+
+    if (!templateSelector || !tabsContainer || !settingsForm || !liffSettingsContainer || !adminSettingsContainer) {
+         console.error("無法初始化設定頁面事件：缺少必要的元素 (selector, tabs, form, or content containers)。");
          return;
     }
+
 
     // 樣板選擇器變更事件
     templateSelector.addEventListener('change', () => {
         console.log("樣板選擇變更:", templateSelector.value);
-        // 清空 Sortable 實例，避免舊的拖曳區殘留影響
+        // 清空 Sortable 實例
         Object.keys(sortableInstances).forEach(key => {
             if (sortableInstances[key]) {
-                try {
-                    sortableInstances[key].destroy();
-                    console.log(`銷毀 Sortable 實例: ${key}`);
-                } catch (e) { console.error(`銷毀 Sortable ${key} 失敗:`, e); }
+                try { sortableInstances[key].destroy(); } catch (e) { console.error(`銷毀 Sortable ${key} 失敗:`, e); }
             }
         });
         sortableInstances = {}; // 重置
@@ -459,12 +518,11 @@ function setupEventListeners() {
 
         try {
             const payload = [];
-            // 1. 重構當前編輯的樣板藍圖 (包含客戶端和後台設定)
+            // 1. 重構當前編輯的樣板藍圖
             const updatedTemplatePart = reconstructTemplateFromUI(); // 返回 { templateKey: updatedTemplateData }
             const currentTemplateKey = Object.keys(updatedTemplatePart)[0]; // 獲取當前編輯的樣板 key
 
-            // 2. 將完整的樣板定義 (包含所有樣板，含剛更新的) 加入 payload
-            //    使用 Object.assign 合併更新的部分到記憶體中的 definitions
+            // 2. 將完整的樣板定義 (合併更新) 加入 payload
             const finalDefinitions = Object.assign({}, templateDefinitions, updatedTemplatePart);
 
             payload.push({
@@ -472,7 +530,7 @@ function setupEventListeners() {
                 value: JSON.stringify(finalDefinitions, null, 2) // 格式化 JSON
             });
 
-            // 3. 將當前選擇器選中的樣板 key (即 currentTemplateKey) 作為啟用樣板加入 payload
+            // 3. 將當前選擇器選中的樣板 key 作為啟用樣板加入 payload
             payload.push({
                 key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE',
                 value: currentTemplateKey
@@ -480,35 +538,33 @@ function setupEventListeners() {
 
             // 4. (已移除) 不再讀取 other-settings-container
 
-            console.log("準備儲存的 payload:", JSON.stringify(payload, null, 2)); // Debug: 檢查送出的資料
+            console.log("準備儲存的 payload:", JSON.stringify(payload, null, 2)); // Debug
 
             // 5. 呼叫 API 儲存
             await api.updateSettings(payload);
 
             // 6. 更新前端快取的設定
             templateDefinitions = finalDefinitions; // 更新記憶體中的樣板定義
-            // allSettings = await api.getSettings(); // 可選：如果需要立即反映其他可能的後端變更
-            // renderOtherSettings(); // 已移除
+            allSettings = await api.getSettings(); // 重新獲取所有設定
 
             ui.toast.success('所有設定已成功儲存並啟用！');
 
-             // 【重要】提示使用者重新整理以套用後台設定
+             // 【重要】提示使用者重新整理
              await ui.confirm("後台設定已更新！為了確保所有後台頁面都使用最新設定，建議您重新整理管理頁面。點擊「確定」將重新整理。");
              window.location.reload();
 
         } catch (error) {
             ui.toast.error(`儲存失敗：${error.message}`);
-            console.error("儲存設定失敗:", error); // Debug: 顯示詳細錯誤
+            console.error("儲存設定失敗:", error);
         } finally {
-            // 重新啟用按鈕 (即使跳轉前也恢復)
             saveButton.disabled = false;
             saveButton.textContent = '儲存並啟用';
         }
     });
 
-    // 初始綁定 Accordion 事件 (給第一次載入時靜態存在的 Accordion 結構)
-    bindAccordionEvents(document.getElementById('liff-app-settings'));
-    bindAccordionEvents(document.getElementById('admin-panel-settings'));
+    // 初始綁定 Accordion 事件 (給第一次載入時存在的 Accordion)
+    bindAccordionEvents(liffSettingsContainer);
+    bindAccordionEvents(adminSettingsContainer);
 
     // 標記事件已綁定
     page.dataset.listenersAttached = 'true';
@@ -525,11 +581,9 @@ export const init = async () => {
 
     try {
         console.log("系統設定頁面 init 開始...");
-        // 重置 Sortable 實例，確保切換頁面回來時不會有問題
+        // 重置 Sortable 實例
         Object.values(sortableInstances).forEach(instance => {
-            if (instance && typeof instance.destroy === 'function') {
-                instance.destroy();
-            }
+            if (instance && typeof instance.destroy === 'function') instance.destroy();
         });
         sortableInstances = {};
 
@@ -571,7 +625,7 @@ export const init = async () => {
                       console.warn(`樣板 '${key}' 缺少 name 屬性或無效，已略過。`);
                  }
              }
-             // 如果找不到啟用的 key (可能設定錯誤或樣板被刪)，預設選第一個
+             // 如果找不到啟用的 key，預設選第一個
              if (!activeKeyFound && templateSelector.options.length > 0) {
                  templateSelector.selectedIndex = 0;
                  console.warn("找不到已啟用的樣板設定或樣板不存在於定義中，預設選擇第一個:", templateSelector.value);
@@ -581,7 +635,7 @@ export const init = async () => {
         } else {
              templateSelector.innerHTML = '<option value="">無可用樣板</option>';
              templateSelector.disabled = true;
-             document.getElementById('save-settings-btn').disabled = true; // 沒有樣板也禁用儲存
+             document.getElementById('save-settings-btn').disabled = true;
              throw new Error('系統中沒有設定任何商業樣板藍圖。');
         }
 

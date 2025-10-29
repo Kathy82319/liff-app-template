@@ -68,10 +68,6 @@ function createGlobalSettingsModule(template) {
         key: 'FEATURES_ENABLE_BOOKING_SYSTEM', value: template.features.ENABLE_BOOKING_SYSTEM, type: 'toggle'
     }));
     content.appendChild(createSettingRow({
-        label: '購物車功能', hint: '【未來功能】啟用後，顧客才能將商品加入購物車。',
-        key: 'FEATURES_ENABLE_SHOPPING_CART', value: template.features.ENABLE_SHOPPING_CART, type: 'toggle'
-    }));
-    content.appendChild(createSettingRow({
         label: '商家/品牌名稱', hint: '會顯示在 LIFF App 的頂部標題。',
         key: 'TERMS_BUSINESS_NAME', value: template.terms.BUSINESS_NAME, type: 'text'
     }));
@@ -244,7 +240,6 @@ function renderOtherSettings() {
 
     // 過濾掉樣板定義和啟用鍵
     const otherSettings = allSettings.filter(s =>
-        s.key !== 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS' &&
         s.key !== 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE'
     );
 
@@ -363,11 +358,6 @@ function setupEventListeners() {
             const updatedTemplatePart = reconstructTemplateFromUI();
             const finalDefinitions = { ...templateDefinitions, ...updatedTemplatePart };
 
-            // 2. 將完整的樣板定義加入 payload
-            payload.push({
-                key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS',
-                value: JSON.stringify(finalDefinitions, null, 2) // 格式化 JSON 以便閱讀
-            });
 
             // 3. 將當前選擇器選中的樣板 key 作為啟用樣板加入 payload
             const selectedTemplateKey = document.getElementById('template-selector').value;
@@ -434,7 +424,6 @@ export const init = async () => {
         console.log("系統設定頁面 init 開始...");
         allSettings = await api.getSettings();
 
-        const definitionsSetting = allSettings.find(i => i.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
         const activeTemplateSetting = allSettings.find(i => i.key === 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE');
 
         // 解析樣板定義
@@ -442,12 +431,10 @@ export const init = async () => {
             try {
                 templateDefinitions = JSON.parse(definitionsSetting.value);
             } catch (e) {
-                 console.error("解析 LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS 失敗:", e, "Value:", definitionsSetting.value);
                  templateDefinitions = {}; // 解析失敗給空物件
                  throw new Error('樣板定義檔格式錯誤，請檢查資料庫內容。');
             }
         } else {
-             console.warn("在資料庫中找不到 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS' 設定，將使用空設定。");
              templateDefinitions = {};
         }
 

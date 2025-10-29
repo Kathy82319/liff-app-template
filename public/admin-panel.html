@@ -1032,65 +1032,70 @@
 
         <div class="settings-content-area">
             <div id="liff-app-settings" class="settings-tab-content active">
-                </div>
-<div id="admin-panel-settings" class="settings-tab-content">
-    <div class="accordion-item">
-        <div class="accordion-header">
-            <h4>產品/服務管理 後台設定</h4>
-            <span>▼</span>
-        </div>
-        <div class="accordion-content">
-            <div class="setting-visual-guide">
-                <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
-                <div id="admin-columns-product">
-                    <p>讀取中...</p>
-                </div>
+                <p>請先選擇樣板以載入設定...</p>
             </div>
-            </div>
-    </div>
 
-    <div class="accordion-item">
-        <div class="accordion-header">
-            <h4>訂位/訂單管理 後台設定</h4>
-            <span>▼</span>
-        </div>
-        <div class="accordion-content">
-            <div class="setting-visual-guide">
-                <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
-                <div id="admin-columns-booking">
-                     <p>讀取中...</p>
-                </div>
-            </div>
-             </div>
-    </div>
+            <div id="admin-panel-settings" class="settings-tab-content">
+                <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的列表顯示欄位、順序與標題。</p>
 
-     <div class="accordion-item">
-         <div class="accordion-header">
-             <h4>顧客管理 後台設定</h4>
-             <span>▼</span>
-         </div>
-         <div class="accordion-content">
-             <div class="setting-visual-guide">
-                 <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
-                 <div id="admin-columns-user">
-                     <p>讀取中...</p>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h4>產品/服務管理 後台設定</h4>
+                        <span>▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="setting-visual-guide">
+                            <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
+                            <div id="admin-columns-product" class="admin-columns-container">
+                                <p>讀取中...</p>
+                            </div>
+                        </div>
+                        </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h4>訂位/訂單管理 後台設定</h4>
+                        <span>▼</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="setting-visual-guide">
+                            <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
+                            <div id="admin-columns-booking" class="admin-columns-container">
+                                <p>讀取中...</p>
+                            </div>
+                        </div>
+                         </div>
+                </div>
+
+                 <div class="accordion-item">
+                     <div class="accordion-header">
+                         <h4>顧客管理 後台設定</h4>
+                         <span>▼</span>
+                     </div>
+                     <div class="accordion-content">
+                         <div class="setting-visual-guide">
+                             <h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5>
+                             <div id="admin-columns-user" class="admin-columns-container">
+                                 <p>讀取中...</p>
+                             </div>
+                         </div>
+                     </div>
                  </div>
-             </div>
-         </div>
-     </div>
+
+                 </div>
+            </div>
+    </form>
+</div>
+
 <template id="admin-column-item-template">
-    <div class="admin-column-row" style="display: grid; grid-template-columns: 30px 50px 1fr 1fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border); border-radius: 5px; margin-bottom: 5px; background: #fff;">
+    <div class="admin-column-row" style="display: grid; grid-template-columns: 30px 50px 1fr 1.5fr; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border); border-radius: 5px; margin-bottom: 5px; background: #fff;">
         <span class="drag-handle" style="cursor: move; font-size: 1.5rem; color: #999;">⠿</span>
-        <input type="checkbox" name="column_enabled" checked>
-        <span class="column-key" style="font-family: monospace; color: #555;">key_name</span>
-        <input type="text" name="column_label" placeholder="列表標題">
+        <input type="checkbox" name="column_enabled" checked style="width: auto; height: auto;">
+        <span class="column-key" style="font-family: monospace; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="欄位 Key (不可修改)">key_name</span>
+        <input type="text" name="column_label" placeholder="列表標題" title="顯示在列表表頭的名稱">
     </div>
 </template>
-     </div>
-        </div>
-        
-        </form>
-</div>
 
             <div id="page-points" class="page">
                 <div class="page-header"><h2>點數發放中心</h2></div>

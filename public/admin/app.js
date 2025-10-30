@@ -25,21 +25,22 @@ const App = {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
 
+// public/admin/app.js
+
 async handleRouteChange() {
-    console.log(`[App.js HandleRouteChange] Hash changed to: ${window.location.hash}`); // 記錄觸發
+    console.log(`[App.js HandleRouteChange] Hash changed to: ${window.location.hash}`);
     if (!this.isConfigReady) {
         console.log("[App.js HandleRouteChange] Config not ready, awaiting promise...");
         try {
             await this.configPromise;
-            // Config promise resolved successfully here
-            this.isConfigReady = true; // Mark config as ready
+            this.isConfigReady = true;
             console.log("[App.js HandleRouteChange] Config promise resolved.");
         } catch (error) {
             console.error("[App.js HandleRouteChange] Config promise failed:", error);
             ui.showPage('error');
             const errorPage = document.getElementById('page-error');
             if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
-            return; // Config 失敗，停止後續處理
+            return; 
         }
     } else {
          console.log("[App.js HandleRouteChange] Config was already ready.");
@@ -48,20 +49,31 @@ async handleRouteChange() {
     const pageId = window.location.hash.substring(1) || 'dashboard';
     console.log(`[App.js HandleRouteChange] Determined pageId: ${pageId}`);
 
-    // --- ****** 新增：控制導覽列顯示 ****** ---
+    // --- ****** 關鍵修正：從 activeTemplate 讀取設定 ****** ---
+    let adminPagesConfig = {}; // 預設為空
     try {
-        // Ensure window.CONFIG and nested properties exist before accessing
-        const adminPagesConfig = window.CONFIG?.LOGIC?.adminPagesEnabled || {};
+        // 1. 從全域 CONFIG 找到當前啟用的樣板 Key
+        const activeTemplateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+        // 2. 從定義中找到該樣板的完整設定
+        const activeTemplate = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeTemplateKey];
+        
+        if (activeTemplate && activeTemplate.logic && activeTemplate.logic.adminPagesEnabled) {
+            // 3. 獲取正確的設定
+            adminPagesConfig = activeTemplate.logic.adminPagesEnabled;
+            console.log(`[App.js] Loaded adminPagesEnabled from template '${activeTemplateKey}'`);
+        } else {
+            console.warn(`[App.js] Could not find adminPagesEnabled in active template '${activeTemplateKey}'. Using default (all enabled).`);
+        }
+        
         const navTabs = document.querySelector('.nav-tabs');
         if (navTabs) {
              navTabs.querySelectorAll('a').forEach(tabLink => {
                  const targetPage = tabLink.getAttribute('href')?.substring(1);
                  if (targetPage) {
-                     // If the config has this page key and it's explicitly false, hide it
                      if (adminPagesConfig.hasOwnProperty(targetPage) && adminPagesConfig[targetPage] === false) {
                          tabLink.style.display = 'none';
                      } else {
-                         tabLink.style.display = ''; // Otherwise, show it (default or true)
+                         tabLink.style.display = ''; 
                      }
                  }
              });
@@ -72,7 +84,7 @@ async handleRouteChange() {
     } catch (e) {
          console.error("[App.js HandleRouteChange] Error applying adminPagesEnabled config:", e);
     }
-    // --- ****** 新增結束 ****** ---
+    // --- ****** 修正結束 ****** ---
 
 
     try {
@@ -94,20 +106,14 @@ async handleRouteChange() {
 
     if (modulePath) {
         try {
-            // --- ****** 新增：檢查頁面是否被禁用 ****** ---
-            // Ensure window.CONFIG and nested properties exist
-            const adminPagesConfig = window.CONFIG?.LOGIC?.adminPagesEnabled || {};
-            // Check if the pageId exists as a key and its value is explicitly false
+            // --- ****** 關鍵修正：檢查頁面是否被禁用 (再次使用 adminPagesConfig) ****** ---
             if (adminPagesConfig.hasOwnProperty(pageId) && adminPagesConfig[pageId] === false) {
                  console.warn(`[App.js HandleRouteChange] Access denied: Page '${pageId}' is disabled in template settings.`);
-                 // Display an error message or redirect
                  const pageElement = document.getElementById(`page-${pageId}`);
                  if(pageElement) pageElement.innerHTML = `<p style="color:orange; text-align: center;">此頁面 (${pageId}) 在目前的樣板設定中已被停用。</p>`;
-                 // Optionally redirect: window.location.hash = '#dashboard';
-                 return; // Prevent module loading
+                 return; // 阻止模組載入
             }
-            // --- ****** 新增結束 ****** ---
-
+            // --- ****** 修正結束 ****** ---
 
             console.log(`[App.js HandleRouteChange] Importing module: ${modulePath}`);
             const pageModule = await import(modulePath);

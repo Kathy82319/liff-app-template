@@ -321,25 +321,26 @@ function getPriceForDate(dateString, product) {
 // =================================================================
     // 設定檔應用函式
     // =================================================================
-    function applyConfiguration() {
+function applyConfiguration() {
       try {
             if (!CONFIG || !activeTemplate) {
                 console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
             }
 
-            // --- 獲取設定 (安全起見，加上 || {} 避免錯誤) ---
-            const features = CONFIG.FEATURES || {};
-            const terms = CONFIG.TERMS || {};
+            // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+            const features = activeTemplate.features || {};
+            const terms = activeTemplate.terms || {};
             const logic = activeTemplate.logic || {};
             const navBarConfig = logic.navBar || [];
+            // --- ****** 修正結束 ****** ---
 
-            // --- 1. 處理底部導覽列 (邏輯不變) ---
+            // --- 1. 處理底部導覽列 (使用 activeTemplate.logic.navBar) ---
             document.querySelectorAll('.tab-button').forEach(tab => {
                 const targetPage = tab.dataset.target;
                 const config = navBarConfig.find(item => item.target === targetPage);
 
                 if (config && config.enabled) {
-                    const label = config.label || '未命名'; // 使用 config 中的 label
+                    const label = config.label || '未命名'; 
                     tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
                     tab.style.display = '';
                 } else {
@@ -347,12 +348,11 @@ function getPriceForDate(dateString, product) {
                 }
             });
             
-            // --- 2. 設定瀏覽器標題 (邏輯不變) ---
-            document.title = terms.BUSINESS_NAME || '載入中...'; // 使用 terms 的 BUSINESS_NAME
+            // --- 2. 設定瀏覽器標題 (使用 activeTemplate.terms) ---
+            document.title = terms.BUSINESS_NAME || '載入中...';
 
-            // --- 3. 【修改】設定 HTML 模板中的預設文字 ---
+            // --- 3. 設定 HTML 模板中的預設文字 (使用 activeTemplate.terms) ---
             if (pageTemplates) {
-                // 輔助函式 (保持不變)
                 const setContent = (selector, content) => {
                     const el = pageTemplates.querySelector(selector);
                     if (el) el.textContent = content;
@@ -362,14 +362,12 @@ function getPriceForDate(dateString, product) {
                     if (el) el.setAttribute('placeholder', content);
                 };
 
-                // 使用 terms 中的新 key 來設定文字
                 setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE || '最新情報');
                 setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE || '產品型錄');
-                setContent('#page-profile .page-main-title', "會員中心"); // 會員中心標題通常固定
+                setContent('#page-profile .page-main-title', "會員中心"); 
                 setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || '線上預約');
-                setContent('#page-info .page-main-title', "店家資訊"); // 店家資訊標題通常固定
+                setContent('#page-info .page-main-title', "店家資訊"); 
                 
-                // 設定產品頁的搜尋框 placeholder
                 setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
             }
 
@@ -617,53 +615,39 @@ function renderBookings(bookings, container, isPast = false) {
 
 
 
-    // 此函式被修改以讀取 CONFIG 中的 TERMS 和 FEATURES，
-    // 動態設定會員中心的標籤文字 (e.g., "會員等級", "點數")
-    // 並控制「特殊優惠行」的顯示。
-    //
-    function updateProfileDisplay(data) {
+function updateProfileDisplay(data) {
         if (!data) return;
 
-        // --- 1. 安全獲取設定 ---
-        const terms = CONFIG?.TERMS || {};
-        const features = CONFIG?.FEATURES || {};
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        const terms = activeTemplate?.terms || {};
+        const features = activeTemplate?.features || {};
+        // --- ****** 修正結束 ****** ---
 
-        // --- 2. 設定暱稱 (保持不變) ---
         const displayNameEl = document.getElementById('display-name');
         if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
 
-        // --- 3. 獲取 UI 元素 ---
         const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
         const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
         const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
         const perkP = document.getElementById('user-perk-line');
-        const qrcodeContainer = document.getElementById('qrcode-container'); // QR Code 的 *顯示* 已在 initializeProfilePage 處理
+        const qrcodeContainer = document.getElementById('qrcode-container'); 
 
-        // --- 4. 根據會員系統啟用狀態決定顯示內容 ---
         if (features.ENABLE_MEMBERSHIP_SYSTEM) {
             
-            // 4a. 顯示並設定會員方案文字
             if (classP) {
                  classP.style.display = 'block';
-                 // 使用 CONFIG 的 terms 設定標籤文字
                  classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
             }
-            // 4b. 顯示並設定等級/經驗值文字
             if (levelP) {
                  levelP.style.display = 'block';
                  levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
             }
-            // 4c. 顯示並設定點數/積分文字
             if (expP) {
                  expP.style.display = 'block';
-                 // 假設經驗值滿點是固定的 10 (如果需要也可從 CONFIG 讀取)
-                 // 注意：這裡使用 PROFILE_POINTS_LABEL
                  expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
             }
 
-            // 4d. 根據 features 和 terms 控制「特殊優惠行」
             if (perkP) {
-                // 必須啟用會員系統 (已檢查) AND 啟用優惠行 (預設 true) AND 該會員有優惠 AND 該會員有方案
                 if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
                     perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
                     perkP.style.display = 'block';
@@ -672,8 +656,7 @@ function renderBookings(bookings, container, isPast = false) {
                 }
             }
         } else {
-            // --- 5. 如果會員系統未啟用，全部隱藏 ---
-            if (qrcodeContainer) qrcodeContainer.style.display = 'none'; // 再次確保隱藏
+            if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
             if (classP) classP.style.display = 'none';
             if (levelP) levelP.style.display = 'none';
             if (expP) expP.style.display = 'none';
@@ -685,19 +668,19 @@ function renderBookings(bookings, container, isPast = false) {
     // 各頁面初始化函式
     // =================================================================
     
-    async function initializeHomePage() {
+        async function initializeHomePage() {
         
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        const terms = activeTemplate?.terms || {};
         try {
-            const terms = CONFIG?.TERMS || {};
-            // 找到此頁面的標題元素 (在 #app-content 內)
             const pageTitle = appContent.querySelector('#page-home .page-main-title');
             if (pageTitle) {
-                // 使用 CONFIG 的 terms 設定標題
                 pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
             }
         } catch(e) {
             console.error("設定 Home 標題失敗:", e);
         }
+        // --- ****** 修正結束 ****** ---
 
         const container = document.getElementById('news-list-container');
         if (!container) return;
@@ -705,7 +688,7 @@ function renderBookings(bookings, container, isPast = false) {
         try {
             const response = await fetch('api/get-news');
             if (!response.ok) {
-                const newsTitle = CONFIG?.TERMS?.NEWS_PAGE_TITLE || '情報';
+                const newsTitle = terms.NEWS_PAGE_TITLE || '情報';
                 throw new Error(`無法獲取${newsTitle}`);
             }
             allNews = await response.json();
@@ -716,6 +699,7 @@ function renderBookings(bookings, container, isPast = false) {
             container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
         }
     }
+
 
     function renderNews(filterCategory = 'ALL') {
         const container = document.getElementById('news-list-container');
@@ -777,18 +761,15 @@ function renderBookings(bookings, container, isPast = false) {
 async function initializeProfilePage() {
         if (!userProfile) return;
 
-        // --- ****** 關鍵修改：使用 CONFIG 控制 UI 和文字 ****** ---
-        
-        // 1. 安全獲取設定，如果 CONFIG 不存在則使用空物件
-        const terms = CONFIG?.TERMS || {};
-        const features = CONFIG?.FEATURES || {};
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        const terms = activeTemplate?.terms || {};
+        const features = activeTemplate?.features || {};
+        // --- ****** 修正結束 ****** ---
 
-        // 2. 獲取頁面上的按鈕元素
         const bookingsBtn = document.querySelector('#my-bookings-btn');
         const expHistoryBtn = document.querySelector('#my-exp-history-btn');
         const editProfileBtn = document.querySelector('#edit-profile-btn');
 
-        // 3. 根據 terms 設定按鈕文字
         if (bookingsBtn) {
             bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
         }
@@ -799,30 +780,24 @@ async function initializeProfilePage() {
             editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
         }
 
-        // 4. 根據 features 控制按鈕顯示
-        // 點數紀錄按鈕: 必須啟用會員系統 AND 啟用點數紀錄按鈕 (預設 true)
         if (expHistoryBtn) {
             expHistoryBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false) ? 'block' : 'none';
         }
-        // 預約紀錄按鈕: 必須啟用預約系統
         if (bookingsBtn) {
             bookingsBtn.style.display = features.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         }
 
-        // 5. 設定頭像 (保持不變)
         const profilePicture = document.getElementById('profile-picture');
         if (profilePicture && userProfile.pictureUrl) {
             profilePicture.src = userProfile.pictureUrl;
         }
 
-        // 6. 根據 features 控制 QR Code 顯示
         const qrcodeContainer = document.getElementById('qrcode-container');
         const qrcodeElement = document.getElementById('qrcode');
         if (qrcodeContainer && qrcodeElement) {
-             // 必須啟用會員系統 AND 啟用 QR Code (預設 true)
              if (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false) {
                  qrcodeContainer.style.display = 'flex';
-                 qrcodeElement.innerHTML = ''; // 清空舊 QR Code
+                 qrcodeElement.innerHTML = ''; 
                  try {
                      new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
                  } catch (e) {
@@ -833,12 +808,10 @@ async function initializeProfilePage() {
                  qrcodeContainer.style.display = 'none';
              }
         }
-        // --- ****** 修改結束 ****** ---
 
-        // 7. 獲取並更新使用者資料 (保持不變)
         try {
-            const userData = await fetchproductData(true); // 應為 fetchUserData，但沿用現有函式名稱
-            updateProfileDisplay(userData); // 呼叫下一個將被修改的函式
+            const userData = await fetchproductData(true); 
+            updateProfileDisplay(userData); 
         } catch (error) {
             console.error("獲取會員資料失敗:", error);
             const displayNameEl = document.getElementById('display-name');
@@ -849,34 +822,27 @@ async function initializeProfilePage() {
 async function initializeMyBookingsPage() {
         if (!userProfile) return;
 
-        // --- ****** 關鍵修改：動態設定頁面標題 ****** ---
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
         try {
-            // 1. 安全獲取設定
-            const terms = CONFIG?.TERMS || {};
-            // 2. 找到此頁面的標題元素 (在 #app-content 內)
+            const terms = activeTemplate?.terms || {};
             const pageTitle = appContent.querySelector('#page-my-bookings .page-main-title');
             if (pageTitle) {
-                // 3. 使用 CONFIG 中為按鈕設定的文字來當作此頁的標題
                 pageTitle.textContent = terms.PROFILE_BOOKINGS_BTN_LABEL || '我的預約紀錄';
             }
         } catch(e) {
             console.error("設定 MyBookings 標題失敗:", e);
         }
-        // --- ****** 修改結束 ****** ---
+        // --- ****** 修正結束 ****** ---
 
-
-        // --- 原有邏輯 (保持不變) ---
         const container = document.getElementById('my-bookings-container');
-        const pastContainer = document.getElementById('past-bookings-container'); // Past container
-        const toggleBtn = document.getElementById('toggle-past-bookings-btn');    // Toggle button
+        const pastContainer = document.getElementById('past-bookings-container'); 
+        const toggleBtn = document.getElementById('toggle-past-bookings-btn');    
 
-        if (!container || !pastContainer || !toggleBtn) return; // Make sure all elements exist
+        if (!container || !pastContainer || !toggleBtn) return; 
 
-        // Reset view
         container.innerHTML = '<p>查詢中...</p>';
         pastContainer.style.display = 'none';
         toggleBtn.textContent = '查看過往紀錄';
-        // Remove previous listener if exists to prevent duplicates
         toggleBtn.replaceWith(toggleBtn.cloneNode(true));
         document.getElementById('toggle-past-bookings-btn').addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', document.getElementById('toggle-past-bookings-btn')));
 
@@ -887,12 +853,10 @@ async function initializeMyBookingsPage() {
             const bookings = await response.json();
             renderBookings(bookings, container, false);
 
-            // --- 新增：為卡片添加點擊事件監聽 (事件委派) ---
-            container.removeEventListener('click', handleBookingCardClick); // 移除舊監聽器 (如果有的話)
+            container.removeEventListener('click', handleBookingCardClick); 
             container.addEventListener('click', handleBookingCardClick);
-            pastContainer.removeEventListener('click', handleBookingCardClick); // 也為過往紀錄添加
+            pastContainer.removeEventListener('click', handleBookingCardClick); 
             pastContainer.addEventListener('click', handleBookingCardClick);
-            // --- 新增結束 ---
 
         } catch (error) {
             container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
@@ -1022,23 +986,18 @@ loadingEl.style.display = 'block';
 async function initializeMyExpHistoryPage() {
         if (!userProfile) return;
 
-        // --- ****** 關鍵修改：動態設定頁面標題 ****** ---
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        const terms = activeTemplate?.terms || {};
         try {
-            // 1. 安全獲取設定
-            const terms = CONFIG?.TERMS || {};
-            // 2. 找到此頁面的標題元素
             const pageTitle = appContent.querySelector('#page-my-exp-history .page-main-title');
             if (pageTitle) {
-                // 3. 使用 CONFIG 中為按鈕設定的文字來當作此頁的標題
                 pageTitle.textContent = terms.PROFILE_EXP_HISTORY_BTN_LABEL || '我的點數紀錄';
             }
         } catch(e) {
             console.error("設定 MyExpHistory 標題失敗:", e);
         }
-        // --- ****** 修改結束 ****** ---
-
-
-        // --- 原有邏輯 (保持不變) ---
+        // --- ****** 修正結束 ****** ---
+        
         const container = document.getElementById('my-exp-history-container');
         if (!container) return;
         container.innerHTML = `<p>查詢中...</p>`;
@@ -1047,8 +1006,8 @@ async function initializeMyExpHistoryPage() {
             if (!response.ok) throw new Error('查詢紀錄失敗');
             const records = await response.json();
             
-            // 讀取點數名稱
-            const pointsName = CONFIG?.TERMS?.POINTS_NAME || '點數';
+            // 讀取點數名稱 (從 activeTemplate.terms)
+            const pointsName = terms.POINTS_NAME || '點數';
 
             if (records.length === 0) {
                 container.innerHTML = `<p>您目前沒有任何${pointsName}紀錄。</p>`;
@@ -1060,52 +1019,62 @@ async function initializeMyExpHistoryPage() {
         }
     }
 
-    async function initializeInfoPage() {
+async function initializeInfoPage() {
 
-        // --- ****** 關鍵修改：動態設定頁面標題 ****** ---
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
         try {
-            // 1. 安全獲取設定
-            const terms = CONFIG?.TERMS || {};
             const logic = activeTemplate?.logic || {};
             const navBarConfig = logic.navBar || [];
             
-            // 2. 找到此頁面的標題元素
             const pageTitle = appContent.querySelector('#page-info .page-main-title');
             if (pageTitle) {
-                // 3. 找到 'page-info' 在 navBar 中的設定
                 const infoNav = navBarConfig.find(item => item.target === 'page-info');
-                // 4. 使用 navBar 上的 label 作為頁面標題
                 pageTitle.textContent = infoNav?.label || '店家資訊';
             }
         } catch(e) {
             console.error("設定 Info 標題失敗:", e);
         }
-        // --- ****** 修改結束 ****** ---
+        // --- ****** 修正結束 ****** ---
 
-
-        // --- 原有邏輯 (保持不變) ---
         const container = document.getElementById('store-info-container');
         if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
+        
+        // --- (HTML 結構已在 index.html 模板中定義) ---
+        // 獲取模板中的元素
+        const addressEl = container.querySelector('#store-address');
+        const phoneEl = container.querySelector('#store-phone');
+        const hoursEl = container.querySelector('#store-hours');
+        const descEl = container.querySelector('#store-description');
+
+        // 檢查元素是否存在
+        if (!addressEl || !phoneEl || !hoursEl || !descEl) {
+             console.warn("店家資訊頁面缺少部分元素 (address, phone, hours, or description)");
+             container.innerHTML = `<p>載入中...</p>`; // Fallback to innerHTML
+        } else {
+             addressEl.textContent = '讀取中...';
+             phoneEl.textContent = '讀取中...';
+             hoursEl.textContent = '讀取中...';
+             descEl.textContent = '讀取中...';
+        }
+
         try {
             const response = await fetch('/api/get-store-info');
             if (!response.ok) throw new Error('無法獲取店家資訊');
             const info = await response.json();
             
-            // 填入從 API 獲取的資訊
-            const addressEl = container.querySelector('#store-address');
-            const phoneEl = container.querySelector('#store-phone');
-            const hoursEl = container.querySelector('#store-hours');
-            const descEl = container.querySelector('#store-description'); // 假設 HTML 中有這個 ID
+            // 再次檢查元素是否存在
+            const addressEl_post = container.querySelector('#store-address');
+            const phoneEl_post = container.querySelector('#store-phone');
+            const hoursEl_post = container.querySelector('#store-hours');
+            const descEl_post = container.querySelector('#store-description');
 
-            // 檢查 HTML 結構是否如 index.html 模板所示
-            if (addressEl && phoneEl && hoursEl && descEl) {
-                addressEl.textContent = info.address || '未提供';
-                phoneEl.textContent = info.phone || '未提供';
-                hoursEl.textContent = info.opening_hours || '未提供';
-                descEl.textContent = info.description || '未提供';
+            if (addressEl_post && phoneEl_post && hoursEl_post && descEl_post) {
+                addressEl_post.textContent = info.address || '未提供';
+                phoneEl_post.textContent = info.phone || '未提供';
+                hoursEl_post.textContent = info.opening_hours || '未提供';
+                descEl_post.textContent = info.description || '未提供';
             } else {
-                 // 備用方案：如果 HTML 結構不同，則使用 innerHTML
+                 // 備用方案 (如果模板元素在 fetch 過程中丟失)
                  container.innerHTML = `
                     <div class="info-section"><h2>地址</h2><p>${info.address || '未提供'}</p></div>
                     <div class="info-section"><h2>電話</h2><p>${info.phone || '未提供'}</p></div>
@@ -1121,25 +1090,19 @@ async function initializeMyExpHistoryPage() {
 
 async function initializeEditProfilePage() {
 
-        // --- ****** 關鍵修改：動態設定頁面標題 ****** ---
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
         try {
-            // 1. 安全獲取設定
-            const terms = CONFIG?.TERMS || {};
-            // 2. 找到此頁面的標題元素
+            const terms = activeTemplate?.terms || {};
             const pageTitle = appContent.querySelector('#page-edit-profile .page-main-title');
             if (pageTitle) {
-                // 3. 使用 CONFIG 中為按鈕設定的文字來當作此頁的標題
                 pageTitle.textContent = terms.PROFILE_EDIT_BTN_LABEL || '編輯個人資料';
             }
         } catch(e) {
             console.error("設定 Edit Profile 標題失敗:", e);
         }
-        // --- ****** 修改結束 ****** ---
-
+        // --- ****** 修正結束 ****** ---
         
-        // --- 原有邏輯 (保持不變) ---
-        
-        // 獲取產品標籤 (用於偏好設定)
+        // --- (原有邏輯保持不變) ---
         if (allProducts.length === 0) {
             try {
                 const res = await fetch('/api/get-products');
@@ -1151,9 +1114,8 @@ async function initializeEditProfilePage() {
         }
         if (!userProfile) return;
 
-        // 預填表單
         document.getElementById('edit-profile-name').value = userProfile.displayName;
-        const userData = await fetchproductData(); // 應為 fetchUserData
+        const userData = await fetchproductData(); 
         if (!userData) return;
         
         document.getElementById('edit-profile-real-name').value = userData.real_name || '';
@@ -1161,13 +1123,12 @@ async function initializeEditProfilePage() {
         document.getElementById('edit-profile-phone').value = userData.phone || '';
         document.getElementById('edit-profile-email').value = userData.email || '';
 
-        // 處理偏好標籤
         const productContainer = document.getElementById('preferred-product-container');
         const otherContainer = document.getElementById('preferred-product-other-container');
         const otherInput = document.getElementById('preferred-product-other-input');
         
         if (productContainer && otherContainer && otherInput) {
-            // (此處的標籤渲染邏輯保持不變)
+            // (標籤渲染邏輯保持不變)
             const allStandardTags = [...new Set(allProducts.flatMap(g => (g.tags || '').split(',')).map(t => t.trim()).filter(Boolean))];
             const userTags = new Set((userData.preferred_product || '').split(',').map(tag => tag.trim()).filter(Boolean));
             const userCustomTags = [...userTags].filter(tag => !allStandardTags.includes(tag));
@@ -1464,7 +1425,6 @@ if (filterDefinitions.length === 0) {
 }
     
 async function initializeProductsPage() {
-        // 讀取本地儲存的佈局偏好 (保持不變)
         productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
         productView.sort = 'default';
 
@@ -1472,11 +1432,10 @@ async function initializeProductsPage() {
         if (!container) return;
         container.innerHTML = `<p>載入中...</p>`; 
     
-        // --- 獲取所有 UI 元素 ---
-        const pageTitle = appContent.querySelector('#page-products .page-main-title'); // 獲取頁面標題元素
+        const pageTitle = appContent.querySelector('#page-products .page-main-title'); 
         const filterControls = document.getElementById('filter-controls');
         const searchInput = document.getElementById('keyword-search');
-        const dynamicFilters = document.getElementById('dynamic-filter-container'); // 篩選器容器
+        const dynamicFilters = document.getElementById('dynamic-filter-container'); 
         const clearBtn = document.getElementById('clear-filters');
         const viewControls = document.getElementById('product-view-controls');
         const layoutSwitcher = document.querySelector('.layout-switcher');
@@ -1484,67 +1443,53 @@ async function initializeProductsPage() {
         const listBtn = document.getElementById('view-list-btn');
         const sortButton = document.getElementById('price-sort-btn');
     
-        // --- ****** 關鍵修改：根據 CONFIG 控制 UI 元素 ****** ---
-        
-        // 確保 CONFIG 和 FEATURES/TERMS 存在，若否則使用空物件
-        const features = CONFIG?.FEATURES || {};
-        const terms = CONFIG?.TERMS || {};
+        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        const features = activeTemplate?.features || {};
+        const terms = activeTemplate?.terms || {};
+        // --- ****** 修正結束 ****** ---
 
-        // 1. 設定頁面標題 (已在 applyConfiguration 中完成，此處為雙重保險)
+        // 1. 設定頁面標題 (雙重保險)
         if(pageTitle && terms.PRODUCT_CATALOG_TITLE) { 
             pageTitle.textContent = terms.PRODUCT_CATALOG_TITLE;
         }
 
-        // 2. 控制「篩選器區域」 (包含搜尋框、動態篩選、清除按鈕)
+        // 2. 控制「篩選器區域」
         if (filterControls) {
-            // 檢查是否 *至少* 啟用了一個篩選功能
             const showFilters = features.PRODUCT_SHOW_FILTERS !== false;
             const showSearch = features.PRODUCT_SHOW_SEARCH !== false;
 
             if (showFilters || showSearch) {
                 filterControls.style.display = 'block';
-
-                // 2a. 控制「搜尋框」
                 if (searchInput) {
                     searchInput.style.display = showSearch ? 'block' : 'none';
-                    if (terms.PRODUCT_NAME) { // 設定 placeholder
+                    if (terms.PRODUCT_NAME) { 
                          searchInput.placeholder = `搜尋${terms.PRODUCT_NAME}關鍵字...`;
                     }
                 }
-                
-                // 2b. 控制「動態篩選器」和「清除按鈕」
                 if (dynamicFilters) dynamicFilters.style.display = showFilters ? 'block' : 'none';
                 if (clearBtn) clearBtn.style.display = showFilters ? 'block' : 'none';
-
             } else {
-                // 如果搜尋和篩選都關閉，則隱藏整個區域
                 filterControls.style.display = 'none';
             }
         }
 
         // 3. 控制「檢視/排序區域」
         if (viewControls) {
-            viewControls.style.display = 'flex'; // 區域保持顯示
-
-            // 3a. 控制「佈局切換」 (Grid/List)
+            viewControls.style.display = 'flex'; 
             if (layoutSwitcher) {
+                // 注意：這裡的 key 是 ENABLE_PRODUCT_LAYOUT_SWITCH
                 layoutSwitcher.style.display = features.ENABLE_PRODUCT_LAYOUT_SWITCH ? 'block' : 'none';
             }
-
-            // 3b. 控制「排序按鈕」
             if (sortButton) {
-                sortButton.style.display = features.PRODUCT_SHOW_SORTING !== false ? 'flex' : 'none'; // 預設為 true
+                sortButton.style.display = features.PRODUCT_SHOW_SORTING !== false ? 'flex' : 'none';
             }
         }
-        // --- ****** 修改結束 ****** ---
     
-        // 【錯誤修正】在綁定事件前，先檢查所有元素都存在
         if (!viewControls || !layoutSwitcher || !gridBtn || !listBtn || !sortButton || !searchInput || !clearBtn) {
             console.error("產品型錄頁缺少必要的 UI 元件，功能可能不完整。");
-            // 即使缺少某些元件，也嘗試繼續執行，避免完全崩潰
         }
 
-        // 安全地綁定事件 (保持不變)
+        // --- (安全綁定事件 和 try...catch 載入資料的邏輯保持不變) ---
         gridBtn?.addEventListener('click', () => {
             productView.layout = 'grid';
             localStorage.setItem('product_layout_preference', 'grid');
@@ -1564,19 +1509,18 @@ async function initializeProductsPage() {
         });
     
         try {
-            // 載入產品資料 (保持不變)
             if (allProducts.length === 0) {
                 const res = await fetch('/api/get-products');
                 if (!res.ok) throw new Error('API 請求失敗');
                 allProducts = await res.json();
             }
             
-            // 填充篩選器 (保持不變)
-            populateFilters();
-            // 渲染產品 (保持不變)
+            // 檢查 CONFIG.LOGIC.PRODUCT_FILTERS (篩選器定義 *是* 來自全域 CONFIG.LOGIC)
+            if (CONFIG?.LOGIC?.PRODUCT_FILTERS) {
+                 populateFilters(); // populateFilters 內部會讀取 CONFIG.LOGIC.PRODUCT_FILTERS
+            }
             renderProducts();
             
-            // 綁定篩選事件 (保持不變)
             searchInput?.addEventListener('input', e => { 
                 activeFilters.keyword = e.target.value; 
                 renderProducts(); 

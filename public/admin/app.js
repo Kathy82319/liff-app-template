@@ -217,7 +217,8 @@ async handleRouteChange() {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-     // Check for AuthToken cookie before initializing the app
+     // Check for AuthToken cookie before initializing the app -- REMOVED THIS CHECK
+     /* REMOVED:
      const cookies = document.cookie.split('; ').reduce((acc, current) => {
          const [name, ...value] = current.split('=');
          acc[name] = value.join('=');
@@ -225,17 +226,24 @@ document.addEventListener('DOMContentLoaded', () => {
      }, {});
 
      console.log('[DOMContentLoaded] Checking for AuthToken cookie...');
-     alert('[DOMContentLoaded] Checking for AuthToken cookie:\n' + document.cookie); // Alert for debugging
+     // REMOVED alert('[DOMContentLoaded] Checking for AuthToken cookie:\n' + document.cookie); // Alert for debugging
 
      if (!cookies.AuthToken) {
          console.log('[DOMContentLoaded] AuthToken not found. Redirecting to login page.');
-         alert('[DOMContentLoaded] AuthToken not found. Redirecting...'); // Alert for debugging
+         // REMOVED alert('[DOMContentLoaded] AuthToken not found. Redirecting...'); // Alert for debugging
          // Redirect to login page if no token is found
          window.location.href = '/admin-login.html';
      } else {
          console.log('[DOMContentLoaded] AuthToken found. Initializing App...');
-         alert('[DOMContentLoaded] AuthToken found. Initializing App...'); // Alert for debugging
+         // REMOVED alert('[DOMContentLoaded] AuthToken found. Initializing App...'); // Alert for debugging
          // Initialize the app if token exists
-         App.init();
+         App.init(); // <-- Keep this line
      }
+     */
+
+     // --- NEW CODE: Unconditionally initialize the app ---
+     console.log('[DOMContentLoaded] Skipping frontend cookie check. Initializing App...');
+     App.init(); // Directly initialize the app
+     // The backend middleware will handle authentication when API calls are made.
+     // --- END NEW CODE ---
 });

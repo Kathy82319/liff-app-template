@@ -1283,14 +1283,8 @@ async function initializeProductsPage() {
     if (!container) return;
     container.innerHTML = `<p>載入中...</p>`; 
     
-        const viewControls = document.getElementById('product-view-controls');
-        const layoutSwitcher = document.querySelector('.layout-switcher');
         const gridBtn = document.getElementById('view-grid-btn');
         const listBtn = document.getElementById('view-list-btn');
-        const sortButton = document.getElementById('price-sort-btn');
-        const searchInput = document.getElementById('keyword-search');
-        const clearBtn = document.getElementById('clear-filters');
-        // --- ****** 新增：根據 CONFIG 控制 UI 元素 ****** ---
         const pageTitle = appContent.querySelector('#page-products .page-main-title'); // 獲取頁面標題元素
         const filterControls = document.getElementById('filter-controls');
         const searchInput = document.getElementById('keyword-search');

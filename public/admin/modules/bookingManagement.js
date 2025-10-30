@@ -11,7 +11,12 @@ let bookingDatepicker = null; // For settings modal
 let enabledDates = [];
 let currentBookingInModal = null;
 let currentStatusMenu = null;
-let bookingListDateRangePicker = null; // 【新增】列表日期範圍選擇器實例
+let bookingListDateRangePicker = null; 
+let activeTemplate = null; 
+
+
+
+
 // --- 【新增】複製 getPriceForDate 輔助函式過來 ---
 /**
  * 根據日期和產品資料獲取當日價格
@@ -19,6 +24,93 @@ let bookingListDateRangePicker = null; // 【新增】列表日期範圍選擇�
  * @param {object} product - 產品物件 (包含 price_weekday, price_friday, price_saturday)
  * @returns {number | null} 當日價格或 null
  */
+
+/**
+ * 安全地獲取物件的巢狀屬性
+ * @param {object} obj - 來源物件
+ * @param {string} path - 屬性路徑 (例如 "user.profile.name")
+ * @param {*} defaultValue - 找不到時的回傳值
+ * @returns {*}
+ */
+function getProperty(obj, path, defaultValue = 'N/A') {
+    const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
+    const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
+    
+    // 自動截斷過長的字串
+    if (typeof result === 'string' && result.length > 50 && defaultValue === 'N/A') {
+        return result.substring(0, 47) + '...';
+    }
+    return result;
+}
+
+// 綁定 Tbody 點擊事件 (處理 "標記" 按鈕 和 "點擊行" 開啟 Modal)
+function bindTbodyClickListener(tbodyElement) {
+     if (!tbodyElement) return;
+     // 先移除舊監聽器，避免重複綁定
+     const oldListener = tbodyElement.handler;
+     if (oldListener) {
+         tbodyElement.removeEventListener('click', oldListener);
+     }
+
+     // 定義新的監聽器函數
+     const tbodyClickListener = async (e) => {
+         const target = e.target;
+         console.log("Tbody click event triggered on:", target);
+
+         // --- 處理 "標記" 按鈕 ---
+         const markStatusBtn = target.closest('.btn-mark-status');
+         if (markStatusBtn && !markStatusBtn.disabled) {
+             e.stopPropagation(); // 阻止觸發行點擊
+             console.log("標記按鈕被點擊 (tbody listener), bookingId:", markStatusBtn.dataset.bookingId);
+             createStatusMenu(markStatusBtn); // createStatusMenu 保持不變
+              // Add originatingBookingId after creation for the outside click check
+              if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
+             return; // 已處理
+         }
+
+         // --- 處理 "快速取消" 按鈕 (日曆中) ---
+         const quickCancelBtn = target.closest('.btn-quick-cancel');
+         if (quickCancelBtn) {
+             e.stopPropagation();
+             const bookingId = quickCancelBtn.dataset.bookingId;
+             console.log("點擊快速取消按鈕 (tbody listener), bookingId:", bookingId);
+             if (!bookingId) return;
+             const confirmed = await ui.confirm('確定要取消此預約嗎？');
+             if (confirmed) {
+                 try {
+                     quickCancelBtn.disabled = true;
+                     await api.updateBookingStatus(Number(bookingId), 'cancelled');
+                     ui.toast.success('預約已取消');
+                     const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
+                     await fetchDataAndRender(activeFilter);
+                 } catch(err) {
+                     ui.toast.error(`錯誤：${err.message}`);
+                     quickCancelBtn.disabled = false;
+                 }
+             }
+             return; // 已處理
+         }
+
+         // --- 處理點擊 "行" (開啟 Modal) ---
+         const bookingRow = target.closest('tr[data-booking-id]');
+         // 確保點擊的不是操作按鈕本身
+         if (bookingRow && !target.closest('.action-btn')) {
+             const bookingId = bookingRow.dataset.bookingId;
+             console.log("點擊行 (tbody listener), bookingId:", bookingId);
+             if (bookingId) {
+                 openBookingDetailsModal(bookingId); // openBookingDetailsModal 保持不變
+             }
+             return; // 已處理
+         }
+          console.log("Tbody click event did not match any specific action.");
+     };
+
+     // 綁定新的監聽器
+     tbodyElement.addEventListener('click', tbodyClickListener);
+     tbodyElement.handler = tbodyClickListener; // 將 listener 存起來以便下次移除
+     console.log("Attached new click listener to tbody.");
+}
+
 function getPriceForDate(dateString, product) {
     if (!product) return null; // 如果沒有產品資訊，回傳 null
     // 如果日期無效，或產品沒有任何價格資訊，嘗試回傳平日價，再沒有就回傳 null
@@ -1038,111 +1130,95 @@ async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMe
 
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
-    if (!bookingListTbody) return;
-    bookingListTbody.innerHTML = '';
-    if (!bookings || bookings.length === 0) {
-        bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">找不到符合條件的預約。</td></tr>';
+    // --- 【修改】獲取 Thead 中的 tr 元素 ---
+    const bookingListTheadTr = document.querySelector('#list-view-container thead tr'); 
+    
+    if (!bookingListTbody || !bookingListTheadTr) {
+         console.error("renderBookingList: 找不到 tbody 或 thead tr 元素。");
+         return;
+    }
+    
+    // --- 1. 檢查 activeTemplate 是否已載入 ---
+    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminBookingColumns)) {
+        console.error("renderBookingList: activeTemplate 或 adminBookingColumns 尚未準備就緒。");
+        // 顯示錯誤訊息
+        bookingListTheadTr.innerHTML = '<th>錯誤</th>';
+        bookingListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：訂單列表欄位設定未載入。請檢查系統設定。</td></tr>';
         return;
     }
+    
+    // --- 2. 獲取啟用的欄位 ---
+    const columns = activeTemplate.logic.adminBookingColumns.filter(col => col.enabled);
+
+    // --- 3. 動態渲染表頭 ---
+    let headerHTML = '';
+    columns.forEach(col => {
+        headerHTML += `<th>${col.label}</th>`;
+    });
+    headerHTML += '<th>狀態</th>'; // 狀態欄位固定
+    headerHTML += '<th>操作</th>'; // 操作欄位固定
+    bookingListTheadTr.innerHTML = headerHTML;
+
+    // --- 4. 渲染列表內容 ---
+    bookingListTbody.innerHTML = ''; // 清空
+    if (!bookings || bookings.length === 0) {
+        bookingListTbody.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
+        return;
+    }
+
     bookings.forEach(booking => {
-        // ... (原有的 row.innerHTML 生成邏輯保持不變) ...
         const row = bookingListTbody.insertRow();
         row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
+        // --- 5. 根據欄位設定動態插入儲存格 ---
+        columns.forEach(col => {
+            const cell = row.insertCell();
+            let cellContent;
+            
+            // 特殊處理：項目摘要
+            if (col.key === 'item_summary') {
+                cellContent = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
+            } 
+            // 特殊處理：日期/時段 (合併)
+            else if (col.key === 'datetime_summary') {
+                 cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div>`;
+            }
+            // 特殊處理：金額
+            else if (col.key === 'total_amount') {
+                 cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
+            }
+            // 預設：使用 getProperty 獲取 (支援 "contact_name" 等)
+            else {
+                cellContent = getProperty(booking, col.key, 'N/A');
+            }
+            
+            cell.innerHTML = cellContent; // 使用 innerHTML 以支援 'datetime_summary' 的 HTML
+        });
+
+        // --- 6. 渲染固定的「狀態」和「操作」儲存格 ---
         let statusText = '未知', statusClass = '';
-        const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+        // 檢查樣板名稱（或 key）來決定用詞
+        const isGuesthouse = activeTemplate.name === '民宿樣板' || CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
         const checkInText = isGuesthouse ? '已入住' : '已報到';
 
         if (booking.status === 'confirmed') { statusText = '預約成功'; statusClass = 'status-confirmed'; }
         if (booking.status === 'checked-in') { statusText = checkInText; statusClass = 'status-checked-in'; }
         if (booking.status === 'cancelled') { statusText = '已取消'; statusClass = 'status-cancelled'; }
         if (booking.status === 'no-show') { statusText = '未入住'; statusClass = 'status-noshow'; }
-
-        const itemSummary = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
-        // --- 【修改】決定 "標記" 按鈕是否禁用 ---
-        // 只在 'cancelled' 或 'no-show' 時禁用
+        
         const isMarkDisabled = ['cancelled', 'no-show'].includes(booking.status);
 
-        row.innerHTML = `
-            <td class="compound-cell"><div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div></td>
-            <td class="compound-cell"><div class="main-info">${booking.contact_name}</div><div class="sub-info">${itemSummary}</div></td>
-            <td>${booking.num_of_people}</td>
-            <td>${booking.total_amount !== null ? '$' + booking.total_amount : 'N/A'}</td>
-            <td><span class="status-tag ${statusClass}">${statusText}</span></td>
-            <td class="actions-cell">
-                <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
-            </td>
-        `;
+        // 插入「狀態」
+        row.insertCell().innerHTML = `<span class="status-tag ${statusClass}">${statusText}</span>`;
+        // 插入「操作」
+        row.insertCell().innerHTML = `<td class="actions-cell">
+            <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
+        </td>`;
     });
 
-    // --- ▼▼▼ 【新增/修改】在這裡綁定 tbody 的點擊事件 ▼▼▼ ---
-    // 先移除舊監聽器，避免重複綁定 (如果之前有綁過)
-    const oldListener = bookingListTbody.handler;
-    if (oldListener) {
-        bookingListTbody.removeEventListener('click', oldListener);
-    }
-
-    // 定義新的監聽器函數
-    const tbodyClickListener = async (e) => {
-        const target = e.target;
-        console.log("Tbody click event triggered on:", target); // 偵錯
-
-        // --- 處理 "標記" 按鈕 ---
-        const markStatusBtn = target.closest('.btn-mark-status');
-        if (markStatusBtn && !markStatusBtn.disabled) {
-            e.stopPropagation(); // 阻止觸發行點擊
-            console.log("標記按鈕被點擊 (tbody listener), bookingId:", markStatusBtn.dataset.bookingId);
-            createStatusMenu(markStatusBtn);
-             // Add originatingBookingId after creation for the outside click check
-             if (currentStatusMenu) currentStatusMenu.dataset.originatingBookingId = markStatusBtn.dataset.bookingId;
-            return; // 已處理
-        }
-
-        // --- 處理 "快速取消" 按鈕 ---
-        const quickCancelBtn = target.closest('.btn-quick-cancel'); // 這個按鈕可能在日曆視圖，但也檢查一下
-        if (quickCancelBtn) {
-            e.stopPropagation();
-            // ... (快速取消的邏輯，同 setupEventListeners 中的版本) ...
-             const bookingId = quickCancelBtn.dataset.bookingId;
-            console.log("點擊快速取消按鈕 (tbody listener), bookingId:", bookingId);
-            if (!bookingId) return;
-            const confirmed = await ui.confirm('確定要取消此預約嗎？');
-            if (confirmed) {
-                try {
-                    quickCancelBtn.disabled = true;
-                    await api.updateBookingStatus(Number(bookingId), 'cancelled');
-                    ui.toast.success('預約已取消');
-                    const activeFilter = document.querySelector('#booking-status-filter .active')?.dataset.filter || 'today';
-                    await fetchDataAndRender(activeFilter);
-                } catch(err) {
-                    ui.toast.error(`錯誤：${err.message}`);
-                    quickCancelBtn.disabled = false;
-                }
-            }
-            return; // 已處理
-        }
-
-
-        // --- 處理點擊 "行" (開啟 Modal) ---
-        const bookingRow = target.closest('tr[data-booking-id]');
-        // 確保點擊的不是操作按鈕本身
-        if (bookingRow && !target.closest('.action-btn')) {
-            const bookingId = bookingRow.dataset.bookingId;
-            console.log("點擊行 (tbody listener), bookingId:", bookingId);
-            if (bookingId) {
-                openBookingDetailsModal(bookingId);
-            }
-            return; // 已處理
-        }
-         console.log("Tbody click event did not match any specific action."); // 偵錯
-    };
-
-    // 綁定新的監聽器
-    bookingListTbody.addEventListener('click', tbodyClickListener);
-    bookingListTbody.handler = tbodyClickListener; // 將 listener 存起來以便下次移除
-    console.log("Attached new click listener to tbody.");
-    // --- ▲▲▲ 綁定結束 ▲▲▲ ---
+    // --- 7. (最重要) 重新綁定 Tbody 事件 ---
+    bindTbodyClickListener(bookingListTbody);
 }
 
 
@@ -1619,9 +1695,54 @@ function clearAdvancedFilters() {
 }
 
 
-// --- init 函數保持不變 ---
 export const init = async () => {
-    // 【修改】確保 setupEventListeners 先執行
-    setupEventListeners();
+    console.log("[BookingManagement Init] Starting...");
+    
+    // --- 1. 獲取當前啟用的樣板 (同 productManagement) ---
+    try {
+        // 依賴 app.js 已將 CONFIG 載入 window
+        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+             console.error("[BookingManagement Init] window.CONFIG is not ready!");
+             throw new Error("核心設定尚未載入。");
+        }
+        
+        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+        // 將設定存到模組級變數
+        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+
+        if (!activeTemplate) {
+            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        }
+        // 驗證此頁面需要的設定是否存在
+        if (!activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminBookingColumns)) {
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少 'logic.adminBookingColumns' 陣列設定。`);
+        }
+        console.log("[BookingManagement Init] Active template loaded:", activeTemplateKey);
+        
+        // --- 2. 載入 allProducts (手動建立預約時需要) ---
+        if (allProducts.length === 0) {
+             console.log("[BookingManagement Init] Fetching allProducts...");
+             allProducts = await api.getProducts(); // 確保 await
+             console.log(`[BookingManagement Init] Fetched ${allProducts.length} products.`);
+        }
+
+    } catch (e) {
+         console.error("初始化訂位管理頁面失敗:", e);
+         const page = document.getElementById('page-bookings');
+         // 在列表容器或整個頁面顯示錯誤
+         const bookingListTbody = document.getElementById('booking-list-tbody');
+         if (bookingListTbody) {
+              bookingListTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">讀取樣板設定失敗: ${e.message}</td></tr>`;
+         } else if (page) {
+             page.innerHTML = `<p style="color:red;">讀取樣板設定失敗: ${e.message}</p>`;
+         }
+         return; // 停止初始化
+    }
+
+    // --- 3. 綁定靜態事件監聽器 ---
+    setupEventListeners(); // setupEventListeners 保持不變
+    
+    // --- 4. 載入初始資料 ---
     await fetchDataAndRender('today'); // 載入初始數據
+    console.log("[BookingManagement Init] Finished.");
 };

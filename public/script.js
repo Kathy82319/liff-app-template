@@ -618,10 +618,13 @@ function renderBookings(bookings, container, isPast = false) {
 function updateProfileDisplay(data) {
         if (!data) return;
 
-        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        // --- 關鍵修正：從 activeTemplate 讀取 ---
         const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
-        // --- ****** 修正結束 ****** ---
+
+        // --- ****** 新增診斷日誌 ****** ---
+        console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
+        // --- ****** 診斷日誌結束 ****** ---
 
         const displayNameEl = document.getElementById('display-name');
         if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
@@ -647,6 +650,9 @@ function updateProfileDisplay(data) {
                  expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
             }
 
+            // 檢查 PROFILE_SHOW_PERK_LINE 的值
+            console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
+
             if (perkP) {
                 if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
                     perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
@@ -663,7 +669,6 @@ function updateProfileDisplay(data) {
             if (perkP) perkP.style.display = 'none';
         }
     }
-
     // =================================================================
     // 各頁面初始化函式
     // =================================================================
@@ -761,10 +766,13 @@ function updateProfileDisplay(data) {
 async function initializeProfilePage() {
         if (!userProfile) return;
 
-        // --- ****** 關鍵修正：從 activeTemplate 讀取 ****** ---
+        // --- 關鍵修改：從 activeTemplate 讀取 ---
         const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
-        // --- ****** 修正結束 ****** ---
+        
+        // --- ****** 新增診斷日誌 ****** ---
+        console.log("[LIFF script.js] initializeProfilePage 讀取到的 Features:", JSON.stringify(features));
+        // --- ****** 診斷日誌結束 ****** ---
 
         const bookingsBtn = document.querySelector('#my-bookings-btn');
         const expHistoryBtn = document.querySelector('#my-exp-history-btn');
@@ -780,6 +788,9 @@ async function initializeProfilePage() {
             editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
         }
 
+        // 檢查 PROFILE_SHOW_EXP_HISTORY_BTN 的值
+        console.log(`[LIFF script.js] 點數按鈕顯示邏輯: ENABLE_MEMBERSHIP_SYSTEM (${features.ENABLE_MEMBERSHIP_SYSTEM}) && PROFILE_SHOW_EXP_HISTORY_BTN !== false (${features.PROFILE_SHOW_EXP_HISTORY_BTN !== false})`);
+
         if (expHistoryBtn) {
             expHistoryBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false) ? 'block' : 'none';
         }
@@ -791,6 +802,9 @@ async function initializeProfilePage() {
         if (profilePicture && userProfile.pictureUrl) {
             profilePicture.src = userProfile.pictureUrl;
         }
+
+        // 檢查 PROFILE_SHOW_QR_CODE 的值
+        console.log(`[LIFF script.js] QR Code 顯示邏輯: ENABLE_MEMBERSHIP_SYSTEM (${features.ENABLE_MEMBERSHIP_SYSTEM}) && PROFILE_SHOW_QR_CODE !== false (${features.PROFILE_SHOW_QR_CODE !== false})`);
 
         const qrcodeContainer = document.getElementById('qrcode-container');
         const qrcodeElement = document.getElementById('qrcode');

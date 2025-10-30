@@ -15,17 +15,33 @@ function resetPointsCenterPage() {
     const selectedUserDisplay = document.getElementById('points-selected-user-display');
     const qrReader = document.getElementById('qr-reader');
     const pointsStatusMessage = document.getElementById('points-status-message');
+    // --- 【新增】獲取外部的狀態顯示 ---
+    const pageStatusDisplay = document.getElementById('points-page-status-display');
+
 
     if (userSearchInput) userSearchInput.value = '';
     if (userSearchResults) userSearchResults.innerHTML = '';
     if (pointsEntryForm) pointsEntryForm.style.display = 'none';
-    if (selectedUserDisplay) selectedUserDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
+    
+    // --- 【修改】更新 *外部* 的狀態顯示 ---
+    if (pageStatusDisplay) {
+        pageStatusDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
+        pageStatusDisplay.style.display = 'block'; // 確保它可見
+    }
+    
+    // (原有的 selectedUserDisplay 和 pointsStatusMessage 是在表單內，隱藏是正常的)
+    if (selectedUserDisplay) selectedUserDisplay.textContent = ''; 
     if (pointsStatusMessage) pointsStatusMessage.textContent = '';
     
-    // 停止可能正在運行的掃描器
+    // --- ****** 關鍵修正：加入 null 檢查 ****** ---
     if (html5QrCode && html5QrCode.isScanning) {
+        console.log("Stopping active QR Code scanner...");
         html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
+    } else {
+        console.log("QR Code scanner not running or not initialized, skipping stop().");
     }
+    // --- ****** 修正結束 ****** ---
+
     if (qrReader) qrReader.style.display = 'none';
 }
 

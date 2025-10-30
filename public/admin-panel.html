@@ -1090,7 +1090,7 @@
     </div>
 </template>
 
-            <div id="page-points" class="page">
+<div id="page-points" class="page">
                 <div class="page-header"><h2>點數發放中心</h2></div>
                 <div id="points-user-selection">
                     <div class="form-group">
@@ -1103,11 +1103,16 @@
                     </div>
                     <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
                 </div>
+                
                 <hr style="margin: 2rem 0;">
+
+                <div id="points-page-status-display" style="text-align: center; font-weight: bold; color: var(--color-text-light); margin-bottom: 1rem;">
+                    請先從上方搜尋或掃碼選取顧客
+                </div>
                 <div id="points-entry-form" style="display: none;">
                     <div class="form-group">
                         <label>目標顧客</label>
-                        <div id="points-selected-user-display">請先從上方搜尋或掃碼選取顧客</div>
+                        <div id="points-selected-user-display" style="font-weight: bold; color: var(--color-primary);"></div>
                     </div>
                     <div class="form-group">
                         <label for="reason-select">點數名稱 (原因):</label>

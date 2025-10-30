@@ -602,31 +602,49 @@ function renderBookings(bookings, container, isPast = false) {
         }
     }
 
-    function updateProfileDisplay(data) {
+function updateProfileDisplay(data) {
         if (!data) return;
+        const terms = CONFIG?.TERMS || {}; // 安全獲取 terms
+        const features = CONFIG?.FEATURES || {}; // 安全獲取 features
+
         const displayNameEl = document.getElementById('display-name');
         if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
+
         const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
         const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
         const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
         const perkP = document.getElementById('user-perk-line');
-        const qrcodeContainer = document.getElementById('qrcode-container');
+        const qrcodeContainer = document.getElementById('qrcode-container'); // qrcode 的顯示已在 initializeProfilePage 處理
 
-        if (CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            if (qrcodeContainer && userProfile) qrcodeContainer.style.display = 'flex';
-            if (classP) classP.style.display = 'block';
-            if (levelP) levelP.style.display = 'block';
-            if (expP) expP.style.display = 'block';
-            if(classP) classP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_CLASS_LABEL}：</strong><span>${data.class || "無"}</span>`;
-            if(levelP) levelP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_LEVEL_LABEL}：</strong><span>${data.level}</span>`;
-            if(expP) expP.innerHTML = `<strong>${CONFIG.TERMS.POINTS_NAME}：</strong><span>${data.current_exp} / 10</span>`;
-            if (perkP && data.perk && data.class !== '無') {
-                perkP.innerHTML = `<strong>${CONFIG.TERMS.MEMBER_PERK_LABEL}：</strong><span>${data.perk}</span>`;
-                perkP.style.display = 'block';
-            } else if (perkP) {
-                perkP.style.display = 'none';
+        if (features.ENABLE_MEMBERSHIP_SYSTEM) {
+            // qrcodeContainer 的顯示邏輯移到 initializeProfilePage
+
+            if (classP) {
+                 classP.style.display = 'block';
+                 // 使用 CONFIG 的 terms 設定標籤文字
+                 classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
+            }
+            if (levelP) {
+                 levelP.style.display = 'block';
+                 levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
+            }
+            if (expP) {
+                 expP.style.display = 'block';
+                 // 假設經驗值滿點是固定的 10 (如果需要也可從 CONFIG 讀取)
+                 expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
+            }
+
+            // 控制特殊優惠行的顯示與文字
+            if (perkP) {
+                if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
+                    perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
+                    perkP.style.display = 'block';
+                } else {
+                    perkP.style.display = 'none';
+                }
             }
         } else {
+            // 如果會員系統未啟用，全部隱藏
             if (qrcodeContainer) qrcodeContainer.style.display = 'none';
             if (classP) classP.style.display = 'none';
             if (levelP) levelP.style.display = 'none';
@@ -713,17 +731,39 @@ function renderBookings(bookings, container, isPast = false) {
 
     async function initializeProfilePage() {
         if (!userProfile) return;
-        document.querySelector('#my-bookings-btn').innerHTML = `${CONFIG.TERMS.BOOKING_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').innerHTML = `${CONFIG.TERMS.POINTS_NAME}紀錄`;
-        document.querySelector('#my-exp-history-btn').style.display = CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM ? 'block' : 'none';
-        document.querySelector('#my-bookings-btn').style.display = CONFIG.FEATURES.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
+    // --- ****** 修改：使用 CONFIG 控制 UI 和文字 ****** ---
+        const terms = CONFIG?.TERMS || {}; // 安全獲取 terms
+        const features = CONFIG?.FEATURES || {}; // 安全獲取 features
+
+        // 設定按鈕文字
+        const bookingsBtn = document.querySelector('#my-bookings-btn');
+        const expHistoryBtn = document.querySelector('#my-exp-history-btn');
+        const editProfileBtn = document.querySelector('#edit-profile-btn');
+
+        if (bookingsBtn) bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
+        if (expHistoryBtn) expHistoryBtn.innerHTML = terms.PROFILE_EXP_HISTORY_BTN_LABEL || '點數紀錄';
+        if (editProfileBtn) editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
+
+        // 控制按鈕顯示
+        if (expHistoryBtn) expHistoryBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false) ? 'block' : 'none';
+        if (bookingsBtn) bookingsBtn.style.display = features.ENABLE_BOOKING_SYSTEM ? 'block' : 'none'; // 預約紀錄按鈕通常跟預約系統總開關走
+
         const profilePicture = document.getElementById('profile-picture');
+        // ... (profile picture 設定不變) ...
         if (profilePicture && userProfile.pictureUrl) profilePicture.src = userProfile.pictureUrl;
+
+        const qrcodeContainer = document.getElementById('qrcode-container');
         const qrcodeElement = document.getElementById('qrcode');
-        if (qrcodeElement && CONFIG.FEATURES.ENABLE_MEMBERSHIP_SYSTEM) {
-            qrcodeElement.innerHTML = '';
-            new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
+        if (qrcodeContainer && qrcodeElement) {
+             if (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false) {
+                 qrcodeContainer.style.display = 'flex';
+                 qrcodeElement.innerHTML = ''; // 清空舊 QR Code
+                 new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
+             } else {
+                 qrcodeContainer.style.display = 'none';
+             }
         }
+        // --- ****** 修改結束 ****** ---
         try {
             const userData = await fetchproductData(true);
             updateProfileDisplay(userData);
@@ -1250,6 +1290,38 @@ async function initializeProductsPage() {
         const sortButton = document.getElementById('price-sort-btn');
         const searchInput = document.getElementById('keyword-search');
         const clearBtn = document.getElementById('clear-filters');
+        // --- ****** 新增：根據 CONFIG 控制 UI 元素 ****** ---
+        const pageTitle = appContent.querySelector('#page-products .page-main-title'); // 獲取頁面標題元素
+        const filterControls = document.getElementById('filter-controls');
+        const searchInput = document.getElementById('keyword-search');
+        const dynamicFilters = document.getElementById('dynamic-filter-container');
+        const clearBtn = document.getElementById('clear-filters');
+        const viewControls = document.getElementById('product-view-controls');
+        const layoutSwitcher = document.querySelector('.layout-switcher');
+        const sortButton = document.getElementById('price-sort-btn');
+
+        if(pageTitle && CONFIG?.TERMS?.PRODUCT_CATALOG_TITLE) { // 設定頁面標題
+            pageTitle.textContent = CONFIG.TERMS.PRODUCT_CATALOG_TITLE;
+        }
+
+        if (filterControls) { // 控制整個篩選區域
+             filterControls.style.display = CONFIG?.FEATURES?.PRODUCT_SHOW_FILTERS ? 'block' : 'none';
+        }
+        if (searchInput) { // 控制搜尋框
+            searchInput.style.display = CONFIG?.FEATURES?.PRODUCT_SHOW_SEARCH ? 'block' : 'none';
+            if(CONFIG?.TERMS?.PRODUCT_NAME) { // 設定 placeholder
+                 searchInput.placeholder = `搜尋${CONFIG.TERMS.PRODUCT_NAME}關鍵字...`;
+            }
+        }
+        // 注意：dynamicFilters 和 clearBtn 已經在 filterControls 內部，會一起被隱藏
+
+        if (viewControls) { // 控制檢視/排序區域
+            // layoutSwitcher 的顯示邏輯已有，不用改
+            if (sortButton) { // 控制排序按鈕
+                sortButton.style.display = CONFIG?.FEATURES?.PRODUCT_SHOW_SORTING ? 'flex' : 'none';
+            }
+        }
+        // --- ****** 新增結束 ****** ---
     
         // 【錯誤修正】在綁定事件前，先檢查所有元素都存在
         if (!viewControls || !layoutSwitcher || !gridBtn || !listBtn || !sortButton || !searchInput || !clearBtn) {

@@ -49,6 +49,30 @@ async handleRouteChange() {
     const pageId = window.location.hash.substring(1) || 'dashboard';
     console.log(`[App.js HandleRouteChange] Determined pageId: ${pageId}`);
 
+    // --- ****** 新增：控制導覽列顯示 ****** ---
+    try {
+        const adminPagesConfig = window.CONFIG?.LOGIC?.adminPagesEnabled || {};
+        const navTabs = document.querySelector('.nav-tabs');
+        if (navTabs) {
+             navTabs.querySelectorAll('a').forEach(tabLink => {
+                 const targetPage = tabLink.getAttribute('href')?.substring(1);
+                 if (targetPage) {
+                     // 如果設定檔中有此頁面 key 且值為 false，則隱藏
+                     if (adminPagesConfig.hasOwnProperty(targetPage) && adminPagesConfig[targetPage] === false) {
+                         tabLink.style.display = 'none';
+                     } else {
+                         tabLink.style.display = ''; // 否則顯示 (預設或 true)
+                     }
+                 }
+             });
+             console.log("[App.js HandleRouteChange] Applied adminPagesEnabled config to nav tabs.");
+        } else {
+            console.warn("[App.js HandleRouteChange] Could not find .nav-tabs to apply enablement config.");
+        }
+    } catch (e) {
+         console.error("[App.js HandleRouteChange] Error applying adminPagesEnabled config:", e);
+    }
+    // --- ****** 新增結束 ****** ---
     try {
         console.log("[App.js HandleRouteChange] Attempting to hide batch toolbar...");
         hideBatchToolbar();
@@ -69,6 +93,18 @@ async handleRouteChange() {
     console.log(`[App.js HandleRouteChange] Module path for ${pageId}: ${modulePath || 'None'}`);
 
     if (modulePath) {
+        try {
+            // --- ****** 新增：檢查頁面是否被禁用 ****** ---
+            const adminPagesConfig = window.CONFIG?.LOGIC?.adminPagesEnabled || {};
+            if (adminPagesConfig.hasOwnProperty(pageId) && adminPagesConfig[pageId] === false) {
+                 console.warn(`[App.js HandleRouteChange] Access denied: Page '${pageId}' is disabled in template settings.`);
+                 // 顯示一個錯誤訊息或重導向到儀表板
+                 const pageElement = document.getElementById(`page-${pageId}`);
+                 if(pageElement) pageElement.innerHTML = `<p style="color:orange; text-align: center;">此頁面 (${pageId}) 在目前的樣板設定中已被停用。</p>`;
+                 // window.location.hash = '#dashboard'; // 或者直接跳轉
+                 return; // 阻止模組載入
+            }
+            // --- ****** 新增結束 ****** ---
         try {
             console.log(`[App.js HandleRouteChange] Importing module: ${modulePath}`);
             const pageModule = await import(modulePath);

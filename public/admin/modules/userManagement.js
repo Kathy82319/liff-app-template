@@ -1,37 +1,105 @@
 // public/admin/modules/userManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js'; 
-// import { ui } from '../ui.js'; // 未來若將 Modal 移至 ui.js 會需要
 
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
 let allDrafts = []; // 【新增】存放訊息草稿的快取
+let activeTemplate = null; // <-- 【新增此行】
 
+/**
+ * 安全地獲取物件的巢狀屬性
+ * @param {object} obj - 來源物件
+ * @param {string} path - 屬性路徑 (例如 "user.profile.name")
+ * @param {*} defaultValue - 找不到時的回傳值
+ * @returns {*}
+ */
+function getProperty(obj, path, defaultValue = 'N/A') {
+    const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
+    // 修改：如果值是空字串，也視為 defaultValue
+    const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
+    
+    // 自動截斷過長的字串
+    if (typeof result === 'string' && result.length > 50 && defaultValue === 'N/A') {
+        return result.substring(0, 47) + '...';
+    }
+    return result;
+}
 
-// 渲染使用者列表
+// 渲染使用者列表 (藍圖驅動版)
 function renderUserList(users) {
     const userListTbody = document.getElementById('user-list-tbody');
-    if (!userListTbody) return;
+    // --- 【修改】獲取 Thead 中的 tr 元素 ---
+    const userListTheadTr = document.querySelector('#page-users thead tr'); 
+
+    if (!userListTbody || !userListTheadTr) {
+         console.error("renderUserList: 找不到 tbody 或 thead tr 元素。");
+         return;
+    }
+
+    // --- 1. 檢查 activeTemplate 是否已載入 ---
+    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
+        console.error("renderUserList: activeTemplate 或 adminUserColumns 尚未準備就緒。");
+        userListTheadTr.innerHTML = '<th>錯誤</th>';
+        userListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：顧客列表欄位設定未載入。請檢查系統設定。</td></tr>';
+        return;
+    }
+
+    // --- 2. 獲取啟用的欄位 ---
+    const columns = activeTemplate.logic.adminUserColumns.filter(col => col.enabled);
+
+    // --- 3. 動態渲染表頭 ---
+    let headerHTML = '';
+    columns.forEach(col => {
+        headerHTML += `<th>${col.label}</th>`;
+    });
+    headerHTML += '<th>操作</th>'; // 操作欄位固定
+    userListTheadTr.innerHTML = headerHTML;
+
+    // --- 4. 渲染列表內容 ---
+    userListTbody.innerHTML = ''; // 清空
+    if (!users || users.length === 0) {
+         userListTbody.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">找不到符合條件的顧客。</td></tr>`;
+         return;
+    }
     
-    userListTbody.innerHTML = '';
     users.forEach(user => {
         const row = userListTbody.insertRow();
         row.dataset.userId = user.user_id;
         row.style.cursor = 'pointer';
-        const displayName = user.nickname ? `${user.line_display_name} (${user.nickname})` : user.line_display_name;
         
-        row.innerHTML = `
-            <td class="compound-cell" style="text-align: left;">
-                <div class="main-info">${displayName || 'N/A'}</div>
-                <div class="sub-info">${user.user_id}</div>
-            </td>
-            <td>${user.class || '無'}</td>
-            <td>${user.level} / ${user.current_exp}</td>
-            <td>${user.perk || '無'}</td>
-            <td><span class="tag-display">${user.tag || '無'}</span></td>
-            <td class="actions-cell">
-                <button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: #ffc107; color: #000;">編輯</button>
-            </td>
+        // --- 5. 根據欄位設定動態插入儲存格 ---
+        columns.forEach(col => {
+            const cell = row.insertCell();
+            let cellContent;
+
+            // 特殊處理：顯示名稱 (合併 nickname)
+            if (col.key === 'line_display_name') {
+                const displayName = user.nickname ? `${user.line_display_name} (${user.nickname})` : user.line_display_name;
+                cellContent = `<div class="main-info">${displayName || 'N/A'}</div><div class="sub-info">${user.user_id}</div>`;
+            } 
+            // 特殊處理：等級/點數 (合併)
+            else if (col.key === 'level_exp') {
+                 cellContent = `${user.level} / ${user.current_exp}`;
+            }
+            // 特殊處理：標籤
+            else if (col.key === 'tag') {
+                 cellContent = `<span class="tag-display">${user.tag || '無'}</span>`;
+            }
+            // 預設：使用 getProperty 獲取 (支援 class, perk 等)
+            else {
+                cellContent = getProperty(user, col.key, '無'); // 使用 '無' 作為預設值
+            }
+            
+            cell.innerHTML = cellContent; // 使用 innerHTML 以支援 HTML 標籤
+        });
+
+        // --- 6. 渲染固定的「操作」儲存格 ---
+        // 確保 actions-cell 樣式被正確添加
+        const actionCell = row.insertCell();
+        actionCell.className = 'actions-cell';
+        actionCell.innerHTML = `
+            <button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
         `;
     });
 }
@@ -272,76 +340,135 @@ async function openUserDetailsModal(userId) {
 
 // 綁定此頁面所有事件監聽器
 function setupEventListeners() {
-    // 搜尋框
+    const page = document.getElementById('page-users');
+    if (!page) return;
+    
+    // --- 綁定靜態元素 ---
     const userSearchInput = document.getElementById('user-search-input');
-    userSearchInput.oninput = handleUserSearch;
+    userSearchInput.addEventListener('input', handleUserSearch); // 改為 addEventListener
 
     // 事件委派：監聽整個 tbody 的點擊
     const userListTbody = document.getElementById('user-list-tbody');
-    userListTbody.onclick = (event) => {
+    // 確保移除舊的監聽器 (如果有的話)
+    const oldHandler = userListTbody.handler;
+    if (oldHandler) userListTbody.removeEventListener('click', oldHandler);
+
+    const newHandler = (event) => {
         const target = event.target;
-        const row = target.closest('tr');
-        if (!row || !row.dataset.userId) return;
-        const userId = row.dataset.userId;
         
-        if (target.classList.contains('btn-edit-user')) {
-            openEditUserModal(userId);
-        } else {
-            openUserDetailsModal(userId);
+        // 檢查是否點擊了「編輯」按鈕
+        const editButton = target.closest('.btn-edit-user');
+        if (editButton) {
+            event.stopPropagation(); // 阻止事件冒泡觸發點擊行
+            const userId = editButton.dataset.userid;
+            if (userId) openEditUserModal(userId);
+            return;
+        }
+
+        // 檢查是否點擊了「行」本身 (開啟 CRM Modal)
+        const row = target.closest('tr[data-user-id]');
+        if (row) {
+            const userId = row.dataset.userId;
+            if (userId) openUserDetailsModal(userId);
+            return;
         }
     };
+    userListTbody.addEventListener('click', newHandler);
+    userListTbody.handler = newHandler; // 儲存參照以便移除
     
-    // 編輯使用者表單提交
+    // 編輯使用者表單提交 (確保只綁定一次)
     const editUserForm = document.getElementById('edit-user-form');
-    editUserForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const userId = document.getElementById('edit-user-id').value;
-        
-        let newClass = document.getElementById('edit-class-select').value;
-        if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
-        let newTag = document.getElementById('edit-tag-select').value;
-        if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
+    if (editUserForm && !editUserForm.dataset.listenerAttached) {
+        editUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('edit-user-id').value;
+            
+            let newClass = document.getElementById('edit-class-select').value;
+            if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
+            let newTag = document.getElementById('edit-tag-select').value;
+            if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
 
-        const updatedData = {
-            userId: userId,
-            level: document.getElementById('edit-level-input').value,
-            current_exp: document.getElementById('edit-exp-input').value,
-            tag: newTag,
-            user_class: newClass,
-            perk: document.getElementById('edit-perk-input').value.trim(),
-            notes: document.getElementById('edit-notes-textarea').value
-        };
+            const updatedData = {
+                userId: userId,
+                level: document.getElementById('edit-level-input').value,
+                current_exp: document.getElementById('edit-exp-input').value,
+                tag: newTag,
+                user_class: newClass,
+                perk: document.getElementById('edit-perk-input').value.trim(),
+                notes: document.getElementById('edit-notes-textarea').value
+            };
 
-        try {
-            await api.updateUserDetails(updatedData);
-            ui.hideModal('#edit-user-modal');
-            // 重新載入列表以顯示更新後的資料
-            init(); 
-        } catch (error) {
-            ui.toast.error(`錯誤：${error.message}`);
-        }
-    };
+            try {
+                await api.updateUserDetails(updatedData);
+                ui.hideModal('#edit-user-modal');
+                // 重新載入列表以顯示更新後的資料
+                await init(); // 呼叫 init 重新獲取並渲染
+            } catch (error) {
+                ui.toast.error(`錯誤：${error.message}`);
+            }
+        });
+        editUserForm.dataset.listenerAttached = 'true';
+    }
 }
 
 // 模組初始化函式
 export const init = async () => {
+    console.log("[UserManagement Init] Starting...");
     const userListTbody = document.getElementById('user-list-tbody');
-    if (!userListTbody) return;
+    const page = document.getElementById('page-users');
+    if (!userListTbody || !page) {
+        console.error("[UserManagement Init] Missing essential elements (tbody or page).");
+        return;
+    }
     
     userListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在載入顧客資料...</td></tr>';
     
     try {
-        // 優化：如果快取中沒有資料，才重新從 API 獲取
+        // --- 1. 獲取當前啟用的樣板 (關鍵步驟) ---
+        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+             console.error("[UserManagement Init] window.CONFIG is not ready!");
+             throw new Error("核心設定尚未載入。");
+        }
+        
+        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]; // 存到模組變數
+
+        if (!activeTemplate) {
+            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        }
+        // 驗證此頁面需要的設定
+        if (!activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少 'logic.adminUserColumns' 陣列設定。`);
+        }
+        console.log("[UserManagement Init] Active template loaded:", activeTemplateKey);
+
+        // --- 2. 獲取 allSettings (編輯 Modal 需要) ---
         if (allSettings.length === 0) {
             allSettings = await api.getSettings();
         }
-        // 使用者資料通常需要保持最新，所以每次都重新獲取
+        
+        // --- 3. 獲取 allDrafts (CRM Modal 需要) ---
+        if (allDrafts.length === 0) {
+            allDrafts = await api.getMessageDrafts();
+        }
+
+        // --- 4. 獲取使用者資料 ---
         allUsers = await api.getUsers();
         
-        renderUserList(allUsers);
-        setupEventListeners();
+        renderUserList(allUsers); // 使用動態渲染函式
+        
+        // --- 5. 綁定靜態事件 (確保只綁定一次) ---
+        if (page.dataset.initialized !== 'true') {
+            setupEventListeners();
+            page.dataset.initialized = 'true';
+            console.log("[UserManagement Init] Event listeners attached.");
+        }
+
     } catch (error) {
         console.error('獲取使用者列表失敗:', error);
         userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取使用者資料失敗: ${error.message}</td></tr>`;
+        // 同時更新表頭以顯示錯誤
+        const userListTheadTr = document.querySelector('#page-users thead tr');
+        if (userListTheadTr) userListTheadTr.innerHTML = '<th>錯誤</th>';
     }
 };

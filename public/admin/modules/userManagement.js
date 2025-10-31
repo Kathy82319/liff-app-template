@@ -4,8 +4,8 @@ import { ui } from '../ui.js';
 
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
-let allDrafts = []; // 【新增】存放訊息草稿的快取
-let activeTemplate = null; // <-- 【新增此行】
+let allDrafts = []; // 存放訊息草稿的快取
+let activeTemplate = null; // 【新增】存放當前啟用的樣板藍圖
 
 /**
  * 安全地獲取物件的巢狀屬性
@@ -25,6 +25,7 @@ function getProperty(obj, path, defaultValue = 'N/A') {
     }
     return result;
 }
+
 
 // 渲染使用者列表 (藍圖驅動版)
 function renderUserList(users) {
@@ -104,7 +105,8 @@ function renderUserList(users) {
     });
 }
 
-// 處理使用者搜尋
+
+// 處理使用者搜尋 (保持不變)
 function handleUserSearch() {
     const userSearchInput = document.getElementById('user-search-input');
     const searchTerm = userSearchInput.value.toLowerCase().trim();
@@ -117,7 +119,7 @@ function handleUserSearch() {
     renderUserList(filteredUsers);
 }
 
-// 開啟編輯使用者 Modal
+// 開啟編輯使用者 Modal (保持不變)
 function openEditUserModal(userId) {
     const user = allUsers.find(u => u.user_id === userId);
     const editUserModal = document.getElementById('edit-user-modal');
@@ -184,7 +186,7 @@ function openEditUserModal(userId) {
 
 
 
-// 輔助函式：渲染歷史紀錄表格
+// 輔助函式：渲染歷史紀錄表格 (保持不變)
 function renderHistoryTable(items, columns, headers) {
     const fragment = document.createDocumentFragment();
     if (!items || items.length === 0) {
@@ -214,7 +216,7 @@ function renderHistoryTable(items, columns, headers) {
     return fragment;
 }
 
-// 函式：載入並綁定訊息草稿
+// 函式：載入並綁定訊息草稿 (保持不變)
 async function loadAndBindMessageDrafts(userId) {
     const select = document.querySelector('#message-draft-select');
     const content = document.querySelector('#direct-message-content');
@@ -223,7 +225,12 @@ async function loadAndBindMessageDrafts(userId) {
     
     // 如果快取中沒有草稿資料，才從 API 獲取
     if (allDrafts.length === 0) {
-        allDrafts = await api.getMessageDrafts();
+        try {
+            allDrafts = await api.getMessageDrafts();
+        } catch (e) {
+            console.error("無法載入訊息草稿:", e);
+            ui.toast.error("載入訊息草稿失敗");
+        }
     }
 
     select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
@@ -252,7 +259,7 @@ async function loadAndBindMessageDrafts(userId) {
     };
 }
 
-// 函式：渲染 CRM 彈窗的完整內容
+// 函式：渲染 CRM 彈窗的完整內容 (保持不變)
 function renderUserDetails(data) {
     const userDetailsModal = document.getElementById('user-details-modal');
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
@@ -318,7 +325,7 @@ function renderUserDetails(data) {
     loadAndBindMessageDrafts(profile.user_id);
 }
 
-// 【升級】開啟使用者詳細資料 (CRM) Modal
+// 函式：開啟使用者詳細資料 (CRM) Modal (保持不變)
 async function openUserDetailsModal(userId) {
     const userDetailsModal = document.getElementById('user-details-modal');
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
@@ -338,14 +345,18 @@ async function openUserDetailsModal(userId) {
 }
 
 
-// 綁定此頁面所有事件監聽器
+// 綁定此頁面所有事件監聽器 (已替換)
 function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
     
     // --- 綁定靜態元素 ---
     const userSearchInput = document.getElementById('user-search-input');
-    userSearchInput.addEventListener('input', handleUserSearch); // 改為 addEventListener
+    // 確保監聽器只綁定一次
+    if (userSearchInput && !userSearchInput.dataset.listenerAttached) {
+        userSearchInput.addEventListener('input', handleUserSearch); 
+        userSearchInput.dataset.listenerAttached = 'true';
+    }
 
     // 事件委派：監聽整個 tbody 的點擊
     const userListTbody = document.getElementById('user-list-tbody');
@@ -411,7 +422,7 @@ function setupEventListeners() {
     }
 }
 
-// 模組初始化函式
+// 模組初始化函式 (已替換)
 export const init = async () => {
     console.log("[UserManagement Init] Starting...");
     const userListTbody = document.getElementById('user-list-tbody');
@@ -422,7 +433,10 @@ export const init = async () => {
     }
     
     userListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在載入顧客資料...</td></tr>';
-    
+    // 同時清除/設定表頭
+    const userListTheadTr = document.querySelector('#page-users thead tr');
+    if (userListTheadTr) userListTheadTr.innerHTML = '<th>載入中...</th>';
+
     try {
         // --- 1. 獲取當前啟用的樣板 (關鍵步驟) ---
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
@@ -468,7 +482,6 @@ export const init = async () => {
         console.error('獲取使用者列表失敗:', error);
         userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取使用者資料失敗: ${error.message}</td></tr>`;
         // 同時更新表頭以顯示錯誤
-        const userListTheadTr = document.querySelector('#page-users thead tr');
         if (userListTheadTr) userListTheadTr.innerHTML = '<th>錯誤</th>';
     }
 };

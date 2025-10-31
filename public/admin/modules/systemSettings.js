@@ -1,4 +1,4 @@
-// public/admin/modules/systemSettings.js (實作 Task 5.1B 且移除電商功能版本)
+// public/admin/modules/systemSettings.js (完整版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -29,6 +29,48 @@ function createSettingRow(setting) {
     return row;
 }
 
+// 建立底部導覽列設定模組 UI
+function createNavBarModule(navBarConfig = [], availablePages = []) { // 提供預設空陣列
+    const container = document.createElement('div');
+    container.className = 'setting-visual-guide';
+    container.innerHTML = `<h5>底部導覽列設定 (可拖曳排序)</h5><div id="nav-items-container" class="sortable-list"></div>`; // 加上 sortable-list class
+    const navItemsContainer = container.querySelector('#nav-items-container');
+    const itemTemplate = document.getElementById('nav-item-template'); // 需確保 admin-panel.html 有此 template
+
+    if (!itemTemplate) {
+        console.error("找不到 #nav-item-template");
+        container.innerHTML = '<p style="color:red;">錯誤：缺少導覽列項目模板。</p>';
+        return container;
+    }
+
+    navBarConfig.forEach(item => {
+        const clone = itemTemplate.content.cloneNode(true);
+        const row = clone.querySelector('.nav-item-row');
+        // 安全地設置值，避免 undefined 錯誤
+        row.querySelector('[name="nav_label"]').value = item.label || '';
+        row.querySelector('[name="nav_enabled"]').checked = item.enabled !== false; // 預設啟用
+        const select = row.querySelector('[name="nav_target"]');
+        select.innerHTML = ''; // 清空預設選項
+        availablePages.forEach(page => {
+            select.add(new Option(page.name || page.id, page.id)); // 使用 name 或 id 作為顯示文字
+        });
+        select.value = item.target || ''; // 設置選中值
+        navItemsContainer.appendChild(row);
+    });
+
+    // 建立 Sortable 實例並存儲
+    const listId = 'nav-items-container';
+    if (sortableInstances[listId]) sortableInstances[listId].destroy(); // 銷毀舊實例
+    // 確保 Sortable 函式庫已載入
+    if (typeof Sortable !== 'undefined') {
+        sortableInstances[listId] = new Sortable(navItemsContainer, { animation: 150, handle: '.drag-handle' });
+    } else {
+        console.error("Sortable.js 未載入，無法啟用拖曳排序。");
+    }
+    return container;
+}
+
+// ****** 新增：渲染客戶端分頁設定的函式 ******
 function createLiffPageSettingsModule(pageConfig, templateFeatures, templateTerms) {
     const accordionTemplate = document.getElementById('accordion-template');
     if (!accordionTemplate) {
@@ -185,123 +227,6 @@ function renderAdminPageEnablement(adminPagesConfig = {}, containerId) {
     }
 }
 
-// 建立底部導覽列設定模組 UI
-function createNavBarModule(navBarConfig = [], availablePages = []) { // 提供預設空陣列
-    const container = document.createElement('div');
-    container.className = 'setting-visual-guide';
-    container.innerHTML = `<h5>底部導覽列設定 (可拖曳排序)</h5><div id="nav-items-container" class="sortable-list"></div>`; // 加上 sortable-list class
-    const navItemsContainer = container.querySelector('#nav-items-container');
-    const itemTemplate = document.getElementById('nav-item-template'); // 需確保 admin-panel.html 有此 template
-
-    if (!itemTemplate) {
-        console.error("找不到 #nav-item-template");
-        container.innerHTML = '<p style="color:red;">錯誤：缺少導覽列項目模板。</p>';
-        return container;
-    }
-
-    navBarConfig.forEach(item => {
-        const clone = itemTemplate.content.cloneNode(true);
-        const row = clone.querySelector('.nav-item-row');
-        // 安全地設置值，避免 undefined 錯誤
-        row.querySelector('[name="nav_label"]').value = item.label || '';
-        row.querySelector('[name="nav_enabled"]').checked = item.enabled !== false; // 預設啟用
-        const select = row.querySelector('[name="nav_target"]');
-        select.innerHTML = ''; // 清空預設選項
-        availablePages.forEach(page => {
-            select.add(new Option(page.name || page.id, page.id)); // 使用 name 或 id 作為顯示文字
-        });
-        select.value = item.target || ''; // 設置選中值
-        navItemsContainer.appendChild(row);
-    });
-
-    // 建立 Sortable 實例並存儲
-    const listId = 'nav-items-container';
-    if (sortableInstances[listId]) sortableInstances[listId].destroy(); // 銷毀舊實例
-    // 確保 Sortable 函式庫已載入
-    if (typeof Sortable !== 'undefined') {
-        sortableInstances[listId] = new Sortable(navItemsContainer, { animation: 150, handle: '.drag-handle' });
-    } else {
-        console.error("Sortable.js 未載入，無法啟用拖曳排序。");
-    }
-    return container;
-}
-
-// 建立客戶端全域設定模組 UI (已移除購物車)
-function createGlobalSettingsModule(template) {
-    const accordionTemplate = document.getElementById('accordion-template'); // 需確保 admin-panel.html 有此 template
-    if (!accordionTemplate) {
-        console.error("找不到 #accordion-template");
-        return document.createElement('div'); // 返回空 div 避免錯誤
-    }
-
-    const clone = accordionTemplate.content.cloneNode(true);
-    const accordionItem = clone.querySelector('.accordion-item');
-    accordionItem.querySelector('h4').textContent = '全域設定 (導覽列、功能開關)';
-    const content = accordionItem.querySelector('.accordion-content');
-
-    // 確保 template.features 和 template.terms 存在，若否則使用空物件
-    const features = template.features || {};
-    const terms = template.terms || {};
-    const logic = template.logic || {};
-
-    // 功能開關
-    content.appendChild(createSettingRow({
-        label: '會員系統', hint: '啟用後，顧客才能註冊會員、累積點數。',
-        key: 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM', value: features.ENABLE_MEMBERSHIP_SYSTEM || false, type: 'toggle' // 提供預設值 false
-    }));
-    content.appendChild(createSettingRow({
-        label: '線上預約系統', hint: '啟用後，顧客才能使用線上預約/訂房功能。',
-        key: 'FEATURES_ENABLE_BOOKING_SYSTEM', value: features.ENABLE_BOOKING_SYSTEM || false, type: 'toggle' // 提供預設值 false
-    }));
-    // --- 購物車功能已移除 ---
-    // content.appendChild(createSettingRow({
-    //     label: '購物車功能', hint: '【未來功能】啟用後，顧客才能將商品加入購物車。',
-    //     key: 'FEATURES_ENABLE_SHOPPING_CART', value: features.ENABLE_SHOPPING_CART || false, type: 'toggle'
-    // }));
-
-    // 用詞定義
-    content.appendChild(createSettingRow({
-        label: '商家/品牌名稱', hint: '會顯示在 LIFF App 的頂部標題。',
-        key: 'TERMS_BUSINESS_NAME', value: terms.BUSINESS_NAME || '我的商店', type: 'text' // 提供預設值
-    }));
-    content.appendChild(createSettingRow({
-        label: '點數/積分名稱', hint: '例如：會員點數、購物金、住宿積分。',
-        key: 'TERMS_POINTS_NAME', value: terms.POINTS_NAME || '點數', type: 'text' // 提供預設值
-    }));
-    // **新增** 其他 TERMS (請根據您的藍圖加入)
-     content.appendChild(createSettingRow({
-        label: '產品/服務名稱 (單數)', hint: '例如：服務、房型、商品。',
-        key: 'TERMS_PRODUCT_NAME', value: terms.PRODUCT_NAME || '項目', type: 'text'
-    }));
-     content.appendChild(createSettingRow({
-        label: '產品/服務目錄標題', hint: '例如：服務項目、房型介紹、線上商店。',
-        key: 'TERMS_PRODUCT_CATALOG_TITLE', value: terms.PRODUCT_CATALOG_TITLE || '產品型錄', type: 'text'
-    }));
-     content.appendChild(createSettingRow({
-        label: '預約/訂單名稱', hint: '例如：預約、訂房、訂單。',
-        key: 'TERMS_BOOKING_NAME', value: terms.BOOKING_NAME || '預約', type: 'text'
-    }));
-     content.appendChild(createSettingRow({
-        label: '最新情報頁面標題', hint: '例如：最新消息、住房優惠、促銷活動。',
-        key: 'TERMS_NEWS_PAGE_TITLE', value: terms.NEWS_PAGE_TITLE || '最新情報', type: 'text'
-    }));
-    // ... 可以繼續添加其他 TERMS ...
-
-
-    // 導覽列設定 (確保 logic.navBar 和 logic.availablePages 存在)
-    if (logic.navBar && logic.availablePages) {
-        content.appendChild(createNavBarModule(logic.navBar, logic.availablePages));
-    } else {
-         console.warn("樣板缺少 navBar 或 availablePages 設定。");
-         const navPlaceholder = document.createElement('p');
-         navPlaceholder.textContent = '此樣板缺少導覽列設定。';
-         navPlaceholder.style.color = 'orange';
-         content.appendChild(navPlaceholder);
-    }
-
-    // Accordion 點擊事件移到 setupEventListeners
-    return accordionItem;
-}
 
 // ****** 新增：渲染 Admin Columns 設定 UI 的函式 ******
 function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) {
@@ -524,7 +449,7 @@ function renderTemplateSettings(templateKey) {
     bindAccordionEvents(adminSettingsContainer);
 }
 
-// ****** 修改：從 UI 反向建構樣板 (加入讀取後台設定) ******
+// ****** 修改：從 UI 反向建構樣板 (讀取分頁客戶端設定、後台頁面啟用、更多後台欄位) ******
 function reconstructTemplateFromUI() {
     // ... (開頭的 selectedKey 和 currentTemplate 深拷貝保持不變) ...
     const selectedKey = document.getElementById('template-selector').value;
@@ -616,7 +541,10 @@ function reconstructTemplateFromUI() {
         console.warn("找不到後台頁面啟用設定容器 #admin-pages-enablement-container");
     }
 
-function reconstructAdminColumns(containerId) {
+
+    // 讀取各模組的 adminColumns (加入新的)
+    // (reconstructAdminColumns 輔助函式保持不變)
+     function reconstructAdminColumns(containerId) {
         const container = document.getElementById(containerId);
         const columns = [];
         if (container) {
@@ -654,22 +582,18 @@ function reconstructAdminColumns(containerId) {
 
 // ****** 新增：綁定 Accordion 事件的獨立函式 ******
 function bindAccordionEvents(parentElement = document) {
-    // console.log("綁定 Accordion 事件於:", parentElement);
-    if (!parentElement) return; // 如果父元素不存在，直接返回
+    if (!parentElement) return; 
     parentElement.querySelectorAll('.accordion-header').forEach(header => {
         // 先移除舊監聽器，避免重複綁定
         const oldClickHandler = header.clickHandler;
         if (oldClickHandler) {
             header.removeEventListener('click', oldClickHandler);
-            // console.log("移除舊 Accordion 監聽器:", header.nextElementSibling?.id || header.textContent);
         }
         // 定義新的處理函式
         const clickHandler = () => {
             const content = header.nextElementSibling;
             if (content && content.classList.contains('accordion-content')) {
                 const isOpen = content.classList.toggle('open');
-                // console.log("Accordion toggled:", header.textContent, "Open:", isOpen);
-                // 改變箭頭方向
                 const arrow = header.querySelector('span');
                 if (arrow) {
                     arrow.textContent = isOpen ? '▲' : '▼';
@@ -681,7 +605,6 @@ function bindAccordionEvents(parentElement = document) {
         // 綁定新監聽器並存儲引用
         header.addEventListener('click', clickHandler);
         header.clickHandler = clickHandler; // 存儲引用以便移除
-        // console.log("新增 Accordion 監聽器:", header.nextElementSibling?.id || header.textContent);
 
         // 確保初始狀態箭頭正確 (根據是否有 open class)
         const content = header.nextElementSibling;
@@ -886,8 +809,6 @@ export const init = async () => {
 
         // 初始渲染選擇的樣板設定
         renderTemplateSettings(templateSelector.value);
-
-        // (已移除 renderOtherSettings)
 
         // 綁定事件監聽器 (確保只執行一次)
         setupEventListeners();

@@ -384,15 +384,26 @@ function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) 
     }
 }
 
-// ****** 修改：渲染整個樣板設定 (包含後台部分) ******
+// ****** 修改：渲染整個樣板設定 (包含後台頁面啟用、更多後台欄位) ******
 function renderTemplateSettings(templateKey) {
     const template = templateDefinitions[templateKey];
-    // ... (開頭的 template 檢查保持不變) ...
+    if (!template) {
+        console.error(`渲染樣板設定失敗：找不到樣板資料: ${templateKey}`);
+        // 清空兩個 Tab 的內容並顯示錯誤
+        const liffContainer = document.getElementById('liff-app-settings');
+        const adminContainer = document.getElementById('admin-panel-settings');
+        if (liffContainer) liffContainer.innerHTML = `<p style="color:red;">載入樣板 ${templateKey} 失敗。</p>`;
+        if (adminContainer) adminContainer.innerHTML = ''; // 清空後台設定區
+        return;
+    }
     console.log(`渲染樣板 '${templateKey}' 的設定...`);
 
     const liffSettingsContainer = document.getElementById('liff-app-settings');
     const adminSettingsContainer = document.getElementById('admin-panel-settings');
-    // ... (容器檢查保持不變) ...
+    if (!liffSettingsContainer || !adminSettingsContainer) {
+         console.error("渲染樣板設定失敗：找不到設定容器元素 (liff or admin)。");
+         return;
+    }
 
     // --- 渲染客戶端設定 (重構成按頁面分區) ---
     liffSettingsContainer.innerHTML = ''; // 清空
@@ -414,6 +425,13 @@ function renderTemplateSettings(templateKey) {
                 label: '會員系統', hint: '啟用後，顧客才能註冊會員、累積點數。',
                 key: 'FEATURES_ENABLE_MEMBERSHIP_SYSTEM', value: template.features.ENABLE_MEMBERSHIP_SYSTEM || false, type: 'toggle'
             }));
+            // --- 【新增】加入其他總開關 ---
+            globalContent.appendChild(createSettingRow({
+                label: '線上預約系統', hint: '啟用後，顧客才能使用線上預約/訂房功能。',
+                key: 'FEATURES_ENABLE_BOOKING_SYSTEM', value: template.features.ENABLE_BOOKING_SYSTEM || false, type: 'toggle' 
+            }));
+            // --- (購物車功能已移除) ---
+            
             liffSettingsContainer.appendChild(globalAccordion);
 
             // 2. 根據 NavBar 設定，為每個頁面渲染一個 Accordion
@@ -452,8 +470,8 @@ function renderTemplateSettings(templateKey) {
         liffSettingsContainer.innerHTML = '<p style="color:orange;">此樣板缺少必要的客戶端設定區塊。</p>';
     }
 
-    // --- 渲染商家後台設定 (加入新區塊) ---
-    // 先恢復 HTML 結構 (使用 admin-panel.html 中更新的結構)
+    // --- ****** 關鍵修改：渲染商家後台設定 (使用新版 HTML 結構) ****** ---
+    // 這裡的 innerHTML 必須包含所有區塊
     adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示與列表欄位。</p>
         <div class="accordion-item">
@@ -485,6 +503,8 @@ function renderTemplateSettings(templateKey) {
             <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-exp-history" class="admin-columns-container"><p>讀取中...</p></div></div></div>
         </div>
     `;
+    // --- ****** 修改結束 ****** ---
+
 
     // 確保 template.logic 存在
     const logic = template.logic || {};

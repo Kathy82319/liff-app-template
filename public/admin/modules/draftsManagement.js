@@ -1,8 +1,9 @@
-// public/admin/modules/draftsManagement.js (v4 - Define FIXED_DRAFT_TITLES, Keep Error Handling)
+// public/admin/modules/draftsManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
 let allDrafts = []; // 快取所有草稿資料
+let activeTemplate = null; // 【新增】存放當前啟用的樣板藍圖
 
 // --- 固定草稿的 ID (與後端一致) ---
 const FIXED_DRAFT_IDS = {
@@ -10,35 +11,90 @@ const FIXED_DRAFT_IDS = {
     AUTO_CONFIRMATION: 2
 };
 
-// --- 【新增】固定草稿的標題 (與後端一致) ---
+// --- 固定草稿的標題 (與後端一致) ---
 const FIXED_DRAFT_TITLES = {
     [FIXED_DRAFT_IDS.POLICY]: "入住須知編輯欄",
     [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "入住自動發送的通知"
 };
 
+/**
+ * 安全地獲取物件的巢狀屬性
+ * @param {object} obj - 來源物件
+ * @param {string} path - 屬性路徑 (例如 "user.profile.name")
+ * @param {*} defaultValue - 找不到時的回傳值
+ * @returns {*}
+ */
+function getProperty(obj, path, defaultValue = 'N/A') {
+    const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
+    // 修改：如果值是空字串，也視為 defaultValue
+    const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
+    
+    // 自動截斷過長的字串
+    if (typeof result === 'string' && result.length > 50 && defaultValue === 'N/A') {
+        return result.substring(0, 47) + '...';
+    }
+    return result;
+}
 
-// 渲染草稿列表 (加入固定草稿的處理)
+// 渲染草稿列表 (藍圖驅動版)
 function renderDraftList(drafts) {
-    // ... (此函式內容不變，省略以節省篇幅) ...
     const draftListTbody = document.getElementById('draft-list-tbody');
-    if (!draftListTbody) return;
+    // --- 【修改】獲取 Thead 中的 tr 元素 ---
+    const draftListTheadTr = document.querySelector('#page-drafts thead tr');
 
+    if (!draftListTbody || !draftListTheadTr) {
+        console.error("renderDraftList: 找不到 tbody 或 thead tr 元素。");
+        return;
+    }
+    
+    // --- 1. 檢查 activeTemplate 是否已載入 ---
+    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminDraftColumns)) {
+        console.error("renderDraftList: activeTemplate 或 adminDraftColumns 尚未準備就緒。");
+        draftListTheadTr.innerHTML = '<th>錯誤</th>';
+        draftListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：草稿列表欄位設定未載入。請檢查系統設定。</td></tr>';
+        return;
+    }
+
+    // --- 2. 獲取啟用的欄位 ---
+    const columns = activeTemplate.logic.adminDraftColumns.filter(col => col.enabled);
+
+    // --- 3. 動態渲染表頭 ---
+    let headerHTML = '';
+    columns.forEach(col => {
+        headerHTML += `<th>${col.label}</th>`;
+    });
+    headerHTML += '<th>內容預覽</th>'; // 內容預覽欄位固定
+    headerHTML += '<th>操作</th>'; // 操作欄位固定
+    draftListTheadTr.innerHTML = headerHTML;
+    
+    // --- 4. 渲染列表內容 ---
     draftListTbody.innerHTML = '';
     if (!drafts || drafts.length === 0) {
-        draftListTbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">尚無任何訊息草稿。</td></tr>';
+        draftListTbody.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align: center;">尚無任何訊息草稿。</td></tr>`;
         return;
     }
 
     drafts.forEach(draft => {
         const row = draftListTbody.insertRow();
-        let contentPreview = '';
-        // 修正 isFixed 判斷，確保即使後端沒傳 is_fixed 也能判斷
         const isFixed = draft.is_fixed || draft.draft_id === FIXED_DRAFT_IDS.POLICY || draft.draft_id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION;
 
-        // 特殊處理政策草稿的預覽
+        // --- 5. 根據欄位設定動態插入儲存格 ---
+        columns.forEach(col => {
+            const cell = row.insertCell();
+            let cellContent = getProperty(draft, col.key, 'N/A');
+            // 特殊處理：為固定草稿加上標記
+            if (col.key === 'title') {
+                 cellContent += isFixed ? ' <span style="font-size: 0.8em; color: var(--color-secondary); margin-left: 5px;">(系統保留)</span>' : '';
+            }
+            cell.innerHTML = cellContent;
+        });
+
+        // --- 6. 渲染固定的「內容預覽」和「操作」儲存格 ---
+        
+        // 插入「內容預覽」
+        let contentPreview = '';
         if (draft.draft_id === FIXED_DRAFT_IDS.POLICY) {
             try {
-                // 嘗試解析，如果內容不是JSON，提供提示
                 const policyData = JSON.parse(draft.content || '{}');
                 contentPreview = `取消政策: ${String(policyData.cancellationPolicy || '').substring(0, 20)}... | 入住須知: ${String(policyData.checkInInstructions || '').substring(0, 20)}...`;
             } catch (e) {
@@ -47,24 +103,20 @@ function renderDraftList(drafts) {
         } else {
             contentPreview = String(draft.content || '').substring(0, 50) + (String(draft.content || '').length > 50 ? '...' : '');
         }
+        row.insertCell().innerHTML = contentPreview;
 
-        row.innerHTML = `
-            <td>
-                ${draft.title}
-                ${isFixed ? '<span style="font-size: 0.8em; color: var(--color-secondary); margin-left: 5px;">(系統保留)</span>' : ''}
-            </td>
-            <td>${contentPreview}</td>
-            <td class="actions-cell">
-                <button class="action-btn btn-edit-draft" data-draft-id="${draft.draft_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
-                <button class="action-btn btn-delete-draft" data-draft-id="${draft.draft_id}" style="background-color: var(--color-danger);" ${isFixed ? 'disabled title="系統保留草稿無法刪除"' : ''}>刪除</button>
-            </td>
+        // 插入「操作」
+        const actionCell = row.insertCell();
+        actionCell.className = 'actions-cell';
+        actionCell.innerHTML = `
+            <button class="action-btn btn-edit-draft" data-draft-id="${draft.draft_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
+            <button class="action-btn btn-delete-draft" data-draft-id="${draft.draft_id}" style="background-color: var(--color-danger);" ${isFixed ? 'disabled title="系統保留草稿無法刪除"' : ''}>刪除</button>
         `;
     });
 }
 
 
-// 開啟編輯/新增草稿的 Modal (v3 - 修正 JSON 解析邏輯)
-// 開啟編輯/新增草稿的 Modal (v5 - 精確顯示/隱藏)
+// 開啟編輯/新增草稿的 Modal (v5 - 精確顯示/隱藏) (保持不變)
 function openEditDraftModal(draft = null) {
     const editDraftModal = document.getElementById('edit-draft-modal');
     const editDraftForm = document.getElementById('edit-draft-form');
@@ -90,7 +142,6 @@ function openEditDraftModal(draft = null) {
     if (policyGroup) policyGroup.style.display = 'none';
     editDraftForm.querySelector('.form-actions').style.display = 'flex'; 
     if (placeholderButtonsContainer) placeholderButtonsContainer.style.display = 'none';
-    editDraftForm.querySelector('.form-actions').style.display = 'flex'; //
 
     // --- 獲取草稿 ID ---
     const draftId = draft ? Number(draft.draft_id) : null;
@@ -126,17 +177,15 @@ function openEditDraftModal(draft = null) {
         }
         if (contentTextarea) contentTextarea.value = draft.content || '';
 
-        // --- 【修改】顯示並生成預留位置按鈕 (使用中文標籤) ---
+        // --- 顯示並生成預留位置按鈕 (使用中文標籤) ---
         if (placeholderButtonsContainer && contentTextarea) {
             placeholderButtonsContainer.innerHTML = '<small style="width: 100%; margin-bottom: 5px; color: var(--color-text-light);">點擊下方按鈕插入預留位置：</small>'; // Reset content
             
-            // --- 使用物件陣列定義標籤和值 ---
             const placeholders = [
                 { label: '入住日期', value: '{{startDate}}' },
                 { label: '退房日期', value: '{{endDate}}' },
                 { label: '房型摘要', value: '{{roomSummary}}' },
                 { label: '總金額', value: '{{totalAmount}}' }
-                // 您可以根據需要為工作室樣板定義不同的 placeholders
             ];
             
             placeholders.forEach(placeholder => {
@@ -151,8 +200,6 @@ function openEditDraftModal(draft = null) {
             });
             placeholderButtonsContainer.style.display = 'flex'; // 顯示容器
         }
-        // --- 【修改結束】 ---
-
 
     } else if (draft) {
         // --- 編輯一般草稿 (ID > 2) ---
@@ -182,7 +229,7 @@ function openEditDraftModal(draft = null) {
     ui.showModal('#edit-draft-modal');
 }
 
-// --- 【新增】輔助函式：在 textarea 插入文字 ---
+// --- 輔助函式：在 textarea 插入文字 (保持不變) ---
 function insertPlaceholder(textarea, text) {
     if (!textarea) return;
     const start = textarea.selectionStart;
@@ -195,9 +242,8 @@ function insertPlaceholder(textarea, text) {
 }
 
 
-// 綁定事件監聽器
+// 綁定事件監聽器 (保持不變)
 function setupEventListeners() {
-    // ... (此函式內容不變，省略) ...
     const page = document.getElementById('page-drafts');
     // 防止重複綁定
     if (!page || page.dataset.initialized === 'true') {
@@ -238,9 +284,8 @@ function setupEventListeners() {
     console.log("Drafts event listeners setup complete.");
 }
 
-// 處理刪除邏輯 (加入固定草稿檢查)
+// 處理刪除邏輯 (加入固定草稿檢查) (保持不變)
 async function handleDeleteDraft(draftId) {
-    // ... (此函式內容不變，省略) ...
      const id = Number(draftId);
     // --- 檢查是否為固定草稿 ---
     if (id === FIXED_DRAFT_IDS.POLICY || id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION) {
@@ -259,7 +304,7 @@ async function handleDeleteDraft(draftId) {
     }
 }
 
-// 處理表單提交邏輯 (新增/編輯，包含特殊處理)
+// 處理表單提交邏輯 (新增/編輯，包含特殊處理) (保持不變)
 async function handleFormSubmit(event) {
     event.preventDefault();
     const draftIdInput = document.getElementById('edit-draft-id');
@@ -310,14 +355,12 @@ async function handleFormSubmit(event) {
         ui.toast.success('草稿儲存成功！');
         ui.hideModal('#edit-draft-modal'); // 關閉 Modal
 
-        // --- **新增：手動設置焦點** ---
         const addDraftButton = document.getElementById('add-draft-btn');
         if (addDraftButton) {
             addDraftButton.focus(); // 將焦點移回 "新增草稿" 按鈕
         } else {
              document.body.focus(); // 備用方案：移除表單焦點
         }
-        // --- **焦點設置結束** ---
 
         await init(); // 重新載入列表 (在焦點設置之後)
 
@@ -329,24 +372,57 @@ async function handleFormSubmit(event) {
              saveButton.textContent = '儲存草稿';
         }
     }
-    // 注意：成功時不需要恢復按鈕，因為 Modal 已關閉
 }
 
-// 模組初始化函式
+// 模組初始化函式 (已替換)
 export const init = async () => {
-    // ... (此函式內容不變，省略) ...
+     console.log("[DraftsManagement Init] Starting...");
      const draftListTbody = document.getElementById('draft-list-tbody');
-    if (!draftListTbody) return;
+     const page = document.getElementById('page-drafts');
+     if (!draftListTbody || !page) {
+         console.error("[DraftsManagement Init] Missing essential elements (tbody or page).");
+         return;
+     }
 
     draftListTbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">正在載入草稿...</td></tr>';
+    // 同時清除/設定表頭
+    const draftListTheadTr = document.querySelector('#page-drafts thead tr');
+    if(draftListTheadTr) draftListTheadTr.innerHTML = '<th>載入中...</th>';
 
     try {
-        // 從 API 獲取草稿列表 (後端 API 會包含 is_fixed 標記)
+        // --- 1. 獲取當前啟用的樣板 (關鍵步驟) ---
+        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+             console.error("[DraftsManagement Init] window.CONFIG is not ready!");
+             throw new Error("核心設定尚未載入。");
+        }
+        
+        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]; // 存到模組變數
+
+        if (!activeTemplate) {
+            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
+        }
+        // 驗證此頁面需要的設定
+        if (!activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminDraftColumns)) {
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少 'logic.adminDraftColumns' 陣列設定。`);
+        }
+        console.log("[DraftsManagement Init] Active template loaded:", activeTemplateKey);
+
+        // --- 2. 獲取草稿資料 ---
         allDrafts = await api.getMessageDrafts();
-        renderDraftList(allDrafts); // 渲染列表
-        setupEventListeners(); // 綁定事件 (內部有防重複機制)
+        
+        // --- 3. 渲染列表 (動態表頭) ---
+        renderDraftList(allDrafts);
+        
+        // --- 4. 綁定靜態事件 (確保只綁定一次) ---
+        if (!page.dataset.initialized) {
+            setupEventListeners();
+            page.dataset.initialized = 'true';
+            console.log("[DraftsManagement Init] Event listeners attached.");
+        }
     } catch (error) {
         console.error('獲取訊息草稿失敗:', error);
+        if(draftListTheadTr) draftListTheadTr.innerHTML = '<th>錯誤</th>';
         draftListTbody.innerHTML = `<tr><td colspan="3" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
     }
 };

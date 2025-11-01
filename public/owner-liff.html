@@ -263,6 +263,99 @@
         </div>
     </main>
 
+<button id="quick-action-btn" class="cta-button" style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; border-radius: 50%; font-size: 2.5rem; padding: 0; line-height: 60px; z-index: 990; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background-color: var(--color-accent); color: white;">
+            +
+        </button>
+        
+    </div> </main>
+
+<div id="quick-booking-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="quick-booking-modal-title">快速建立預約</h3>
+            <button class="modal-close" data-target-modal="#quick-booking-modal">&times;</button>
+        </div>
+        <form id="quick-booking-form">
+            <div class="modal-body">
+                <h4>1. 顧客資訊</h4>
+                <div class="form-group" id="qb-customer-search-container">
+                    <label for="qb-customer-search-input">搜尋現有顧客 (姓名/電話)</label>
+                    <input type="search" id="qb-customer-search-input" placeholder="或直接輸入新顧客名稱...">
+                    <div id="qb-customer-search-results" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--color-secondary); display: none; margin-top: 5px;"></div>
+                </div>
+                <div class="form-group" id="qb-customer-selected-view" style="display: none;">
+                    <label>已選顧客</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--color-bg); padding: 8px; border-radius: 4px;">
+                        <span id="qb-customer-selected-name" style="font-weight: bold;"></span>
+                        <button type="button" id="qb-customer-change-btn" style="padding: 4px 8px; font-size: 0.8rem; background: var(--color-secondary);">更換</button>
+                    </div>
+                    <input type="hidden" id="qb-customer-selected-id">
+                </div>
+                <div class="form-group">
+                    <label for="qb-contact-phone">聯絡電話 (若為新顧客)</label>
+                    <input type="tel" id="qb-contact-phone" placeholder="09開頭10碼手機">
+                </div>
+
+                <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+                
+                <h4>2. 預約內容</h4>
+                <div class_ ="form-group">
+                    <label for="qb-booking-date">日期</label>
+                    <input type="text" id="qb-booking-date" placeholder="請選擇日期">
+                </div>
+                <div class_ ="form-group">
+                    <label for="qb-booking-time">時段</label>
+                    <input type="time" id="qb-booking-time" step="1800">
+                </div>
+                <div class="form-group">
+                    <label for="qb-booking-item">項目</label>
+                    <select id="qb-booking-item"></select>
+                </div>
+                <div class="form-group">
+                    <label for="qb-booking-people">人數</label>
+                    <input type="number" id="qb-booking-people" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="qb-booking-notes">備註 (選填)</label>
+                    <textarea id="qb-booking-notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" id="quick-booking-submit-btn" class="cta-button">確認建立</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="room-control-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>簡易控房 (民宿)</h3>
+            <button class="modal-close" data-target-modal="#room-control-modal">&times;</button>
+        </div>
+        <form id="room-control-form">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rc-room-select">選擇房型</label>
+                    <select id="rc-room-select">
+                        <option value="all">所有房型</option>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <label for="rc-date-range">選擇日期範圍</label>
+                    <input type="text" id="rc-date-range" placeholder="請選擇要開/關的日期">
+                </div>
+            </div>
+            <div class="modal-actions" style="flex-direction: row; gap: 10px;">
+                <button type="submit" id="rc-submit-close-btn" class="cta-button" data-status="Closed" style="background-color: var(--color-danger);">關閉房間</button>
+                <button type="submit" id="rc-submit-open-btn" class="cta-button" data-status="Open" style="background-color: var(--color-success);">開啟房間</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">

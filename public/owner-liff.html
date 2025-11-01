@@ -268,7 +268,7 @@
 
     </main>
 
-    
+
 <div id="quick-booking-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
@@ -398,6 +398,34 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     </body>
 </html>
+
+<div id="edit-customer-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="edit-customer-modal-title">編輯顧客資料</h3>
+            <button class="modal-close" data-target-modal="#edit-customer-modal">&times;</button>
+        </div>
+        <form id="edit-customer-form">
+            <div class="modal-body">
+                <input type="hidden" id="edit-customer-user-id">
+                <div class="form-group">
+                    <label for="edit-customer-phone">電話</label>
+                    <input type="tel" id="edit-customer-phone" placeholder="09開頭10碼手機">
+                </div>
+                <div class="form-group">
+                    <label for="edit-customer-notes">顧客備註</label>
+                    <textarea id="edit-customer-notes" rows="5" placeholder="記錄此顧客的特殊事項..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="submit" id="edit-customer-submit-btn" class="cta-button">儲存變更</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
 
     <nav id="owner-tab-bar">
         <button class="tab-button active" data-tab="activity">最新<br>動態</button>

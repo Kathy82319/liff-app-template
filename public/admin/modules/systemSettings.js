@@ -397,7 +397,7 @@ function renderTemplateSettings(templateKey) {
 
     // --- ****** 關鍵修改：渲染商家後台設定 (使用新版 HTML 結構) ****** ---
     // 這裡的 innerHTML 必須包含所有區塊
-    adminSettingsContainer.innerHTML = `
+adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示與列表欄位。</p>
         <div class="accordion-item">
             <div class="accordion-header"><h4>後台頁面啟用管理</h4><span>▼</span></div>
@@ -444,6 +444,42 @@ function renderTemplateSettings(templateKey) {
     renderAdminColumnsSettings('news', logic.adminNewsColumns || [], 'admin-columns-news');
     renderAdminColumnsSettings('drafts', logic.adminDraftColumns || [], 'admin-columns-drafts');
     renderAdminColumnsSettings('exp-history', logic.adminExpHistoryColumns || [], 'admin-columns-exp-history');
+
+    // 1. 定義新模組的預設欄位
+    const defaultNewsColumns = [
+        { key: 'title', label: '標題', enabled: true },
+        { key: 'category', label: '分類', enabled: true },
+        { key: 'published_date', label: '發布日期', enabled: true }
+    ];
+    
+    const defaultDraftColumns = [
+        { key: 'title', label: '草稿標題', enabled: true }
+        // 內容預覽是固定欄位，不需要在這裡定義
+    ];
+    
+    const defaultExpHistoryColumns = [
+        { key: 'nickname', label: '使用者', enabled: true }, // 'nickname' key 會被 expHistory.js 模組特殊處理
+        { key: 'created_at', label: '日期', enabled: true },
+        { key: 'reason', label: '原因', enabled: true },
+        { key: 'exp_added', label: '點數', enabled: true }
+    ];
+
+    // 2. 呼叫 renderAdminColumnsSettings 時，如果藍圖中不存在 (||)，就使用預設值
+    renderAdminColumnsSettings(
+        'news', 
+        logic.adminNewsColumns || defaultNewsColumns, // 如果 logic.adminNewsColumns 是 undefined，就用 defaultNewsColumns
+        'admin-columns-news'
+    );
+    renderAdminColumnsSettings(
+        'drafts', 
+        logic.adminDraftColumns || defaultDraftColumns, // 套用至 Drafts
+        'admin-columns-drafts'
+    );
+    renderAdminColumnsSettings(
+        'exp-history', 
+        logic.adminExpHistoryColumns || defaultExpHistoryColumns, // 套用至 ExpHistory
+        'admin-columns-exp-history'
+    );
 
     // 為商家後台設定區塊綁定 Accordion 事件
     bindAccordionEvents(adminSettingsContainer);

@@ -1,5 +1,6 @@
 // public/owner-liff.js
 // 【已套用 錯誤處理 v4.1 + 訊息功能 v5.0 + 顧客搜尋優化 v5.0】
+// 【v5.1 修正：修復 "Assignment to constant variable" Bug 並加入偵錯 alert】
 
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 請確認這是您的老闆 LIFF ID
@@ -7,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTemplate = null; // 儲存當前樣板類型
     let flatpickrInstance = null; // 日曆實例
     let currentSelectedDate = new Date(); // 當前日曆選擇的日期
-    let allMessageDrafts = []; // 【新增】訊息草稿快取
+    let allMessageDrafts = []; // 訊息草稿快取
 
     // --- DOM 元素快取 ---
     const loadingView = document.getElementById('loading-view');
@@ -30,13 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailsModalActions = document.getElementById('details-modal-actions');
     const detailsModalCloseBtn = detailsModal.querySelector('.modal-close');
 
-    // --- 【新增】訊息 Modal ---
+    // --- 訊息 Modal ---
     const sendMessageModal = document.getElementById('send-message-modal');
     const sendMessageModalTitle = document.getElementById('send-message-modal-title');
     const sendMessageModalCloseBtn = sendMessageModal.querySelector('.modal-close');
     const messageDraftSelect = document.getElementById('message-draft-select');
     const directMessageContent = document.getElementById('direct-message-content');
-    const sendMessageSubmitBtn = document.getElementById('send-message-submit-btn');
+    
+    // --- 【v5.1 修正】將 const 改為 let ---
+    let sendMessageSubmitBtn = document.getElementById('send-message-submit-btn');
 
     // --- 樣板特定元素 ---
     const calendarTabButton = document.querySelector('[data-tab="calendar"]');
@@ -63,12 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(error);
+            // 【偵錯】
+            alert(`[fetchData Error] ${error.message}\n\nURL: ${url.split('/').pop()}`);
             displayInlineError(error.message, getCurrentVisibleTabContentId());
             throw error;
         }
     }
 
-    // --- UI 輔助函式 (【已修正】) ---
+    // --- UI 輔助函式 ---
     function displayInlineError(message, containerId = 'activity-list-content') {
         const container = document.getElementById(containerId);
         if (container && container.id !== 'loading-view') { 
@@ -127,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 主程式 (【已修正】) ---
+    // --- 主程式 ---
     async function main() {
         try {
             await liff.init({ liffId: myLiffId });
@@ -156,6 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 unauthorizedView.style.display = 'block';
             }
         } catch (error) {
+             // 【偵錯】
+             alert(`[Main Error] ${error.message}\n\nStack: ${error.stack}`);
              console.error("Main function catch block:", error);
              if (loadingView && unauthorizedView) {
                 loadingView.style.display = 'none';
@@ -188,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 事件綁定 (【已修改】) ---
+    // --- 事件綁定 ---
     function setupEventListeners() {
         tabBar.addEventListener('click', (e) => {
             const button = e.target.closest('.tab-button');
@@ -197,24 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 詳情 Modal 關閉按鈕
         detailsModalCloseBtn.addEventListener('click', hideModal);
 
-        // 【新增】訊息 Modal 關閉按鈕
         sendMessageModalCloseBtn.addEventListener('click', () => {
             sendMessageModal.style.display = 'none';
         });
 
-        // 【新增】訊息 Modal 草稿選擇
         messageDraftSelect.addEventListener('change', (e) => {
             if (e.target.value) {
                 directMessageContent.value = e.target.value;
             }
         });
 
-        // 【新增】訊息 Modal 提交按鈕 (事件委派到 setupEventListeners 外，在 openSendMessageModal 中綁定)
-
-        // ( ... 其他現有的 activityListContent, dailyCardsContainer, orderListContent 點擊事件 ... )
         activityListContent.addEventListener('click', (e) => {
             const card = e.target.closest('.activity-card');
             if (card && card.dataset.id) {
@@ -254,7 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 數據加載與渲染 ---
-    // ( ... loadActivities, initializeCalendar, markCalendarDates, loadDailyCards, loadOrderList 保持不變 ... )
     async function loadActivities() {
         activityListContent.innerHTML = '<p>正在載入動態...</p>';
         try {
@@ -264,9 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             activityListContent.innerHTML = activities.map(act => {
-                 let statusClass = '';
-                 let relatedId = null;
-                 let type = '';
+                 let statusClass = '', relatedId = null, type = '';
                  if (act.link) {
                      const parts = act.link.split('-');
                      if (parts.length === 2) {
@@ -275,9 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      }
                  }
                  if (type === 'bookings' || type === 'orders') {
-                    if (act.message.includes('取消')) {
-                        statusClass = 'status-cancelled';
-                    }
+                    if (act.message.includes('取消')) { statusClass = 'status-cancelled'; }
                  } else if (type === 'users') {
                      statusClass = 'status-new-user';
                  }
@@ -296,9 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // const eventDatesResult = await fetchData('/api/admin/get-event-dates?month=...');
             // eventsMarkDates = eventDatesResult.dates;
-        } catch (error) {
-            console.error("無法載入日曆事件標記:", error);
-        }
+        } catch (error) { console.error("無法載入日曆事件標記:", error); }
         flatpickrInstance = flatpickr(calendarPlaceholder, {
             locale: "zh_tw",
             inline: true,
@@ -328,9 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calendarInstance.calendarContainer.querySelectorAll('.has-event').forEach(day => day.classList.remove('has-event'));
         datesToMark.forEach(dateStr => {
             const dayElement = calendarInstance.calendarContainer.querySelector(`.flatpickr-day[aria-label="${flatpickr.formatDate(new Date(dateStr + 'T00:00:00'), 'F j, Y')}"]`);
-            if (dayElement) {
-                dayElement.classList.add('has-event');
-            }
+            if (dayElement) { dayElement.classList.add('has-event'); }
         });
     }
     async function loadDailyCards(date) {
@@ -425,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
 
-     // 搜尋顧客 (【已修改】)
+     // 搜尋顧客
      async function searchCustomers() {
         const query = document.getElementById('customer-search-input').value.trim();
         customerSearchResults.innerHTML = '<p>搜尋中...</p>';
@@ -434,28 +426,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-             // API 現在會回傳 phone
              const users = await fetchData(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
              if (users.length === 0) {
                 customerSearchResults.innerHTML = '<p>找不到符合的顧客。</p>';
                 return;
              }
-             // 【修改】顯示 phone 而不是 user_id
              customerSearchResults.innerHTML = users.map(user => `
                 <div class="customer-result-item" data-user-id="${user.user_id}" style="padding: 10px; border-bottom: 1px solid var(--color-secondary); cursor: pointer;">
                     <p><strong>${user.nickname || user.line_display_name}</strong></p>
                     <small>${user.phone || '未設定電話'}</small>
                 </div>
              `).join('');
-        } catch (error) {
-             // Error display handled in fetchData
-        }
+        } catch (error) {}
      }
 
      // --- Modal 內容生成與操作 ---
-
-     // ( ... openDetailsModal, openCustomerDetailsModal, renderBookingDetailsBody, renderOrderDetailsBody, renderCustomerDetailsBody 保持不變 ... )
-    async function openDetailsModal(type, id) {
+     async function openDetailsModal(type, id) {
         showModal('載入中...', '<p>正在獲取詳細資料...</p>');
         try {
             let title = '', bodyHtml = '', actionsHtml = '';
@@ -467,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  };
                  title = `預約 #${id} (${bookingDetails.booking.contact_name})`;
                  bodyHtml = renderBookingDetailsBody(bookingDetails);
-                 actionsHtml = renderBookingActions(bookingDetails.booking, bookingDetails.user); // 【修改】傳入 user
+                 actionsHtml = renderBookingActions(bookingDetails.booking, bookingDetails.user);
             } else if (type === 'order') {
                 const orderDetails = { // 模擬數據
                     order: { order_id: id, customer_name: '電商客', status: 'pending', total_amount: 500, user_id: 'U456...', created_at: Date.now(), shipping_info: '...' },
@@ -476,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                  title = `訂單 #${id} (${orderDetails.order.customer_name})`;
                  bodyHtml = renderOrderDetailsBody(orderDetails);
-                 actionsHtml = renderOrderActions(orderDetails.order, orderDetails.user); // 【修改】傳入 user
+                 actionsHtml = renderOrderActions(orderDetails.order, orderDetails.user);
             } else if (type === 'activity') {
                  title = `動態 #${id}`;
                  bodyHtml = `<p>這裡顯示動態的詳細內容 (如果有的話)。</p>`;
@@ -489,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
              showModal('錯誤', `<p style="color: var(--color-danger);">載入詳細資料失敗：${error.message}</p>`);
         }
      }
-    async function openCustomerDetailsModal(targetUserId) {
+     async function openCustomerDetailsModal(targetUserId) {
          showModal('載入中...', '<p>正在獲取顧客資料...</p>');
          try {
              const data = await fetchData(`/api/admin/user-details?userId=${targetUserId}`);
@@ -502,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
               showModal('錯誤', `<p style="color: var(--color-danger);">載入顧客資料失敗：${error.message}</p>`);
          }
      }
-    function renderBookingDetailsBody(details) {
+     function renderBookingDetailsBody(details) {
          const { booking, items, user } = details;
          let html = `
              <h4>預約資訊</h4>
@@ -525,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
              `;
          return html;
      }
-    function renderOrderDetailsBody(details) {
+     function renderOrderDetailsBody(details) {
          const { order, items, user } = details;
           let html = `
              <h4>訂單資訊</h4>
@@ -566,9 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
          return html;
      }
 
-
-     // 渲染預約操作按鈕 (【已修改】)
-     function renderBookingActions(booking, user) { // 【修改】接收 user 物件
+     function renderBookingActions(booking, user) {
          let actions = [];
          if (currentTemplate === 'studio_template') {
              if (booking.status === 'confirmed') {
@@ -579,20 +563,15 @@ document.addEventListener('DOMContentLoaded', () => {
                  actions.push(`<button class="cta-button" data-action="check-in" data-id="${booking.booking_id}" style="background-color: var(--color-success);">標記入住</button>`);
              }
          }
-
          if (booking.status !== 'cancelled') {
               actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id}" style="background-color: var(--color-danger);">取消預約</button>`);
          }
-         
-         // 【修改】加入 data-target-name
          const targetName = user?.nickname || user?.line_display_name || booking.contact_name;
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${booking.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
-
          return actions.join('');
      }
 
-     // 渲染訂單操作按鈕 (【已修改】)
-     function renderOrderActions(order, user) { // 【修改】接收 user 物件
+     function renderOrderActions(order, user) {
           let actions = [];
          if (currentTemplate === 'ecommerce_template') {
             if (order.status === 'pending') {
@@ -602,34 +581,28 @@ document.addEventListener('DOMContentLoaded', () => {
                   actions.push(`<button class="cta-button" data-action="cancel-order" data-id="${order.order_id}" style="background-color: var(--color-danger);">取消訂單</button>`);
              }
          }
-         
-         // 【修改】加入 data-target-name
          const targetName = user?.nickname || user?.line_display_name || order.customer_name;
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${order.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
 
-    // 渲染顧客操作按鈕 (【已修改】)
      function renderCustomerActions(profile) {
-          // 【修改】加入 data-target-name
           const targetName = profile.nickname || profile.line_display_name;
           return `<button class="cta-button" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息給 ${targetName}</button>`;
      }
 
-     // 為 Modal 中的按鈕綁定事件
      function bindModalActions() {
          detailsModalActions.querySelectorAll('button').forEach(button => {
              button.addEventListener('click', handleModalAction);
          });
      }
 
-     // 處理 Modal 按鈕點擊事件 (【已修改】)
      async function handleModalAction(event) {
          const button = event.target;
          const action = button.dataset.action;
          const id = button.dataset.id;
-         const targetUserId = button.dataset.userId; // 【修改】變數改名
-         const targetName = button.dataset.targetName; // 【新增】獲取目標名稱
+         const targetUserId = button.dataset.userId;
+         const targetName = button.dataset.targetName;
 
          button.disabled = true;
          button.textContent = '處理中...';
@@ -676,22 +649,21 @@ document.addEventListener('DOMContentLoaded', () => {
                          button.textContent = '取消訂單';
                      }
                      break;
-                 
-                 // 【修改】
                  case 'send-message':
                       await openSendMessageModal(targetUserId, targetName);
-                      // 開啟新 Modal 後，恢復原 Modal 按鈕
                       button.disabled = false;
                       button.textContent = '發送訊息';
                       break;
-
                  default:
                      console.warn('未知的 Modal 操作:', action);
                      button.disabled = false;
                      button.textContent = '未知操作';
              }
          } catch (error) {
+             // 【偵錯】
+             alert(`[handleModalAction Error] ${error.message}\n\nAction: ${action}\nStack: ${error.stack}`);
              alert(`操作失敗：${error.message}`);
+             
              button.disabled = false;
              if (action === 'check-in') button.textContent = '標記報到/入住';
              else if (action === 'cancel') button.textContent = '取消預約';
@@ -709,32 +681,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. 設定 Modal 標題
-        sendMessageModalTitle.textContent = `發送訊息給 ${targetName}`;
-
-        // 2. 清空舊內容
-        directMessageContent.value = '';
-        messageDraftSelect.innerHTML = '<option value="">-- 載入草稿中... --</option>';
-
-        // 3. 綁定提交按鈕 (確保移除舊監聽)
-        // 使用 .cloneNode(true) 和 .replaceWith() 來移除所有舊監聽器
-        const newSubmitBtn = sendMessageSubmitBtn.cloneNode(true);
-        sendMessageSubmitBtn.parentNode.replaceChild(newSubmitBtn, sendMessageSubmitBtn);
-        // 更新 DOM 元素快取
-        sendMessageSubmitBtn = document.getElementById('send-message-submit-btn');
-        
-        // 綁定新的點擊事件
-        newSubmitBtn.dataset.userId = targetUserId;
-        newSubmitBtn.addEventListener('click', handleSendMessageSubmit);
-        newSubmitBtn.disabled = false;
-        newSubmitBtn.textContent = '確認發送';
-
-
-        // 4. 顯示 Modal
-        sendMessageModal.style.display = 'flex';
-
-        // 5. 載入草稿 (如果快取為空)
         try {
+            sendMessageModalTitle.textContent = `發送訊息給 ${targetName}`;
+            directMessageContent.value = '';
+            messageDraftSelect.innerHTML = '<option value="">-- 載入草稿中... --</option>';
+
+            const newSubmitBtn = sendMessageSubmitBtn.cloneNode(true);
+            sendMessageSubmitBtn.parentNode.replaceChild(newSubmitBtn, sendMessageSubmitBtn);
+            sendMessageSubmitBtn = document.getElementById('send-message-submit-btn'); 
+            
+            newSubmitBtn.dataset.userId = targetUserId;
+            newSubmitBtn.addEventListener('click', handleSendMessageSubmit);
+            newSubmitBtn.disabled = false;
+            newSubmitBtn.textContent = '確認發送';
+
+            sendMessageModal.style.display = 'flex';
+
             if (allMessageDrafts.length === 0) {
                 console.log("快取為空，正在從 API 獲取訊息草稿...");
                 allMessageDrafts = await fetchData('/api/admin/message-drafts');
@@ -742,9 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  console.log("使用快取的訊息草稿");
             }
 
-            // 6. 填充草稿下拉選單
             messageDraftSelect.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
-            // 我們只顯示「一般草稿」，過濾掉系統保留的
             const generalDrafts = allMessageDrafts.filter(d => d.draft_id > 2); 
             generalDrafts.forEach(draft => {
                 const option = new Option(draft.title, draft.content);
@@ -752,9 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } catch (error) {
+            // 【偵錯】
+            alert(`[openSendMessageModal Error] ${error.message}\n\nStack: ${error.stack}`);
             console.error("載入訊息草稿失敗:", error);
             messageDraftSelect.innerHTML = '<option value="">-- 載入草稿失敗 --</option>';
-            // 即使草稿載入失敗，仍然允許手動輸入
         }
     }
 
@@ -768,7 +729,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('訊息內容不可為空！');
             return;
         }
-
         if (!targetUserId) {
             alert('錯誤：找不到目標使用者 ID！');
             return;
@@ -778,21 +738,18 @@ document.addEventListener('DOMContentLoaded', () => {
         button.textContent = '發送中...';
 
         try {
-            await fetchData('/api/send-message', {
+            await fetchData('/api/send-message', { // TODO: 確認 API 路徑是否正確 (您的是 /api/send-message)
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: targetUserId, message: message })
             });
             alert('訊息已發送！');
             sendMessageModal.style.display = 'none'; // 關閉訊息 Modal
-            
-            // 注意：我們不需要關閉 detailsModal，老闆可能還想做其他操作
-            // hideModal(); 
-
         } catch (error) {
+            // 【偵錯】
+            alert(`[handleSendMessageSubmit Error] ${error.message}\n\nStack: ${error.stack}`);
             alert(`發送失敗：${error.message}`);
         } finally {
-            // 恢復按鈕狀態（無論成功或失敗，因為 Modal 會關閉，下次開啟會重新綁定）
             button.disabled = false;
             button.textContent = '確認發送';
         }
@@ -800,7 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 其他輔助函式 ---
-    // ( ... generateAndOpenAdminLink 保持不變 ... )
     async function generateAndOpenAdminLink() {
         const adminPanelBtn = document.getElementById('go-to-admin-panel-btn');
         adminPanelBtn.disabled = true;

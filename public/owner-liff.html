@@ -277,6 +277,35 @@
         </div>
     </div>
 
+
+<div id="send-message-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="send-message-modal-title">發送訊息</h3>
+                <button class="modal-close" data-target-modal="#send-message-modal">&times;</button>
+            </div>
+            <div id="send-message-modal-body" class="modal-body">
+                <div class="form-group">
+                    <label for="message-draft-select">選擇訊息草稿</label>
+                    <select id="message-draft-select" style="margin-bottom: 10px;">
+                        <option value="">-- 手動輸入或選擇草稿 --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="direct-message-content">訊息內容</label>
+                    <textarea id="direct-message-content" rows="6" placeholder="請輸入要發送的訊息..."></textarea>
+                </div>
+            </div>
+            <div id="send-message-modal-actions" class="modal-actions">
+                <button id="send-message-submit-btn" class="cta-button" data-user-id="">確認發送</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    </body>
+</html>
+
     <nav id="owner-tab-bar">
         <button class="tab-button active" data-tab="activity">最新<br>動態</button>
         <button class="tab-button" data-tab="calendar">日曆</button>

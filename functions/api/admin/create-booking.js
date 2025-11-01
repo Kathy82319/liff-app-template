@@ -1,4 +1,4 @@
-// functions/api/admin/create-booking.js (v2 - 多項目支援版)
+// functions/api/admin/create-booking.js (v2.1 - 修正活動日誌 link)
 
 // 輔助函式：正規表達式，用於驗證 YYYY-MM-DD 格式
 const isValidDate = (dateString) => /^\d{4}-\d{2}-\d{2}$/.test(dateString);
@@ -24,7 +24,6 @@ export async function onRequest(context) {
         // if (!timeSlot || !isValidTime(timeSlot)) errors.push('無效的時間格式，應為 HH:MM。');
         if (!contactName || typeof contactName !== 'string' || contactName.trim().length === 0) errors.push('聯絡姓名為必填。');
         
-        // ▼▼▼ 修改點：電話變成非必填 ▼▼▼
         if (contactPhone && (typeof contactPhone !== 'string' || contactPhone.length > 20)) errors.push('電話號碼格式不正確或過長。');
         
         const people = Number(numOfPeople);
@@ -46,12 +45,12 @@ export async function onRequest(context) {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
              RETURNING booking_id`
         );
-        // ▼▼▼ 修改點：將 contactPhone 傳入資料庫 ▼▼▼
-const { booking_id } = await bookingStmt.bind(
-    userId, contactName.trim(), contactPhone.trim() || null, bookingDate,
-    timeSlot ? timeSlot.trim() : '', // 當 timeSlot 為空時，傳入空字串 ''
-    people, totalAmount || null, notes || null
-).first();
+        
+        const { booking_id } = await bookingStmt.bind(
+            userId, contactName.trim(), contactPhone.trim() || null, bookingDate,
+            timeSlot ? timeSlot.trim() : '',
+            people, totalAmount || null, notes || null
+        ).first();
 
         if (!booking_id) {
             throw new Error('無法建立預約主紀錄，請稍後再試。');
@@ -69,9 +68,11 @@ const { booking_id } = await bookingStmt.bind(
 
         await db.batch(itemOperations);
         
-          // 【新增】紀錄由後台建立的新預約活動
+        // --- 【v6.2 修正】將 booking_id 加入 link ---
         const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
-        context.waitUntil(activityStmt.bind('new_booking_admin', `管理者為 ${contactName.trim()}建立了 ${bookingDate} 的預約`, '#bookings').run());
+        const activityLink = `#bookings-${booking_id}`; // 新格式
+        context.waitUntil(activityStmt.bind('new_booking_admin', `管理者為 ${contactName.trim()} 建立了 ${bookingDate} 的預約`, activityLink).run());
+        // --- 修正結束 ---
       
         return new Response(JSON.stringify({ success: true, message: '預約已成功建立' }), {
             status: 201,

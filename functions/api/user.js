@@ -1,4 +1,4 @@
-// functions/api/user.js
+// functions/api/user.js (v6.2 - 修正活動日誌 link)
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -42,9 +42,11 @@ export async function onRequest(context) {
         'INSERT INTO Users (user_id, line_display_name, line_picture_url, real_name, class, level, current_exp, perk) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(newUser.user_id, newUser.line_display_name, newUser.line_picture_url, newUser.real_name, newUser.class, newUser.level, newUser.current_exp, newUser.perk).run();
  
-      // 【新增】紀錄新使用者活動
+      // --- 【v6.2 修正】將 user_id 加入 link ---
       const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
-      context.waitUntil(activityStmt.bind('new_user', `新顧客 ${newUser.line_display_name} 已加入`, '#users').run());
+      const activityLink = `#users-${newUser.user_id}`; // 新格式
+      context.waitUntil(activityStmt.bind('new_user', `新顧客 ${newUser.line_display_name} 已加入`, activityLink).run());
+      // --- 修正結束 ---
       
       return new Response(JSON.stringify({ ...newUser, expToNextLevel }), { status: 201, headers: { 'Content-Type': 'application/json' } });
     }

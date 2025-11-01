@@ -1,4 +1,5 @@
 // public/owner-liff.js (v4 - Tabbed Interface & Calendar Base)
+// 【已套用錯誤處理修正 v4.1】
 
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 請確認這是您的老闆 LIFF ID
@@ -60,17 +61,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-function displayInlineError(message, containerId = 'activity-list-content') {
-    const container = document.getElementById(containerId);
-    // 【修改】確保 container 存在，且不是 'loading-view'
-    if (container && container.id !== 'loading-view') { 
-        container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${message}</p>`;
-    } else {
-         // 如果容器未找到，或就是 loading-view，僅在 console 紀錄
-         // 錯誤將由 main() 函數的 catch 區塊統一處理
-         console.error(`Inline error display failed for container '${containerId}'. Error: ${message}`);
+    // --- UI 輔助函式 (【已修正】) ---
+    function displayInlineError(message, containerId = 'activity-list-content') {
+        const container = document.getElementById(containerId);
+        // 【修改】確保 container 存在，且不是 'loading-view'
+        if (container && container.id !== 'loading-view') { 
+            container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${message}</p>`;
+        } else {
+             // 如果容器未找到，或就是 loading-view，僅在 console 紀錄
+             // 錯誤將由 main() 函數的 catch 區塊統一處理
+             console.error(`Inline error display failed for container '${containerId}'. Error: ${message}`);
+        }
     }
-}
 
     function getCurrentVisibleTabContentId() {
         const activeTab = document.querySelector('.tab-content.active');
@@ -127,7 +129,7 @@ function displayInlineError(message, containerId = 'activity-list-content') {
         }
     }
 
-    // --- 主程式 ---
+    // --- 主程式 (【已修正】) ---
     async function main() {
         try {
             await liff.init({ liffId: myLiffId });
@@ -155,20 +157,21 @@ function displayInlineError(message, containerId = 'activity-list-content') {
                 loadingView.style.display = 'none';
                 unauthorizedView.style.display = 'block';
             }
-    } catch (error) {
-         // 【修改】
-         // 即使 fetchData 已經在 loadingView 顯示錯誤，我們仍要確保切換視圖
-         console.error("Main function catch block:", error); // 在 console 顯示完整錯誤
-         if (loadingView && unauthorizedView) {
-            loadingView.style.display = 'none';
-            unauthorizedView.style.display = 'block';
-            // 在 unauthorizedView 中顯示更清楚的錯誤
-            unauthorizedView.innerHTML = `
-                <h2 style="color: var(--color-danger);">驗證失敗</h2>
-                <p>無法初始化管理員介面。請確認您的帳號具備管理員權限，或檢查後台日誌。</p>
-                <p style="font-size: 0.8em; color: var(--color-text-secondary); white-space: pre-wrap;">詳細錯誤: ${error.message || '未知錯誤'}</p>
-            `;
-         }
+        } catch (error) {
+             // 【修改】
+             // 即使 fetchData 已經在 loadingView 顯示錯誤，我們仍要確保切換視圖
+             console.error("Main function catch block:", error); // 在 console 顯示完整錯誤
+             if (loadingView && unauthorizedView) {
+                loadingView.style.display = 'none';
+                unauthorizedView.style.display = 'block';
+                // 在 unauthorizedView 中顯示更清楚的錯誤
+                unauthorizedView.innerHTML = `
+                    <h2 style="color: var(--color-danger);">驗證失敗</h2>
+                    <p>無法初始化管理員介面。請確認您的帳號具備管理員權限，或檢查後台日誌。</p>
+                    <p style="font-size: 0.8em; color: var(--color-text-secondary); white-space: pre-wrap;">詳細錯誤: ${error.message || '未知錯誤'}</p>
+                `;
+             }
+        }
     }
 
     // --- 初始化 App UI (根據樣板調整) ---

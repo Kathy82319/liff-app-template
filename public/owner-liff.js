@@ -60,19 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- UI 輔助函式 ---
-    function displayInlineError(message, containerId = 'activity-list-content') {
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${message}</p>`;
-        } else {
-             console.error("錯誤容器未找到:", containerId);
-             // 備用方案：如果找不到容器，在 loading view 顯示
-             loadingView.innerHTML = `<p style="color: var(--color-danger); text-align: center; white-space: pre-wrap;">${message}</p>`;
-             loadingView.style.display = 'block';
-             mainView.style.display = 'none';
-        }
+function displayInlineError(message, containerId = 'activity-list-content') {
+    const container = document.getElementById(containerId);
+    // 【修改】確保 container 存在，且不是 'loading-view'
+    if (container && container.id !== 'loading-view') { 
+        container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${message}</p>`;
+    } else {
+         // 如果容器未找到，或就是 loading-view，僅在 console 紀錄
+         // 錯誤將由 main() 函數的 catch 區塊統一處理
+         console.error(`Inline error display failed for container '${containerId}'. Error: ${message}`);
     }
+}
 
     function getCurrentVisibleTabContentId() {
         const activeTab = document.querySelector('.tab-content.active');
@@ -157,9 +155,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingView.style.display = 'none';
                 unauthorizedView.style.display = 'block';
             }
-        } catch (error) {
-             // loadingView 已顯示錯誤
-        }
+    } catch (error) {
+         // 【修改】
+         // 即使 fetchData 已經在 loadingView 顯示錯誤，我們仍要確保切換視圖
+         console.error("Main function catch block:", error); // 在 console 顯示完整錯誤
+         if (loadingView && unauthorizedView) {
+            loadingView.style.display = 'none';
+            unauthorizedView.style.display = 'block';
+            // 在 unauthorizedView 中顯示更清楚的錯誤
+            unauthorizedView.innerHTML = `
+                <h2 style="color: var(--color-danger);">驗證失敗</h2>
+                <p>無法初始化管理員介面。請確認您的帳號具備管理員權限，或檢查後台日誌。</p>
+                <p style="font-size: 0.8em; color: var(--color-text-secondary); white-space: pre-wrap;">詳細錯誤: ${error.message || '未知錯誤'}</p>
+            `;
+         }
     }
 
     // --- 初始化 App UI (根據樣板調整) ---

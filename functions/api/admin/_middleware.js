@@ -18,6 +18,9 @@ async function authMiddleware(context) {
                           url.pathname.startsWith('/api/get-bookings') ||     
                           url.pathname.startsWith('/api/update-booking-status') || 
                           url.pathname.startsWith('/api/admin/get-orders');      
+                          url.pathname.startsWith('/api/admin/activities') ||
+                          url.pathname.startsWith('/api/admin/user-search') ||
+                          url.pathname.startsWith('/api/admin/user-details');
 
     if (isPublicRoute) {
         console.log(`[Middleware] 放行公開路由: ${url.pathname}`);

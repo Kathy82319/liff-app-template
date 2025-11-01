@@ -1,4 +1,6 @@
-// functions/api/admin/verify-liff-user.js (修正後 - 會設定 Cookie)
+// functions/api/admin/verify-liff-user.js
+// 【修正】在最上方加入 jose 的 import
+import * as jose from 'jose';
 
 export async function onRequest(context) {
     try {

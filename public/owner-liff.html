@@ -49,141 +49,180 @@
             display: block; /* 顯示當前 Tab */
         }
 
-        /* 最新動態卡片樣式 (參考 image_3b1a27.png) */
-        .activity-card {
-            background-color: var(--color-card-bg);
-            border-radius: var(--border-radius);
-            padding: 15px;
+        /* --- 【新增】視圖切換按鈕 --- */
+        .view-switcher {
+            display: flex;
+            justify-content: center;
             margin-bottom: 15px;
-            border-left: 5px solid var(--color-accent);
-            cursor: pointer; /* 提示可點擊 */
         }
-        .activity-card.status-cancelled {
-             border-left-color: var(--color-danger);
-             opacity: 0.8;
+        .view-switch-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--color-primary);
+            background: transparent;
+            color: var(--color-primary);
+            cursor: pointer;
         }
-        .activity-card.status-new-user {
-             border-left-color: var(--color-primary); /* 新會員用不同顏色 */
+        .view-switch-btn:first-child {
+            border-top-left-radius: var(--border-radius);
+            border-bottom-left-radius: var(--border-radius);
         }
+        .view-switch-btn:last-child {
+            border-top-right-radius: var(--border-radius);
+            border-bottom-right-radius: var(--border-radius);
+            border-left: none;
+        }
+        .view-switch-btn.active {
+            background: var(--color-primary);
+            color: var(--color-bg);
+        }
+        .sub-view {
+            display: none; /* 子視圖預設隱藏 */
+        }
+        .sub-view.active {
+            display: block; /* 顯示當前的子視圖 */
+        }
+
+        /* --- 【新增】控房管理 (RC) 樣式 --- */
+        #rc-grid-container {
+            overflow-x: auto; /* 關鍵：允許表格水平滾動 */
+            margin-top: 1rem;
+        }
+        .rc-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px; /* 確保表格有最小寬度以觸發滾動 */
+        }
+        .rc-table th, .rc-table td {
+            border: 1px solid var(--color-secondary);
+            padding: 5px;
+            text-align: center;
+            min-width: 100px; /* 每格最小寬度 */
+            vertical-align: top;
+            font-size: 0.9rem;
+        }
+        .rc-table th {
+            background-color: var(--color-card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        /* 固定第一欄 (房型名稱) */
+        .rc-table th:first-child, .rc-table td:first-child {
+            position: sticky;
+            left: 0;
+            background-color: var(--color-card-bg);
+            min-width: 120px;
+            font-weight: bold;
+            z-index: 5;
+        }
+        /* 左上角固定 */
+        .rc-table th:first-child {
+            z-index: 11;
+        }
+        /* 控房表格內的輸入框和按鈕 */
+        .rc-table input[type="number"] {
+            width: 90%;
+            padding: 4px;
+            font-size: 0.9em;
+            text-align: center;
+            -moz-appearance: textfield; /* Firefox */
+        }
+        .rc-table input::-webkit-outer-spin-button,
+        .rc-table input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .rc-status-btn {
+            width: 100%;
+            font-size: 0.8em;
+            padding: 3px 5px;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        /* 狀態按鈕顏色 */
+        .rc-status-btn.status-open { background-color: #28a745; }
+        .rc-status-btn.status-closed { background-color: #dc3545; }
+        .rc-status-btn.status-soldout { background-color: #ffc107; color: #212529; }
+        
+        /* 警告圖示 */
+        .rc-price-warning {
+             color: #ffc107;
+             font-weight: bold;
+             font-size: 1.1em;
+             cursor: help;
+        }
+
+
+        /* --- (原有的動態/日曆/訂單卡片/Modal 樣式保持不變) --- */
+        .activity-card {
+            background-color: var(--color-card-bg); border-radius: var(--border-radius); padding: 15px; margin-bottom: 15px; border-left: 5px solid var(--color-accent); cursor: pointer;
+        }
+        .activity-card.status-cancelled { border-left-color: var(--color-danger); opacity: 0.8; }
+        .activity-card.status-new-user { border-left-color: var(--color-primary); }
         .activity-card p { margin: 5px 0; }
         .activity-card small { color: var(--color-text-secondary); }
 
-        /* 日曆 Tab 樣式 */
         #calendar-view { margin-bottom: 20px; }
-        #calendar-placeholder .flatpickr-calendar { /* 讓日曆寬度自動 */
-            width: auto !important;
-            margin: 0 auto; /* 置中 */
-        }
-        .flatpickr-day.has-event { /* 標示有事件的日期 */
-            position: relative;
-        }
+        #calendar-placeholder .flatpickr-calendar { width: auto !important; margin: 0 auto; }
+        .flatpickr-day.has-event { position: relative; }
         .flatpickr-day.has-event::after {
-            content: '';
-            display: block;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background-color: var(--color-accent);
-            position: absolute;
-            bottom: 4px;
-            left: 50%;
-            transform: translateX(-50%);
+            content: ''; display: block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--color-accent); position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
         }
         #daily-cards-container { margin-top: 20px; }
         .daily-card {
-            background-color: var(--color-card-bg);
-            border-radius: var(--border-radius);
-            padding: 15px;
-            margin-bottom: 10px;
-            border-left: 5px solid var(--color-accent);
-            cursor: pointer;
+            background-color: var(--color-card-bg); border-radius: var(--border-radius); padding: 15px; margin-bottom: 10px; border-left: 5px solid var(--color-accent); cursor: pointer;
         }
          .daily-card.status-checked-in { border-left-color: #28a745; }
          .daily-card.status-cancelled { border-left-color: #6c757d; opacity: 0.7; }
         .daily-card p { margin: 5px 0; }
         .daily-card small { color: var(--color-text-secondary); }
 
-        /* 訂單 Tab 樣式 (參考 image_3b1a67.png) */
         .filter-controls { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; }
         .filter-controls input, .filter-controls select { width: auto; flex-grow: 1; }
         .order-list-item {
-            background-color: var(--color-card-bg);
-            border-radius: var(--border-radius);
-            padding: 15px;
-            margin-bottom: 10px;
-            cursor: pointer;
+            background-color: var(--color-card-bg); border-radius: var(--border-radius); padding: 15px; margin-bottom: 10px; cursor: pointer;
         }
          .order-list-item p { margin: 5px 0; }
          .order-list-item small { color: var(--color-text-secondary); }
 
-        /* Modal 彈窗樣式 */
         .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            display: none; /* 預設隱藏 */
-            justify-content: center; align-items: center;
-            z-index: 1000; padding: 15px; box-sizing: border-box;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 15px; box-sizing: border-box;
         }
         .modal-content {
-            background: var(--color-card-bg); /* 深色背景 */
-            padding: 20px; border-radius: var(--border-radius);
-            width: 100%; max-width: 500px;
-            max-height: 90vh; /* 最大高度 */
-            overflow-y: auto; /* 內容過多時滾動 */
-            border: 1px solid var(--color-primary);
-            position: relative;
+            background: var(--color-card-bg); padding: 20px; border-radius: var(--border-radius); width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--color-primary); position: relative;
         }
         .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--color-secondary);
-            padding-bottom: 10px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-secondary); padding-bottom: 10px; margin-bottom: 15px;
         }
         .modal-header h3 { margin: 0; color: var(--color-primary); }
         .modal-close {
-            font-size: 1.8rem; font-weight: bold; border: none; background: none;
-            cursor: pointer; color: var(--color-text-secondary); padding: 0 5px; line-height: 1;
-            position: absolute; top: 10px; right: 10px;
+            font-size: 1.8rem; font-weight: bold; border: none; background: none; cursor: pointer; color: var(--color-text-secondary); padding: 0 5px; line-height: 1; position: absolute; top: 10px; right: 10px;
         }
         .modal-body h4 { color: var(--color-primary); margin-top: 20px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px;}
         .modal-body p { margin: 8px 0; }
         .modal-body strong { color: var(--color-text-secondary); margin-right: 5px; }
         .modal-actions { margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
-        /* 適應不同按鈕數量 */
         .modal-actions.row-layout { flex-direction: row; }
 
-        /* 控房介面按鈕 */
-        .manage-rooms-btn {
-            background-color: var(--color-secondary);
-            margin-bottom: 15px;
-            padding: 8px 15px;
-            font-size: 0.9rem;
-        }
-        /* 電商管理按鈕 */
         .ecommerce-manage-buttons {
              display: flex; gap: 10px; margin-bottom: 15px;
         }
         .ecommerce-manage-buttons button {
-            background-color: var(--color-secondary);
-             padding: 8px 15px;
-            font-size: 0.9rem;
+            background-color: var(--color-secondary); padding: 8px 15px; font-size: 0.9rem;
         }
 
-        /* 底部導覽列 (使用 style.css 的 #tab-bar) */
-        #owner-tab-bar { /* 確保 ID 不同 */
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 65px;
-            display: flex; justify-content: space-around; align-items: center;
-            background-color: var(--color-header-bg); border-top: 1px solid var(--color-primary);
-            backdrop-filter: blur(10px); z-index: 100;
+        #owner-tab-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; display: flex; justify-content: space-around; align-items: center; background-color: var(--color-header-bg); border-top: 1px solid var(--color-primary); backdrop-filter: blur(10px); z-index: 100;
         }
-        #owner-tab-bar .tab-button { /* 沿用 .tab-button 樣式 */
-             flex-grow: 1; padding: 8px 5px; background: none; border: none;
-             color: var(--color-text-secondary); font-size: 0.9rem; cursor: pointer;
-             transition: color 0.3s, transform 0.3s; line-height: 1.4; text-align: center;
+        #owner-tab-bar .tab-button {
+             flex-grow: 1; padding: 8px 5px; background: none; border: none; color: var(--color-text-secondary); font-size: 0.9rem; cursor: pointer; transition: color 0.3s, transform 0.3s; line-height: 1.4; text-align: center;
         }
          #owner-tab-bar .tab-button.active {
              color: var(--color-accent); transform: scale(1.1);
         }
-
     </style>
 </head>
 <body>
@@ -210,151 +249,136 @@
                 </div>
             </div>
 
-            <div id="tab-content-calendar" class="tab-content">
-                <h2>日曆總覽</h2>
-                 <button id="manage-rooms-btn" class="cta-button manage-rooms-btn" style="display: none;">管理房價 / 房量</button>
-                 <div id="calendar-view">
-                    <div id="calendar-placeholder"></div>
-                </div>
-                <h3><span id="selected-date-display">今日</span> 事項</h3>
-                <div id="daily-cards-container">
-                    <p>請先從上方選擇日期</p>
-                </div>
-            </div>
-
-            <div id="tab-content-order" class="tab-content">
-                <h2>訂單 / 預約列表</h2>
-                 <div class="ecommerce-manage-buttons" style="display: none;">
+            <div id="tab-content-booking" class="tab-content">
+                <h2>預約管理</h2>
+                
+                <div class="ecommerce-manage-buttons" style="display: none;">
                     <button id="manage-stock-btn">低庫存提醒</button>
                     <button id="manage-visibility-btn">快速上下架</button>
-                 </div>
-                <div class="filter-controls">
-                    <input type="search" id="order-search-input" placeholder="搜尋編號、姓名...">
-                    <select id="order-date-filter-type">
-                        <option value="booking_date">預約/訂單日</option>
-                        <option value="created_at">建立日</option>
-                    </select>
-                    <input type="date" id="order-date-filter-start">
-                    <input type="date" id="order-date-filter-end">
-                    <select id="order-status-filter">
-                        <option value="">所有狀態</option>
-                        <option value="confirmed">預約成功/待處理</option>
-                        <option value="checked-in">已報到/已入住/已出貨</option>
-                        <option value="cancelled">已取消</option>
-                        </select>
-                    <button id="order-filter-apply-btn">查詢</button>
                 </div>
-                <div id="order-list-content">
-                    <p>正在載入列表...</p>
+                
+                <div class="view-switcher">
+                    <button id="booking-view-switch-calendar" class="view-switch-btn active" data-view="calendar">日曆</button>
+                    <button id="booking-view-switch-list" class="view-switch-btn" data-view="list">列表</button>
+                </div>
+
+                <div id="booking-view-calendar" class="sub-view active">
+                    <div id="calendar-view">
+                        <div id="calendar-placeholder"></div>
+                    </div>
+                    <h3><span id="selected-date-display">今日</span> 事項</h3>
+                    <div id="daily-cards-container">
+                        <p>請先從上方選擇日期</p>
+                    </div>
+                </div>
+
+                <div id="booking-view-list" class="sub-view">
+                    <div class="filter-controls">
+                        <input type="search" id="order-search-input" placeholder="搜尋編號、姓名...">
+                        <select id="order-date-filter-type">
+                            <option value="booking_date">預約/訂單日</option>
+                            <option value="created_at">建立日</option>
+                        </select>
+                        <input type="date" id="order-date-filter-start">
+                        <input type="date" id="order-date-filter-end">
+                        <select id="order-status-filter">
+                            <option value="">所有狀態</option>
+                            <option value="confirmed">預約成功/待處理</option>
+                            <option value="checked-in">已報到/已入住/已出貨</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                        <button id="order-filter-apply-btn">查詢</button>
+                    </div>
+                    <div id="order-list-content">
+                        <p>正在載入列表...</p>
+                    </div>
                 </div>
             </div>
 
-             <div id="tab-content-customer" class="tab-content">
+            <div id="tab-content-room-control" class="tab-content">
+                <h2>房量控管</h2>
+                <div class="filter-controls">
+                    <input type="text" id="rc-date-range-picker" placeholder="請選擇日期範圍" style="flex-grow: 2;">
+                    <button id="rc-load-grid-btn" class="cta-button" style="padding: 8px 12px; font-size: 0.9rem;">載入</button>
+                </div>
+                <div id="rc-grid-container" style="overflow-x: auto; margin-top: 15px;">
+                    <p>請先選擇日期範圍並按「載入」。</p>
+                </div>
+            </div>
+
+            <div id="tab-content-customer" class="tab-content">
                 <h2>顧客查詢</h2>
                 <div class="filter-controls">
                     <input type="search" id="customer-search-input" placeholder="搜尋姓名、電話...">
-                     <button id="customer-search-btn">搜尋</button>
-                 </div>
+                    <button id="customer-search-btn">搜尋</button>
+                </div>
                 <div id="customer-search-results"></div>
-             </div>
+            </div>
 
-             <button id="go-to-admin-panel-btn" class="cta-button" style="margin-top: 30px; background-color: var(--color-secondary);">開啟完整版後台</button>
+            <button id="go-to-admin-panel-btn" class="cta-button" style="margin-top: 30px; background-color: var(--color-secondary);">開啟完整版後台</button>
 
         </div>
 
         <button id="quick-action-btn" class="cta-button" style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; border-radius: 50%; font-size: 2.5rem; padding: 0; line-height: 60px; z-index: 990; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background-color: var(--color-accent); color: white;">
             +
         </button>
-
     </main>
 
-
-<div id="quick-booking-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="quick-booking-modal-title">快速建立預約</h3>
-            <button class="modal-close" data-target-modal="#quick-booking-modal">&times;</button>
-        </div>
-        <form id="quick-booking-form">
-            <div class="modal-body">
-                <h4>1. 顧客資訊</h4>
-                <div class="form-group" id="qb-customer-search-container">
-                    <label for="qb-customer-search-input">搜尋現有顧客 (姓名/電話)</label>
-                    <input type="search" id="qb-customer-search-input" placeholder="或直接輸入新顧客名稱...">
-                    <div id="qb-customer-search-results" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--color-secondary); display: none; margin-top: 5px;"></div>
-                </div>
-                <div class="form-group" id="qb-customer-selected-view" style="display: none;">
-                    <label>已選顧客</label>
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--color-bg); padding: 8px; border-radius: 4px;">
-                        <span id="qb-customer-selected-name" style="font-weight: bold;"></span>
-                        <button type="button" id="qb-customer-change-btn" style="padding: 4px 8px; font-size: 0.8rem; background: var(--color-secondary);">更換</button>
+    <div id="quick-booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="quick-booking-modal-title">快速建立預約</h3>
+                <button class="modal-close" data-target-modal="#quick-booking-modal">&times;</button>
+            </div>
+            <form id="quick-booking-form">
+                <div class="modal-body">
+                    <h4>1. 顧客資訊</h4>
+                    <div class="form-group" id="qb-customer-search-container">
+                        <label for="qb-customer-search-input">搜尋現有顧客 (姓名/電話)</label>
+                        <input type="search" id="qb-customer-search-input" placeholder="或直接輸入新顧客名稱...">
+                        <div id="qb-customer-search-results" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--color-secondary); display: none; margin-top: 5px;"></div>
                     </div>
-                    <input type="hidden" id="qb-customer-selected-id">
+                    <div class="form-group" id="qb-customer-selected-view" style="display: none;">
+                        <label>已選顧客</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--color-bg); padding: 8px; border-radius: 4px;">
+                            <span id="qb-customer-selected-name" style="font-weight: bold;"></span>
+                            <button type="button" id="qb-customer-change-btn" style="padding: 4px 8px; font-size: 0.8rem; background: var(--color-secondary);">更換</button>
+                        </div>
+                        <input type="hidden" id="qb-customer-selected-id">
+                    </div>
+                    <div class="form-group">
+                        <label for="qb-contact-phone">聯絡電話 (若為新顧客)</label>
+                        <input type="tel" id="qb-contact-phone" placeholder="09開頭10碼手機">
+                    </div>
+                    <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+                    <h4>2. 預約內容</h4>
+                    <div class="form-group">
+                        <label for="qb-booking-date">日期</label>
+                        <input type="text" id="qb-booking-date" placeholder="請選擇日期">
+                    </div>
+                    <div class="form-group">
+                        <label for="qb-booking-time">時段</label>
+                        <input type="time" id="qb-booking-time" step="1800">
+                    </div>
+                    <div class="form-group">
+                        <label for="qb-booking-item">項目</label>
+                        <select id="qb-booking-item"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="qb-booking-people">人數</label>
+                        <input type="number" id="qb-booking-people" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="qb-booking-notes">備註 (選填)</label>
+                        <textarea id="qb-booking-notes" rows="2"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="qb-contact-phone">聯絡電話 (若為新顧客)</label>
-                    <input type="tel" id="qb-contact-phone" placeholder="09開頭10碼手機">
+                <div class="modal-actions">
+                    <button type="submit" id="quick-booking-submit-btn" class="cta-button">確認建立</button>
                 </div>
-
-                <hr style="border-color: var(--color-secondary); margin: 20px 0;">
-                
-                <h4>2. 預約內容</h4>
-                <div class_ ="form-group">
-                    <label for="qb-booking-date">日期</label>
-                    <input type="text" id="qb-booking-date" placeholder="請選擇日期">
-                </div>
-                <div class_ ="form-group">
-                    <label for="qb-booking-time">時段</label>
-                    <input type="time" id="qb-booking-time" step="1800">
-                </div>
-                <div class="form-group">
-                    <label for="qb-booking-item">項目</label>
-                    <select id="qb-booking-item"></select>
-                </div>
-                <div class="form-group">
-                    <label for="qb-booking-people">人數</label>
-                    <input type="number" id="qb-booking-people" value="1" min="1">
-                </div>
-                <div class="form-group">
-                    <label for="qb-booking-notes">備註 (選填)</label>
-                    <textarea id="qb-booking-notes" rows="2"></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="submit" id="quick-booking-submit-btn" class="cta-button">確認建立</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="room-control-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px;">
-        <div class="modal-header">
-            <h3>簡易控房 (民宿)</h3>
-            <button class="modal-close" data-target-modal="#room-control-modal">&times;</button>
+            </form>
         </div>
-        <form id="room-control-form">
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="rc-room-select">選擇房型</label>
-                    <select id="rc-room-select">
-                        <option value="all">所有房型</option>
-                        </select>
-                </div>
-                <div class="form-group">
-                    <label for="rc-date-range">選擇日期範圍</label>
-                    <input type="text" id="rc-date-range" placeholder="請選擇要開/關的日期">
-                </div>
-            </div>
-            <div class="modal-actions" style="flex-direction: row; gap: 10px;">
-                <button type="submit" id="rc-submit-close-btn" class="cta-button" data-status="Closed" style="background-color: var(--color-danger);">關閉房間</button>
-                <button type="submit" id="rc-submit-open-btn" class="cta-button" data-status="Open" style="background-color: var(--color-success);">開啟房間</button>
-            </div>
-        </form>
     </div>
-</div>
-
-
 
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
@@ -366,12 +390,11 @@
                 <p>正在載入資料...</p>
             </div>
             <div id="details-modal-actions" class="modal-actions">
-                </div>
+            </div>
         </div>
     </div>
 
-
-<div id="send-message-modal" class="modal-overlay">
+    <div id="send-message-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="send-message-modal-title">發送訊息</h3>
@@ -395,46 +418,40 @@
         </div>
     </div>
 
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    </body>
-</html>
-
-<div id="edit-customer-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="edit-customer-modal-title">編輯顧客資料</h3>
-            <button class="modal-close" data-target-modal="#edit-customer-modal">&times;</button>
+    <div id="edit-customer-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="edit-customer-modal-title">編輯顧客資料</h3>
+                <button class="modal-close" data-target-modal="#edit-customer-modal">&times;</button>
+            </div>
+            <form id="edit-customer-form">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-customer-user-id">
+                    <div class="form-group">
+                        <label for="edit-customer-phone">電話</label>
+                        <input type="tel" id="edit-customer-phone" placeholder="09開頭10碼手機">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-customer-notes">顧客備註</label>
+                        <textarea id="edit-customer-notes" rows="5" placeholder="記錄此顧客的特殊事項..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" id="edit-customer-submit-btn" class="cta-button">儲存變更</button>
+                </div>
+            </form>
         </div>
-        <form id="edit-customer-form">
-            <div class="modal-body">
-                <input type="hidden" id="edit-customer-user-id">
-                <div class="form-group">
-                    <label for="edit-customer-phone">電話</label>
-                    <input type="tel" id="edit-customer-phone" placeholder="09開頭10碼手機">
-                </div>
-                <div class="form-group">
-                    <label for="edit-customer-notes">顧客備註</label>
-                    <textarea id="edit-customer-notes" rows="5" placeholder="記錄此顧客的特殊事項..."></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="submit" id="edit-customer-submit-btn" class="cta-button">儲存變更</button>
-            </div>
-        </form>
     </div>
-</div>
-
-
-
 
     <nav id="owner-tab-bar">
         <button class="tab-button active" data-tab="activity">最新<br>動態</button>
-        <button class="tab-button" data-tab="calendar">日曆</button>
-        <button class="tab-button" data-tab="order">訂單</button>
-         <button class="tab-button" data-tab="customer">顧客<br>查詢</button> </nav>
+        <button class="tab-button" data-tab="booking">預約<br>管理</button>
+        <button class="tab-button" data-tab="room-control" style="display: none;">控房<br>管理</button> <button class="tab-button" data-tab="customer">顧客<br>查詢</button>
+    </nav>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script> <script src="owner-liff.js"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script>
+    <script src="owner-liff.js"></script>
 </body>
 </html>

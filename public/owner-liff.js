@@ -1,16 +1,16 @@
 // public/owner-liff.js
-// 【v6.3 - 修正 Bug (控房按鈕, 動態詳情) + 新增 (簡易顧客編輯)】
+// 【v6.4 - 合併 預約/訂單 Tab + 新增 控房管理 Tab】
 
 document.addEventListener('DOMContentLoaded', () => {
-    const myLiffId = "2008296713-vPAkV7xr";
+    const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
     let userId = null;
     let currentTemplate = null;
-    let flatpickrInstance = null;
+    let flatpickrInstance = null; // 日曆 Tab 的 Flatpickr
     let currentSelectedDate = new Date();
     let allMessageDrafts = [];
-    let allProducts = [];
+    let allProducts = []; // 【控房】需要讀取所有產品
     let currentHistoryState = { modal: null };
-    let currentEditingProfile = null; // 【新增】暫存正在編輯的顧客資料
+    let currentEditingProfile = null;
 
     // --- DOM 元素快取 ---
     const loadingView = document.getElementById('loading-view');
@@ -20,10 +20,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabBar = document.getElementById('owner-tab-bar');
     const tabContents = document.querySelectorAll('.tab-content');
     const activityListContent = document.getElementById('activity-list-content');
+    
+    // --- 【合併】預約管理 Tab ---
+    const bookingTabContent = document.getElementById('tab-content-booking');
+    const bookingViewSwitcher = bookingTabContent?.querySelector('.view-switcher');
+    const bookingViewCalendar = document.getElementById('booking-view-calendar');
+    const bookingViewList = document.getElementById('booking-view-list');
     const calendarPlaceholder = document.getElementById('calendar-placeholder');
     const selectedDateDisplay = document.getElementById('selected-date-display');
     const dailyCardsContainer = document.getElementById('daily-cards-container');
     const orderListContent = document.getElementById('order-list-content');
+    
+    // --- 【新增】控房管理 Tab ---
+    const roomControlTabContent = document.getElementById('tab-content-room-control');
+    const roomControlTabButton = document.querySelector('[data-tab="room-control"]');
+    let rcDateRangePicker = null; // 控房 Tab 的 Flatpickr
+    let currentRoomInventoryData = {}; // 控房 API 資料快取
+    let rcDisplayedDates = []; // 控房 表格顯示的日期
+    const weekdayShort = ["日", "一", "二", "三", "四", "五", "六"]; // 控房 輔助
+
+    // --- 顧客查詢 Tab ---
     const customerSearchResults = document.getElementById('customer-search-results');
     
     // --- 詳情 Modal ---
@@ -55,14 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const qbBookingItemSelect = document.getElementById('qb-booking-item');
     let qbDatePicker = null;
 
-    // --- 簡易控房 Modal ---
-    const roomControlModal = document.getElementById('room-control-modal');
-    const roomControlForm = document.getElementById('room-control-form');
-    const rcRoomSelect = document.getElementById('rc-room-select');
-    const rcDateRangeInput = document.getElementById('rc-date-range');
-    let rcDatePicker = null;
+    // --- 【刪除】簡易控房 Modal 相關變數 ---
+    // const roomControlModal = ... (已刪除)
+    // const roomControlForm = ... (已刪除)
+    // const rcRoomSelect = ... (已刪除)
+    // ...
 
-    // --- 【新增】簡易編輯顧客 Modal ---
+    // --- 簡易編輯顧客 Modal ---
     const editCustomerModal = document.getElementById('edit-customer-modal');
     const editCustomerForm = document.getElementById('edit-customer-form');
     const editCustomerModalTitle = document.getElementById('edit-customer-modal-title');
@@ -71,8 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const editCustomerNotes = document.getElementById('edit-customer-notes');
 
     // --- 樣板特定元素 ---
-    const calendarTabButton = document.querySelector('[data-tab="calendar"]');
-    const manageRoomsBtn = document.getElementById('manage-rooms-btn');
+    // const calendarTabButton = ... (已合併)
+    // const manageRoomsBtn = ... (已刪除)
     const ecommerceManageBtns = document.querySelector('.ecommerce-manage-buttons');
 
     // --- API 輔助函式 ---
@@ -146,8 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModal.style.display = 'none';
         sendMessageModal.style.display = 'none';
         quickBookingModal.style.display = 'none';
-        roomControlModal.style.display = 'none';
-        editCustomerModal.style.display = 'none'; // 【新增】
+        // roomControlModal.style.display = 'none'; // (已刪除)
+        editCustomerModal.style.display = 'none';
         currentHistoryState = { modal: null };
     }
 
@@ -169,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideModalProgrammatically();
     }
 
-    // --- Tab 切換邏輯 ---
+    // --- Tab 切換邏輯 (【v6.4 修改】) ---
     function switchTab(tabId) {
         tabBar.querySelectorAll('.tab-button').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabId);
@@ -179,23 +194,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         switch (tabId) {
-            case 'activity': loadActivities(); break;
-            case 'calendar':
-                if (!flatpickrInstance && calendarTabButton.style.display !== 'none') {
+            case 'activity': 
+                loadActivities(); 
+                break;
+            case 'booking':
+                // 預設載入日曆視圖
+                if (!flatpickrInstance) {
                     initializeCalendar();
-                } else if (calendarTabButton.style.display !== 'none') {
-                     loadDailyCards(currentSelectedDate);
+                } else {
+                    loadDailyCards(currentSelectedDate);
+                }
+                // 同時確保列表視圖的篩選器被重置 (可選)
+                // document.getElementById('order-filter-apply-btn')?.click(); // 或者只重置 UI
+                break;
+            case 'room-control':
+                // 首次切換時初始化控房頁面
+                if (!rcDateRangePicker) {
+                    initializeRoomControl();
                 }
                 break;
-            case 'order': loadOrderList(); break;
-             case 'customer':
+            case 'customer':
                 customerSearchResults.innerHTML = '';
                 document.getElementById('customer-search-input').value = '';
                 break;
         }
     }
 
-    // --- 主程式 (v6.2 邏輯) ---
+    // --- 預約 Tab 內部的視圖切換 (【v6.4 新增】) ---
+    function switchBookingView(viewName) {
+        if (!bookingViewCalendar || !bookingViewList || !bookingViewSwitcher) return;
+
+        bookingViewSwitcher.querySelectorAll('.view-switch-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === viewName);
+        });
+
+        bookingViewCalendar.classList.toggle('active', viewName === 'calendar');
+        bookingViewList.classList.toggle('active', viewName === 'list');
+
+        if (viewName === 'list' && orderListContent.innerHTML === '') {
+            // 如果列表是空的，自動載入一次
+            loadOrderList();
+        }
+        if (viewName === 'calendar' && !flatpickrInstance) {
+            // 如果日曆還沒初始化，初始化
+            initializeCalendar();
+        }
+    }
+
+
+    // --- 主程式 (v6.3 邏輯) ---
     async function main() {
         try {
             await liff.init({ liffId: myLiffId });
@@ -212,11 +259,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userId })
                 }),
-                fetchData('/api/get-products'),
+                fetchData('/api/get-products'), // 【控房】需要產品資料
                 fetchData('/api/get-app-config')
             ]);
             
-            allProducts = productsResponse || [];
+            allProducts = productsResponse || []; // 【控房】儲存產品資料
             console.log(`[Main] 載入了 ${allProducts.length} 個產品項目。`);
 
             if(configResponse && configResponse.LOGIC) {
@@ -255,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 初始化 App UI (v6.2 邏輯) ---
+    // --- 初始化 App UI (【v6.4 修改】) ---
     function initializeAppUI(template) {
         appHeaderTitle.textContent = "商家管理面板"; 
 
@@ -263,44 +310,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const features = templateDefinition?.features || {};
 
         if (template === 'ecommerce_template') {
-            calendarTabButton.style.display = 'none';
-            manageRoomsBtn.style.display = 'none';
+            // 電商：隱藏「預約管理」和「控房管理」
+            document.querySelector('[data-tab="booking"]').style.display = 'none';
+            if (roomControlTabButton) roomControlTabButton.style.display = 'none';
+            // 顯示電商按鈕
             ecommerceManageBtns.style.display = 'flex';
         } else {
-            calendarTabButton.style.display = '';
+            // 非電商：顯示「預約管理」，隱藏電商按鈕
+            document.querySelector('[data-tab="booking"]').style.display = '';
             ecommerceManageBtns.style.display = 'none';
             
+            // 檢查是否為民宿且啟用了控房功能
             if (template === 'guesthouse_template' && features.OWNER_LIFF_ENABLE_ROOM_CONTROL === true) {
-                manageRoomsBtn.style.display = 'block';
-                console.log("[initializeAppUI] 顯示簡易控房按鈕 (v6.2 logic)");
+                if (roomControlTabButton) roomControlTabButton.style.display = ''; // 顯示「控房管理」Tab
+                console.log("[initializeAppUI] 顯示 控房管理 Tab (v6.4 logic)");
             } else {
-                manageRoomsBtn.style.display = 'none';
-                console.log(`[initializeAppUI] 隱藏簡易控房按鈕 (Template: ${template}, Feature: ${features.OWNER_LIFF_ENABLE_ROOM_CONTROL}) (v6.2 logic)`);
+                if (roomControlTabButton) roomControlTabButton.style.display = 'none'; // 隱藏「控房管理」Tab
+                console.log(`[initializeAppUI] 隱藏 控房管理 Tab (Template: ${template}, Feature: ${features.OWNER_LIFF_ENABLE_ROOM_CONTROL}) (v6.4 logic)`);
             }
         }
     }
 
-    // --- 事件綁定 (【v6.3 修正】) ---
+    // --- 事件綁定 (【v6.4 修改】) ---
     function setupEventListeners() {
         window.addEventListener('popstate', handlePopState);
+        
+        // Tab Bar
         tabBar.addEventListener('click', (e) => {
             const button = e.target.closest('.tab-button');
             if (button && button.dataset.tab) { switchTab(button.dataset.tab); }
+        });
+
+        // 【新增】預約管理 Tab 內部的視圖切換
+        bookingViewSwitcher?.addEventListener('click', (e) => {
+            const button = e.target.closest('.view-switch-btn');
+            if (button && button.dataset.view) {
+                switchBookingView(button.dataset.view);
+            }
         });
 
         // Modal 關閉按鈕
         detailsModalCloseBtn.addEventListener('click', () => { updateHistoryState('details', 'close'); });
         sendMessageModalCloseBtn.addEventListener('click', () => { updateHistoryState('send-message', 'close'); });
         quickBookingModal.querySelector('.modal-close').addEventListener('click', () => { updateHistoryState('quick-booking', 'close'); });
-        roomControlModal.querySelector('.modal-close').addEventListener('click', () => { updateHistoryState('room-control', 'close'); });
-        editCustomerModal.querySelector('.modal-close').addEventListener('click', () => { updateHistoryState('edit-customer', 'close'); }); // 【新增】
+        // roomControlModal... (已刪除)
+        editCustomerModal.querySelector('.modal-close').addEventListener('click', () => { updateHistoryState('edit-customer', 'close'); });
 
         // 訊息 Modal
         messageDraftSelect.addEventListener('change', (e) => {
             if (e.target.value) { directMessageContent.value = e.target.value; }
         });
 
-        // 列表點擊 (v6.2 邏輯)
+        // 列表點擊
         activityListContent.addEventListener('click', (e) => {
             const card = e.target.closest('.activity-card');
             if (card && card.dataset.id && card.dataset.type) {
@@ -337,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 功能按鈕
         document.getElementById('go-to-admin-panel-btn')?.addEventListener('click', generateAndOpenAdminLink);
         quickActionBtn.addEventListener('click', openQuickBookingModal);
-        manageRoomsBtn.addEventListener('click', openRoomControlModal);
+        // manageRoomsBtn... (已刪除)
         
         // 快速預約表單
         qbCustomerSearchInput.addEventListener('input', handleCustomerSearchInput);
@@ -345,19 +406,18 @@ document.addEventListener('DOMContentLoaded', () => {
         qbCustomerChangeBtn.addEventListener('click', resetCustomerSearch);
         quickBookingForm.addEventListener('submit', handleQuickBookingSubmit);
         
-        // 簡易控房表單
-        roomControlForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const status = e.submitter.dataset.status;
-            handleRoomControlSubmit(status);
-        });
+        // 【刪除】簡易控房表單
+        // roomControlForm.addEventListener('submit', ...);
         
-        // 【新增】編輯顧客表單
+        // 【新增】控房管理 Tab 的事件綁定 (在 initializeRoomControl 中處理)
+
+        // 編輯顧客表單
         editCustomerForm.addEventListener('submit', handleEditCustomerSubmit);
     }
 
-    // --- 數據加載與渲染 (v6.2 邏輯) ---
+    // --- 數據加載與渲染 (v6.3 邏輯) ---
     async function loadActivities() {
+        // ... (保持不變) ...
         activityListContent.innerHTML = '<p>正在載入動態...</p>';
         try {
             const activities = await fetchData('/api/admin/activities');
@@ -391,6 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
     async function initializeCalendar() {
+        // ... (保持不變) ...
         calendarPlaceholder.innerHTML = '';
         let eventsMarkDates = [];
         try {
@@ -422,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     function markCalendarDates(calendarInstance, datesToMark) {
+        // ... (保持不變) ...
         if (!calendarInstance || !datesToMark || datesToMark.length === 0) return;
         calendarInstance.calendarContainer.querySelectorAll('.has-event').forEach(day => day.classList.remove('has-event'));
         datesToMark.forEach(dateStr => {
@@ -430,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     async function loadDailyCards(date) {
+        // ... (保持不變) ...
         dailyCardsContainer.innerHTML = '<p>正在載入今日事項...</p>';
         const dateStr = date.toISOString().split('T')[0];
         let apiUrl = '';
@@ -473,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
     async function loadOrderList() {
+        // ... (保持不變) ...
         orderListContent.innerHTML = '<p>正在載入列表...</p>';
         let apiUrl = '';
         const search = document.getElementById('order-search-input').value;
@@ -522,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
      async function searchCustomers() {
+        // ... (保持不變) ...
         const query = document.getElementById('customer-search-input').value.trim();
         customerSearchResults.innerHTML = '<p>搜尋中...</p>';
         if (query.length < 1) {
@@ -543,9 +608,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
      }
 
-     // --- Modal 內容生成與操作 ---
-     // (openDetailsModal - v6.2 邏輯)
+     // --- Modal 內容生成與操作 (v6.3 邏輯) ---
      async function openDetailsModal(type, id) {
+        // ... (保持不變) ...
         showModal('載入中...', '<p>正在獲取詳細資料...</p>');
         try {
             let title = '', bodyHtml = '', actionsHtml = '';
@@ -590,16 +655,12 @@ document.addEventListener('DOMContentLoaded', () => {
              showModal('錯誤', `<p style="color: var(--color-danger);">載入詳細資料失敗：${error.message}</p>`);
         }
      }
-     
-     // (openCustomerDetailsModal - 已修正)
      async function openCustomerDetailsModal(targetUserId) {
+        // ... (保持不變) ...
          showModal('載入中...', '<p>正在獲取顧客資料...</p>');
          try {
              const data = await fetchData(`/api/admin/user-details?userId=${targetUserId}`);
-             
-             // 【新增】將 profile 存到暫存變數
              currentEditingProfile = data.profile; 
-
              const title = `顧客: ${data.profile.nickname || data.profile.line_display_name}`;
              const bodyHtml = renderCustomerDetailsBody(data);
              const actionsHtml = renderCustomerActions(data.profile);
@@ -609,9 +670,8 @@ document.addEventListener('DOMContentLoaded', () => {
               showModal('錯誤', `<p style="color: var(--color-danger);">載入顧客資料失敗：${error.message}</p>`);
          }
      }
-     
-     // (renderBookingDetailsBody - v6.2 邏輯)
      function renderBookingDetailsBody(details) {
+        // ... (保持不變) ...
          const { booking, items, user } = details;
          let html = `
              <h4>預約資訊</h4>
@@ -634,9 +694,8 @@ document.addEventListener('DOMContentLoaded', () => {
              `;
          return html;
      }
-     
-     // (renderOrderDetailsBody - v6.2 邏輯)
      function renderOrderDetailsBody(details) {
+        // ... (保持不變) ...
          const { order, items, user } = details;
           let html = `
              <h4>訂單資訊</h4>
@@ -657,9 +716,8 @@ document.addEventListener('DOMContentLoaded', () => {
          `;
          return html;
      }
-     
-     // (renderCustomerDetailsBody - v6.2 邏輯)
     function renderCustomerDetailsBody(data) {
+        // ... (保持不變) ...
          const { profile, bookings, exp_history } = data;
          let html = `
              <h4>基本資料</h4>
@@ -678,9 +736,8 @@ document.addEventListener('DOMContentLoaded', () => {
          `;
          return html;
      }
-
-     // (renderBookingActions - v6.2 邏輯)
      function renderBookingActions(booking, user) {
+        // ... (保持不變) ...
          let actions = [];
          if (currentTemplate === 'studio_template') {
              if (booking.status === 'confirmed') {
@@ -698,9 +755,8 @@ document.addEventListener('DOMContentLoaded', () => {
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${booking.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
-     
-     // (renderOrderActions - v6.2 邏輯)
      function renderOrderActions(order, user) {
+        // ... (保持不變) ...
           let actions = [];
          if (currentTemplate === 'ecommerce_template') {
             if (order.status === 'pending') {
@@ -714,25 +770,22 @@ document.addEventListener('DOMContentLoaded', () => {
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${order.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
-
-     // (renderCustomerActions 【v6.3 修正】)
      function renderCustomerActions(profile) {
+        // ... (保持不變) ...
           const targetName = profile.nickname || profile.line_display_name;
           return `
             <button class="cta-button" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
             <button class="cta-button" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>
           `;
      }
-
-     // (bindModalActions - 保持不變)
      function bindModalActions() {
+        // ... (保持不變) ...
          detailsModalActions.querySelectorAll('button').forEach(button => {
              button.addEventListener('click', handleModalAction);
          });
      }
-     
-     // (handleModalAction 【v6.3 修正】)
      async function handleModalAction(event) {
+        // ... (保持不變) ...
          const button = event.target;
          const action = button.dataset.action;
          const id = button.dataset.id;
@@ -744,13 +797,11 @@ document.addEventListener('DOMContentLoaded', () => {
          try {
              switch (action) {
                  case 'check-in':
-                     // ... (保持不變) ...
                      await fetchData('/api/update-booking-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: Number(id), status: 'checked-in' }) });
                      alert('狀態已更新！'); updateHistoryState('details', 'close');
                      switchTab(document.querySelector('#owner-tab-bar .active').dataset.tab);
                      break;
                  case 'cancel':
-                     // ... (保持不變) ...
                      if (confirm('確定要取消此預約嗎？')) {
                          await fetchData('/api/update-booking-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId: Number(id), status: 'cancelled' }) });
                          alert('預約已取消！'); updateHistoryState('details', 'close');
@@ -760,12 +811,10 @@ document.addEventListener('DOMContentLoaded', () => {
                      }
                      break;
                  case 'ship':
-                     // ... (保持不變) ...
                      alert('訂單已標示為已出貨！(模擬)'); updateHistoryState('details', 'close');
                      switchTab(document.querySelector('#owner-tab-bar .active').dataset.tab);
                      break;
                  case 'cancel-order':
-                     // ... (保持不變) ...
                      if (confirm('確定要取消此訂單嗎？')) {
                          alert('訂單已取消！(模擬)'); updateHistoryState('details', 'close');
                          switchTab(document.querySelector('#owner-tab-bar .active').dataset.tab);
@@ -774,19 +823,15 @@ document.addEventListener('DOMContentLoaded', () => {
                      }
                      break;
                  case 'send-message':
-                      // ... (保持不變) ...
                       await openSendMessageModal(targetUserId, targetName);
                       button.disabled = false; button.textContent = '發送訊息';
                       updateHistoryState('details', 'close');
                       break;
-                 
-                 // 【新增】
                  case 'edit-customer':
-                     await openEditCustomerModal(); // 使用暫存的 profile
+                     await openEditCustomerModal();
                      button.disabled = false; button.textContent = '編輯資料';
                      updateHistoryState('details', 'close');
                      break;
-
                  default:
                      console.warn('未知的 Modal 操作:', action);
                      button.disabled = false; button.textContent = '未知操作';
@@ -795,19 +840,17 @@ document.addEventListener('DOMContentLoaded', () => {
              alert(`[handleModalAction Error] ${error.message}\n\nAction: ${action}\nStack: ${error.stack}`);
              alert(`操作失敗：${error.message}`);
              button.disabled = false;
-             // ... (恢復按鈕文字的邏輯保持不變) ...
              if (action === 'check-in') button.textContent = '標記報到/入住';
              else if (action === 'cancel') button.textContent = '取消預約';
              else if (action === 'ship') button.textContent = '標示已出貨';
              else if (action === 'cancel-order') button.textContent = '取消訂單';
              else if (action === 'send-message') button.textContent = '發送訊息';
-             else if (action === 'edit-customer') button.textContent = '編輯資料'; // 【新增】
+             else if (action === 'edit-customer') button.textContent = '編輯資料';
              else button.textContent = '操作失敗';
          }
      }
-    
-    // (openSendMessageModal, handleSendMessageSubmit - 保持不變)
     async function openSendMessageModal(targetUserId, targetName) {
+        // ... (保持不變) ...
         if (!sendMessageModal || !messageDraftSelect || !directMessageContent || !sendMessageSubmitBtn) {
             alert('訊息介面初始化失敗！'); return;
         }
@@ -840,6 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     async function handleSendMessageSubmit(event) {
+        // ... (保持不變) ...
         const button = event.target;
         const targetUserId = button.dataset.userId;
         const message = directMessageContent.value.trim();
@@ -864,8 +908,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // (快速預約相關功能 - 保持不變)
+    // --- 快速預約相關功能 (v6.3 邏輯) ---
     function openQuickBookingModal() {
+        // ... (保持不變) ...
         console.log("開啟快速預約 Modal...");
         quickBookingForm.reset();
         resetCustomerSearch();
@@ -893,6 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHistoryState('quick-booking', 'open');
     }
     async function handleCustomerSearchInput(e) {
+        // ... (保持不變) ...
         const query = e.target.value.trim();
         qbCustomerSearchResults.innerHTML = '';
         if (query.length < 1) {
@@ -919,6 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function handleCustomerSelect(e) {
+        // ... (保持不變) ...
         const item = e.target.closest('.customer-result-item');
         if (!item) return;
         const userId = item.dataset.userId;
@@ -932,6 +979,7 @@ document.addEventListener('DOMContentLoaded', () => {
         qbCustomerSelectedView.style.display = 'block';
     }
     function resetCustomerSearch() {
+        // ... (保持不變) ...
         qbCustomerSelectedId.value = '';
         qbCustomerSelectedName.textContent = '';
         qbContactPhone.value = '';
@@ -941,6 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
         qbCustomerSelectedView.style.display = 'none';
     }
     async function handleQuickBookingSubmit(e) {
+        // ... (保持不變) ...
         e.preventDefault();
         const button = document.getElementById('quick-booking-submit-btn');
         button.disabled = true;
@@ -981,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 numOfPeople: parseInt(numOfPeople, 10),
                 totalAmount: totalAmount,
                 notes: document.getElementById('qb-booking-notes').value.trim() || null,
-                items: [ { name: product.name, qty: 1, price: price } ]
+                items: [ { name: product.name, qty: 1, price: price } ] // 注意：這裡是 name, qty, price
             };
             await fetchData('/api/admin/create-booking', {
                 method: 'POST',
@@ -998,80 +1047,8 @@ document.addEventListener('DOMContentLoaded', () => {
             button.textContent = '確認建立';
         }
     }
-    
-    // (簡易控房相關功能 - v6.2 邏輯)
-    function openRoomControlModal() {
-        console.log("開啟簡易控房 Modal...");
-        roomControlForm.reset();
-        rcRoomSelect.innerHTML = '<option value="all">所有房型</option>';
-        const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-        const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
-        const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
-        const roomProducts = allProducts.filter(p => p.category === roomCategory);
-        if(roomProducts.length > 0) {
-            roomProducts.forEach(p => { rcRoomSelect.add(new Option(p.name, p.product_id)); });
-        } else {
-             console.warn(`[RoomControl] 找不到分類為 "${roomCategory}" 的房型，將顯示所有產品`);
-             allProducts.forEach(p => { rcRoomSelect.add(new Option(p.name, p.product_id)); });
-        }
-        if (rcDatePicker) rcDatePicker.destroy();
-        rcDatePicker = flatpickr("#rc-date-range", {
-            mode: "range",
-            dateFormat: "Y-m-d",
-            locale: "zh_tw",
-            minDate: "today"
-        });
-        roomControlModal.style.display = 'flex';
-        updateHistoryState('room-control', 'open');
-    }
-    async function handleRoomControlSubmit(newStatus) {
-        const button = (newStatus === 'Open') ? document.getElementById('rc-submit-open-btn') : document.getElementById('rc-submit-close-btn');
-        const otherButton = (newStatus === 'Open') ? document.getElementById('rc-submit-close-btn') : document.getElementById('rc-submit-open-btn');
-        button.disabled = true;
-        otherButton.disabled = true;
-        button.textContent = '處理中...';
-        try {
-            const selectedProductId = rcRoomSelect.value;
-            const selectedDates = rcDatePicker.selectedDates;
-            if (selectedDates.length < 2) { throw new Error('請選擇一個有效的日期範圍'); }
-            const startDate = flatpickr.formatDate(selectedDates[0], "Y-m-d");
-            const endDate = flatpickr.formatDate(selectedDates[1], "Y-m-d");
-            const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-            const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
-            const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
-            const productIdsToUpdate = (selectedProductId === 'all') 
-                ? allProducts.filter(p => p.category === roomCategory).map(p => p.product_id)
-                : [selectedProductId];
-            if (productIdsToUpdate.length === 0) { throw new Error("找不到要更新的房型"); }
-            const payload = {
-                startDate: startDate,
-                endDate: endDate,
-                weekdays: [0, 1, 2, 3, 4, 5, 6],
-                updateValues: { status: newStatus }
-            };
-            const apiCalls = productIdsToUpdate.map(pid => {
-                return fetchData('/api/admin/update-room-inventory', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...payload, productId: pid })
-                });
-            });
-            await Promise.all(apiCalls);
-            alert(`成功將 ${productIdsToUpdate.length} 個房型在 ${startDate} 到 ${endDate} 期間標記為「${newStatus === 'Open' ? '開啟' : '關閉'}」`);
-            updateHistoryState('room-control', 'close');
-            if (flatpickrInstance) { loadDailyCards(currentSelectedDate); }
-        } catch (error) {
-             alert(`[RoomControl Error] 控房失敗: ${error.message}\n\nStack: ${error.stack}`);
-        } finally {
-            button.disabled = false;
-            otherButton.disabled = false;
-            button.textContent = (newStatus === 'Open') ? '開啟房間' : '關閉房間';
-            otherButton.textContent = (newStatus === 'Open') ? '關閉房間' : '開啟房間';
-        }
-    }
-    
-    // (getPriceForDate - 保持不變)
     function getPriceForDate(dateString, product) {
+        // ... (保持不變) ...
         if (!dateString || !product) return product?.price_weekday || null;
         const date = new Date(dateString + 'T00:00:00');
         const dayOfWeek = date.getDay();
@@ -1084,64 +1061,367 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 【新增】簡易編輯顧客功能 ---
+    // --- 【刪除】簡易控房相關功能 ---
+    // function openRoomControlModal() { ... }
+    // async function handleRoomControlSubmit(newStatus) { ... }
+
+    // --- 【新增】控房管理 Tab (v6.4) ---
+    
+    // 輔助：獲取日期範圍 (從 admin 複製)
+    function getRcDateRange(startDateStr, endDateStr) {
+        const dates = [];
+        let currentDate = new Date(startDateStr + 'T00:00:00');
+        const endDate = new Date(endDateStr + 'T00:00:00');
+        while (currentDate <= endDate) {
+            dates.push(currentDate.toISOString().split('T')[0]);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
+    }
+    
+    // 輔助：計算格子樣式 (從 admin 複製並簡化)
+    function calculateCellVisuals(status, quantity, price) {
+        let bgColor = 'var(--color-card-bg)'; // 預設
+        let tooltip = '';
+        let iconHtml = '';
+        let buttonBgColor = '';
+        let buttonText = '';
+        let buttonTextColor = 'white';
+
+        if (status === 'Open') {
+            const isValidPrice = (price !== null && price !== undefined && price > 0);
+            if (quantity > 0) {
+                if (isValidPrice) {
+                    tooltip = `可預訂 (${quantity} 間, $${price})`;
+                    buttonBgColor = 'var(--color-success, green)';
+                    buttonText = '開啟';
+                } else {
+                    const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
+                    tooltip = `${reason} (${quantity} 間可用)`;
+                    iconHtml = `<span class="rc-price-warning" title="${reason}">!</span>`;
+                    bgColor = 'rgba(255, 193, 7, 0.3)'; // 黃色背景
+                    buttonBgColor = 'var(--color-success, green)';
+                    buttonText = '開啟';
+                }
+            } else {
+                tooltip = '已售罄';
+                buttonBgColor = 'var(--color-warning, #ffc107)';
+                buttonText = '售完';
+                buttonTextColor = 'var(--color-text-dark, #212529)';
+                if (!isValidPrice) {
+                     const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
+                     tooltip += ` (${reason})`;
+                     iconHtml = `<span class="rc-price-warning" title="${reason}">!</span>`;
+                     bgColor = 'rgba(255, 193, 7, 0.3)';
+                }
+            }
+        } else { // status === 'Closed'
+            tooltip = '房間關閉';
+            bgColor = 'rgba(220, 53, 69, 0.3)'; // 紅色背景
+            buttonBgColor = 'var(--color-danger, red)';
+            buttonText = '關閉';
+        }
+        return { bgColor, tooltip, iconHtml, buttonBgColor, buttonText, buttonTextColor };
+    }
+
+    // 初始化控房 Tab
+    function initializeRoomControl() {
+        const dateInput = document.getElementById('rc-date-range-picker');
+        const loadBtn = document.getElementById('rc-load-grid-btn');
+        const gridContainer = document.getElementById('rc-grid-container');
+
+        if (!dateInput || !loadBtn || !gridContainer) {
+            console.error("控房 Tab缺少必要元素");
+            return;
+        }
+
+        // 1. 初始化日期選擇器
+        rcDateRangePicker = flatpickr(dateInput, {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            locale: "zh_tw",
+            defaultDate: [new Date(), new Date(new Date().setDate(new Date().getDate() + 14))] // 預設選取今天到未來 14 天
+        });
+
+        // 2. 綁定載入按鈕
+        loadBtn.addEventListener('click', loadRoomControlGrid);
+
+        // 3. 綁定格線事件 (使用事件委派)
+        gridContainer.addEventListener('click', (e) => handleRoomGridEvent(e, 'click'));
+        gridContainer.addEventListener('change', (e) => handleRoomGridEvent(e, 'change')); // 用於 input
+
+        // 4. 首次載入
+        loadRoomControlGrid();
+    }
+
+    // 載入控房格線資料
+    async function loadRoomControlGrid() {
+        const gridContainer = document.getElementById('rc-grid-container');
+        const loadBtn = document.getElementById('rc-load-grid-btn');
+        if (!rcDateRangePicker || !gridContainer || !loadBtn) return;
+        
+        const dateRange = rcDateRangePicker.selectedDates;
+        if (dateRange.length < 2) {
+            alert("請選擇一個有效的日期範圍");
+            return;
+        }
+
+        const startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
+        const endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
+
+        rcDisplayedDates = getRcDateRange(startDate, endDate);
+        
+        if (rcDisplayedDates.length > 90) { // 限制查詢天數
+            alert("日期範圍過大，請選擇 90 天以內的範圍");
+            return;
+        }
+
+        gridContainer.innerHTML = '<p>正在載入房況資料...</p>';
+        loadBtn.disabled = true;
+
+        try {
+            const params = new URLSearchParams({ startDate, endDate });
+            currentRoomInventoryData = await fetchData(`/api/admin/get-room-inventory?${params.toString()}`);
+            renderRoomControlGrid();
+        } catch (error) {
+            gridContainer.innerHTML = `<p style="color:red;">載入房況失敗: ${error.message}</p>`;
+        } finally {
+            loadBtn.disabled = false;
+        }
+    }
+
+    // 渲染控房格線
+    function renderRoomControlGrid() {
+        const container = document.getElementById('rc-grid-container');
+        if (!container) return;
+        
+        // 篩選出民宿房型 (假設使用 "房型" 分類)
+        const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+        const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
+        const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
+        const productsToRender = allProducts.filter(p => p.category === roomCategory);
+
+        if (productsToRender.length === 0 || rcDisplayedDates.length === 0) {
+            container.innerHTML = '<p>沒有可顯示的房型或日期。</p>';
+            return;
+        }
+
+        let tableHtml = '<table class="rc-table">';
+        // 表頭 (日期)
+        tableHtml += '<thead><tr><th>房型</th>';
+        rcDisplayedDates.forEach(dateStr => {
+            const date = new Date(dateStr + 'T00:00:00');
+            const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+            const dayOfWeek = weekdayShort[date.getDay()];
+            tableHtml += `<th>${monthDay}<br>${dayOfWeek}</th>`;
+        });
+        tableHtml += '</tr></thead>';
+
+        // 表格內容
+        tableHtml += '<tbody>';
+        productsToRender.forEach(product => {
+            tableHtml += `<tr><td>${product.name}</td>`; // 房型名稱
+            rcDisplayedDates.forEach(dateStr => {
+                const inventory = currentRoomInventoryData[product.product_id]?.[dateStr];
+                const status = inventory?.status || 'Closed';
+                const quantity = inventory?.quantity_available ?? 0;
+                const price = inventory?.base_price;
+                const priceText = (price === null || price === undefined) ? '' : String(price);
+
+                const visuals = calculateCellVisuals(status, quantity, price);
+
+                tableHtml += `
+                    <td style="background-color: ${visuals.bgColor};" data-product-id="${product.product_id}" data-date="${dateStr}" title="${visuals.tooltip}">
+                        <button class="rc-status-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}" 
+                                data-status="${status}"
+                                style="background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};">
+                            ${visuals.buttonText}
+                        </button>
+                        <input type="number" class="rc-quantity-input" value="${quantity}" min="0" ${status === 'Closed' ? 'disabled' : ''}>
+                        <input type="number" class="rc-price-input" value="${priceText}" placeholder="預設" min="0" ${status === 'Closed' ? 'disabled' : ''}>
+                        ${visuals.iconHtml}
+                    </td>`;
+            });
+            tableHtml += `</tr>`;
+        });
+        tableHtml += '</tbody></table>';
+        container.innerHTML = tableHtml;
+    }
+
+    // 處理控房格線的事件
+    async function handleRoomGridEvent(e, eventType) {
+        const target = e.target;
+        const cell = target.closest('td[data-product-id][data-date]');
+        if (!cell) return;
+
+        const productId = cell.dataset.productId;
+        const date = cell.dataset.date;
+        let payload = { updates: [] };
+        let updateType = '';
+
+        try {
+            if (eventType === 'click' && target.classList.contains('rc-status-btn')) {
+                // --- 1. 點擊狀態按鈕 ---
+                target.disabled = true;
+                target.textContent = '...';
+                const currentStatus = target.dataset.status;
+                const newStatus = currentStatus === 'Open' ? 'Closed' : 'Open';
+                payload.updates.push({ productId, date, status: newStatus });
+                updateType = 'status';
+
+            } else if (eventType === 'change' && (target.classList.contains('rc-quantity-input') || target.classList.contains('rc-price-input'))) {
+                // --- 2. 修改數量或價格 ---
+                const qtyInput = cell.querySelector('.rc-quantity-input');
+                const priceInput = cell.querySelector('.rc-price-input');
+                
+                const quantity = parseInt(qtyInput.value, 10);
+                const priceStr = priceInput.value.trim();
+                const price = (priceStr === '') ? null : parseInt(priceStr, 10);
+
+                if (isNaN(quantity) || quantity < 0) {
+                    alert('數量必須是有效的非負整數');
+                    qtyInput.value = currentRoomInventoryData[productId]?.[date]?.quantity_available ?? 0; // 恢復原值
+                    return;
+                }
+                if (priceStr !== '' && (isNaN(price) || price < 0)) {
+                    alert('價格必須是有效的非負數字，或留空使用預設價');
+                    const oldPrice = currentRoomInventoryData[productId]?.[date]?.base_price;
+                    priceInput.value = (oldPrice === null || oldPrice === undefined) ? '' : oldPrice; // 恢復原值
+                    return;
+                }
+                
+                // 兩種輸入框都更新，所以一次發送
+                payload.updates.push({ productId, date, quantity: quantity, price: price });
+                updateType = 'inputs';
+            } else {
+                return; // 不是目標事件
+            }
+
+            // --- 呼叫 API ---
+            await fetchData('/api/admin/update-room-inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // --- API 成功後，更新本地快取和 UI ---
+            const updatedData = payload.updates[0];
+            if (!currentRoomInventoryData[productId]) currentRoomInventoryData[productId] = {};
+            if (!currentRoomInventoryData[productId][date]) currentRoomInventoryData[productId][date] = {};
+            
+            if (updateType === 'status') {
+                currentRoomInventoryData[productId][date].status = updatedData.status;
+            }
+            if (updateType === 'inputs') {
+                currentRoomInventoryData[productId][date].quantity_available = updatedData.quantity;
+                currentRoomInventoryData[productId][date].base_price = updatedData.price;
+            }
+
+            // 重新渲染該格
+            updateCellVisuals(cell);
+
+        } catch (error) {
+            alert(`更新失敗: ${error.message}`);
+            // 失敗時，重新渲染格線以恢復到 API 的狀態
+            renderRoomControlGrid();
+        } finally {
+            if (updateType === 'status') {
+                target.disabled = false; // 恢復按鈕
+            }
+        }
+    }
+
+    // 輔助：只更新單一格的 UI (從 admin 複製)
+    function updateCellVisuals(cell) {
+        if (!cell) return;
+        const productId = cell.dataset.productId;
+        const date = cell.dataset.date;
+        
+        const inventory = currentRoomInventoryData[productId]?.[date];
+        const status = inventory?.status || 'Closed';
+        const quantity = inventory?.quantity_available ?? 0;
+        const price = inventory?.base_price;
+        const priceText = (price === null || price === undefined) ? '' : String(price);
+
+        const visuals = calculateCellVisuals(status, quantity, price);
+
+        cell.style.backgroundColor = visuals.bgColor;
+        cell.title = visuals.tooltip;
+
+        const statusBtn = cell.querySelector('.rc-status-btn');
+        const qtyInput = cell.querySelector('.rc-quantity-input');
+        const priceInput = cell.querySelector('.rc-price-input');
+        
+        if(statusBtn) {
+            statusBtn.dataset.status = status;
+            statusBtn.style.backgroundColor = visuals.buttonBgColor;
+            statusBtn.style.color = visuals.buttonTextColor;
+            statusBtn.textContent = visuals.buttonText;
+            statusBtn.className = `rc-status-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}`;
+        }
+        if(qtyInput) {
+            qtyInput.value = quantity;
+            qtyInput.disabled = (status === 'Closed');
+        }
+        if(priceInput) {
+            priceInput.value = priceText;
+            priceInput.disabled = (status === 'Closed');
+        }
+        
+        let iconSpan = cell.querySelector('.rc-price-warning');
+        if (visuals.iconHtml) {
+            if (!iconSpan) {
+                iconSpan = document.createElement('span');
+                priceInput.parentNode.insertBefore(iconSpan, priceInput.nextSibling);
+            }
+            iconSpan.outerHTML = visuals.iconHtml;
+        } else if (iconSpan) {
+            iconSpan.remove();
+        }
+    }
+
+    // --- 編輯顧客功能 (v6.3 邏輯) ---
     function openEditCustomerModal() {
+        // ... (保持不變) ...
         if (!currentEditingProfile) {
             alert("錯誤：找不到要編輯的顧客資料。");
             return;
         }
-        
         editCustomerModalTitle.textContent = `編輯: ${currentEditingProfile.nickname || currentEditingProfile.line_display_name}`;
         editCustomerUserId.value = currentEditingProfile.user_id;
         editCustomerPhone.value = currentEditingProfile.phone || '';
         editCustomerNotes.value = currentEditingProfile.notes || '';
-        
         editCustomerModal.style.display = 'flex';
         updateHistoryState('edit-customer', 'open');
     }
-
     async function handleEditCustomerSubmit(e) {
+        // ... (保持不變) ...
         e.preventDefault();
         const button = document.getElementById('edit-customer-submit-btn');
         button.disabled = true;
         button.textContent = '儲存中...';
-
         const userId = editCustomerUserId.value;
         const phone = editCustomerPhone.value.trim();
         const notes = editCustomerNotes.value.trim();
-
         try {
-            // 驗證電話 (如果有填)
             if (phone && !/^09\d{8}$/.test(phone)) {
                  throw new Error('請輸入正確的 10 碼手機號碼 (09開頭)，或留空');
             }
-            
-            const payload = {
-                userId: userId,
-                phone: phone || null, // 傳送 null 或空字串
-                notes: notes || null  // 傳送 null 或空字串
-            };
-
+            const payload = { userId: userId, phone: phone || null, notes: notes || null };
             const result = await fetchData('/api/admin/update-user-details', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            
             alert('顧客資料更新成功！');
             updateHistoryState('edit-customer', 'close');
-
-            // 【重要】更新完後，重新渲染詳情 Modal
-            // 我們使用 API 回傳的 updatedUser (如果有的話) 或手動更新
             if (result.updatedUser) {
                 currentEditingProfile = result.updatedUser;
             } else {
                 currentEditingProfile.phone = phone || null;
                 currentEditingProfile.notes = notes || null;
             }
-            // 重新打開 "詳情" Modal (會自動讀取 currentEditingProfile)
             openCustomerDetailsModal(userId);
-
         } catch (error) {
             alert(`[EditCustomer Error] 儲存失敗: ${error.message}`);
         } finally {
@@ -1150,8 +1430,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // (generateAndOpenAdminLink - 保持不變)
+    // --- (generateAndOpenAdminLink - 保持不變) ---
     async function generateAndOpenAdminLink() {
+        // ... (保持不變) ...
         const adminPanelBtn = document.getElementById('go-to-admin-panel-btn');
         adminPanelBtn.disabled = true;
         adminPanelBtn.textContent = '正在產生安全連結...';

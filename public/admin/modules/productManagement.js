@@ -57,10 +57,14 @@ function createFormField(field) {
     formGroup.className = 'form-group';
     const label = document.createElement('label');
     label.htmlFor = `edit-product-${field.key}`;
-    label.textContent = field.label + (field.required ? ' (必填)' : '');
+    label.textContent = field.label + (field.required ? ' (填)' : '');
     formGroup.appendChild(label);
 
-// --- 價格欄位處理 (保持不變) ---
+    if (field.key === 'images') {
+         // 這個欄位由 #edit-product-image-section 動態區塊處理
+         // 我們不應該在這裡為它建立一個單獨的輸入框
+         return null; 
+    }
     if (field.key === 'price') {
         return null;
     }

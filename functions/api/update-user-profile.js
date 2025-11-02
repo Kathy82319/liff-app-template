@@ -1,6 +1,3 @@
-// functions/api/update-user-profile.js
-
-
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'POST') {
@@ -8,9 +5,10 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json();
-    const { userId, realName, nickname, phone, email, preferredproduct, displayName, pictureUrl } = body;
+    // 【修正】移除 preferredproduct
+    const { userId, realName, nickname, phone, email, displayName, pictureUrl } = body;
 
-    // --- 【新增的驗證區塊】 ---
+    // --- 【修正的驗證區塊】 ---
     const errors = [];
     if (!userId || typeof userId !== 'string') {
         errors.push('無效的使用者 ID。');
@@ -18,15 +16,22 @@ export async function onRequest(context) {
     if (!nickname || typeof nickname !== 'string' || nickname.trim().length === 0 || nickname.length > 50) {
         errors.push('暱稱為必填，且長度不可超過 50 字。');
     }
-    if (!phone || !/^\d{10}$/.test(phone)) {
-        errors.push('請輸入有效的 10 碼手機號碼。');
+    
+    // 【修正】允許 phone 為空字串，但如果不為空，則必須符合格式
+    if (phone && (typeof phone !== 'string' || !/^\d{10}$/.test(phone))) {
+        errors.push('請輸入有效的 10 碼手機號碼，或留空。');
     }
-    if (realName && typeof realName !== 'string' || realName.length > 50) {
+    
+    // 【修正】允許 realName 為空字串
+    if (realName && (typeof realName !== 'string' || realName.length > 50)) {
         errors.push('真實姓名長度不可超過 50 字。');
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errors.push('請輸入有效的電子信箱格式。');
+
+    // 【修正】允許 email 為空字串，但如果不為空，則必須符合格式
+    if (email && (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+        errors.push('請輸入有效的電子信箱格式，或留空。');
     }
+
     if (displayName === undefined || pictureUrl === undefined) {
         errors.push('缺少必要的 LINE 使用者資訊。');
     }
@@ -36,21 +41,19 @@ export async function onRequest(context) {
             status: 400, headers: { 'Content-Type': 'application/json' },
         });
     }
-    // --- 【驗證區塊結束】 ---
 
     const db = context.env.DB;
-    
-    const preferredproductString = Array.isArray(preferredproduct) ? preferredproduct.join(',') : preferredproduct || '未提供';
 
     const stmt = db.prepare(
-      'UPDATE Users SET real_name = ?, nickname = ?, phone = ?, email = ?, preferred_product = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
+      'UPDATE Users SET real_name = ?, nickname = ?, phone = ?, email = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
     );
+    
+    // 【修正】bind 參數中移除 preferredproductString
     const result = await stmt.bind(
         realName || '',
         nickname, 
-        phone, 
-        email || '',
-        preferredproductString,
+        phone || '', // 允許空字串
+        email || '', // 允許空字串
         displayName,
         pictureUrl,
         userId
@@ -62,8 +65,6 @@ export async function onRequest(context) {
       });
     }
 
-    const userDataToSync = { userId, realName: realName || '', nickname, phone, email: email || '', preferredproduct: preferredproductString, displayName, pictureUrl };
-
     return new Response(JSON.stringify({ 
         success: true, 
         message: '成功更新使用者登錄資料！' 
@@ -73,6 +74,7 @@ export async function onRequest(context) {
 
   } catch (error) {
     console.error('Error in update-user-profile API:', error);
+    // 【修正】回傳更詳細的錯誤
     const errorResponse = { error: '伺服器內部錯誤，更新資料失敗。', details: error.message };
     return new Response(JSON.stringify(errorResponse), {
       status: 500, headers: { 'Content-Type': 'application/json' },

@@ -7,34 +7,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-    /* 老闆 LIFF 專屬樣式調整 */
-    body {
-    /* ▼▼▼ 請將 60px 修改為 15px (保留一點頁面上邊距) ▼▼▼ */
-    padding-top: 15px; /* 原本是 60px */
-    /* ▲▲▲ 修改結束 ▲▲▲ */
-    padding-bottom: 70px; /* 為固定 TabBar 預留空間 */
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    }
-
-        #app-header { /* 固定頂部標題 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: var(--color-header-bg);
-            padding: 15px;
-            text-align: center;
-            z-index: 100;
-            border-bottom: 1px solid var(--color-primary);
+        /* 老闆 LIFF 專屬樣式調整 */
+        body {
+            /* 【修改】移除頂部標題橫幅的空間 */
+            padding-top: 15px; /* 原本是 60px */
+            padding-bottom: 70px; /* 為固定 TabBar 預留空間 */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        #app-header h1 {
-            margin: 0;
-            font-size: 1.2rem;
-            color: var(--color-text-primary);
-        }
+        /* 【刪除】#app-header 相關樣式 (因為元素已移除) */
 
         #app-container {
             flex-grow: 1;
@@ -183,7 +166,7 @@
         .daily-card small { color: var(--color-text-secondary); }
 
         .filter-controls { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .filter-controls input, .filter-controls select { width: auto; flex-grow: 1; }
+        .filter-controls input, .filter-controls select { width: auto; flex-grow: 1; background-color: var(--color-card-bg); border: 1px solid var(--color-secondary); color: var(--color-text-primary); border-radius: var(--border-radius);}
         .order-list-item {
             background-color: var(--color-card-bg); border-radius: var(--border-radius); padding: 15px; margin-bottom: 10px; cursor: pointer;
         }
@@ -228,8 +211,6 @@
     </style>
 </head>
 <body>
-
-
 
     <main id="app-container">
         <div id="loading-view">
@@ -298,7 +279,9 @@
             <div id="tab-content-room-control" class="tab-content">
                 <h2>房量控管</h2>
                 <div class="filter-controls">
-                    <select id="rc-product-filter" style="flex-grow: 1.5; padding: 8px; font-size: 0.9rem;"><option value="all">所有房型</option></select>
+                    <select id="rc-product-filter" style="flex-grow: 1.5; padding: 8px; font-size: 0.9rem;">
+                        <option value="all">所有房型</option>
+                        </select>
                     <input type="text" id="rc-date-range-picker" placeholder="請選擇日期範圍" style="flex-grow: 2;">
                     <button id="rc-load-grid-btn" class="cta-button" style="padding: 8px 12px; font-size: 0.9rem;">載入</button>
                 </div>

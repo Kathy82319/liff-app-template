@@ -452,7 +452,6 @@ function openProductModal(product = null) {
      if (specInputs) specInputs.innerHTML = '';
      const hasImages = activeTemplate.fields.some(f => f.key === 'images');
      if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none';
-     const hasSpecs = activeTemplate.fields.some(f => f.key.startsWith('spec_'));
     if (specSection) {   specSection.style.display = 'block';    }     
     const modalTitle = document.getElementById('modal-product-title');
      const pageTitle = document.querySelector('#page-inventory .page-header h2');
@@ -495,7 +494,7 @@ function openProductModal(product = null) {
                 else { images.forEach(imgUrl => addImageInputField(imageInputs, imgUrl)); }
             } catch (e) { addImageInputField(imageInputs); }
         }
-         if (hasSpecs && specInputs) {
+         if (specInputs) {
             let specAdded = false;
             for (let i = 1; i <= 5; i++) {
                 if (product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
@@ -519,7 +518,7 @@ function openProductModal(product = null) {
         }
         if (modalTitle) modalTitle.textContent = `新增${activeTemplate.entityName}`;
          if (hasImages && imageInputs) addImageInputField(imageInputs);
-         if (hasSpecs && specInputs) addSpecInputField(specInputs);
+         if (specInputs) addSpecInputField(specInputs);
         const idInput = form.querySelector('input[name="product_id"]');
         if (idInput) idInput.remove();
     }

@@ -1195,18 +1195,13 @@ async function initializeEditProfilePage() {
             event.preventDefault();
             const statusMsg = document.getElementById('edit-profile-form-status');
             statusMsg.textContent = '儲存中...';
-            let selectedproduct = Array.from(productContainer.querySelectorAll('.preference-tag-btn.active')).map(btn => btn.dataset.tag).filter(tag => tag);
-            if (otherContainer.style.display === 'block' && otherInput.value.trim() !== '') {
-                const customTags = otherInput.value.trim().split(/[,，\s]+/).filter(Boolean);
-                selectedproduct.push(...customTags);
-            }
+
             const formData = {
                 userId: userProfile.userId,
                 realName: document.getElementById('edit-profile-real-name').value.trim(),
                 nickname: document.getElementById('edit-profile-nickname').value,
                 phone: document.getElementById('edit-profile-phone').value,
                 email: document.getElementById('edit-profile-email').value,
-                preferredproduct: [...new Set(selectedproduct)],
                 displayName: userProfile.displayName,
                 pictureUrl: userProfile.pictureUrl || ''
             };

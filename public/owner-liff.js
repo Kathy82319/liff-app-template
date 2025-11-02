@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingView = document.getElementById('loading-view');
     const unauthorizedView = document.getElementById('unauthorized-view');
     const mainView = document.getElementById('main-view');
-    const appHeaderTitle = document.querySelector('#app-header h1');
     const tabBar = document.getElementById('owner-tab-bar');
     const tabContents = document.querySelectorAll('.tab-content');
     const activityListContent = document.getElementById('activity-list-content');
@@ -304,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 初始化 App UI (【v6.4 修改】) ---
     function initializeAppUI(template) {
-        appHeaderTitle.textContent = "商家管理面板"; 
 
         const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[template];
         const features = templateDefinition?.features || {};
@@ -406,10 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
         qbCustomerChangeBtn.addEventListener('click', resetCustomerSearch);
         quickBookingForm.addEventListener('submit', handleQuickBookingSubmit);
         
-        // 【刪除】簡易控房表單
-        // roomControlForm.addEventListener('submit', ...);
-        
-        // 【新增】控房管理 Tab 的事件綁定 (在 initializeRoomControl 中處理)
 
         // 編輯顧客表單
         editCustomerForm.addEventListener('submit', handleEditCustomerSubmit);

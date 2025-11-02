@@ -1176,10 +1176,11 @@ function renderProductDetails(product) {
          gallery.style.display = 'none'; 
     }
 
-
+    // 設置標題和清空內容
     detailsTitle.textContent = product.name || "產品名稱載入失敗";
     contentContainer.innerHTML = ''; 
 
+    // 1. 處理圖片庫
     try {
          const images = JSON.parse(product.images || '[]');
          if (images.length > 0 && mainImage && thumbnails) {
@@ -1187,6 +1188,7 @@ function renderProductDetails(product) {
              thumbnails.innerHTML = images.map((img, index) => `<img src="${img}" class="${index === 0 ? 'active' : ''}" data-src="${img}">`).join('');
              gallery.style.display = 'block';
 
+             // 重新綁定縮圖點擊事件 (因為 innerHTML 會移除舊監聽器)
              thumbnails.replaceWith(thumbnails.cloneNode(true)); 
              appContent.querySelector('.details-gallery .details-image-thumbnails').addEventListener('click', e => {
                  if (e.target.tagName === 'IMG') {
@@ -1203,7 +1205,7 @@ function renderProductDetails(product) {
          gallery.style.display = 'none';
     }
 
-
+    // 2. 顯示價格區塊
     const priceSection = document.createElement('div');
     priceSection.className = 'detail-field-section product-price-details';
     const priceLabel = document.createElement('h3');
@@ -1217,54 +1219,68 @@ function renderProductDetails(product) {
     priceSection.append(priceLabel, priceContent);
     contentContainer.appendChild(priceSection); 
 
-try {
-    activeTemplate.fields.forEach(field => {
+    // 3. 根據樣板藍圖 (activeTemplate.fields) 依序顯示欄位
+    //    並在 'description' 欄位後插入「彈性規格」
+    try {
+        activeTemplate.fields.forEach(field => {
+            
+            // 略過已手動處理或不應顯示的欄位
+            if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible' || field.key.startsWith('price_')) return;
+            
+            const value = product[field.key];
+            
+            // 檢查欄位是否有值 (非 null、非 undefined、非空字串)
+            if (value !== null && typeof value !== 'undefined' && String(value).trim() !== '') {
+                // 創建 h3 和 p 元素來顯示欄位
+                const section = document.createElement('div');
+                section.className = 'detail-field-section';
+                
+                const label = document.createElement('h3');
+                label.textContent = field.label; // 顯示藍圖中的標籤
+                
+                const content = document.createElement('p');
+                content.innerHTML = String(value).replace(/\n/g, '<br>'); // 顯示內容並處理換行
+                
+                section.append(label, content);
+                contentContainer.appendChild(section); 
 
-        if (field.key === 'name' || field.key === 'images' || field.key === 'is_visible' || field.key.startsWith('price_')) return;
-        const value = product[field.key];
-        if (value !== null && typeof value !== 'undefined' && String(value).trim() !== '') { // 更嚴格的檢查，並轉換成字串檢查
-            const section = document.createElement('div');
-            section.className = 'detail-field-section';
-            const label = document.createElement('h3');
-            label.textContent = field.label;
-            const content = document.createElement('p');
-            content.innerHTML = String(value).replace(/\n/g, '<br>');
-            section.append(label, content);
-            contentContainer.appendChild(section); 
+                // 【您的需求】如果剛剛顯示的是 'description'（介紹詞）
+                // 立刻接著顯示彈性規格
+                if (field.key === 'description') {
+                    try {
+                        // 手動檢查並渲染「彈性通用規格」
+                        for (let i = 1; i <= 5; i++) {
+                            const specNameKey = `spec_${i}_name`;
+                            const specValueKey = `spec_${i}_value`;
 
-            if (field.key === 'description') {
-                try {
-                    // 手動檢查並渲染「彈性通用規格」
-                    for (let i = 1; i <= 5; i++) {
-                        const specNameKey = `spec_${i}_name`;
-                        const specValueKey = `spec_${i}_value`;
-
-                        // 必須要有「規格名稱」和「規格內容」才顯示
-                        if (product[specNameKey] && product[specValueKey]) {
-                            const specSection = document.createElement('div');
-                            specSection.className = 'detail-field-section';
-
-                            const label = document.createElement('h3');
-                            label.textContent = product[specNameKey]; // 標題是規格名稱
-
-                            const content = document.createElement('p');
-                            content.innerHTML = product[specValueKey].replace(/\n/g, '<br>'); // 內容是規格值
-
-                            specSection.append(label, content);
-                            contentContainer.appendChild(specSection);
+                            // 【修改後的條件】只要有「規格名稱」，就顯示
+                            if (product[specNameKey]) { 
+                                const specSection = document.createElement('div');
+                                specSection.className = 'detail-field-section';
+                                
+                                const label = document.createElement('h3');
+                                label.textContent = product[specNameKey]; // 標題是規格名稱
+                                
+                                const content = document.createElement('p');
+                                
+                                // 安全地處理可能為空的「規格內容」
+                                const specValue = product[specValueKey] || ''; 
+                                content.innerHTML = specValue.replace(/\n/g, '<br>'); 
+                                
+                                specSection.append(label, content);
+                                contentContainer.appendChild(specSection);
+                            }
                         }
+                    } catch (e) {
+                        console.error("渲染彈性規格時出錯:", e);
                     }
-                } catch (e) {
-                    console.error("渲染彈性規格時出錯:", e);
                 }
             }
-       
-
-        }
-    });
-} catch (e) {
-    console.error("渲染其他產品欄位時出錯:", e);
-    contentContainer.innerHTML += `<p style="color:red;">部分欄位渲染失敗。</p>`; 
+        });
+    } catch (e) {
+        console.error("渲染其他產品欄位時出錯:", e);
+         contentContainer.innerHTML += `<p style="color:red;">部分欄位渲染失敗。</p>`; 
+    }
 }
 
 function renderProducts() {

@@ -198,9 +198,9 @@ function addSpecInputField(container, name = '', value = '') {
     const newGroup = document.createElement('div');
     newGroup.className = 'spec-input-group dynamic-input-group';
     newGroup.innerHTML = `
-        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
-        <input type="text" name="spec_value" placeholder="規格${count + 1}內容" value="${value}">
-        <button type="button" class="btn-remove-input">⊖</button>
+    <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
+    <textarea name="spec_value" placeholder="規格${count + 1}內容" rows="3">${value}</textarea>
+    <button type="button" class="btn-remove-input">⊖</button>
     `;
     container.appendChild(newGroup);
     updateDynamicButtonsState();
@@ -527,8 +527,7 @@ function openProductModal(product = null) {
     ui.showModal('#edit-product-modal');
 }
 
-// 【大幅修改】處理表單提交
-// 【大幅修改】處理表單提交 (前端直接更新版本)
+
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
@@ -586,11 +585,13 @@ async function handleFormSubmit(event) {
     console.log("--- 規格欄位讀取完畢 ---");
     console.log("讀取後的 data 物件 (包含 specs):", JSON.stringify(data)); // 顯示最終要送出的 data
     // --- Log 結束 ---
-     document.querySelectorAll('.spec-input-group').forEach((group, index) => {
-         const i = index + 1;
-         data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim() || null;
-         data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || null;
-     });
+    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
+    const i = index + 1;
+    // 讀取 input (名稱)，如果為空則存 ''
+    data[`spec_${i}_name`] = group.querySelector('input[name="spec_name"]').value.trim() || '';
+    // 讀取 textarea (內容)，如果為空則存 ''
+    data[`spec_${i}_value`] = group.querySelector('textarea[name="spec_value"]').value.trim() || '';
+    });
 
     // 2. 檢查必填欄位 (這部分邏輯不變)
      for (const field of activeTemplate.fields) {

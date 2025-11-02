@@ -1212,9 +1212,9 @@ function renderProductDetails(product) {
     priceLabel.textContent = '價格';
     const priceContent = document.createElement('p');
     priceContent.innerHTML = `
-        平日 (日~四): ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
-        週五: ${product.price_friday !== null ? '$' + product.price_friday : '同平日'}<br>
-        週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '同平日'}
+        平日:${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}(平日：週日至周四)<br>
+        週五:${product.price_friday !== null ? '$' + product.price_friday : '洽詢'}<br>
+        週六:${product.price_saturday !== null ? '$' + product.price_saturday : '洽詢'}
     `;
     priceSection.append(priceLabel, priceContent);
     contentContainer.appendChild(priceSection); 
@@ -1246,34 +1246,45 @@ function renderProductDetails(product) {
 
                 // 【您的需求】如果剛剛顯示的是 'description'（介紹詞）
                 // 立刻接著顯示彈性規格
-                if (field.key === 'description') {
-                    try {
-                        // 手動檢查並渲染「彈性通用規格」
-                        for (let i = 1; i <= 5; i++) {
-                            const specNameKey = `spec_${i}_name`;
-                            const specValueKey = `spec_${i}_value`;
+if (field.key === 'description') {
+                // ========== ▼▼▼ 替換 try...catch 區塊 ▼▼▼ ==========
+                try {
+                    // 手動檢查並渲染「彈性通用規格」
+                    for (let i = 1; i <= 5; i++) {
+                        const specNameKey = `spec_${i}_name`;
+                        const specValueKey = `spec_${i}_value`;
 
-                            // 【修改後的條件】只要有「規格名稱」，就顯示
-                            if (product[specNameKey]) { 
-                                const specSection = document.createElement('div');
-                                specSection.className = 'detail-field-section';
-                                
+                        const specName = product[specNameKey] || '';  // 獲取名稱，或為空字串
+                        const specValue = product[specValueKey] || ''; // 獲取內容，或為空字串
+
+                        // --- 【新條件】只要「名稱」或「內容」其中之一有值，就顯示 ---
+                        if (specName || specValue) { 
+                            const specSection = document.createElement('div');
+                            specSection.className = 'detail-field-section';
+
+                            // --- 【新邏輯】只有在「名稱」有值時，才建立 <h3> 標籤 ---
+                            if (specName) {
                                 const label = document.createElement('h3');
-                                label.textContent = product[specNameKey]; // 標題是規格名稱
-                                
-                                const content = document.createElement('p');
-                                
-                                // 安全地處理可能為空的「規格內容」
-                                const specValue = product[specValueKey] || ''; 
-                                content.innerHTML = specValue.replace(/\n/g, '<br>'); 
-                                
-                                specSection.append(label, content);
-                                contentContainer.appendChild(specSection);
+                                label.textContent = specName; // 標題是規格名稱
+                                specSection.appendChild(label);
                             }
+
+                            const content = document.createElement('p');
+                            // 內容永遠顯示 (specValue 可能是空字串，也可能有值)
+                            content.innerHTML = specValue.replace(/\n/g, '<br>'); 
+
+                            // 如果沒有標題 (h3)，讓段落(p)更貼近頂部
+                            if (!specName) {
+                                content.style.marginTop = '0';
+                            }
+
+                            specSection.appendChild(content);
+                            contentContainer.appendChild(specSection);
                         }
-                    } catch (e) {
-                        console.error("渲染彈性規格時出錯:", e);
                     }
+                } catch (e) {
+                    console.error("渲染彈性規格時出錯:", e);
+                }
                 }
             }
         });

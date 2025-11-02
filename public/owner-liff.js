@@ -1125,34 +1125,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 初始化控房 Tab
-    function initializeRoomControl() {
-        const dateInput = document.getElementById('rc-date-range-picker');
-        const loadBtn = document.getElementById('rc-load-grid-btn');
-        const gridContainer = document.getElementById('rc-grid-container');
+function initializeRoomControl() {
+    const dateInput = document.getElementById('rc-date-range-picker');
+    const loadBtn = document.getElementById('rc-load-grid-btn');
+    const gridContainer = document.getElementById('rc-grid-container');
+    
+    // ▼▼▼ 新增控房的房型下拉選單邏輯 ▼▼▼
+    const productFilterSelect = document.getElementById('rc-product-filter');
+    // ▲▲▲ 新增結束 ▲▲▲
 
-        if (!dateInput || !loadBtn || !gridContainer) {
-            console.error("控房 Tab缺少必要元素");
-            return;
-        }
-
-        // 1. 初始化日期選擇器
-        rcDateRangePicker = flatpickr(dateInput, {
-            mode: "range",
-            dateFormat: "Y-m-d",
-            locale: "zh_tw",
-            defaultDate: [new Date(), new Date(new Date().setDate(new Date().getDate() + 14))] // 預設選取今天到未來 14 天
-        });
-
-        // 2. 綁定載入按鈕
-        loadBtn.addEventListener('click', loadRoomControlGrid);
-
-        // 3. 綁定格線事件 (使用事件委派)
-        gridContainer.addEventListener('click', (e) => handleRoomGridEvent(e, 'click'));
-        gridContainer.addEventListener('change', (e) => handleRoomGridEvent(e, 'change')); // 用於 input
-
-        // 4. 首次載入
-        loadRoomControlGrid();
+    if (!dateInput || !loadBtn || !gridContainer || !productFilterSelect) { // <-- 檢查 new select
+        console.error("控房 Tab缺少必要元素");
+        return;
     }
+
+    // ▼▼▼ 新增：填充房型下拉選單 ▼▼▼
+    try {
+        const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+        const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
+        const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
+        // 確保 allProducts 已經載入
+        const roomProducts = (allProducts || []).filter(p => p.category === roomCategory);
+        
+        productFilterSelect.innerHTML = '<option value="all">所有房型</option>'; // 重設
+        roomProducts.forEach(p => {
+            productFilterSelect.add(new Option(p.name, p.product_id));
+        });
+    } catch (e) {
+        console.error("填充控房房型篩選器失敗:", e);
+        productFilterSelect.innerHTML = '<option value="all">所有房型 (載入失敗)</option>';
+    }
+    // ▲▲▲ 新增結束 ▲▲▲
+
+    // 1. 初始化日期選擇器 (原邏輯不變)
+    rcDateRangePicker = flatpickr(dateInput, {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        locale: "zh_tw",
+        defaultDate: [new Date(), new Date(new Date().setDate(new Date().getDate() + 14))] 
+    });
+
+    // 2. 綁定載入按鈕 (原邏輯不變)
+    loadBtn.addEventListener('click', loadRoomControlGrid);
+
+    // 3. 綁定格線事件 (原邏輯不變)
+    gridContainer.addEventListener('click', (e) => handleRoomGridEvent(e, 'click'));
+    gridContainer.addEventListener('change', (e) => handleRoomGridEvent(e, 'change'));
+
+    // 4. 首次載入 (原邏輯不變)
+    loadRoomControlGrid();
+}
 
     // 載入控房格線資料
     async function loadRoomControlGrid() {
@@ -1191,62 +1213,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 渲染控房格線
-    function renderRoomControlGrid() {
-        const container = document.getElementById('rc-grid-container');
-        if (!container) return;
-        
-        // 篩選出民宿房型 (假設使用 "房型" 分類)
-        const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-        const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
-        const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
-        const productsToRender = allProducts.filter(p => p.category === roomCategory);
+function renderRoomControlGrid() {
+    const container = document.getElementById('rc-grid-container');
+    // ▼▼▼ 新增：讀取房型篩選器的值 ▼▼▼
+    const productFilterSelect = document.getElementById('rc-product-filter');
+    const selectedProductId = productFilterSelect ? productFilterSelect.value : 'all';
+    // ▲▲▲ 新增結束 ▲▲▲
 
-        if (productsToRender.length === 0 || rcDisplayedDates.length === 0) {
-            container.innerHTML = '<p>沒有可顯示的房型或日期。</p>';
-            return;
-        }
+    if (!container) return;
+    
+    // 篩選出民宿房型 (原邏輯)
+    const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+    const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
+    const roomCategory = templateDef?.logic?.roomCategoryName || '房型';
+    const baseProductsToRender = (allProducts || []).filter(p => p.category === roomCategory);
 
-        let tableHtml = '<table class="rc-table">';
-        // 表頭 (日期)
-        tableHtml += '<thead><tr><th>房型</th>';
-        rcDisplayedDates.forEach(dateStr => {
-            const date = new Date(dateStr + 'T00:00:00');
-            const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
-            const dayOfWeek = weekdayShort[date.getDay()];
-            tableHtml += `<th>${monthDay}<br>${dayOfWeek}</th>`;
-        });
-        tableHtml += '</tr></thead>';
+    // ▼▼▼ 修改：根據 selectedProductId 再次篩選 ▼▼▼
+    const productsToRender = (selectedProductId === 'all')
+        ? baseProductsToRender
+        : baseProductsToRender.filter(p => p.product_id === selectedProductId);
+    // ▲▲▲ 修改結束 ▲▲▲
 
-        // 表格內容
-        tableHtml += '<tbody>';
-        productsToRender.forEach(product => {
-            tableHtml += `<tr><td>${product.name}</td>`; // 房型名稱
-            rcDisplayedDates.forEach(dateStr => {
-                const inventory = currentRoomInventoryData[product.product_id]?.[dateStr];
-                const status = inventory?.status || 'Closed';
-                const quantity = inventory?.quantity_available ?? 0;
-                const price = inventory?.base_price;
-                const priceText = (price === null || price === undefined) ? '' : String(price);
-
-                const visuals = calculateCellVisuals(status, quantity, price);
-
-                tableHtml += `
-                    <td style="background-color: ${visuals.bgColor};" data-product-id="${product.product_id}" data-date="${dateStr}" title="${visuals.tooltip}">
-                        <button class="rc-status-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}" 
-                                data-status="${status}"
-                                style="background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};">
-                            ${visuals.buttonText}
-                        </button>
-                        <input type="number" class="rc-quantity-input" value="${quantity}" min="0" ${status === 'Closed' ? 'disabled' : ''}>
-                        <input type="number" class="rc-price-input" value="${priceText}" placeholder="預設" min="0" ${status === 'Closed' ? 'disabled' : ''}>
-                        ${visuals.iconHtml}
-                    </td>`;
-            });
-            tableHtml += `</tr>`;
-        });
-        tableHtml += '</tbody></table>';
-        container.innerHTML = tableHtml;
+    if (productsToRender.length === 0 || rcDisplayedDates.length === 0) {
+        container.innerHTML = '<p>沒有找到符合條件的房型或日期。</p>'; // <--- 修改提示訊息
+        return;
     }
+
+    let tableHtml = '<table class="rc-table">';
+    // 表頭 (日期)
+    tableHtml += '<thead><tr><th>房型</th>';
+    rcDisplayedDates.forEach(dateStr => {
+        const date = new Date(dateStr + 'T00:00:00');
+        const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+        const dayOfWeek = weekdayShort[date.getDay()];
+        tableHtml += `<th>${monthDay}<br>${dayOfWeek}</th>`;
+    });
+    tableHtml += '</tr></thead>';
+
+    // 表格內容 (使用 productsToRender 進行)
+    tableHtml += '<tbody>';
+    productsToRender.forEach(product => { // <-- 這裡使用了新的 productsToRender
+        tableHtml += `<tr><td>${product.name}</td>`; // 房型名稱
+        rcDisplayedDates.forEach(dateStr => {
+            const inventory = currentRoomInventoryData[product.product_id]?.[dateStr];
+            const status = inventory?.status || 'Closed';
+            const quantity = inventory?.quantity_available ?? 0;
+            const price = inventory?.base_price;
+            const priceText = (price === null || price === undefined) ? '' : String(price);
+
+            const visuals = calculateCellVisuals(status, quantity, price);
+
+            tableHtml += `
+                <td style="background-color: ${visuals.bgColor};" data-product-id="${product.product_id}" data-date="${dateStr}" title="${visuals.tooltip}">
+                    <button class="rc-status-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}" 
+                            data-status="${status}"
+                            style="background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};">
+                        ${visuals.buttonText}
+                    </button>
+                    <input type="number" class="rc-quantity-input" value="${quantity}" min="0" ${status === 'Closed' ? 'disabled' : ''}>
+                    <input type="number" class="rc-price-input" value="${priceText}" placeholder="預設" min="0" ${status === 'Closed' ? 'disabled' : ''}>
+                    ${visuals.iconHtml}
+                </td>`;
+        });
+        tableHtml += `</tr>`;
+    });
+    tableHtml += '</tbody></table>';
+    container.innerHTML = tableHtml;
+}
 
     // 處理控房格線的事件
     async function handleRoomGridEvent(e, eventType) {

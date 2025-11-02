@@ -1216,7 +1216,30 @@ function renderProductDetails(product) {
     `;
     priceSection.append(priceLabel, priceContent);
     contentContainer.appendChild(priceSection); 
+try {
+        // 手動檢查並渲染「彈性通用規格」
+        for (let i = 1; i <= 5; i++) {
+            const specNameKey = `spec_${i}_name`;
+            const specValueKey = `spec_${i}_value`;
 
+            // 必須要有「規格名稱」和「規格內容」才顯示
+            if (product[specNameKey] && product[specValueKey]) {
+                const specSection = document.createElement('div');
+                specSection.className = 'detail-field-section';
+                
+                const label = document.createElement('h3');
+                label.textContent = product[specNameKey]; // 標題是規格名稱
+                
+                const content = document.createElement('p');
+                content.innerHTML = product[specValueKey].replace(/\n/g, '<br>'); // 內容是規格值
+                
+                specSection.append(label, content);
+                contentContainer.appendChild(specSection);
+            }
+        }
+    } catch (e) {
+        console.error("渲染彈性規格時出錯:", e);
+    }
     try {
         activeTemplate.fields.forEach(field => {
 

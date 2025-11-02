@@ -82,7 +82,12 @@ export async function onRequest(context) {
         return new Response(JSON.stringify(config), {
             status: 200,
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                // --- ▼▼▼ 請在這裡加入以下三行 ▼▼▼ ---
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+                // --- ▲▲▲ 加入結束 ▲▲▲ ---
             },
         });
 

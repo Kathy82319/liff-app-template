@@ -412,6 +412,8 @@ function handleCsvUpload(event) {
 
 // --- 【大幅修改】Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
+    const entityName = activeTemplate.logic.adminEntityName || "產品";
+    const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
     // ... (existing code for formBody, form checks) ...
      const formBody = document.getElementById('edit-product-form-body');
      const form = document.getElementById('edit-product-form');
@@ -455,14 +457,12 @@ function openProductModal(product = null) {
     if (specSection) {   specSection.style.display = 'block';    }     
     const modalTitle = document.getElementById('modal-product-title');
      const pageTitle = document.querySelector('#page-inventory .page-header h2');
-     if (pageTitle) pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
-
+    if (pageTitle) pageTitle.textContent = `${entityNamePlural}管理`;
 
     // 4. Populate data (Edit mode)
     if (product) {
         if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
-            modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`; // <-- 設定 Modal 標題 (編輯)
-        }
+            modalTitle.textContent = `編輯${entityName}：${product.name}`;        }
         if (modalTitle) modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`;
 
         // Populate main fields (excluding special ones)
@@ -514,7 +514,7 @@ function openProductModal(product = null) {
 
     } else {
         if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
-            modalTitle.textContent = `新增${activeTemplate.entityName}`; // <-- 設定 Modal 標題 (新增)
+            modalTitle.textContent = `新增${entityName}`;        
         }
         if (modalTitle) modalTitle.textContent = `新增${activeTemplate.entityName}`;
          if (hasImages && imageInputs) addImageInputField(imageInputs);
@@ -941,15 +941,18 @@ export const init = async () => {
         console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
         return;
     }
+    const entityName = activeTemplate.entityName || "產品";
+    const entityNamePlural = activeTemplate.entityNamePlural || "產品";
     // Use the module-level activeTemplate (assigned above)
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${activeTemplate.entityNamePlural}...</td></tr>`;
-
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${entityNamePlural}...</td></tr>`;
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
-    if (pageTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
-            pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`; // <-- 設定頁面標題
+    if (pageTitle && activeTemplate) { 
+            // --- 【修改】使用新的後備變數 ---
+            pageTitle.textContent = `${entityNamePlural}管理`; 
         }
     if (pageTitle) {
-        pageTitle.textContent = `${activeTemplate.entityNamePlural}管理`;
+        // --- 【修改】使用新的後備變數 ---
+        pageTitle.textContent = `${entityNamePlural}管理`;
     }
 
     try {

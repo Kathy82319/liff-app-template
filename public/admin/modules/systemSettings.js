@@ -401,9 +401,10 @@ function renderTemplateSettings(templateKey) {
             <div class="accordion-content"><div id="admin-pages-enablement-container"><p>讀取中...</p></div></div>
         </div>
         <div class="accordion-item">
-            <div class="accordion-header"><h4>產品/服務管理 後台設定</h4><span>▼</span></div>
+            <div class="accordion-header"><h4 data-module-title="product">產品/服務管理 後台設定</h4><span>▼</span></div>
             <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-product" class="admin-columns-container"><p>讀取中...</p></div></div></div>
-        </div>
+            
+            </div>
         <div class="accordion-item">
             <div class="accordion-header"><h4>訂位/訂單管理 後台設定</h4><span>▼</span></div>
             <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-booking" class="admin-columns-container"><p>讀取中...</p></div></div></div>
@@ -441,7 +442,44 @@ function renderTemplateSettings(templateKey) {
     ownerLiffSettingsContainer.innerHTML = ''; // 清空
     const features = template.features || {};
     const terms = template.terms || {};
-    
+
+// --- 在「商家後台」分頁頂部插入「名稱設定」輸入框 ---    
+const adminDescriptionP = adminSettingsContainer.querySelector('p'); // 找到頂部的 <p> 標籤
+if (adminDescriptionP) {
+    const nameSettingGroup = document.createElement('div');
+    nameSettingGroup.className = 'setting-row'; // 沿用現有樣式
+    nameSettingGroup.style.cssText = 'background: var(--color-sidebar-bg); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem;';
+    nameSettingGroup.innerHTML = `
+        <div class="setting-label">
+            <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
+            <small>用於「編輯...」彈窗標題。例如：房型、服務、產品</small>
+        </div>
+        <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
+    `;
+
+    const namePluralSettingGroup = document.createElement('div');
+    namePluralSettingGroup.className = 'setting-row'; // 沿用現有樣式
+    namePluralSettingGroup.style.cssText = 'background: var(--color-sidebar-bg); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem;';
+    namePluralSettingGroup.innerHTML = `
+        <div class="setting-label">
+            <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
+            <small>用於頁面和選單標題。例如：房型、服務、產品</small>
+        </div>
+        <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
+    `;
+
+    // 將新輸入框插入到 <p> 標籤之後
+    adminDescriptionP.parentNode.insertBefore(namePluralSettingGroup, adminDescriptionP.nextSibling);
+    adminDescriptionP.parentNode.insertBefore(nameSettingGroup, namePluralSettingGroup);
+}
+
+// --- 動態更新「產品/服務管理」這個 Accordion 的標題 ---
+const productAccordionTitle = adminSettingsContainer.querySelector('.accordion-item h4[data-module-title="product"]');
+if (productAccordionTitle) {
+    productAccordionTitle.textContent = `${logic.adminEntityNamePlural || '產品/服務'}管理 後台設定`;
+}
+
+
     // 1. (工作室/民宿共用) 預約/訂房相關設定 (從 LIFF App Tab 移過來的)
     const bookingAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
     bookingAccordion.querySelector('h4').textContent = '預約/訂房 頁面設定 (LIFF)';
@@ -540,11 +578,19 @@ function reconstructTemplateFromUI() {
         }
     });
 
-    if (!currentTemplate.logic) currentTemplate.logic = {};
-    currentTemplate.logic.navBar = navBar;
-
     // --- 讀取商家後台設定 (保持不變) ---
     if (!currentTemplate.logic) currentTemplate.logic = {};
+
+currentTemplate.logic.navBar = navBar;
+const adminEntityNameInput = document.getElementById('setting-admin-entity-name');
+const adminEntityNamePluralInput = document.getElementById('setting-admin-entity-name-plural');
+
+if (adminEntityNameInput) {
+    currentTemplate.logic.adminEntityName = adminEntityNameInput.value.trim() || '';
+}
+if (adminEntityNamePluralInput) {
+    currentTemplate.logic.adminEntityNamePlural = adminEntityNamePluralInput.value.trim() || '';
+}
 
     // 讀取後台頁面啟用設定
     const adminPagesEnabled = {};

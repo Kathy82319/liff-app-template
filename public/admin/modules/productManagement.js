@@ -941,8 +941,8 @@ export const init = async () => {
         console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
         return;
     }
-    const entityName = activeTemplate.entityName || "產品";
-    const entityNamePlural = activeTemplate.entityNamePlural || "產品";
+    const entityName = activeTemplate.logic.adminEntityName || "產品";
+    const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
     // Use the module-level activeTemplate (assigned above)
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${entityNamePlural}...</td></tr>`;
     const pageTitle = document.querySelector('#page-inventory .page-header h2');

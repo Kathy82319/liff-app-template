@@ -299,61 +299,55 @@ function applyConfiguration() {
             const features = activeTemplate.features || {};
             const terms = activeTemplate.terms || {};
             const logic = activeTemplate.logic || {};
-            const navBarConfig = logic.navBar || []; 
+            const navBarConfig = logic.navBar || [];
 
-            // --- 【偵錯點 1】---
-            console.log(`[Debug applyConfiguration] 正在套用 navBarConfig (共 ${navBarConfig.length} 項):`, JSON.stringify(navBarConfig));
-
-            // --- 【偵錯點 2】---
-            // 我們明確地從 #tab-bar 內部尋找
-            const allTabsInHTML = document.querySelectorAll('#tab-bar .tab-button');
-            
-            // --- 【偵錯點 3】---
-            console.log(`[Debug applyConfiguration] 偵測到 ${allTabsInHTML.length} 個 HTML 按鈕 (#tab-bar .tab-button)`);
-
-            if (allTabsInHTML.length === 0) {
-                 console.error("[Debug applyConfiguration] 嚴重錯誤：在 DOM 中找不到任何按鈕！這可能是 HTML 結構問題或 JS 執行時機問題。");
+            // --- 【關鍵新增】強制顯示 #tab-bar 父容器 ---
+            // 我們的 CSS 預設 #tab-bar 應該是 display: flex
+            const tabBarElement = document.getElementById('tab-bar');
+            if (tabBarElement) {
+                tabBarElement.style.display = 'flex'; // 強制設為 flex
+            } else {
+                console.error("[applyConfiguration] 找不到 #tab-bar 元素！");
             }
+            // --- 【新增結束】 ---
 
-            allTabsInHTML.forEach(tab => {
+            document.querySelectorAll('#tab-bar .tab-button').forEach(tab => {
                 const targetPage = tab.dataset.target;
-                if (!targetPage) {
-                     console.warn("[Debug applyConfiguration] 發現一個沒有 'data-target' 的按鈕:", tab);
-                     return;
-                }
-
                 const config = navBarConfig.find(item => item.target === targetPage);
-                
-                // --- 【偵錯點 4】---
-                console.log(`[Debug applyConfiguration] --- 處理按鈕: ${targetPage} ---`);
 
                 if (config) {
-                    // 1. 找到了設定
-                    console.log(`[Debug applyConfiguration] > 找到設定 (config.enabled: ${config.enabled})`);
                     if (config.enabled === false) {
-                        // 1a. 明確禁用
-                        console.log(`[Debug applyConfiguration] > 判斷: 隱藏 (enabled: false)`);
                         tab.style.display = 'none';
                     } else {
-                        // 1b. 啟用 (true 或 undefined)
                         const label = config.label || '未命名'; 
                         tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
-                        tab.style.display = ''; // 設為空字串，使用 CSS 預設 (flex item)
-                        console.log(`[Debug applyConfiguration] > 判斷: 顯示 (enabled: true/undefined), 設定標籤: ${label}`);
+                        tab.style.display = ''; // 設為空字串，讓 flex-grow 生效
                     }
                 } else {
-                    // 2. 沒找到設定
-                    console.warn(`[Debug applyConfiguration] > 找不到 ${targetPage} 的設定!`);
-                    console.log(`[Debug applyConfiguration] > 判斷: 顯示 (使用 HTML 預設)`);
-                    tab.style.display = ''; // 確保顯示
+                    tab.style.display = ''; // 找不到設定，使用 HTML 預設 (顯示)
                 }
             });
             
-            // --- 【偵錯點 5】---
-            // 檢查執行後的實際 DOM 狀態
-            const visibleTabs = document.querySelectorAll('#tab-bar .tab-button:not([style*="display: none"])');
-            console.log(`[Debug applyConfiguration] --- 迴圈結束 ---`);
-            console.log(`[Debug applyConfiguration] 最終 'display' 不是 'none' 的按鈕有 ${visibleTabs.length} 個`);
+            document.title = terms.BUSINESS_NAME || '載入中...';
+
+            if (pageTemplates) {
+                const setContent = (selector, content) => {
+                    const el = pageTemplates.querySelector(selector);
+                    if (el) el.textContent = content;
+                };
+                const setPlaceholder = (selector, content) => {
+                    const el = pageTemplates.querySelector(selector);
+                    if (el) el.setAttribute('placeholder', content);
+                };
+
+                setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE || '最新情報');
+                setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE || '產品型錄');
+                setContent('#page-profile .page-main-title', "會員中心"); 
+                setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || '線上預約');
+                setContent('#page-info .page-main-title', "店家資訊"); 
+                
+                setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
+            }
 
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);

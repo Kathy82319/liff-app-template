@@ -427,8 +427,48 @@ function renderTemplateSettings(templateKey) {
         </div>
     `;
 
+const productAccordionContent = adminSettingsContainer.querySelector('#admin-columns-product')?.closest('.accordion-content');
+
+if (productAccordionContent) {
+    const nameSettingGroup = document.createElement('div');
+    nameSettingGroup.className = 'setting-row';
+    nameSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
+    nameSettingGroup.innerHTML = `
+        <div class="setting-label">
+            <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
+            <small>用於「編輯...」彈窗。例：房型、服務</small>
+        </div>
+        <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
+    `;
+
+    const namePluralSettingGroup = document.createElement('div');
+    namePluralSettingGroup.className = 'setting-row';
+    namePluralSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
+    namePluralSettingGroup.innerHTML = `
+        <div class="setting-label">
+            <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
+            <small>用於頁面和選單標題。例：房型、服務</small>
+        </div>
+        <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
+    `;
+
+    // 插入到 "列表顯示欄位" 標題(h5) 之前
+    const listTitleH5 = productAccordionContent.querySelector('.setting-visual-guide h5');
+    if (listTitleH5) {
+        listTitleH5.parentNode.insertBefore(namePluralSettingGroup, listTitleH5);
+        listTitleH5.parentNode.insertBefore(nameSettingGroup, namePluralSettingGroup);
+    }
+}
+
+// --- 動態更新「產品/服務管理」這個 Accordion 的標題 ---
+const productAccordionTitle = adminSettingsContainer.querySelector('.accordion-item h4[data-module-title="product"]');
+if (productAccordionTitle) {
+    productAccordionTitle.textContent = `${logic.adminEntityNamePlural || '產品/服務'}管理 後台設定`;
+}    
+
     const logic = template.logic || {};
     renderAdminPageEnablement(logic.adminPagesEnabled, 'admin-pages-enablement-container');
+    
     renderAdminColumnsSettings('product', logic.adminColumns, 'admin-columns-product');
     renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking');
     renderAdminColumnsSettings('user', logic.adminUserColumns || [], 'admin-columns-user');
@@ -443,41 +483,7 @@ function renderTemplateSettings(templateKey) {
     const features = template.features || {};
     const terms = template.terms || {};
 
-// --- 在「商家後台」分頁頂部插入「名稱設定」輸入框 ---    
-const adminDescriptionP = adminSettingsContainer.querySelector('p'); // 找到頂部的 <p> 標籤
-if (adminDescriptionP) {
-    const nameSettingGroup = document.createElement('div');
-    nameSettingGroup.className = 'setting-row'; // 沿用現有樣式
-    nameSettingGroup.style.cssText = 'background: var(--color-sidebar-bg); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem;';
-    nameSettingGroup.innerHTML = `
-        <div class="setting-label">
-            <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
-            <small>用於「編輯...」彈窗標題。例如：房型、服務、產品</small>
-        </div>
-        <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
-    `;
 
-    const namePluralSettingGroup = document.createElement('div');
-    namePluralSettingGroup.className = 'setting-row'; // 沿用現有樣式
-    namePluralSettingGroup.style.cssText = 'background: var(--color-sidebar-bg); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem;';
-    namePluralSettingGroup.innerHTML = `
-        <div class="setting-label">
-            <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
-            <small>用於頁面和選單標題。例如：房型、服務、產品</small>
-        </div>
-        <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
-    `;
-
-    // 將新輸入框插入到 <p> 標籤之後
-    adminDescriptionP.parentNode.insertBefore(namePluralSettingGroup, adminDescriptionP.nextSibling);
-    adminDescriptionP.parentNode.insertBefore(nameSettingGroup, namePluralSettingGroup);
-}
-
-// --- 動態更新「產品/服務管理」這個 Accordion 的標題 ---
-const productAccordionTitle = adminSettingsContainer.querySelector('.accordion-item h4[data-module-title="product"]');
-if (productAccordionTitle) {
-    productAccordionTitle.textContent = `${logic.adminEntityNamePlural || '產品/服務'}管理 後台設定`;
-}
 
 
     // 1. (工作室/民宿共用) 預約/訂房相關設定 (從 LIFF App Tab 移過來的)

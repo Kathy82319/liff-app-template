@@ -442,8 +442,8 @@ function renderTemplateSettings(templateKey) {
         nameSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
         nameSettingGroup.innerHTML = `
             <div class="setting-label">
-                <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
-                <small>用於「編輯...」彈窗。例：房型、服務</small>
+                <label for="setting-admin-entity-name">產品管理(編輯的標題)</label>
+                <small>用於「編輯...」彈窗</small>
             </div>
             <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
         `;
@@ -453,8 +453,8 @@ function renderTemplateSettings(templateKey) {
         namePluralSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
         namePluralSettingGroup.innerHTML = `
             <div class="setting-label">
-                <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
-                <small>用於頁面和選單標題。例：房型、服務</small>
+                <label for="setting-admin-entity-name-plural">產品管理名稱更改</label>
+                <small>用於分頁標題。</small>
             </div>
             <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
         `;

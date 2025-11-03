@@ -14,7 +14,14 @@ export async function onRequest(context) {
         }
 
         // 1. 獲取使用者基本資料
-        const profileStmt = db.prepare("SELECT * FROM Users WHERE user_id = ?");
+        // --- 【修改】明確列出所有欄位，確保 stored_value_balance 被選取 ---
+        const profileStmt = db.prepare(
+          `SELECT user_id, line_display_name, line_picture_url, 
+                  real_name, nickname, phone, email, 
+                  class, level, current_exp, tag, perk, notes, 
+                  stored_value_balance 
+           FROM Users WHERE user_id = ?`
+        );
         const profile = await profileStmt.bind(userId).first();
 
         if (!profile) {
@@ -28,17 +35,29 @@ export async function onRequest(context) {
         // 3. 獲取消費紀錄
         const expHistoryStmt = db.prepare("SELECT * FROM Purchasehistory WHERE user_id = ? ORDER BY created_at DESC");
         const expHistoryResult = await expHistoryStmt.bind(userId).all();
+        
+        // --- 【新增】4. 獲取儲值金紀錄 ---
+        const storedValueStmt = db.prepare("SELECT * FROM StoredValueHistory WHERE user_id = ? ORDER BY created_at DESC");
+        const storedValueResult = await storedValueStmt.bind(userId).all();
+
 
         // 5. 將所有結果打包回傳 (已移除 rentals)
         const responseData = {
             profile: profile,
             bookings: bookingsResult.results || [],
-            exp_history: expHistoryResult.results || []
+            exp_history: expHistoryResult.results || [],
+            stored_value_history: storedValueResult.results || [] // 【新增】
         };
 
+        // --- 【新增】加入 Cache-Control header 避免快取 ---
         return new Response(JSON.stringify(responseData), {
             status: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
         });
 
     } catch (error) {

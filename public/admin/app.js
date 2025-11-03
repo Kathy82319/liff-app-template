@@ -183,7 +183,7 @@ async init() {
                 console.error("[App Init] Config fetch failed:", error);
                 // this.isConfigReady = false; // <--- 【修正】移除此行
                 const loadingView = document.getElementById('loading-view');
-G                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
+                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
                 throw error; // 
             }
         })();

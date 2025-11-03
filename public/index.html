@@ -138,17 +138,18 @@
                 <div class="profile-avatar">
                     <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
                 </div>
-                <div class="profile-stats">
-                    <h2 id="display-name">讀取中...</h2>
-                    <p><strong></strong><span id="user-class"></span></p>
-                    <p><strong></strong><span id="user-level"></span></p>
-                    <p><strong></strong><span id="user-exp"></span></p>
-                </div>
+            <div class="profile-stats">
+                <h2 id="display-name">讀取中...</h2>
+                <p><strong></strong><span id="user-class"></span></p>
+                <p><strong></strong><span id="user-level"></span></p>
+                <p><strong></strong><span id="user-exp"></span></p>
+                <p><strong>儲值金餘額:</strong> <strong id="user-stored-value" style="color: var(--color-accent); font-size: 1.1em;">$0</strong></p>
             </div>
             <div id="user-perk-line" class="perk-display" style="display: none;"></div>
             <div class="profile-actions">
-                <button class="cta-button" id="my-bookings-btn">預訂紀錄</button>
+                <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
                 <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
+                <button class="cta-button" id="my-stored-value-btn" style="background-color: var(--color-secondary);">儲值金紀錄</button>
                 <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
             </div>
         </div>
@@ -238,6 +239,15 @@
                 </div>
             </div>
         </div>
+
+        <div id="page-my-stored-value-history">
+            <h1 class="page-main-title">儲值金紀錄</h1>
+            <div class="details-section">
+                <div id="my-stored-value-container"><p>查詢中...</p></div>
+            </div>
+            <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+        </div>
+
 
     </div>
 

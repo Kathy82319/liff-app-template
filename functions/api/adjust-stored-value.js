@@ -1,6 +1,7 @@
 // functions/api/admin/adjust-stored-value.js
 
-export async function onRequest(context) {
+// 【修正】改用 'export const' 語法
+export const onRequest = async (context) => {
     try {
         if (context.request.method !== 'POST') {
             return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
@@ -15,13 +16,11 @@ export async function onRequest(context) {
         }
         
         const amount = Number(amount_to_add);
-
-        // --- 【這就是修正的地方】---
-        // 將錯誤訊息合併為一行
+        
         if (isNaN(amount) || !Number.isInteger(amount) || amount === 0) {
+            // (確保這行是單行)
             return new Response(JSON.stringify({ error: '變動金額必須是一個非零的整數。' }), { status: 400 });
         }
-        // --- 【修正結束】---
         
         if (notes && (typeof notes !== 'string' || notes.length > 200)) {
             return new Response(JSON.stringify({ error: '備註長度不可超過 200 字。' }), { status: 400 });
@@ -77,4 +76,4 @@ export async function onRequest(context) {
             headers: { 'Content-Type': 'application/json' },
         });
     }
-}
+};

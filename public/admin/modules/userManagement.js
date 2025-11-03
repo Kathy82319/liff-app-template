@@ -259,7 +259,7 @@ async function loadAndBindMessageDrafts(userId) {
     };
 }
 
-// 函式：渲染 CRM 彈窗的完整內容 (保持不變)
+// 函式：渲染 CRM 彈窗的完整內容 (【修改】)
 function renderUserDetails(data) {
     const userDetailsModal = document.getElementById('user-details-modal');
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
@@ -269,6 +269,9 @@ function renderUserDetails(data) {
     const displayName = profile.nickname || profile.line_display_name;
     userDetailsModal.querySelector('#user-details-title').textContent = displayName;
 
+    // --- 【新增】儲值金餘額顯示 ---
+    const storedValueBalance = profile.stored_value_balance || 0;
+
     contentContainer.innerHTML = `
         <div class="details-grid">
             <div class="profile-summary">
@@ -277,6 +280,7 @@ function renderUserDetails(data) {
                 <p><strong>姓名:</strong> ${profile.real_name || '未設定'}</p>
                 <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
                 <hr>
+                <p><strong>儲值金:</strong> <span style="font-size: 1.2em; font-weight: bold; color: var(--color-primary);">$${storedValueBalance}</span></p>
                 <p><strong>等級:</strong> ${profile.level} (${profile.current_exp}/10 EXP)</p>
                 <p><strong>會員方案:</strong> ${profile.class}</p>
                 <p><strong>標籤:</strong> ${profile.tag}</p>
@@ -286,30 +290,38 @@ function renderUserDetails(data) {
                 <div class="details-tabs">
                     <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
                     <button class="details-tab" data-target="tab-exp">點數紀錄</button>
+                    <button class="details-tab" data-target="tab-stored-value">儲值金紀錄</button>
                 </div>
                 <div class="details-tab-content active" id="tab-bookings"></div>
                 <div class="details-tab-content" id="tab-exp"></div>
+                <div class="details-tab-content" id="tab-stored-value"></div>
             </div>
         </div>
         <div class="message-sender">
-            <h4>發送 LINE 訊息</h4>
+            <h4>操作</h4>
             <div class="form-group">
-                <label for="message-draft-select">選擇訊息草稿</label>
+                <label for="message-draft-select">選擇訊息草稿 (發送訊息用)</label>
                 <select id="message-draft-select"><option value="">-- 手動輸入或選擇草稿 --</option></select>
             </div>
             <div class="form-group">
                 <label for="direct-message-content">訊息內容</label>
                 <textarea id="direct-message-content" rows="4"></textarea>
             </div>
-            <div class="form-actions">
-                <button id="send-direct-message-btn" class="action-btn btn-save" data-userid="${profile.user_id}">確認發送</button>
-            </div>
+            <div class="form-actions" id="details-modal-actions" style="flex-wrap: wrap;">
+                </div>
         </div>
     `;
 
-    // 渲染兩個歷史紀錄表格
+    // 渲染三個歷史紀錄表格
     contentContainer.querySelector('#tab-bookings').appendChild(renderHistoryTable(bookings, ['booking_date', 'num_of_people', 'status'], { booking_date: '預約日', num_of_people: '人數', status: '狀態' }));
     contentContainer.querySelector('#tab-exp').appendChild(renderHistoryTable(exp_history, ['created_at', 'reason', 'exp_added'], { created_at: '日期', reason: '原因', exp_added: '點數' }));
+    
+    // 【新增】渲染儲值金紀錄 (目前 API 還沒做，先顯示假資料或提示)
+    const storedValueTab = contentContainer.querySelector('#tab-stored-value');
+    // TODO: 步驟 7.1.3 會建立 API，屆時再補上
+    // storedValueTab.appendChild(renderHistoryTable(..., ['created_at', 'type', 'amount_changed', 'current_balance'], { created_at: '日期', type: '類型', amount_changed: '變動', current_balance: '餘額' }));
+    storedValueTab.innerHTML = '<p>儲值金紀錄功能將在後續步驟中完成。</p>';
+
 
     // 綁定頁籤切換事件
     contentContainer.querySelector('.details-tabs').addEventListener('click', e => {
@@ -323,7 +335,94 @@ function renderUserDetails(data) {
     
     // 呼叫函式來載入訊息草稿
     loadAndBindMessageDrafts(profile.user_id);
+
+    // 【新增】動態渲染操作按鈕
+    const actionsContainer = contentContainer.querySelector('#details-modal-actions');
+    if (actionsContainer) {
+        actionsContainer.innerHTML = renderCustomerActions(profile);
+    }
 }
+
+// 【新增】渲染 CRM 視窗中的操作按鈕
+function renderCustomerActions(profile) {
+    const targetName = profile.nickname || profile.line_display_name;
+    // 儲值按鈕、編輯按鈕、發送訊息按鈕
+    return `
+        <button type="button" class="action-btn" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-success);">儲值/扣款</button>
+        <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
+        <button type="button" id="send-direct-message-btn" class="action-btn" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">確認發送</button>
+    `;
+}
+
+// 【新增】開啟儲值/扣款 Modal 的輔助函式
+function openAdjustStoredValueModal(userId, userName) {
+    const modal = document.getElementById('stored-value-modal');
+    if (!modal) return;
+    
+    // 重置表單
+    document.getElementById('stored-value-form').reset();
+    
+    // 填入使用者資訊
+    document.getElementById('stored-value-user-id').value = userId;
+    document.getElementById('stored-value-user-name').textContent = userName;
+    
+    // 恢復按鈕狀態
+    const submitBtn = document.getElementById('stored-value-submit-btn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '確認變更';
+    
+    ui.showModal('#stored-value-modal');
+}
+
+// 【新增】處理 CRM Modal 中所有按鈕點擊的函式
+async function handleModalAction(event) {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const targetUserId = button.dataset.userId;
+    const targetName = button.dataset.targetName;
+    
+    // 【新增】處理儲值按鈕點擊
+    if (action === 'adjust-stored-value') {
+        openAdjustStoredValueModal(targetUserId, targetName);
+        return; // 直接返回，不禁用按鈕
+    }
+    
+    // 【新增】處理編輯資料按鈕
+    if (action === 'edit-customer') {
+        openEditUserModal(targetUserId); // targetUserId 在這裡
+        ui.hideModal('#user-details-modal'); // 關閉 CRM 視窗
+        return;
+    }
+    
+    // 【修改】處理發送訊息按鈕 (原 sendBtn.onclick 的邏輯)
+    if (action === 'send-message') {
+        const content = document.querySelector('#direct-message-content');
+        const message = content.value.trim();
+        if (!message) { ui.toast.error('訊息內容不可為空！'); return; }
+        if (!confirm(`確定要發送以下訊息給 ${targetUserId} 嗎？\n\n${message}`)) return;
+        
+        button.disabled = true;
+        button.textContent = '發送中...';
+        try {
+            await api.sendMessage(targetUserId, message);
+            ui.toast.success('訊息發送成功！');
+            content.value = '';
+            document.querySelector('#message-draft-select').value = '';
+        } catch (error) {
+            ui.toast.error(`錯誤：${error.message}`);
+        } finally {
+            button.disabled = false;
+            button.textContent = '確認發送';
+        }
+        return;
+    }
+    
+    // 處理其他未知的 action (如果有的話)
+    console.warn('未知的 Modal 操作:', action);
+}
+
 
 // 函式：開啟使用者詳細資料 (CRM) Modal (保持不變)
 async function openUserDetailsModal(userId) {
@@ -345,7 +444,7 @@ async function openUserDetailsModal(userId) {
 }
 
 
-// 綁定此頁面所有事件監聽器 (已替換)
+// 綁定此頁面所有事件監聽器 (【修改】)
 function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
@@ -420,6 +519,85 @@ function setupEventListeners() {
         });
         editUserForm.dataset.listenerAttached = 'true';
     }
+
+    // --- 【新增】綁定儲值 Modal 的提交事件 ---
+    const storedValueForm = document.getElementById('stored-value-form');
+    if (storedValueForm && !storedValueForm.dataset.listenerAttached) {
+        storedValueForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('stored-value-user-id').value;
+            const amountInput = document.getElementById('stored-value-amount');
+            const notes = document.getElementById('stored-value-notes').value.trim();
+            const submitBtn = document.getElementById('stored-value-submit-btn');
+
+            const amount = Number(amountInput.value);
+
+            if (!userId || !amount || amount === 0) {
+                ui.toast.error('金額必須是一個非零的數字！');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '處理中...';
+
+            try {
+                const result = await api.adjustStoredValue({
+                    userId: userId,
+                    amount_to_add: amount,
+                    notes: notes
+                });
+                
+                ui.toast.success(`儲值金更新成功！新餘額: $${result.newBalance}`);
+                ui.hideModal('#stored-value-modal');
+                
+                // 更新 allUsers 快取中的餘額 (如果 api.getUsers 支援)
+                const userInCache = allUsers.find(u => u.user_id === userId);
+                if (userInCache) {
+                    // 注意：allUsers 可能沒有 stored_value_balance 欄位
+                    // 最好還是重新 init()
+                }
+
+                // 重新載入列表
+                await init(); 
+                
+                // 重新開啟 CRM 視窗以顯示新餘額
+                await openUserDetailsModal(userId); 
+
+            } catch (error) {
+                ui.toast.error(`更新失敗：${error.message}`);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '確認變更';
+            }
+        });
+        storedValueForm.dataset.listenerAttached = 'true';
+    }
+
+    // --- 【新增】綁定 CRM 視窗中所有按鈕的點擊事件 (使用事件委派) ---
+    const userDetailsModal = document.getElementById('user-details-modal');
+    if (userDetailsModal && !userDetailsModal.dataset.actionListenerAttached) {
+        const actionsContainer = userDetailsModal.querySelector('#details-modal-actions');
+        if (actionsContainer) {
+            // 綁定到 actionsContainer
+            actionsContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action]');
+                if (button) {
+                    handleModalAction(e); // 呼叫我們修改過的 handleModalAction
+                }
+            });
+            userDetailsModal.dataset.actionListenerAttached = 'true'; // 標記已綁定
+        } else {
+            // 備用方案：如果 actionsContainer 尚未渲染 (不應該發生)
+            // 綁定到 contentContainer
+            const contentContainer = userDetailsModal.querySelector('#user-details-content');
+            contentContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action]');
+                if (button) {
+                    handleModalAction(e);
+                }
+            });
+            userDetailsModal.dataset.actionListenerAttached = 'true'; // 標記已綁定
+        }
+    }
 }
 
 // 模組初始化函式 (已替換)
@@ -467,6 +645,9 @@ export const init = async () => {
         }
 
         // --- 4. 獲取使用者資料 ---
+        // *** 警告：目前的 api.getUsers() (get-users.js) 沒有包含 stored_value_balance
+        // *** 這代表列表上的 "儲值金" 欄位 (如果系統設定有加) 會顯示 N/A
+        // *** 但 CRM Modal (呼叫 user-details API) 會顯示正確金額
         allUsers = await api.getUsers();
         
         renderUserList(allUsers); // 使用動態渲染函式

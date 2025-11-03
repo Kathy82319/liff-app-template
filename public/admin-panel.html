@@ -394,8 +394,8 @@
 #booking-details-content h4 {
     border-bottom: 2px solid var(--color-primary);
     padding-bottom: 8px;
-    margin-top: 20px;
-    margin-bottom: 15px;
+    margin-top: 5px;
+    margin-bottom: 5px;
     color: var(--color-primary);
 }
 #booking-details-content h4:first-child {
@@ -1421,6 +1421,33 @@
             <div id="booking-details-actions" class="form-actions">
                 {/* 按鈕將由 JS 動態生成 */}
             </div>
+        </div>
+    </div>
+    
+    <div id="stored-value-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3 id="stored-value-modal-title">儲值/扣款</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="stored-value-form">
+                <input type="hidden" id="stored-value-user-id">
+                <div class="modal-body">
+                    <p>您正在為 <strong id="stored-value-user-name">...</strong> 操作儲值金。</p>
+                    <div class="form-group">
+                        <label for="stored-value-amount">變動金額</label>
+                        <input type="number" id="stored-value-amount" placeholder="輸入正數儲值，負數扣款 (例如: -300)" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="stored-value-notes">備註 (選填)</label>
+                        <input type="text" id="stored-value-notes" placeholder="例如：儲 5000 送 500">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                    <button type="submit" id="stored-value-submit-btn" class="action-btn btn-save">確認變更</button>
+                </div>
+            </form>
         </div>
     </div>
 

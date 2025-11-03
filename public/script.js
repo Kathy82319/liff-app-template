@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-product-details': (data) => renderProductDetails(data.product),
         'page-news-details': (data) => renderNewsDetails(data.news),
         'page-booking-details': initializeBookingDetailsPage, 
-        'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
     };
 
 
@@ -301,30 +300,16 @@ function applyConfiguration() {
             const logic = activeTemplate.logic || {};
             const navBarConfig = logic.navBar || [];
 
-            // --- 【關鍵新增】強制顯示 #tab-bar 父容器 ---
-            // 我們的 CSS 預設 #tab-bar 應該是 display: flex
-            const tabBarElement = document.getElementById('tab-bar');
-            if (tabBarElement) {
-                tabBarElement.style.display = 'flex'; // 強制設為 flex
-            } else {
-                console.error("[applyConfiguration] 找不到 #tab-bar 元素！");
-            }
-            // --- 【新增結束】 ---
-
-            document.querySelectorAll('#tab-bar .tab-button').forEach(tab => {
+            document.querySelectorAll('.tab-button').forEach(tab => {
                 const targetPage = tab.dataset.target;
                 const config = navBarConfig.find(item => item.target === targetPage);
 
-                if (config) {
-                    if (config.enabled === false) {
-                        tab.style.display = 'none';
-                    } else {
-                        const label = config.label || '未命名'; 
-                        tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
-                        tab.style.display = ''; // 設為空字串，讓 flex-grow 生效
-                    }
+                if (config && config.enabled) {
+                    const label = config.label || '未命名'; 
+                    tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
+                    tab.style.display = '';
                 } else {
-                    tab.style.display = ''; // 找不到設定，使用 HTML 預設 (顯示)
+                    tab.style.display = 'none';
                 }
             });
             
@@ -403,7 +388,6 @@ function applyConfiguration() {
 
             if (target.id === 'my-bookings-btn') { showPage('page-my-bookings'); return; }
             if (target.id === 'my-exp-history-btn') { showPage('page-my-exp-history'); return; }
-            if (target.id === 'my-stored-value-btn') { showPage('page-my-stored-value-history'); return; }
             if (target.id === 'edit-profile-btn') { showPage('page-edit-profile'); return; }
 
             if (target.matches('.cancel-booking-btn')) {
@@ -638,9 +622,6 @@ function updateProfileDisplay(data) {
             if (levelP) levelP.style.display = 'none';
             if (expP) expP.style.display = 'none';
             if (perkP) perkP.style.display = 'none';
-        }
-        if (storedValueEl) {
-            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
         }
     }
     // =================================================================
@@ -983,59 +964,6 @@ async function initializeMyExpHistoryPage() {
             container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
         }
     }
-
-async function initializeMyStoredValueHistoryPage() {
-    if (!userProfile) return;
-
-    // (可選) 設定頁面標題
-    try {
-        const pageTitle = appContent.querySelector('#page-my-stored-value-history .page-main-title');
-        if (pageTitle) {
-            pageTitle.textContent = '我的儲值金紀錄';
-        }
-    } catch(e) {
-        console.error("設定 MyStoredValueHistory 標題失敗:", e);
-    }
-    
-    const container = document.getElementById('my-stored-value-container');
-    if (!container) return;
-    container.innerHTML = `<p>查詢中...</p>`;
-    
-    try {
-        // 呼叫新建立的 API
-        const response = await fetch(`api/my-stored-value-history?userId=${userProfile.userId}`);
-        if (!response.ok) throw new Error('查詢紀錄失敗');
-        const records = await response.json();
-        
-        // 翻譯類型
-        const typeMap = {
-            'admin_topup': '店家儲值',
-            'admin_deduct': '店家扣款',
-            'booking_payment': '訂房扣款'
-        };
-
-        if (records.length === 0) {
-            container.innerHTML = `<p>您目前沒有任何儲值金變動紀錄。</p>`;
-        } else {
-            // 我們沿用 .exp-record-card 的樣式，但修改排版
-            container.innerHTML = records.map(r => {
-                const amountClass = r.amount_changed > 0 ? 'var(--color-accent)' : 'var(--color-danger)';
-                const amountSign = r.amount_changed > 0 ? '+' : '';
-                const notes = r.notes ? `(${r.notes})` : '';
-
-                return `
-                <div class="exp-record-card" style="display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 10px; align-items: center;">
-                    <span style="font-size: 0.9em;">${new Date(r.created_at).toLocaleDateString()}</span>
-                    <span style="font-size: 0.9em;">${typeMap[r.type] || r.type} ${notes}</span>
-                    <span style="font-weight: bold; color: ${amountClass}; text-align: right;">${amountSign}${r.amount_changed}</span>
-                </div>
-                `;
-            }).join('');
-        }
-    } catch (error) {
-        container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
-    }
-}
 
 async function initializeInfoPage() {
 

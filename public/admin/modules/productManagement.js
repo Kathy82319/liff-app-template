@@ -842,283 +842,15 @@ function setupEventListeners() {
 
 // public/admin/modules/productManagement.js
 
-通用商業APP製作
-自訂 Gem
-您好，感謝您提供這麼詳細的 F12 錯誤日誌！
-
-您遇到的這個問題是一個「競態條件 (Race Condition)」造成的，這個錯誤日誌非常關鍵： [ProductManagement Internal Wait] window.CONFIG still not ready after waiting. Aborting init.
-
-這表示 productManagement.js（產品管理頁）在嘗試執行時，app.js（主程式）還沒有成功從後端 API (get-app-config) 取得並載入 window.CONFIG（全域設定檔），導致 productManagement.js 讀不到樣板設定，因此中止執行並顯示錯誤。
-
-這個問題的根源在於 public/admin/app.js 中的邏輯：
-
-app.js 在開始載入設定檔的同時，就去嘗試載入第一個頁面（handleRouteChange）。
-
-handleRouteChange 函式雖然會等待設定檔載入 (await this.configPromise)，但在某些情況下（例如使用者快速切換分頁），isConfigReady 這個旗標會被錯誤地提前設為 true。
-
-導致 productManagement.js 被載入時，window.CONFIG 其實還沒準備好，因此 productManagement.js 內部的等待迴圈 (Internal Wait Loop) 就失敗了。
-
-解決方案
-我們需要修改 2 個檔案：
-
-public/admin/app.js：移除有問題的 isConfigReady 旗標，強制每一次切換頁面都必須真正等待設定檔載入完成。
-
-public/admin/modules/productManagement.js：移除它內部的「等待迴圈」，因為 app.js 修正後會提供 100% 的保證，不再需要這個迴圈。
-
-步驟 1：替換 public/admin/app.js
-請將 public/admin/app.js 的完整內容替換為以下程式碼。 （這個版本移除了 isConfigReady 旗標，並修改了 handleRouteChange 和 init 函式來修復競態條件）：
-
-JavaScript
-// public/admin/app.js (FIX for Race Condition)
-
-import { api } from './api.js';
-import { ui } from './ui.js';
-import { hideBatchToolbar } from './modules/productManagement.js';
-
-const App = {
-    router: {
-        'dashboard': './modules/dashboard.js',
-        'users': './modules/userManagement.js',
-        'inventory': './modules/productManagement.js',
-        'bookings': './modules/bookingManagement.js',
-        'room-availability': './modules/roomAvailabilityManagement.js',
-        'exp-history': './modules/expHistory.js',
-        'news': './modules/newsManagement.js',
-        'drafts': './modules/draftsManagement.js',
-        'store-info': './modules/storeInfo.js',
-        'points': './modules/pointsCenter.js',
-        'settings': './modules/systemSettings.js',
-    },
-    configPromise: null, // 保留 Promise
-    // isConfigReady: false, // <-- 【修正】移除此旗標
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    },
-
-async handleRouteChange() {
-    console.log(`[App.js HandleRouteChange] Hash changed to: ${window.location.hash}`);
-    
-    // ========== ▼▼▼ 【關鍵修正 1】▼▼▼ ==========
-    // 移除 "if (!this.isConfigReady)" 檢查
-    // 強制*永遠*等待 configPromise。這很安全，因為等待一個
-    // 已經解析 (resolved) 的 Promise 是立即完成的。
-    console.log("[App.js HandleRouteChange] Awaiting config promise...");
-    try {
-        await this.configPromise; // <--- 強制等待
-        console.log("[App.js HandleRouteChange] Config promise resolved.");
-    } catch (error) {
-        console.error("[App.js HandleRouteChange] Config promise failed:", error);
-        ui.showPage('error');
-        const errorPage = document.getElementById('page-error');
-        if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
-        return; 
-    }
-    // ========== ▲▲▲ 【修正結束 1】▲▲▲ ==========
-
-
-    const pageId = window.location.hash.substring(1) || 'dashboard';
-    console.log(`[App.js HandleRouteChange] Determined pageId: ${pageId}`);
-
-    // --- (檢查 adminPagesConfig 的邏輯保持不變，現在 window.CONFIG 必定存在) ---
-    let adminPagesConfig = {}; 
-    try {
-        const activeTemplateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-        const activeTemplate = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeTemplateKey];
-        
-        if (activeTemplate && activeTemplate.logic && activeTemplate.logic.adminPagesEnabled) {
-            adminPagesConfig = activeTemplate.logic.adminPagesEnabled;
-            console.log(`[App.js] Loaded adminPagesEnabled from template '${activeTemplateKey}'`);
-        } else {
-            console.warn(`[App.js] Could not find adminPagesEnabled in active template '${activeTemplateKey}'. Using default (all enabled).`);
-        }
-        
-        const navTabs = document.querySelector('.nav-tabs');
-        if (navTabs) {
-             navTabs.querySelectorAll('a').forEach(tabLink => {
-                 const targetPage = tabLink.getAttribute('href')?.substring(1);
-                 if (targetPage) {
-                     if (adminPagesConfig.hasOwnProperty(targetPage) && adminPagesConfig[targetPage] === false) {
-                         tabLink.style.display = 'none';
-                     } else {
-                         tabLink.style.display = ''; 
-                     }
-                 }
-             });
-             console.log("[App.js HandleRouteChange] Applied adminPagesEnabled config to nav tabs.");
-        } else {
-            console.warn("[App.js HandleRouteChange] Could not find .nav-tabs to apply enablement config.");
-        }
-    } catch (e) {
-         console.error("[App.js HandleRouteChange] Error applying adminPagesEnabled config:", e);
-    }
-    // --- (檢查結束) ---
-
-
-    try {
-        console.log("[App.js HandleRouteChange] Attempting to hide batch toolbar...");
-        hideBatchToolbar();
-    } catch(e) {
-        console.warn("[App.js HandleRouteChange] Error hiding batch toolbar:", e);
-    }
-
-    console.log(`[App.js HandleRouteChange] Setting active nav for: ${pageId}`);
-    ui.setActiveNav(pageId);
-
-    console.log(`[App.js HandleRouteChange] About to call ui.showPage('${pageId}')`);
-    ui.showPage(pageId);
-    console.log(`[App.js HandleRouteChange] ui.showPage('${pageId}') finished.`);
-
-    const modulePath = this.router[pageId];
-    console.log(`[App.js HandleRouteChange] Module path for ${pageId}: ${modulePath || 'None'}`);
-
-    if (modulePath) {
-        try {
-            // --- (檢查頁面是否被禁用的邏輯保持不變) ---
-            if (adminPagesConfig.hasOwnProperty(pageId) && adminPagesConfig[pageId] === false) {
-                 console.warn(`[App.js HandleRouteChange] Access denied: Page '${pageId}' is disabled in template settings.`);
-                 const pageElement = document.getElementById(`page-${pageId}`);
-                 if(pageElement) pageElement.innerHTML = `<p style="color:orange; text-align: center;">此頁面 (${pageId}) 在目前的樣板設定中已被停用。</p>`;
-                 return; 
-            }
-            // --- (檢查結束) ---
-
-            console.log(`[App.js HandleRouteChange] Importing module: ${modulePath}`);
-            const pageModule = await import(modulePath);
-            console.log(`[App.js HandleRouteChange] Module ${modulePath} imported successfully.`);
-
-            if (pageModule.init) {
-                // ========== ▼▼▼ 【關鍵修正 2】▼▼▼ ==========
-                // 移除 "if (!window.CONFIG)" 檢查，因為
-                // 函式開頭的 await this.configPromise 已保證 window.CONFIG 存在。
-                // ========== ▲▲▲ 【修正結束 2】▲▲▲ ==========
-
-                console.log(`[App.js HandleRouteChange] Calling init() for ${modulePath}`);
-                await pageModule.init();
-                console.log(`[App.js HandleRouteChange] init() for ${modulePath} finished.`);
-
-                // (room-availability 的 RAF 邏輯保持不變)
-                if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
-                    console.log(`[App.js HandleRouteChange] Page is room-availability, scheduling initializeDatePickers via RAF...`);
-                    requestAnimationFrame(() => {
-                         requestAnimationFrame(() => {
-                            console.log("%c[App.js HandleRouteChange] Inside RAF, calling initializeDatePickers NOW...", "color: orange;");
-                            try {
-                                pageModule.initializeDatePickers();
-                            } catch (pickerError) {
-                                console.error("[App.js HandleRouteChange] Error calling initializeDatePickers from RAF:", pickerError);
-                                ui.toast.error(`初始化日期選擇器失敗: ${pickerError.message}`);
-                            }
-                        });
-                    });
-                } else {
-                     console.log(`[App.js HandleRouteChange] Not calling initializeDatePickers for ${pageId}.`);
-                }
-            } else {
-                 console.warn(`[App.js HandleRouteChange] Module ${modulePath} has no init function.`);
-            }
-        } catch (error) {
-             console.error(`載入或初始化模組 ${modulePath} 失敗:`, error);
-             const pageElement = document.getElementById(`page-${pageId}`);
-             if (pageElement) {
-                  pageElement.innerHTML = `<p style="color:red;">載入頁面功能 (${pageId}) 時發生錯誤: ${error.message}</p>`;
-             }
-        }
-    } else {
-         console.warn(`[App.js HandleRouteChange] No module found for pageId: ${pageId}`);
-    }
-    console.log(`[App.js HandleRouteChange] Finished handling route for ${pageId}.`);
-},
-
-    async init() {
-        console.log("[App Init] Starting initialization...");
-        ui.initSharedEventListeners();
-
-        // ========== ▼▼▼ 【關鍵修正 3】▼▼▼ ==========
-        this.configPromise = (async () => {
-            console.log("[App Init] Starting config fetch...");
-            try {
-                window.CONFIG = await api.getAppConfig();
-                // (驗證 config 結構的邏輯保持不變)
-                if (!window.CONFIG || typeof window.CONFIG !== 'object' ||
-                    !window.CONFIG.LOGIC || typeof window.CONFIG.LOGIC !== 'object' ||
-                    !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE ||
-                    !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS || typeof window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS !== 'object') {
-                    console.error("[App Init] Invalid config structure received:", window.CONFIG);
-                    throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
-                }
-                console.log("[App Init] Config fetched and seems valid:", window.CONFIG);
-                // this.isConfigReady = true; // <--- 【修正】移除此行
-            } catch (error) {
-                console.error("[App Init] Config fetch failed:", error);
-                // this.isConfigReady = false; // <--- 【修正】移除此行
-                const loadingView = document.getElementById('loading-view');
-G                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
-                throw error; // 
-            }
-        })();
-        // ========== ▲▲▲ 【修正結束 3】▲▲▲ ==========
-
-        window.addEventListener('hashchange', () => this.handleRouteChange());
-
-        // (navTabsElement 監聽器保持不變)
-        const navTabsElement = document.querySelector('.nav-tabs');
-        if (navTabsElement) {
-            navTabsElement.addEventListener('click', (event) => {
-                if (event.target.tagName === 'A') {
-                    event.preventDefault();
-                    const newHash = event.target.getAttribute('href');
-                    if (window.location.hash !== newHash) {
-                        window.location.hash = newHash; // This will trigger the 'hashchange' listener
-                    }
-                }
-            });
-        } else {
-            console.error("[App Init] '.nav-tabs' element not found. Navigation might not work.");
-        }
-
-
-        // (Initial route handling 保持不變)
-        console.log("[App Init] Triggering initial handleRouteChange...");
-        try {
-             await this.handleRouteChange();
-             console.log("[App Init] Initial route handled.");
-        } catch (initialRouteError) {
-             console.error("[App Init] Error during initial route handling:", initialRouteError);
-        }
-        console.log("[App Init] Initialization finished.");
-    }
-};
-
-// (DOMContentLoaded 監聽器保持不變)
-document.addEventListener('DOMContentLoaded', () => {
-     console.log('[DOMContentLoaded] Skipping frontend cookie check. Initializing App...');
-     App.init(); 
-});
-步驟 2：修改 public/admin/modules/productManagement.js
-現在 app.js 會保證 window.CONFIG 已經載入，我們必須移除 productManagement.js 內部的「等待迴圈」，否則它會因為找不到 window.CONFIG（在它被呼叫的那一刻）而立刻報錯。
-
-開啟 public/admin/modules/productManagement.js。
-
-找到 export const init = async () => { 函式。
-
-刪除或註解掉內部的「Internal Wait Loop」區塊，如下所示：
-
-JavaScript
-// public/admin/modules/productManagement.js
-
-// ... (所有其他函式) ...
-
 export const init = async () => {
-    console.log("[ProductManagement Init] Init called."); // <-- 保留這一行
+    console.log("[ProductManagement Init] Init called.");
 
-    // ========== ▼▼▼ 請刪除或註解掉以下這整段迴圈 ▼▼▼ ==========
+    // ========== ▼▼▼ 【關鍵修正 3】移除內部的等待迴圈 ▼▼▼ ==========
     /*
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     let attempts = 0;
-    const maxAttempts = 15; // Wait up to 1.5 seconds
+    const maxAttempts = 15; 
 
-    // ========== ▼▼▼ Internal Wait Loop ▼▼▼ ==========
     while (
         (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) &&
         attempts < maxAttempts
@@ -1134,12 +866,12 @@ export const init = async () => {
         if (inventoryPage) {
             inventoryPage.innerHTML = `<p style="color:red;">讀取核心設定失敗，請重新整理頁面或檢查系統設定。</p>`;
         }
-        return; // Stop execution
+        return; 
     }
-    // ========== ▲▲▲ 迴圈刪除結束 ▲▲▲ ==========
     */
+    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
 
-    console.log("[ProductManagement Init] window.CONFIG is guaranteed by app.js. Proceeding..."); // <-- 您可以加上這行 log
+    console.log("[ProductManagement Init] window.CONFIG is guaranteed by app.js. Proceeding...");
 
     // Now proceed with the original logic
     try {
@@ -1152,40 +884,26 @@ export const init = async () => {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
 
-        // --- Start Enhanced Debugging (Corrected Paths) ---
-        // Log the object structure clearly
-        console.log("DEBUG: Full currentActiveTemplate object:", JSON.stringify(currentActiveTemplate, null, 2)); // Use stringify for better structure view
-        console.log("DEBUG: Checking currentActiveTemplate.logic:", currentActiveTemplate.logic); // Check logic object
-        // Check adminColumns *inside* logic, handle if logic is missing
-        console.log("DEBUG: Checking currentActiveTemplate.logic.adminColumns:", currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : 'logic is missing');
-        console.log("DEBUG: Checking typeof currentActiveTemplate.logic.adminColumns:", typeof (currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : undefined));
-        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.logic.adminColumns):", Array.isArray(currentActiveTemplate.logic ? currentActiveTemplate.logic.adminColumns : undefined));
-        // Check fields at top level
-        console.log("DEBUG: Checking currentActiveTemplate.fields:", currentActiveTemplate.fields);
-        console.log("DEBUG: Checking Array.isArray(currentActiveTemplate.fields):", Array.isArray(currentActiveTemplate.fields));
-        // --- End Enhanced Debugging ---
+        // (移除 DEBUG Log)
 
         // --- Corrected Check for adminColumns with added log inside ---
-        // Checks if 'logic' exists AND 'adminColumns' inside it is an array
         if (!currentActiveTemplate.logic || !Array.isArray(currentActiveTemplate.logic.adminColumns)) {
-            // *** ADD THIS LOG ***
-            console.error("!!!! Entering the IF block for adminColumns check !!!!"); // Log if the check fails
+            console.error("!!!! Entering the IF block for adminColumns check !!!!"); 
             console.error("[ProductManagement Internal Wait] logic object or adminColumns check failed!", currentActiveTemplate);
-            throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 陣列設定。`); // More specific error
+            throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 陣列設定。`); 
         }
         // --- Check End ---
 
         // *** ADDED CHECK FOR FIELDS ***
-        // Checks if 'fields' exists at the top level AND is an array
         if (!Array.isArray(currentActiveTemplate.fields)) {
-             console.error("!!!! Check for fields failed !!!!"); // Log if the check fails
+             console.error("!!!! Check for fields failed !!!!"); 
              console.error("[ProductManagement Internal Wait] fields check failed!", currentActiveTemplate);
-             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'fields' 陣列設定。`); // Specific error for fields
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'fields' 陣列設定。`); 
         }
         // *** FIELDS CHECK END ***
 
 
-        console.log("[ProductManagement Internal Wait] Template, fields, and adminColumns checks passed."); // Updated log message if both checks succeed
+        console.log("[ProductManagement Internal Wait] Template, fields, and adminColumns checks passed."); 
 
     } catch (e) {
         console.error("讀取商業樣板失敗:", e);

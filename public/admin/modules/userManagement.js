@@ -265,11 +265,10 @@ function renderUserDetails(data) {
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
     if (!contentContainer) return;
 
-    const { profile, bookings, exp_history } = data;
+const { profile, bookings, exp_history, stored_value_history } = data;
     const displayName = profile.nickname || profile.line_display_name;
     userDetailsModal.querySelector('#user-details-title').textContent = displayName;
 
-    // --- 【新增】儲值金餘額顯示 ---
     const storedValueBalance = profile.stored_value_balance || 0;
 
     contentContainer.innerHTML = `
@@ -286,7 +285,8 @@ function renderUserDetails(data) {
                 <p><strong>標籤:</strong> ${profile.tag}</p>
             </div>
             <div class="profile-details">
-                    ${profile.notes ? `<div class="crm-notes-section" style="margin-bottom: 1rem; padding: 0.5rem 0.8rem; background-color: #fffbe6; border-radius: 6px; border: 1px solid #ffe58f; max-height: 5em; overflow-y: auto;"><h5>顧客備註</h5><p style="white-space: pre-wrap; margin: 0;">${profile.notes}</p></div>` : ''}                <div class="details-tabs">
+                ${profile.notes ? `<div class="crm-notes-section" style="margin-bottom: 1rem; padding: 0.8rem; background-color: #fffbe6; border-radius: 6px; border: 1px solid #ffe58f; max-height: 5em; overflow-y: auto;"><h4>顧客備註</h4><p style="white-space: pre-wrap; margin: 0;">${profile.notes}</p></div>` : ''}
+                <div class="details-tabs">
                     <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
                     <button class="details-tab" data-target="tab-exp">點數紀錄</button>
                     <button class="details-tab" data-target="tab-stored-value">儲值金紀錄</button>
@@ -315,12 +315,35 @@ function renderUserDetails(data) {
     contentContainer.querySelector('#tab-bookings').appendChild(renderHistoryTable(bookings, ['booking_date', 'num_of_people', 'status'], { booking_date: '預約日', num_of_people: '人數', status: '狀態' }));
     contentContainer.querySelector('#tab-exp').appendChild(renderHistoryTable(exp_history, ['created_at', 'reason', 'exp_added'], { created_at: '日期', reason: '原因', exp_added: '點數' }));
     
-    // 【新增】渲染儲值金紀錄 (目前 API 還沒做，先顯示假資料或提示)
+    // --- 【修改】渲染儲值金紀錄 ---
     const storedValueTab = contentContainer.querySelector('#tab-stored-value');
-    // TODO: 步驟 7.1.3 會建立 API，屆時再補上
-    // storedValueTab.appendChild(renderHistoryTable(..., ['created_at', 'type', 'amount_changed', 'current_balance'], { created_at: '日期', type: '類型', amount_changed: '變動', current_balance: '餘額' }));
-    storedValueTab.innerHTML = '<p>儲值金紀錄功能將在後續步驟中完成。</p>';
+    
+    // 輔助對照表
+    const typeMap = {
+        'admin_topup': '店家儲值',
+        'admin_deduct': '店家扣款',
+        'booking_payment': '訂房扣款'
+    };
 
+    // 處理資料，加入翻譯後的 type_display 欄位
+    const formattedHistory = (stored_value_history || []).map(record => ({
+        ...record,
+        created_at: new Date(record.created_at).toLocaleString('sv-SE'), // 格式化日期
+        type_display: typeMap[record.type] || record.type // 翻譯類型
+    }));
+
+    // 呼叫 renderHistoryTable
+    storedValueTab.appendChild(renderHistoryTable(
+        formattedHistory, 
+        ['created_at', 'type_display', 'amount_changed', 'current_balance', 'notes'], 
+        { 
+            created_at: '日期', 
+            type_display: '類型', 
+            amount_changed: '變動金額', 
+            current_balance: '餘額',
+            notes: '備註'
+        }
+    ));
 
     // 綁定頁籤切換事件
     contentContainer.querySelector('.details-tabs').addEventListener('click', e => {

@@ -15,10 +15,13 @@ export async function onRequest(context) {
         }
         
         const amount = Number(amount_to_add);
+
+        // --- 【這就是修正的地方】---
+        // 將錯誤訊息合併為一行
         if (isNaN(amount) || !Number.isInteger(amount) || amount === 0) {
-            return new Response(JSON.stringify({ error: '變動金額必須是
-一個非零的整數。' }), { status: 400 });
+            return new Response(JSON.stringify({ error: '變動金額必須是一個非零的整數。' }), { status: 400 });
         }
+        // --- 【修正結束】---
         
         if (notes && (typeof notes !== 'string' || notes.length > 200)) {
             return new Response(JSON.stringify({ error: '備註長度不可超過 200 字。' }), { status: 400 });

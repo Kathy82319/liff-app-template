@@ -581,71 +581,67 @@
 }
 .rav-table thead th:first-child { /* Top-left corner cell */
     left: 0;
-    z-index: 3; /* Highest z-index */
+    z-index: 3; 
 }
-    .status-tag.status-noshow, .calendar-booking.status-noshow { /* 新增 no-show 樣式 */
+    .status-tag.status-noshow, .calendar-booking.status-noshow {
     background-color: var(--color-warning);
-    color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
+    color: var(--color-text-dark); 
     opacity: 0.8;
     }
-    /* --- 【新增】Status Menu Styles --- */
     .status-menu {
-        position: absolute; /* Needed for positioning */
+        position: absolute; 
         background-color: var(--color-sidebar-bg, #FFF);
         border: 1px solid var(--color-border, #CCC);
         border-radius: var(--border-radius, 4px);
         box-shadow: var(--box-shadow, 0 2px 5px rgba(0,0,0,0.2));
-        z-index: 1001; /* Ensure it's above table rows */
+        z-index: 1001; 
         min-width: 100px;
-        padding: 5px 0; /* Add some vertical padding */
+        padding: 5px 0; 
     }
     .status-menu-option {
         padding: 8px 12px;
         cursor: pointer;
         font-size: 0.9em;
-        color: var(--color-text-dark); /* Default text color */
-        white-space: nowrap; /* Prevent wrapping */
+        color: var(--color-text-dark); 
+        white-space: nowrap; 
     }
     .status-menu-option:hover {
-        background-color: #f0f0f0; /* Basic hover effect */
+        background-color: #f0f0f0; 
     }
 
 
 .crm-notes-section {
-    margin-bottom: 1rem; /* 可調整與下方元素的距離 */
+    margin-bottom: 1rem; 
     padding: 0.8rem;
     background-color: #fffbe6;
     border-radius: 6px;
     border: 1px solid #ffe58f;
-    max-height: 5em; /* 保留最大高度 */
-    overflow-y: auto; /* 保留滾動 */
-    /* display: block; */ /* 預設就是 block，通常不需要指定 */
+    max-height: 5em; 
+    overflow-y: auto;
 }
-.crm-notes-section h5 { /* 【新增/修改】 */
-     margin-top: 0; /* 確保標題頂部沒有多餘間距 */
-     margin-bottom: 0.2rem; /* 【v12.0 修正】減少標題與內容的間距 */
-     text-align: left; /* 明確指定靠左 */
+.crm-notes-section h5 { 
+     margin-top: 0; 
+     margin-bottom: 0.2rem; 
+     text-align: left; 
 }
 .crm-notes-section p {
-    margin: 0; /* 確保內容上下沒有多餘間距 */
-    text-align: left; /* 明確指定靠左 */
+    margin: 0; 
+    text-align: left; 
     width: 100%;
-    white-space: pre-wrap; /* 保留換行 */
+    white-space: pre-wrap; 
 }
 
-/* --- 【新增】預約詳情視窗專用樣式 (從 admin-panel.html 搬移過來並整理) --- */
 .details-grid-container {
     display: grid;
-    /* grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); */ /* 使用固定兩欄可能更整齊 */
     grid-template-columns: repeat(2, 1fr);
-    gap: 5px 20px; /* 減少垂直間距 */
+    gap: 5px 20px; 
     padding: 10px 0;
 }
 .details-grid-container div {
-    padding: 3px 0; /* 減少 div 內上下 padding */
+    padding: 3px 0; 
 }
 .details-notes {
-    margin-top: 5px; /* 減少與上方元素的距離 */
+    margin-top: 5px; 
     width: 100%;
     text-align: left;
 }

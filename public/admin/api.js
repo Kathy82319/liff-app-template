@@ -96,7 +96,7 @@ export const api = {
     getExpHistory: () => request('/api/admin/exp-history-list'),
     // Assuming addPoints is admin only
     addPoints: (data) => request('/api/admin/add-points', { method: 'POST', body: JSON.stringify(data) }),
-
+    adjustStoredValue: (data) => request('/api/admin/adjust-stored-value', { method: 'POST', body: JSON.stringify(data) }),
     // --- Admin News ---
     getAllNews: () => request('/api/admin/get-all-news'),
     createNews: (data) => request('/api/admin/create-news', { method: 'POST', body: JSON.stringify(data) }),

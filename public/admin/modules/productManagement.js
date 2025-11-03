@@ -6,8 +6,7 @@ let allProducts = [];
 let sortableProducts = null;
 let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
-// 【新增】圖片上傳核心邏जिक
-// 圖片上傳核心邏जिक (已修改為暫時停用狀態)
+// 【新增】圖片上傳核心邏輯 (目前為停用狀態)
 async function handleImageUpload(file, inputElement, buttonElement) {
     ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
     // 以下為未來啟用時的程式碼，暫時註解
@@ -57,17 +56,21 @@ function createFormField(field) {
     formGroup.className = 'form-group';
     const label = document.createElement('label');
     label.htmlFor = `edit-product-${field.key}`;
-    label.textContent = field.label + (field.required ? ' (填)' : '');
+    label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
+// --- 價格欄位處理 (保持不變) ---
+    if (field.key === 'price') {
+        return null;
+    }
+
+    // --- 【修正】排除 images 欄位，它由動態區塊處理 ---
     if (field.key === 'images') {
          // 這個欄位由 #edit-product-image-section 動態區塊處理
          // 我們不應該在這裡為它建立一個單獨的輸入框
          return null; 
     }
-    if (field.key === 'price') {
-        return null;
-    }
+
     if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
         const inputElement = document.createElement('input');
         inputElement.type = 'number';
@@ -192,15 +195,17 @@ function addImageInputField(container, value = '') {
     updateDynamicButtonsState();
 }
 
+// --- 【修改】規格欄位改用 textarea ---
 function addSpecInputField(container, name = '', value = '') {
     const count = container.children.length;
     if (count >= 5) return;
     const newGroup = document.createElement('div');
     newGroup.className = 'spec-input-group dynamic-input-group';
+    // --- 【修改】將 spec_value 改為 textarea ---
     newGroup.innerHTML = `
-    <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
-    <textarea name="spec_value" placeholder="規格${count + 1}內容" rows="3">${value}</textarea>
-    <button type="button" class="btn-remove-input">⊖</button>
+        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
+        <textarea name="spec_value" placeholder="規格${count + 1}內容" rows="3">${value}</textarea>
+        <button type="button" class="btn-remove-input">⊖</button>
     `;
     container.appendChild(newGroup);
     updateDynamicButtonsState();
@@ -218,7 +223,6 @@ function updateDynamicButtonsState() {
 }
 
 // 渲染列表函式 (保持不變)
-// 範例：確保 renderProductList 使用模組級 activeTemplate (若您的舊版是這樣寫)
 function renderProductList(products) {
     // ... (existing code for thead, tbody checks) ...
      const productListTbody = document.getElementById('product-list-tbody');
@@ -412,9 +416,11 @@ function handleCsvUpload(event) {
 
 // --- 【大幅修改】Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
+    // ========== ▼▼▼ 【關鍵修正 1】讀取 logic 中的名稱 ▼▼▼ ==========
     const entityName = activeTemplate.logic.adminEntityName || "產品";
     const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
-    // ... (existing code for formBody, form checks) ...
+    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
+
      const formBody = document.getElementById('edit-product-form-body');
      const form = document.getElementById('edit-product-form');
      if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {
@@ -428,6 +434,9 @@ function openProductModal(product = null) {
     activeTemplate.fields.forEach(field => {
         // --- Skip old 'price' field ---
         if (field.key === 'price') return;
+        // --- 【修正】排除 images 欄位 ---
+        if (field.key === 'images') return; 
+        
         // --- Generate fields for new prices ---
         if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
              const priceField = createFormField({ // Create definitions on the fly
@@ -452,18 +461,27 @@ function openProductModal(product = null) {
      const specInputs = document.getElementById('edit-product-spec-inputs');
      if (imageInputs) imageInputs.innerHTML = '';
      if (specInputs) specInputs.innerHTML = '';
+     
+     // --- 【修正】hasImages 檢查方式 ---
      const hasImages = activeTemplate.fields.some(f => f.key === 'images');
      if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none';
-    if (specSection) {   specSection.style.display = 'block';    }     
-    const modalTitle = document.getElementById('modal-product-title');
+     
+     // --- 【修正】不再檢查 hasSpecs，永遠顯示規格區塊 ---
+     if (specSection) { specSection.style.display = 'block'; }  
+     
+     const modalTitle = document.getElementById('modal-product-title');
      const pageTitle = document.querySelector('#page-inventory .page-header h2');
-    if (pageTitle) pageTitle.textContent = `${entityNamePlural}管理`;
+     
+     // --- 【修改】使用新的 entityNamePlural 變數 ---
+     if (pageTitle) pageTitle.textContent = `${entityNamePlural}管理`;
+
 
     // 4. Populate data (Edit mode)
     if (product) {
-        if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
-            modalTitle.textContent = `編輯${entityName}：${product.name}`;        }
-        if (modalTitle) modalTitle.textContent = `編輯${activeTemplate.entityName}：${product.name}`;
+        // --- 【修改】使用新的 entityName 變數 ---
+        if (modalTitle && activeTemplate) { 
+            modalTitle.textContent = `編輯${entityName}：${product.name}`; 
+        }
 
         // Populate main fields (excluding special ones)
         activeTemplate.fields.forEach(field => {
@@ -486,7 +504,7 @@ function openProductModal(product = null) {
         document.getElementById('edit-product-price_saturday').value = product.price_saturday || '';
 
 
-        // ... (rest of the logic for populating images, specs, product_id remains the same) ...
+        // ... (rest of the logic for populating images, product_id remains the same) ...
          if (hasImages && imageInputs) {
             try {
                 const images = JSON.parse(product.images || '[]');
@@ -494,16 +512,20 @@ function openProductModal(product = null) {
                 else { images.forEach(imgUrl => addImageInputField(imageInputs, imgUrl)); }
             } catch (e) { addImageInputField(imageInputs); }
         }
+        
+        // --- 【修正】移除 hasSpecs 檢查，永遠填入規格 ---
          if (specInputs) {
             let specAdded = false;
             for (let i = 1; i <= 5; i++) {
                 if (product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
-                    addSpecInputField(specInputs, product[`spec_${i}_name`], product[`spec_${i}_value`]);
+                    // --- 【修改】傳入空字串而不是 null ---
+                    addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
                     specAdded = true;
                 }
             }
             if (!specAdded) addSpecInputField(specInputs);
         }
+        
          let idInput = form.querySelector('input[name="product_id"]');
          if (!idInput) {
              idInput = document.createElement('input');
@@ -513,12 +535,14 @@ function openProductModal(product = null) {
          idInput.value = product.product_id;
 
     } else {
-        if (modalTitle && activeTemplate) { // <-- 增加 activeTemplate 檢查
-            modalTitle.textContent = `新增${entityName}`;        
+        // --- 【修改】使用新的 entityName 變數 ---
+        if (modalTitle && activeTemplate) { 
+            modalTitle.textContent = `新增${entityName}`; 
         }
-        if (modalTitle) modalTitle.textContent = `新增${activeTemplate.entityName}`;
          if (hasImages && imageInputs) addImageInputField(imageInputs);
+         // --- 【修正】移除 hasSpecs 檢查 ---
          if (specInputs) addSpecInputField(specInputs);
+         
         const idInput = form.querySelector('input[name="product_id"]');
         if (idInput) idInput.remove();
     }
@@ -527,7 +551,7 @@ function openProductModal(product = null) {
     ui.showModal('#edit-product-modal');
 }
 
-
+// 【大幅修改】處理表單提交 (前端直接更新版本)
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
@@ -554,44 +578,13 @@ async function handleFormSubmit(event) {
      data.price_saturday = parseFloat(form.querySelector('[name="price_saturday"]').value) || null;
      const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
      data.images = JSON.stringify(images);
-     // --- 修改點：加入 Log 來偵錯規格欄位讀取 ---
-    console.log("--- 開始讀取規格欄位 ---");
-    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
-        const i = index + 1;
-        const nameInput = group.querySelector('[name="spec_name"]');
-        const valueInput = group.querySelector('[name="spec_value"]');
-
-        console.log(`處理第 ${i} 組規格 (.spec-input-group):`);
-        console.log("  找到 Name Input:", nameInput); // 看看是否找到元素
-        console.log("  找到 Value Input:", valueInput); // 看看是否找到元素
-
-        // 只有在找到 input 元素時才嘗試讀取 .value
-        if (nameInput) {
-            data[`spec_${i}_name`] = nameInput.value.trim() || null;
-            console.log(`  讀取 spec_${i}_name 值:`, nameInput.value, "-> 存入:", data[`spec_${i}_name`]);
-        } else {
-            console.error(`  錯誤：在第 ${i} 組找不到 [name="spec_name"]`);
-            data[`spec_${i}_name`] = null; // 找不到就設為 null
-        }
-
-        if (valueInput) {
-            data[`spec_${i}_value`] = valueInput.value.trim() || null;
-            console.log(`  讀取 spec_${i}_value 值:`, valueInput.value, "-> 存入:", data[`spec_${i}_value`]);
-        } else {
-            console.error(`  錯誤：在第 ${i} 組找不到 [name="spec_value"]`);
-            data[`spec_${i}_value`] = null; // 找不到就設為 null
-        }
-    });
-    console.log("--- 規格欄位讀取完畢 ---");
-    console.log("讀取後的 data 物件 (包含 specs):", JSON.stringify(data)); // 顯示最終要送出的 data
-    // --- Log 結束 ---
-    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
-    const i = index + 1;
-    // 讀取 input (名稱)，如果為空則存 ''
-    data[`spec_${i}_name`] = group.querySelector('input[name="spec_name"]').value.trim() || '';
-    // 讀取 textarea (內容)，如果為空則存 ''
-    data[`spec_${i}_value`] = group.querySelector('textarea[name="spec_value"]').value.trim() || '';
-    });
+     
+     // --- 【修改】讀取 textarea 並儲存空字串 '' ---
+     document.querySelectorAll('.spec-input-group').forEach((group, index) => {
+         const i = index + 1;
+         data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim() || ''; // 存 ''
+         data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || ''; // 存 ''
+     });
 
     // 2. 檢查必填欄位 (這部分邏輯不變)
      for (const field of activeTemplate.fields) {
@@ -868,7 +861,7 @@ export const init = async () => {
         await delay(100);
     }
 
-    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
         console.error("[ProductManagement Internal Wait] window.CONFIG still not ready after waiting. Aborting init.");
         const inventoryPage = document.getElementById('page-inventory');
         if (inventoryPage) {
@@ -941,17 +934,21 @@ export const init = async () => {
         console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
         return;
     }
+    // Use the module-level activeTemplate (assigned above)
+    // ========== ▼▼▼ 【關鍵修正 2】讀取 logic 中的名稱 ▼▼▼ ==========
     const entityName = activeTemplate.logic.adminEntityName || "產品";
     const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
-    // Use the module-level activeTemplate (assigned above)
+    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
+
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${entityNamePlural}...</td></tr>`;
+
     const pageTitle = document.querySelector('#page-inventory .page-header h2');
     if (pageTitle && activeTemplate) { 
-            // --- 【修改】使用新的後備變數 ---
+            // --- 【修改】使用新的 entityNamePlural 變數 ---
             pageTitle.textContent = `${entityNamePlural}管理`; 
         }
     if (pageTitle) {
-        // --- 【修改】使用新的後備變數 ---
+        // --- 【修改】使用新的 entityNamePlural 變數 ---
         pageTitle.textContent = `${entityNamePlural}管理`;
     }
 

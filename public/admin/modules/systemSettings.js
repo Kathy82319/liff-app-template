@@ -1,5 +1,6 @@
 // public/admin/modules/systemSettings.js
 // 【v2.0 - 新增手機板後台(Owner LIFF)設定 Tab 邏輯】
+// 【v2.1 - 修正 adminEntityName 設定位置】
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -394,6 +395,7 @@ function renderTemplateSettings(templateKey) {
     }
 
     // --- 渲染商家後台設定 (保持不變) ---
+    // --- 【修改】將 admin-columns-product 的 <h4> 加上 data-module-title="product" ---
     adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示與列表欄位。</p>
         <div class="accordion-item">
@@ -403,8 +405,7 @@ function renderTemplateSettings(templateKey) {
         <div class="accordion-item">
             <div class="accordion-header"><h4 data-module-title="product">產品/服務管理 後台設定</h4><span>▼</span></div>
             <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-product" class="admin-columns-container"><p>讀取中...</p></div></div></div>
-            
-            </div>
+        </div>
         <div class="accordion-item">
             <div class="accordion-header"><h4>訂位/訂單管理 後台設定</h4><span>▼</span></div>
             <div class="accordion-content"><div class="setting-visual-guide"><h5>列表顯示欄位 (可拖曳排序，勾選代表顯示)</h5><div id="admin-columns-booking" class="admin-columns-container"><p>讀取中...</p></div></div></div>
@@ -427,54 +428,61 @@ function renderTemplateSettings(templateKey) {
         </div>
     `;
 
-const productAccordionContent = adminSettingsContainer.querySelector('#admin-columns-product')?.closest('.accordion-content');
-
-if (productAccordionContent) {
-    const nameSettingGroup = document.createElement('div');
-    nameSettingGroup.className = 'setting-row';
-    nameSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
-    nameSettingGroup.innerHTML = `
-        <div class="setting-label">
-            <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
-            <small>用於「編輯...」彈窗。例：房型、服務</small>
-        </div>
-        <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
-    `;
-
-    const namePluralSettingGroup = document.createElement('div');
-    namePluralSettingGroup.className = 'setting-row';
-    namePluralSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
-    namePluralSettingGroup.innerHTML = `
-        <div class="setting-label">
-            <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
-            <small>用於頁面和選單標題。例：房型、服務</small>
-        </div>
-        <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
-    `;
-
-    // 插入到 "列表顯示欄位" 標題(h5) 之前
-    const listTitleH5 = productAccordionContent.querySelector('.setting-visual-guide h5');
-    if (listTitleH5) {
-        listTitleH5.parentNode.insertBefore(namePluralSettingGroup, listTitleH5);
-        listTitleH5.parentNode.insertBefore(nameSettingGroup, namePluralSettingGroup);
-    }
-}
-
-// --- 動態更新「產品/服務管理」這個 Accordion 的標題 ---
-const productAccordionTitle = adminSettingsContainer.querySelector('.accordion-item h4[data-module-title="product"]');
-if (productAccordionTitle) {
-    productAccordionTitle.textContent = `${logic.adminEntityNamePlural || '產品/服務'}管理 後台設定`;
-}    
-
     const logic = template.logic || {};
     renderAdminPageEnablement(logic.adminPagesEnabled, 'admin-pages-enablement-container');
     
+    // --- 【修改】將名稱設定移入「產品管理」手風琴 ---
+    
+    // 1. 在渲染欄位列表前，先插入名稱設定
+    const productAccordionContent = adminSettingsContainer.querySelector('#admin-columns-product')?.closest('.accordion-content');
+    
+    if (productAccordionContent) {
+        const nameSettingGroup = document.createElement('div');
+        nameSettingGroup.className = 'setting-row';
+        nameSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
+        nameSettingGroup.innerHTML = `
+            <div class="setting-label">
+                <label for="setting-admin-entity-name">後台實體名稱 (單數)</label>
+                <small>用於「編輯...」彈窗。例：房型、服務</small>
+            </div>
+            <div><input type="text" id="setting-admin-entity-name" value="${logic.adminEntityName || ''}"></div>
+        `;
+        
+        const namePluralSettingGroup = document.createElement('div');
+        namePluralSettingGroup.className = 'setting-row';
+        namePluralSettingGroup.style.cssText = 'padding: 1rem; background: #f8f9fa; border-radius: var(--border-radius);';
+        namePluralSettingGroup.innerHTML = `
+            <div class="setting-label">
+                <label for="setting-admin-entity-name-plural">後台實體名稱 (複數)</label>
+                <small>用於頁面和選單標題。例：房型、服務</small>
+            </div>
+            <div><input type="text" id="setting-admin-entity-name-plural" value="${logic.adminEntityNamePlural || ''}"></div>
+        `;
+        
+        // 插入到 "列表顯示欄位" 標題(h5) 之前
+        const listTitleH5 = productAccordionContent.querySelector('.setting-visual-guide h5');
+        if (listTitleH5) {
+            listTitleH5.parentNode.insertBefore(namePluralSettingGroup, listTitleH5);
+            listTitleH5.parentNode.insertBefore(nameSettingGroup, namePluralSettingGroup);
+        }
+    }
+
+    // 2. 動態更新手風琴標題
+    const productAccordionTitle = adminSettingsContainer.querySelector('.accordion-item h4[data-module-title="product"]');
+    if (productAccordionTitle) {
+        productAccordionTitle.textContent = `${logic.adminEntityNamePlural || '產品/服務'}管理 後台設定`;
+    }
+    
+    // 3. 渲染欄位列表
     renderAdminColumnsSettings('product', logic.adminColumns, 'admin-columns-product');
+    
+    // --- 渲染其他模組 ---
     renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking');
     renderAdminColumnsSettings('user', logic.adminUserColumns || [], 'admin-columns-user');
     renderAdminColumnsSettings('news', logic.adminNewsColumns || [], 'admin-columns-news');
     renderAdminColumnsSettings('drafts', logic.adminDraftColumns || [], 'admin-columns-drafts');
     renderAdminColumnsSettings('exp-history', logic.adminExpHistoryColumns || [], 'admin-columns-exp-history');
+    
     bindAccordionEvents(adminSettingsContainer);
 
 
@@ -482,10 +490,7 @@ if (productAccordionTitle) {
     ownerLiffSettingsContainer.innerHTML = ''; // 清空
     const features = template.features || {};
     const terms = template.terms || {};
-
-
-
-
+    
     // 1. (工作室/民宿共用) 預約/訂房相關設定 (從 LIFF App Tab 移過來的)
     const bookingAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
     bookingAccordion.querySelector('h4').textContent = '預約/訂房 頁面設定 (LIFF)';
@@ -584,19 +589,23 @@ function reconstructTemplateFromUI() {
         }
     });
 
+    if (!currentTemplate.logic) currentTemplate.logic = {};
+    currentTemplate.logic.navBar = navBar;
+
     // --- 讀取商家後台設定 (保持不變) ---
     if (!currentTemplate.logic) currentTemplate.logic = {};
 
-currentTemplate.logic.navBar = navBar;
-const adminEntityNameInput = document.getElementById('setting-admin-entity-name');
-const adminEntityNamePluralInput = document.getElementById('setting-admin-entity-name-plural');
-
-if (adminEntityNameInput) {
-    currentTemplate.logic.adminEntityName = adminEntityNameInput.value.trim() || '';
-}
-if (adminEntityNamePluralInput) {
-    currentTemplate.logic.adminEntityNamePlural = adminEntityNamePluralInput.value.trim() || '';
-}
+    // --- 【新增】讀取並儲存「後台實體名稱」設定 ---
+    const adminEntityNameInput = document.getElementById('setting-admin-entity-name');
+    const adminEntityNamePluralInput = document.getElementById('setting-admin-entity-name-plural');
+    
+    if (adminEntityNameInput) {
+        currentTemplate.logic.adminEntityName = adminEntityNameInput.value.trim() || '';
+    }
+    if (adminEntityNamePluralInput) {
+        currentTemplate.logic.adminEntityNamePlural = adminEntityNamePluralInput.value.trim() || '';
+    }
+    // --- 【新增結束】 ---
 
     // 讀取後台頁面啟用設定
     const adminPagesEnabled = {};

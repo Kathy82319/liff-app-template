@@ -298,20 +298,35 @@ function applyConfiguration() {
             const features = activeTemplate.features || {};
             const terms = activeTemplate.terms || {};
             const logic = activeTemplate.logic || {};
-            const navBarConfig = logic.navBar || [];
+            const navBarConfig = logic.navBar || []; // 獲取 navBar 設定，如果不存在則為空陣列
 
+            console.log("[applyConfiguration] 正在套用 navBarConfig:", navBarConfig);
+
+            // --- 【關鍵修正】修改導覽列按鈕的顯示邏輯 ---
             document.querySelectorAll('.tab-button').forEach(tab => {
                 const targetPage = tab.dataset.target;
                 const config = navBarConfig.find(item => item.target === targetPage);
 
-                if (config && config.enabled) {
-                    const label = config.label || '未命名'; 
-                    tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
-                    tab.style.display = '';
+                if (config) {
+                    // 1. 如果在「系統設定」中找到了這個按鈕的設定
+                    if (config.enabled === false) {
+                        // 1a. 如果明確設定為 "enabled: false"，則隱藏
+                        tab.style.display = 'none';
+                    } else {
+                        // 1b. "enabled: true" 或 "enabled: undefined" (預設為顯示)
+                        const label = config.label || '未命名'; 
+                        tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
+                        tab.style.display = ''; // 確保顯示
+                    }
                 } else {
-                    tab.style.display = 'none';
+                    // 2. 【重要】如果根本沒找到設定 (config is undefined)
+                    // 保持 HTML 預設的顯示狀態 (不隱藏它)
+                    // 這樣可以防止設定檔出錯時，整個導覽列消失
+                    console.warn(`[applyConfiguration] 找不到 target='${targetPage}' 的導覽列設定，將使用 HTML 預設值。`);
+                    tab.style.display = ''; // 確保它一定是顯示的
                 }
             });
+            // --- 【修正結束】 ---
             
             document.title = terms.BUSINESS_NAME || '載入中...';
 
@@ -337,7 +352,7 @@ function applyConfiguration() {
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);
         }
-    }
+}
     // =================================================================
     // LIFF 初始化 & 全域事件
     // =================================================================

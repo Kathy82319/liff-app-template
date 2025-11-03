@@ -299,56 +299,61 @@ function applyConfiguration() {
             const features = activeTemplate.features || {};
             const terms = activeTemplate.terms || {};
             const logic = activeTemplate.logic || {};
-            const navBarConfig = logic.navBar || []; // 獲取 navBar 設定，如果不存在則為空陣列
+            const navBarConfig = logic.navBar || []; 
 
-            console.log("[applyConfiguration] 正在套用 navBarConfig:", navBarConfig);
+            // --- 【偵錯點 1】---
+            console.log(`[Debug applyConfiguration] 正在套用 navBarConfig (共 ${navBarConfig.length} 項):`, JSON.stringify(navBarConfig));
 
-            // --- 【關鍵修正】修改導覽列按鈕的顯示邏輯 ---
-            document.querySelectorAll('.tab-button').forEach(tab => {
+            // --- 【偵錯點 2】---
+            // 我們明確地從 #tab-bar 內部尋找
+            const allTabsInHTML = document.querySelectorAll('#tab-bar .tab-button');
+            
+            // --- 【偵錯點 3】---
+            console.log(`[Debug applyConfiguration] 偵測到 ${allTabsInHTML.length} 個 HTML 按鈕 (#tab-bar .tab-button)`);
+
+            if (allTabsInHTML.length === 0) {
+                 console.error("[Debug applyConfiguration] 嚴重錯誤：在 DOM 中找不到任何按鈕！這可能是 HTML 結構問題或 JS 執行時機問題。");
+            }
+
+            allTabsInHTML.forEach(tab => {
                 const targetPage = tab.dataset.target;
+                if (!targetPage) {
+                     console.warn("[Debug applyConfiguration] 發現一個沒有 'data-target' 的按鈕:", tab);
+                     return;
+                }
+
                 const config = navBarConfig.find(item => item.target === targetPage);
+                
+                // --- 【偵錯點 4】---
+                console.log(`[Debug applyConfiguration] --- 處理按鈕: ${targetPage} ---`);
 
                 if (config) {
-                    // 1. 如果在「系統設定」中找到了這個按鈕的設定
+                    // 1. 找到了設定
+                    console.log(`[Debug applyConfiguration] > 找到設定 (config.enabled: ${config.enabled})`);
                     if (config.enabled === false) {
-                        // 1a. 如果明確設定為 "enabled: false"，則隱藏
+                        // 1a. 明確禁用
+                        console.log(`[Debug applyConfiguration] > 判斷: 隱藏 (enabled: false)`);
                         tab.style.display = 'none';
                     } else {
-                        // 1b. "enabled: true" 或 "enabled: undefined" (預設為顯示)
+                        // 1b. 啟用 (true 或 undefined)
                         const label = config.label || '未命名'; 
                         tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
-                        tab.style.display = ''; // 確保顯示
+                        tab.style.display = ''; // 設為空字串，使用 CSS 預設 (flex item)
+                        console.log(`[Debug applyConfiguration] > 判斷: 顯示 (enabled: true/undefined), 設定標籤: ${label}`);
                     }
                 } else {
-                    // 2. 【重要】如果根本沒找到設定 (config is undefined)
-                    // 保持 HTML 預設的顯示狀態 (不隱藏它)
-                    // 這樣可以防止設定檔出錯時，整個導覽列消失
-                    console.warn(`[applyConfiguration] 找不到 target='${targetPage}' 的導覽列設定，將使用 HTML 預設值。`);
-                    tab.style.display = ''; // 確保它一定是顯示的
+                    // 2. 沒找到設定
+                    console.warn(`[Debug applyConfiguration] > 找不到 ${targetPage} 的設定!`);
+                    console.log(`[Debug applyConfiguration] > 判斷: 顯示 (使用 HTML 預設)`);
+                    tab.style.display = ''; // 確保顯示
                 }
             });
-            // --- 【修正結束】 ---
             
-            document.title = terms.BUSINESS_NAME || '載入中...';
-
-            if (pageTemplates) {
-                const setContent = (selector, content) => {
-                    const el = pageTemplates.querySelector(selector);
-                    if (el) el.textContent = content;
-                };
-                const setPlaceholder = (selector, content) => {
-                    const el = pageTemplates.querySelector(selector);
-                    if (el) el.setAttribute('placeholder', content);
-                };
-
-                setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE || '最新情報');
-                setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE || '產品型錄');
-                setContent('#page-profile .page-main-title', "會員中心"); 
-                setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || '線上預約');
-                setContent('#page-info .page-main-title', "店家資訊"); 
-                
-                setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
-            }
+            // --- 【偵錯點 5】---
+            // 檢查執行後的實際 DOM 狀態
+            const visibleTabs = document.querySelectorAll('#tab-bar .tab-button:not([style*="display: none"])');
+            console.log(`[Debug applyConfiguration] --- 迴圈結束 ---`);
+            console.log(`[Debug applyConfiguration] 最終 'display' 不是 'none' 的按鈕有 ${visibleTabs.length} 個`);
 
         } catch (e) {
             console.error("套用設定檔時發生錯誤:", e);

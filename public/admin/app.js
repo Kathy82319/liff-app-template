@@ -19,7 +19,6 @@ const App = {
         'settings': './modules/systemSettings.js',
     },
     configPromise: null,
-    isConfigReady: false,
 
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -29,36 +28,35 @@ const App = {
 
 async handleRouteChange() {
     console.log(`[App.js HandleRouteChange] Hash changed to: ${window.location.hash}`);
-    if (!this.isConfigReady) {
-        console.log("[App.js HandleRouteChange] Config not ready, awaiting promise...");
-        try {
-            await this.configPromise;
-            this.isConfigReady = true;
-            console.log("[App.js HandleRouteChange] Config promise resolved.");
-        } catch (error) {
-            console.error("[App.js HandleRouteChange] Config promise failed:", error);
-            ui.showPage('error');
-            const errorPage = document.getElementById('page-error');
-            if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
-            return; 
-        }
-    } else {
-         console.log("[App.js HandleRouteChange] Config was already ready.");
+    
+    // ========== ▼▼▼ 【關鍵修正 1】▼▼▼ ==========
+    // 移除 "if (!this.isConfigReady)" 檢查
+    // 強制*永遠*等待 configPromise。這很安全，因為等待一個
+    // 已經解析 (resolved) 的 Promise 是立即完成的。
+    console.log("[App.js HandleRouteChange] Awaiting config promise...");
+    try {
+        await this.configPromise; // <--- 強制等待
+        console.log("[App.js HandleRouteChange] Config promise resolved.");
+    } catch (error) {
+        console.error("[App.js HandleRouteChange] Config promise failed:", error);
+        ui.showPage('error');
+        const errorPage = document.getElementById('page-error');
+        if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
+        return; 
     }
+    // ========== ▲▲▲ 【修正結束 1】▲▲▲ ==========
+
 
     const pageId = window.location.hash.substring(1) || 'dashboard';
     console.log(`[App.js HandleRouteChange] Determined pageId: ${pageId}`);
 
-    // --- ****** 關鍵修正：從 activeTemplate 讀取設定 ****** ---
-    let adminPagesConfig = {}; // 預設為空
+    // --- (檢查 adminPagesConfig 的邏輯保持不變，現在 window.CONFIG 必定存在) ---
+    let adminPagesConfig = {}; 
     try {
-        // 1. 從全域 CONFIG 找到當前啟用的樣板 Key
         const activeTemplateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-        // 2. 從定義中找到該樣板的完整設定
         const activeTemplate = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeTemplateKey];
         
         if (activeTemplate && activeTemplate.logic && activeTemplate.logic.adminPagesEnabled) {
-            // 3. 獲取正確的設定
             adminPagesConfig = activeTemplate.logic.adminPagesEnabled;
             console.log(`[App.js] Loaded adminPagesEnabled from template '${activeTemplateKey}'`);
         } else {
@@ -84,7 +82,7 @@ async handleRouteChange() {
     } catch (e) {
          console.error("[App.js HandleRouteChange] Error applying adminPagesEnabled config:", e);
     }
-    // --- ****** 修正結束 ****** ---
+    // --- (檢查結束) ---
 
 
     try {
@@ -106,29 +104,30 @@ async handleRouteChange() {
 
     if (modulePath) {
         try {
-            // --- ****** 關鍵修正：檢查頁面是否被禁用 (再次使用 adminPagesConfig) ****** ---
+            // --- (檢查頁面是否被禁用的邏輯保持不變) ---
             if (adminPagesConfig.hasOwnProperty(pageId) && adminPagesConfig[pageId] === false) {
                  console.warn(`[App.js HandleRouteChange] Access denied: Page '${pageId}' is disabled in template settings.`);
                  const pageElement = document.getElementById(`page-${pageId}`);
                  if(pageElement) pageElement.innerHTML = `<p style="color:orange; text-align: center;">此頁面 (${pageId}) 在目前的樣板設定中已被停用。</p>`;
-                 return; // 阻止模組載入
+                 return; 
             }
-            // --- ****** 修正結束 ****** ---
+            // --- (檢查結束) ---
 
             console.log(`[App.js HandleRouteChange] Importing module: ${modulePath}`);
             const pageModule = await import(modulePath);
             console.log(`[App.js HandleRouteChange] Module ${modulePath} imported successfully.`);
 
             if (pageModule.init) {
-                if (!window.CONFIG) {
-                     console.error(`[App.js HandleRouteChange] CRITICAL: window.CONFIG is missing AFTER await! Aborting init for ${modulePath}.`);
-                     throw new Error("無法載入必要的設定檔 (window.CONFIG)");
-                }
+                // ========== ▼▼▼ 【關鍵修正 2】▼▼▼ ==========
+                // 移除 "if (!window.CONFIG)" 檢查，因為
+                // 函式開頭的 await this.configPromise 已保證 window.CONFIG 存在。
+                // ========== ▲▲▲ 【修正結束 2】▲▲▲ ==========
 
                 console.log(`[App.js HandleRouteChange] Calling init() for ${modulePath}`);
                 await pageModule.init();
                 console.log(`[App.js HandleRouteChange] init() for ${modulePath} finished.`);
 
+                // (room-availability 的 RAF 邏輯保持不變)
                 if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
                     console.log(`[App.js HandleRouteChange] Page is room-availability, scheduling initializeDatePickers via RAF...`);
                     requestAnimationFrame(() => {
@@ -161,15 +160,16 @@ async handleRouteChange() {
     console.log(`[App.js HandleRouteChange] Finished handling route for ${pageId}.`);
 },
 
-    async init() {
+async init() {
         console.log("[App Init] Starting initialization...");
         ui.initSharedEventListeners();
 
+        // ========== ▼▼▼ 【關鍵修正 3】▼▼▼ ==========
         this.configPromise = (async () => {
             console.log("[App Init] Starting config fetch...");
             try {
                 window.CONFIG = await api.getAppConfig();
-                // Add more robust checks for the structure of CONFIG
+                // (驗證 config 結構的邏輯保持不變)
                 if (!window.CONFIG || typeof window.CONFIG !== 'object' ||
                     !window.CONFIG.LOGIC || typeof window.CONFIG.LOGIC !== 'object' ||
                     !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE ||
@@ -177,21 +177,21 @@ async handleRouteChange() {
                     console.error("[App Init] Invalid config structure received:", window.CONFIG);
                     throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
                 }
-                console.log("[App Init] Config fetched and seems valid:", window.CONFIG); // Log the fetched config
-                this.isConfigReady = true; // Mark as ready only after validation
+                console.log("[App Init] Config fetched and seems valid:", window.CONFIG);
+                // this.isConfigReady = true; // <--- 【修正】移除此行
             } catch (error) {
                 console.error("[App Init] Config fetch failed:", error);
-                this.isConfigReady = false; // Ensure it's marked as not ready on error
-                // Display error immediately if possible
-                const loadingView = document.getElementById('loading-view'); // Assuming this exists
-                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
-                throw error; // Re-throw to prevent further execution relying on config
+                // this.isConfigReady = false; // <--- 【修正】移除此行
+                const loadingView = document.getElementById('loading-view');
+G                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
+                throw error; // 
             }
         })();
+        // ========== ▲▲▲ 【修正結束 3】▲▲▲ ==========
 
         window.addEventListener('hashchange', () => this.handleRouteChange());
 
-        // Ensure nav-tabs exists before adding listener
+        // (navTabsElement 監聽器保持不變)
         const navTabsElement = document.querySelector('.nav-tabs');
         if (navTabsElement) {
             navTabsElement.addEventListener('click', (event) => {
@@ -208,48 +208,20 @@ async handleRouteChange() {
         }
 
 
-        // Initial route handling
+        // (Initial route handling 保持不變)
         console.log("[App Init] Triggering initial handleRouteChange...");
-        // Use try-catch here as well, as initial handleRouteChange depends on configPromise
         try {
              await this.handleRouteChange();
              console.log("[App Init] Initial route handled.");
         } catch (initialRouteError) {
              console.error("[App Init] Error during initial route handling:", initialRouteError);
-             // Error display should have happened within handleRouteChange or configPromise
         }
         console.log("[App Init] Initialization finished.");
     }
 };
 
+// (DOMContentLoaded 監聽器保持不變)
 document.addEventListener('DOMContentLoaded', () => {
-     // Check for AuthToken cookie before initializing the app -- REMOVED THIS CHECK
-     /* REMOVED:
-     const cookies = document.cookie.split('; ').reduce((acc, current) => {
-         const [name, ...value] = current.split('=');
-         acc[name] = value.join('=');
-         return acc;
-     }, {});
-
-     console.log('[DOMContentLoaded] Checking for AuthToken cookie...');
-     // REMOVED alert('[DOMContentLoaded] Checking for AuthToken cookie:\n' + document.cookie); // Alert for debugging
-
-     if (!cookies.AuthToken) {
-         console.log('[DOMContentLoaded] AuthToken not found. Redirecting to login page.');
-         // REMOVED alert('[DOMContentLoaded] AuthToken not found. Redirecting...'); // Alert for debugging
-         // Redirect to login page if no token is found
-         window.location.href = '/admin-login.html';
-     } else {
-         console.log('[DOMContentLoaded] AuthToken found. Initializing App...');
-         // REMOVED alert('[DOMContentLoaded] AuthToken found. Initializing App...'); // Alert for debugging
-         // Initialize the app if token exists
-         App.init(); // <-- Keep this line
-     }
-     */
-
-     // --- NEW CODE: Unconditionally initialize the app ---
      console.log('[DOMContentLoaded] Skipping frontend cookie check. Initializing App...');
-     App.init(); // Directly initialize the app
-     // The backend middleware will handle authentication when API calls are made.
-     // --- END NEW CODE ---
+     App.init(); 
 });

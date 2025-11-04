@@ -121,10 +121,19 @@ function renderMassIssueUI(templates) {
                 <label for="mass-issue-filter-value">篩選值:</label>
                 <input type="text" id="mass-issue-filter-value" placeholder="例如: VIP, 或 5">
             </div>
-            <button id="btn-execute-mass-issue" class="action-btn btn-save" style="width: 100%; padding: 10px; background-color: var(--color-danger);">執行群發</button>
+
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--color-border); padding-top: 1rem; margin-top: 1rem;">
+                <label for="mass-issue-send-notification" style="margin-bottom: 0;">是否發送通知 (聊天室訊息)</label>
+                <label class="switch" for="mass-issue-send-notification">
+                    <input type="checkbox" id="mass-issue-send-notification" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button id="btn-execute-mass-issue" class="action-btn btn-save" style="width: 100%; padding: 10px; background-color: var(--color-danger); margin-top: 10px;">執行群發</button>
         </div>
     `;
 }
+// --- ▲▲▲ 修改結束 ▲▲▲ ---
 
 function openVoucherModal(template = null) {
     const form = document.getElementById('edit-voucher-form');
@@ -328,7 +337,7 @@ async function handleMassIssueSubmit(event) {
     const templateId = document.getElementById('mass-issue-template-select')?.value;
     const filterType = document.getElementById('mass-issue-filter-type')?.value;
     const filterValue = document.getElementById('mass-issue-filter-value')?.value;
-
+    const sendNotification = document.getElementById('mass-issue-send-notification')?.checked || false;
     // 1. 前端驗證
     if (!templateId) {
         ui.toast.error('請選擇要發送的優惠券樣板！');
@@ -347,8 +356,8 @@ async function handleMassIssueSubmit(event) {
     const selectedTemplateText = document.getElementById('mass-issue-template-select').options[document.getElementById('mass-issue-template-select').selectedIndex].text;
     const selectedFilterText = document.getElementById('mass-issue-filter-type').options[document.getElementById('mass-issue-filter-type').selectedIndex].text;
 
-    const confirmed = await ui.confirm(`【危險操作】\n\n您確定要將優惠券「${selectedTemplateText}」發送給所有「${selectedFilterText}」為「${filterValue}」的顧客嗎？\n\n此操作無法復原。`);
-    
+    const notificationText = sendNotification ? "\n\n向所有符合資格的顧客「發送一則通知訊息」。" : "\n\n(注意：此為靜默發送，顧客不會收到通知)";
+    const confirmed = await ui.confirm(`【注意!】\n\n您確定要將優惠券「${selectedTemplateText}」發送給所有「${selectedFilterText}」為「${filterValue}」的顧客嗎？${notificationText}\n\n此操作無法復原。`);
     if (!confirmed) return;
 
     // 3. 呼叫 API
@@ -369,6 +378,7 @@ async function handleMassIssueSubmit(event) {
         document.getElementById('mass-issue-filter-value').value = '';
         document.getElementById('mass-issue-filter-type').selectedIndex = 0;
         document.getElementById('mass-issue-template-select').selectedIndex = 0;
+        document.getElementById('mass-issue-send-notification').checked = true; // 恢復預設勾選
 
     } catch (error) {
         // 顯示 API 回傳的錯誤 (4xx / 5xx)

@@ -6,6 +6,16 @@ const generateClaimCode = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 
 // 輔助函式：清理並驗證傳入的樣板資料
 function validateTemplateData(body) {
+    let totalSupplyValue = null; // 預設為 null (無限)
+    if (body.total_supply !== null && body.total_supply !== undefined && body.total_supply !== '') {
+        const num = Number(body.total_supply);
+        if (!isNaN(num) && num >= 0) {
+            totalSupplyValue = num; // 允許 0 或正整數
+        } else {
+            // 如果輸入了 "abc" 這種無效字串，就拋出錯誤
+            throw new Error('「發行總量」必須是有效的數字 (或留空)。');
+        }
+    }
     const data = {
         internal_name: body.internal_name?.trim() || '未命名樣板',
         title: body.title?.trim() || '',
@@ -15,6 +25,7 @@ function validateTemplateData(body) {
         min_spend: Number(body.min_spend) || 0,
         valid_from: body.valid_from || null,
         valid_to: body.valid_to || null,
+        total_supply: totalSupplyValue,
         applicable_product_ids: JSON.stringify(body.applicable_product_ids || []),
         applicable_days_of_week: JSON.stringify(body.applicable_days_of_week || []),
         total_supply: body.total_supply ? Number(body.total_supply) : null,

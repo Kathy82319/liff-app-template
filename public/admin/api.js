@@ -110,8 +110,8 @@ export const api = {
     deleteMessageDraft: (draft_id) => request('/api/admin/message-drafts', { method: 'DELETE', body: JSON.stringify({ draft_id }) }),
 
 
-    sendMessage: (userId, message) => request('/api/admin/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }),
-
+    sendMessage: (userId, message) => request('/api/send-message', { method: 'POST', body: JSON.stringify({ userId, message }) }),
+    
     // --- Store Info ---
     getStoreInfo: () => request('/api/get-store-info'), // Keep /api/ for LIFF
     updateStoreInfo: (data) => request('/api/admin/update-store-info', { method: 'POST', body: JSON.stringify(data) }),

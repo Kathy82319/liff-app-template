@@ -225,30 +225,28 @@ async function loadAndBindMessageDrafts(userId) {
     if (!select || !content || !sendBtn) return;
     
     // 如果快取中沒有草稿資料，才從 API 獲取
-    if (allDrafts.length === 0) {
         try {
             allDrafts = await api.getMessageDrafts();
         } catch (e) {
             console.error("無法載入訊息草稿:", e);
             ui.toast.error("載入訊息草稿失敗");
         }
-    }
 
     select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
     // 篩選掉固定草稿
-    allDrafts.filter(d => !d.is_fixed).forEach(d => select.add(new Option(d.title, d.content)));
-    
+    allDrafts.filter(d => d.draft_id > 2).forEach(d => select.add(new Option(d.title, d.content)));    
     select.onchange = () => { content.value = select.value; };
 
     // 使用 .onclick 確保每次打開 Modal 都綁定到正確的 userId
-    sendBtn.onclick = async () => {
+        sendBtn.onclick = async () => {
         const message = content.value.trim();
         if (!message) { ui.toast.error('訊息內容不可為空！'); return; }
         if (!confirm(`確定要發送以下訊息給 ${userId} 嗎？\n\n${message}`)) return;
         try {
             sendBtn.textContent = '發送中...';
             sendBtn.disabled = true;
-            await api.sendMessage(userId, message);
+            // 這裡呼叫的 api.sendMessage() 現在會使用 api.js 中的正確路徑
+            await api.sendMessage(userId, message); 
             ui.toast.success('訊息發送成功！');
             content.value = '';
             select.value = '';
@@ -722,16 +720,15 @@ export const init = async () => {
 
         // --- [MODIFY THIS PART] ---
         // 併發執行所有 API 請求
-        const [users, settings, drafts, templates] = await Promise.all([
+        const [users, settings, templates] = await Promise.all([
             api.getUsers(),
             allSettings.length > 0 ? Promise.resolve(allSettings) : api.getSettings(),
-            allDrafts.length > 0 ? Promise.resolve(allDrafts) : api.getMessageDrafts(),
-            api.getVoucherTemplates() // <-- 新增 API 呼叫
+            // allDrafts.length > 0 ? Promise.resolve(allDrafts) : api.getMessageDrafts(), // <-- 移除此行
+            api.getVoucherTemplates()
         ]);
 
         allUsers = users;
         allSettings = settings;
-        allDrafts = drafts;
         allVoucherTemplates = templates || []; // <-- 儲存快取
         console.log(`[UserManagement Init] Fetched ${allVoucherTemplates.length} voucher templates.`);
         // --- [END OF MODIFICATION] ---

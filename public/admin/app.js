@@ -17,6 +17,7 @@ const App = {
         'store-info': './modules/storeInfo.js',
         'points': './modules/pointsCenter.js',
         'settings': './modules/systemSettings.js',
+        'vouchers': './modules/voucherManagement.js',
     },
     configPromise: null, // 保留 Promise
 

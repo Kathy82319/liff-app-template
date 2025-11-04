@@ -120,6 +120,13 @@ export const api = {
     getSettings: () => request('/api/admin/get-settings'),
     updateSettings: (settings) => request('/api/admin/update-settings', { method: 'POST', body: JSON.stringify(settings) }),
 
+    // --- Admin Voucher Management ---
+    getVoucherTemplates: () => request('/api/admin/voucher-templates'),
+    createVoucherTemplate: (data) => request('/api/admin/voucher-templates', { method: 'POST', body: JSON.stringify(data) }),
+    updateVoucherTemplate: (data) => request('/api/admin/voucher-templates', { method: 'PUT', body: JSON.stringify(data) }),
+    deleteVoucherTemplate: (template_id) => request('/api/admin/voucher-templates', { method: 'DELETE', body: JSON.stringify({ template_id }) }),
+    // (未來會在這裡新增 issue-voucher 和 mass-issue-voucher)
+
     // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 };

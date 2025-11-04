@@ -1,5 +1,5 @@
 // functions/claim.js
-// v2.0 - 嵌入獨立的 JS 邏輯，不再引用 /script.js
+// v2.1 - 修正 Content-Type 和嵌入的 JS 語法錯誤
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -110,6 +110,7 @@ export async function onRequest(context) {
                 }
                 
                 // 領取成功
+                // --- ▼▼▼ 修正：移除多餘的反斜線 \ ▼▼▼ ---
                 const successMsg = \`✅ 領取成功！\\n\${result.message}\`;
                 statusEl.textContent = successMsg;
                 statusEl.className = 'success';
@@ -124,24 +125,26 @@ export async function onRequest(context) {
                 alert(errorMsg);
             } finally {
                 // 無論成功失敗，都清除 URL 代碼並跳轉到優惠券頁面
-                statusEl.textContent += \`\\n\\n即將跳轉至「我的優惠券」..._`;
+                // --- ▼▼▼ 修正：移除結尾多餘的 _ ▼▼▼ ---
+                statusEl.textContent += \`\\n\\n即將跳轉至「我的優惠券」...\`;
                 setTimeout(() => {
                     // 使用 /#my-vouchers 重定向到主應用的優惠券頁面
                     window.location.href = '/#my-vouchers';
                 }, 3000);
             }
-        
+        }
         
         // 執行
         claimVoucher();
-    </script>
+    <\/script>
     </body>
 </html>
     `;
-    // --- 核心修正結束 ---
 
+    // --- ▼▼▼ 核心修正：將 'application/json' 改為 'text/html' ▼▼▼ ---
     return new Response(html, {
         status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }, // 保持 text/html
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
+    // --- ▲▲▲ 修正結束 ▲▲▲ ---
 }

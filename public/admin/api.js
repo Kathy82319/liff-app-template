@@ -126,7 +126,7 @@ export const api = {
     updateVoucherTemplate: (data) => request('/api/admin/voucher-templates', { method: 'PUT', body: JSON.stringify(data) }),
     deleteVoucherTemplate: (template_id) => request('/api/admin/voucher-templates', { method: 'DELETE', body: JSON.stringify({ template_id }) }),
     issueVoucher: (data) => request('/api/admin/issue-voucher', { method: 'POST', body: JSON.stringify(data) }), // <-- ▼▼▼ 新增這一行 ▼▼▼
-    
+    massIssueVoucher: (data) => request('/api/admin/mass-issue-voucher', { method: 'POST', body: JSON.stringify(data) }), // <-- ▼▼▼ 新增這一行 ▼▼▼
     
     
     

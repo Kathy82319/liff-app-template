@@ -70,14 +70,24 @@ function openVoucherModal(template = null) {
     form.reset();
     document.getElementById('edit-voucher-id').value = '';
     
-    // --- 填充「適用項目」下拉選單 ---
-    const productSelect = document.getElementById('voucher-applicable-products');
-    if (productSelect) {
-        productSelect.innerHTML = ''; // 清空舊選項
-        allProducts.forEach(p => {
-            productSelect.add(new Option(p.name, p.product_id));
-        });
-        // TODO: 這裡未來需要一個多選下拉選單的 UI 庫 (e.g., TomSelect)，暫時使用原生 multiple select
+    const productContainer = document.getElementById('voucher-applicable-products');
+    if (productContainer) {
+        productContainer.innerHTML = ''; // 清空舊選項
+        if (allProducts.length === 0) {
+            productContainer.innerHTML = '<p style="color: var(--color-text-light); font-size: 0.9em;">沒有可用的產品項目。</p>';
+        } else {
+            // 動態產生 Checkbox 列表
+            allProducts.forEach(p => {
+                const itemDiv = document.createElement('div');
+                itemDiv.innerHTML = `
+                    <label>
+                        <input type="checkbox" name="applicable_product_ids" value="${p.product_id}">
+                        ${p.name}
+                    </label>
+                `;
+                productContainer.appendChild(itemDiv);
+            });
+        }
     }
 
     // --- 初始化日期選擇器 ---
@@ -117,10 +127,14 @@ function openVoucherModal(template = null) {
             voucherDatepicker.setDate([template.valid_from, template.valid_to]);
         }
 
-        // 設定適用項目 (多選)
+        // ▼▼▼ 修正 2：修改「設定適用項目」的邏輯 ▼▼▼
         if (Array.isArray(template.applicable_product_ids)) {
-            Array.from(productSelect.options).forEach(option => {
-                option.selected = template.applicable_product_ids.includes(option.value);
+            // 遍歷容器中所有的 checkbox
+            productContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                // 如果 checkbox 的 value 存在於 template.applicable_product_ids 陣列中，就勾選它
+                if (template.applicable_product_ids.includes(checkbox.value)) {
+                    checkbox.checked = true;
+                }
             });
         }
         
@@ -172,9 +186,10 @@ async function handleFormSubmit(event) {
 
     const template_id = document.getElementById('edit-voucher-id').value;
     
-    // 收集適用項目 (多選)
-    const productSelect = document.getElementById('voucher-applicable-products');
-    const applicable_product_ids = Array.from(productSelect.selectedOptions).map(opt => opt.value);
+    // --- ▼▼▼ 修正 3：修改「收集適用項目」的邏輯 ▼▼▼ ---
+    const applicable_product_ids = Array.from(
+        document.querySelectorAll('#voucher-applicable-products input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
     
     // 收集適用星期
     const applicable_days_of_week = Array.from(document.querySelectorAll('#voucher-applicable-weekdays input:checked')).map(cb => Number(cb.value));

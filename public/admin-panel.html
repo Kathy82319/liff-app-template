@@ -712,6 +712,28 @@
     margin-top: 15px;
     border-top: 1px solid var(--color-border);
 }
+/* --- ▼▼▼ 新增：優惠券「適用項目」多選框樣式 ▼▼▼ --- */
+.checkbox-multiselect-container {
+    height: 150px; /* 和原本的 select 高度一樣 */
+    overflow-y: auto; /* 內容過多時滾動 */
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    background-color: var(--color-sidebar-bg); /* 背景色改為白色 */
+}
+.checkbox-multiselect-container label {
+    display: block; /* 每個項目佔一行 */
+    margin-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* 讓 checkbox 和文字有點距離 */
+}
+.checkbox-multiselect-container input[type="checkbox"] {
+    width: auto; /* 恢復 checkbox 預設寬度 */
+    height: auto; /* 恢復 checkbox 預設高度 */
+}
+/* --- ▲▲▲ 新增結束 ▲▲▲ --- */
 
 </style>
 
@@ -976,6 +998,161 @@
 
 </div>    
 
+    <div id="page-vouchers" class="page">
+                <div class="page-header">
+                    <h2>優惠券管理</h2>
+                    </div>
+
+                <div class="settings-tabs" id="voucher-sub-tabs">
+                    <button type="button" class="settings-tab active" data-target="voucher-tab-content-templates">
+                        樣板管理
+                    </button>
+                    <button type="button" class="settings-tab" data-target="voucher-tab-content-issuance">
+                        發送中心
+                    </button>
+                </div>
+
+                <div class="settings-content-area">
+                    <div id="voucher-tab-content-templates" class="settings-tab-content active">
+                        <div class="page-header" style="margin-top: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
+                            <h3 style="margin: 0;">優惠券樣板庫</h3>
+                            <button id="add-voucher-btn" class="action-btn btn-save">建立新樣板</button>
+                        </div>
+                        
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>標題 (內部名稱)</th>
+                                        <th>類型</th>
+                                        <th>數值</th>
+                                        <th>有效期間</th>
+                                        <th>狀態</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="voucher-list-tbody">
+                                    <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="voucher-tab-content-issuance" class="settings-tab-content">
+                        <div style="margin-top: 1.5rem;">
+                            <h4>公開領取 (1-to-All)</h4>
+                            <p>此區塊將顯示所有「可公開領取」的優惠券及其專屬領取網址。</p>
+                            <div id="public-vouchers-container"></div>
+                            
+                            <hr style="margin: 2rem 0;">
+                            
+                            <h4>指定客群群發 (1-to-Many)</h4>
+                            <p>此區塊將允許您篩選特定顧客群（依會員方案、標籤、等級）並批次發送優惠券。</p>
+                            <div id="mass-issue-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="edit-voucher-modal" class="modal-overlay">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h3 id="modal-voucher-title">建立優惠券樣板</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <form id="edit-voucher-form">
+                        <input type="hidden" id="edit-voucher-id">
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="voucher-internal-name">內部名稱 (管理用)</label>
+                                <input type="text" id="voucher-internal-name" placeholder="e.g., 2025-Q4-民宿平日折扣" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="voucher-title">優惠券標題 (顧客可見)</label>
+                                <input type="text" id="voucher-title" placeholder="e.g., 平日住宿折 $300" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="voucher-type">優惠券類型</label>
+                                <select id="voucher-type" required>
+                                    <option value="">-- 請選擇 --</option>
+                                    <option value="discount_fixed">金額折扣</option>
+                                    <option value="discount_percentage">百分比折扣</option>
+                                    <option value="redeem_item">物品兌換</option>
+                                </select>
+                            </div>
+                            
+                            <div id="voucher-value-group" class="form-group" style="display: none;">
+                                <label for="voucher-value">折扣數值</label>
+                                <input type="number" id="voucher-value" placeholder="e.g., 300 (元) 或 10 (%)">
+                            </div>
+                            <div id="voucher-redeem-group" class="form-group" style="display: none;">
+                                <label for="voucher-redeem-item-name">兌換物品名稱</label>
+                                <input type="text" id="voucher-redeem-item-name" placeholder="e.g., 免費早餐乙客">
+                            </div>
+
+                            <hr><h4>使用條件</h4>
+                            <div class="form-group">
+                                <label for="voucher-min-spend">最低消費金額 (低消)</label>
+                                <input type="number" id="voucher-min-spend" placeholder="0 表示無低消" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="voucher-valid-dates">有效期間 (留空=永久)</label>
+                                <input type="text" id="voucher-valid-dates" placeholder="請選擇日期範圍">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="voucher-applicable-products">適用項目 (可多選，留空=全部適用)</label>
+                                <div id="voucher-applicable-products" class="checkbox-multiselect-container">
+                                    </div>
+                            </div>
+                            <div class="form-group">
+                                <label>適用星期 (預設全選)</label>
+                                <div id="voucher-applicable-weekdays" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <label><input type="checkbox" name="weekday" value="1" checked> 一</label>
+                                    <label><input type="checkbox" name="weekday" value="2" checked> 二</label>
+                                    <label><input type="checkbox" name="weekday" value="3" checked> 三</label>
+                                    <label><input type="checkbox" name="weekday" value="4" checked> 四</label>
+                                    <label><input type="checkbox" name="weekday" value="5" checked> 五</label>
+                                    <label><input type="checkbox" name="weekday" value="6" checked> 六</label>
+                                    <label><input type="checkbox" name="weekday" value="0" checked> 日</label>
+                                </div>
+                            </div>
+                            
+                            <hr><h4>發行規則</h4>
+                            <div class="form-group">
+                                <label for="voucher-total-supply">發行總量</label>
+                                <input type="number" id="voucher-total-supply" placeholder="留空=無限">
+                            </div>
+                            <div class="form-group">
+                                <label for="voucher-limit-per-user">每人限領</label>
+                                <input type="number" id="voucher-limit-per-user" value="1" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
+                                    <label for="voucher-is-public">是否可公開領取 (產生領取網址)</label>
+                                    <label class="switch"><input type="checkbox" id="voucher-is-public"><span class="slider"></span></label>
+                                </label>
+                            </div>
+                            <div id="voucher-public-code-group" class="form-group" style="display: none;">
+                                <label for="voucher-public-claim-code">公開領取代碼 (留空=自動產生)</label>
+                                <input type="text" id="voucher-public-claim-code" placeholder="e.g., WELCOME2025">
+                            </div>
+                            <div class="form-group">
+                                <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
+                                    <label for="voucher-is-active">是否啟用此樣板</label>
+                                    <label class="switch"><input type="checkbox" id="voucher-is-active" checked><span class="slider"></span></label>
+                                </label>
+                            </div>
+
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                            <button type="submit" class="action-btn btn-save">儲存樣板</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
 
             <div id="page-exp-history" class="page">
                 <div class="page-header">
@@ -1168,161 +1345,6 @@
 </template>
         </main>
     </div>
-
-    <div id="page-vouchers" class="page">
-                <div class="page-header">
-                    <h2>優惠券管理</h2>
-                    </div>
-
-                <div class="settings-tabs" id="voucher-sub-tabs">
-                    <button type="button" class="settings-tab active" data-target="voucher-tab-content-templates">
-                        樣板管理
-                    </button>
-                    <button type="button" class="settings-tab" data-target="voucher-tab-content-issuance">
-                        發送中心
-                    </button>
-                </div>
-
-                <div class="settings-content-area">
-                    <div id="voucher-tab-content-templates" class="settings-tab-content active">
-                        <div class="page-header" style="margin-top: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
-                            <h3 style="margin: 0;">優惠券樣板庫</h3>
-                            <button id="add-voucher-btn" class="action-btn btn-save">建立新樣板</button>
-                        </div>
-                        
-                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>標題 (內部名稱)</th>
-                                        <th>類型</th>
-                                        <th>數值</th>
-                                        <th>有效期間</th>
-                                        <th>狀態</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="voucher-list-tbody">
-                                    <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="voucher-tab-content-issuance" class="settings-tab-content">
-                        <div style="margin-top: 1.5rem;">
-                            <h4>公開領取 (1-to-All)</h4>
-                            <p>此區塊將顯示所有「可公開領取」的優惠券及其專屬領取網址。</p>
-                            <div id="public-vouchers-container"></div>
-                            
-                            <hr style="margin: 2rem 0;">
-                            
-                            <h4>指定客群群發 (1-to-Many)</h4>
-                            <p>此區塊將允許您篩選特定顧客群（依會員方案、標籤、等級）並批次發送優惠券。</p>
-                            <div id="mass-issue-container"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="edit-voucher-modal" class="modal-overlay">
-                <div class="modal-content" style="max-width: 700px;">
-                    <div class="modal-header">
-                        <h3 id="modal-voucher-title">建立優惠券樣板</h3>
-                        <button class="modal-close">&times;</button>
-                    </div>
-                    <form id="edit-voucher-form">
-                        <input type="hidden" id="edit-voucher-id">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label for="voucher-internal-name">內部名稱 (管理用)</label>
-                                <input type="text" id="voucher-internal-name" placeholder="e.g., 2025-Q4-民宿平日折扣" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="voucher-title">優惠券標題 (顧客可見)</label>
-                                <input type="text" id="voucher-title" placeholder="e.g., 平日住宿折 $300" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="voucher-type">優惠券類型</label>
-                                <select id="voucher-type" required>
-                                    <option value="">-- 請選擇 --</option>
-                                    <option value="discount_fixed">金額折扣</option>
-                                    <option value="discount_percentage">百分比折扣</option>
-                                    <option value="redeem_item">物品兌換</option>
-                                </select>
-                            </div>
-                            
-                            <div id="voucher-value-group" class="form-group" style="display: none;">
-                                <label for="voucher-value">折扣數值</label>
-                                <input type="number" id="voucher-value" placeholder="e.g., 300 (元) 或 10 (%)">
-                            </div>
-                            <div id="voucher-redeem-group" class="form-group" style="display: none;">
-                                <label for="voucher-redeem-item-name">兌換物品名稱</label>
-                                <input type="text" id="voucher-redeem-item-name" placeholder="e.g., 免費早餐乙客">
-                            </div>
-
-                            <hr><h4>使用條件</h4>
-                            <div class="form-group">
-                                <label for="voucher-min-spend">最低消費金額 (低消)</label>
-                                <input type="number" id="voucher-min-spend" placeholder="0 表示無低消" value="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="voucher-valid-dates">有效期間 (留空=永久)</label>
-                                <input type="text" id="voucher-valid-dates" placeholder="請選擇日期範圍">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="voucher-applicable-products">適用項目 (可多選，留空=全部適用)</label>
-                                <select id="voucher-applicable-products" multiple style="height: 150px;"></select>
-                            </div>
-                            <div class="form-group">
-                                <label>適用星期 (預設全選)</label>
-                                <div id="voucher-applicable-weekdays" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                    <label><input type="checkbox" name="weekday" value="1" checked> 一</label>
-                                    <label><input type="checkbox" name="weekday" value="2" checked> 二</label>
-                                    <label><input type="checkbox" name="weekday" value="3" checked> 三</label>
-                                    <label><input type="checkbox" name="weekday" value="4" checked> 四</label>
-                                    <label><input type="checkbox" name="weekday" value="5" checked> 五</label>
-                                    <label><input type="checkbox" name="weekday" value="6" checked> 六</label>
-                                    <label><input type="checkbox" name="weekday" value="0" checked> 日</label>
-                                </div>
-                            </div>
-                            
-                            <hr><h4>發行規則</h4>
-                            <div class="form-group">
-                                <label for="voucher-total-supply">發行總量</label>
-                                <input type="number" id="voucher-total-supply" placeholder="留空=無限">
-                            </div>
-                            <div class="form-group">
-                                <label for="voucher-limit-per-user">每人限領</label>
-                                <input type="number" id="voucher-limit-per-user" value="1" min="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
-                                    <label for="voucher-is-public">是否可公開領取 (產生領取網址)</label>
-                                    <label class="switch"><input type="checkbox" id="voucher-is-public"><span class="slider"></span></label>
-                                </label>
-                            </div>
-                            <div id="voucher-public-code-group" class="form-group" style="display: none;">
-                                <label for="voucher-public-claim-code">公開領取代碼 (留空=自動產生)</label>
-                                <input type="text" id="voucher-public-claim-code" placeholder="e.g., WELCOME2025">
-                            </div>
-                            <div class="form-group">
-                                <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
-                                    <label for="voucher-is-active">是否啟用此樣板</label>
-                                    <label class="switch"><input type="checkbox" id="voucher-is-active" checked><span class="slider"></span></label>
-                                </label>
-                            </div>
-
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="action-btn btn-cancel modal-close">取消</button>
-                            <button type="submit" class="action-btn btn-save">儲存樣板</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
 
     <div id="batch-actions-toolbar" class="batch-actions-toolbar">
         <span id="batch-selected-count">已選取 0 項</span>

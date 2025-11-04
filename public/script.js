@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {object} product - 產品物件 (包含 price_weekday, price_friday, price_saturday)
  * @returns {number | null} 當日價格或 null
  */    
-    const myLiffId = "2008032417-3yJQGaO6"; 
+const myLiffId = "2008032417-3yJQGaO6"; 
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -51,9 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-news-details': (data) => renderNewsDetails(data.news),
         'page-booking-details': initializeBookingDetailsPage, 
         'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
+        'page-my-vouchers': initializeMyVouchersPage, // <-- ▼▼▼ 新增 ▼▼▼
     };
-
-
 
  // 計算所選房間及入住天數的預估總金額
 function calculateTotalPrice() {
@@ -405,6 +404,7 @@ function applyConfiguration() {
             if (target.id === 'my-bookings-btn') { showPage('page-my-bookings'); return; }
             if (target.id === 'my-exp-history-btn') { showPage('page-my-exp-history'); return; }
             if (target.id === 'my-stored-value-btn') { showPage('page-my-stored-value-history'); return; }
+            if (target.id === 'my-vouchers-btn') { showPage('page-my-vouchers'); return; } 
             if (target.id === 'edit-profile-btn') { showPage('page-edit-profile'); return; }
 
             if (target.matches('.cancel-booking-btn')) {
@@ -748,6 +748,12 @@ async function initializeProfilePage() {
         const expHistoryBtn = document.querySelector('#my-exp-history-btn');
         const editProfileBtn = document.querySelector('#edit-profile-btn');
 
+        const myVouchersBtn = document.querySelector('#my-vouchers-btn');
+        if (myVouchersBtn) {
+            // 假設優惠券功能是跟隨會員系統的
+            myVouchersBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM) ? 'block' : 'none';
+        }
+
         if (bookingsBtn) {
             bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
         }
@@ -1037,6 +1043,158 @@ async function initializeMyStoredValueHistoryPage() {
         container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
     }
 }
+
+/**
+ * 任務 3.4: 初始化「我的優惠券」頁面
+ */
+async function initializeMyVouchersPage() {
+    if (!userProfile) return;
+    
+    // 獲取容器
+    const availableContainer = document.getElementById('my-vouchers-container-available');
+    const usedContainer = document.getElementById('my-vouchers-container-used');
+    if (!availableContainer || !usedContainer) {
+        console.error("找不到 my-vouchers-container-available 或 my-vouchers-container-used 元素");
+        return;
+    }
+
+    availableContainer.innerHTML = '<p>查詢中...</p>';
+    usedContainer.innerHTML = '<p>查詢中...</p>';
+
+    try {
+        // 1. 呼叫 Task 3.1 建立的 API
+        const response = await fetch(`api/my-vouchers?userId=${userProfile.userId}`);
+        if (!response.ok) throw new Error('查詢優惠券失敗');
+        const vouchers = await response.json();
+        
+        const now = new Date();
+        
+        // 2. 篩選「可使用」的券
+        const availableVouchers = vouchers.filter(v => 
+            !v.is_used && 
+            (!v.valid_to || new Date(v.valid_to + 'T23:59:59') >= now)
+        );
+        
+        // 3. 篩選「已失效」的券 (已使用 或 已過期)
+        const usedVouchers = vouchers.filter(v => 
+            v.is_used || 
+            (v.valid_to && new Date(v.valid_to + 'T23:59:59') < now)
+        );
+
+        // 4. 渲染列表
+        renderVoucherList(availableVouchers, availableContainer, false);
+        renderVoucherList(usedVouchers, usedContainer, true);
+
+        // 5. 綁定「可使用」列表的點擊事件
+        availableContainer.addEventListener('click', (e) => {
+            const redeemBtn = e.target.closest('.btn-redeem-voucher');
+            if (redeemBtn) {
+                const voucherId = redeemBtn.dataset.voucherId;
+                const voucherTitle = redeemBtn.dataset.voucherTitle;
+                if(voucherId && voucherTitle) {
+                    showRedeemModal(voucherId, voucherTitle);
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("載入優惠券失敗:", error);
+        availableContainer.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
+        usedContainer.innerHTML = '';
+    }
+}
+
+/**
+ * 輔助函式：渲染優惠券列表
+ * @param {Array} vouchers - 優惠券資料陣列
+ * @param {HTMLElement} container - 要渲染的容器
+ * @param {boolean} isUsedList - 是否為「已使用/過期」列表
+ */
+function renderVoucherList(vouchers, container, isUsedList) {
+    if (vouchers.length === 0) {
+        container.innerHTML = `<p>${isUsedList ? '沒有已使用或過期的紀錄。' : '目前沒有可用的優惠券。'}</p>`;
+        return;
+    }
+
+    // 使用 booking-info-card 樣式，並加入 voucher-card 識別
+    container.innerHTML = vouchers.map(v => {
+        let valueText = '';
+        switch (v.type) {
+            case 'discount_fixed': valueText = `$${v.value} 折扣`; break;
+            case 'discount_percentage': valueText = `${v.value}% 折扣`; break;
+            case 'redeem_item': valueText = `兌換：${v.redeem_item_name}`; break;
+            default: valueText = '優惠';
+        }
+        
+        const validDate = (v.valid_from && v.valid_to) 
+            ? `${v.valid_from.split('T')[0]} ~ ${v.valid_to.split('T')[0]}` 
+            : '永久有效';
+            
+        let statusText = '';
+        if (isUsedList) {
+            if (v.is_used) {
+                statusText = `<p class="voucher-status-used">已於 ${new Date(v.used_at).toLocaleDateString()} 核銷</p>`;
+            } else {
+                statusText = `<p class="voucher-status-used">已過期</p>`;
+            }
+        } else {
+            statusText = `<button class="cta-button btn-redeem-voucher" data-voucher-id="${v.voucher_id}" data-voucher-title="${v.title}" style="margin-top: 10px; padding: 8px; background-color: var(--color-accent);">出示核銷</button>`;
+        }
+
+        return `
+            <div class="booking-info-card voucher-card ${isUsedList ? 'used-voucher' : ''}">
+                <h4>${v.title}</h4>
+                <p><strong>類型:</strong> ${valueText}</p>
+                <p><strong>低消:</strong> $${v.min_spend || 0}</p>
+                <p><strong>效期:</strong> ${validDate}</p>
+                ${statusText}
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * 輔助函式：顯示核銷 QR Code Modal
+ * @param {string} voucherId - 優惠券 ID
+ * @param {string} voucherTitle - 優惠券標題
+ */
+function showRedeemModal(voucherId, voucherTitle) {
+    const modal = document.getElementById('voucher-redeem-modal');
+    const qrcodeEl = document.getElementById('voucher-redeem-qrcode');
+    const titleEl = document.getElementById('voucher-redeem-title');
+    const codeEl = document.getElementById('voucher-redeem-code');
+    const closeBtn = document.getElementById('voucher-redeem-close-btn');
+
+    if (!modal || !qrcodeEl || !titleEl || !codeEl || !closeBtn) {
+        console.error("找不到 voucher-redeem-modal 相關元素");
+        return;
+    }
+    
+    titleEl.textContent = voucherTitle;
+    codeEl.textContent = `ID: ${voucherId}`; // 顯示 ID 文字
+    qrcodeEl.innerHTML = ''; // 清除舊的 QR code
+
+    try {
+        // 產生 QR Code
+        new QRCode(qrcodeEl, {
+            text: voucherId, // QR Code 內容就是 voucherId
+            width: 200,
+            height: 200,
+        });
+    } catch (e) {
+        console.error("QRCode library 錯誤:", e);
+        qrcodeEl.innerHTML = '<p style="color:red; font-size: 0.8em;">QR Code 產生失敗</p>';
+    }
+    
+    modal.style.display = 'flex';
+    
+    // 確保關閉按鈕能運作 (使用 onclick 避免重複綁定)
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+        qrcodeEl.innerHTML = ''; // 關閉時清除
+    };
+}
+// --- ▲▲▲ 新增函式結束 ▲▲▲ ---
 
 async function initializeInfoPage() {
 

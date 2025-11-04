@@ -1,5 +1,5 @@
 // public/owner-liff.js
-// 【v6.4 - 合併 預約/訂單 Tab + 新增 控房管理 Tab】
+// 【v6.4 - 合併 預約/訂單 Tab +  控房管理 Tab】
 
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabContents = document.querySelectorAll('.tab-content');
     const activityListContent = document.getElementById('activity-list-content');
     
-    // --- 【合併】預約管理 Tab ---
+    // --- 預約管理 Tab ---
     const bookingTabContent = document.getElementById('tab-content-booking');
     const bookingViewSwitcher = bookingTabContent?.querySelector('.view-switcher');
     const bookingViewCalendar = document.getElementById('booking-view-calendar');
@@ -30,13 +30,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const dailyCardsContainer = document.getElementById('daily-cards-container');
     const orderListContent = document.getElementById('order-list-content');
     
-    // --- 【新增】控房管理 Tab ---
+    // --- 控房管理 Tab ---
     const roomControlTabContent = document.getElementById('tab-content-room-control');
     const roomControlTabButton = document.querySelector('[data-tab="room-control"]');
     let rcDateRangePicker = null; // 控房 Tab 的 Flatpickr
     let currentRoomInventoryData = {}; // 控房 API 資料快取
     let rcDisplayedDates = []; // 控房 表格顯示的日期
     const weekdayShort = ["日", "一", "二", "三", "四", "五", "六"]; // 控房 輔助
+
+    // --- ▼核銷票券 Tab DOM ---
+    let html5QrCodeScanner = null; // For redeeming
+    const redeemTabContent = document.getElementById('tab-content-redeem');
+    const startRedeemScanBtn = document.getElementById('start-redeem-scan-btn');
+    const redeemQrReader = document.getElementById('redeem-qr-reader');
+    const redeemStatusMessage = document.getElementById('redeem-status-message');
 
     // --- 顧客查詢 Tab ---
     const customerSearchResults = document.getElementById('customer-search-results');
@@ -184,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Tab 切換邏輯 (【v6.4 修改】) ---
-    function switchTab(tabId) {
+function switchTab(tabId) {
         tabBar.querySelectorAll('.tab-button').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabId);
         });
@@ -197,29 +204,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadActivities(); 
                 break;
             case 'booking':
-                // 預設載入日曆視圖
+                // (內容不變)
                 if (!flatpickrInstance) {
                     initializeCalendar();
                 } else {
                     loadDailyCards(currentSelectedDate);
                 }
-                // 同時確保列表視圖的篩選器被重置 (可選)
-                // document.getElementById('order-filter-apply-btn')?.click(); // 或者只重置 UI
                 break;
             case 'room-control':
-                // 首次切換時初始化控房頁面
+                // (內容不變)
                 if (!rcDateRangePicker) {
                     initializeRoomControl();
                 }
                 break;
+            // --- ▼▼▼ 新增：核銷 Tab 邏輯 ▼▼▼ ---
+            case 'redeem':
+                if(redeemStatusMessage) redeemStatusMessage.textContent = '';
+                // 停止掃描器 (如果正在掃)
+                if (html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+                    html5QrCodeScanner.stop().catch(err => console.error("Scanner stop failed", err));
+                }
+                if(redeemQrReader) redeemQrReader.style.display = 'none';
+                if(startRedeemScanBtn) {
+                    startRedeemScanBtn.style.display = 'block';
+                    startRedeemScanBtn.textContent = '啟動相機掃碼';
+                }
+                break;
+            // --- ▲▲▲ 新增結束 ▲▲▲ ---
             case 'customer':
+                // (內容不變)
                 customerSearchResults.innerHTML = '';
                 document.getElementById('customer-search-input').value = '';
                 break;
         }
     }
 
-    // --- 預約 Tab 內部的視圖切換 (【v6.4 新增】) ---
+    // --- 預約 Tab 內部的視圖切換 (【v6.4 】) ---
     function switchBookingView(viewName) {
         if (!bookingViewCalendar || !bookingViewList || !bookingViewSwitcher) return;
 
@@ -306,7 +326,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[template];
         const features = templateDefinition?.features || {};
-
+        const redeemTabButton = document.querySelector('[data-tab="redeem"]');
+        if (redeemTabButton) {
+            redeemTabButton.style.display = ''; // 確保核銷 Tab 顯示
+        }
         if (template === 'ecommerce_template') {
             // 電商：隱藏「預約管理」和「控房管理」
             document.querySelector('[data-tab="booking"]').style.display = 'none';
@@ -339,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (button && button.dataset.tab) { switchTab(button.dataset.tab); }
         });
 
-        // 【新增】預約管理 Tab 內部的視圖切換
+        // 【】預約管理 Tab 內部的視圖切換
         bookingViewSwitcher?.addEventListener('click', (e) => {
             const button = e.target.closest('.view-switch-btn');
             if (button && button.dataset.view) {
@@ -392,7 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
              const item = e.target.closest('.customer-result-item');
              if(item && item.dataset.userId){ openCustomerDetailsModal(item.dataset.userId); }
          });
-
+         
+        //核銷掃碼按鈕
+        startRedeemScanBtn?.addEventListener('click', startRedeemScanner);
         // 功能按鈕
         document.getElementById('go-to-admin-panel-btn')?.addEventListener('click', generateAndOpenAdminLink);
         quickActionBtn.addEventListener('click', openQuickBookingModal);
@@ -1059,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // function openRoomControlModal() { ... }
     // async function handleRoomControlSubmit(newStatus) { ... }
 
-    // --- 【新增】控房管理 Tab (v6.4) ---
+    // --- 【】控房管理 Tab (v6.4) ---
     
     // 輔助：獲取日期範圍 (從 admin 複製)
     function getRcDateRange(startDateStr, endDateStr) {
@@ -1124,16 +1149,16 @@ function initializeRoomControl() {
     const loadBtn = document.getElementById('rc-load-grid-btn');
     const gridContainer = document.getElementById('rc-grid-container');
     
-    // ▼▼▼ 新增控房的房型下拉選單邏輯 ▼▼▼
+    // ▼▼▼ 控房的房型下拉選單邏輯 ▼▼▼
     const productFilterSelect = document.getElementById('rc-product-filter');
-    // ▲▲▲ 新增結束 ▲▲▲
+    // ▲▲▲ 結束 ▲▲▲
 
     if (!dateInput || !loadBtn || !gridContainer || !productFilterSelect) { // <-- 檢查 new select
         console.error("控房 Tab缺少必要元素");
         return;
     }
 
-    // ▼▼▼ 新增：填充房型下拉選單 ▼▼▼
+    // ▼▼▼ ：填充房型下拉選單 ▼▼▼
     try {
         const templateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
         const templateDef = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
@@ -1149,7 +1174,7 @@ function initializeRoomControl() {
         console.error("填充控房房型篩選器失敗:", e);
         productFilterSelect.innerHTML = '<option value="all">所有房型 (載入失敗)</option>';
     }
-    // ▲▲▲ 新增結束 ▲▲▲
+    // ▲▲▲ 結束 ▲▲▲
 
     // 1. 初始化日期選擇器 (原邏輯不變)
     rcDateRangePicker = flatpickr(dateInput, {
@@ -1209,10 +1234,10 @@ function initializeRoomControl() {
     // 渲染控房格線
 function renderRoomControlGrid() {
     const container = document.getElementById('rc-grid-container');
-    // ▼▼▼ 新增：讀取房型篩選器的值 ▼▼▼
+    // ▼▼▼ ：讀取房型篩選器的值 ▼▼▼
     const productFilterSelect = document.getElementById('rc-product-filter');
     const selectedProductId = productFilterSelect ? productFilterSelect.value : 'all';
-    // ▲▲▲ 新增結束 ▲▲▲
+    // ▲▲▲ 結束 ▲▲▲
 
     if (!container) return;
     
@@ -1406,6 +1431,117 @@ function renderRoomControlGrid() {
             iconSpan.remove();
         }
     }
+
+// --- ▼▼▼ 新增：核銷票券相關函式 (2 個) ▼▼▼ ---
+    
+    /**
+     * 任務 3.5: 啟動核銷掃碼器
+     */
+    function startRedeemScanner() {
+        if (!redeemQrReader || !startRedeemScanBtn || !redeemStatusMessage) {
+            console.error("核銷 Tab 的 DOM 元素未正確獲取");
+            return;
+        }
+
+        redeemQrReader.style.display = 'block';
+        startRedeemScanBtn.style.display = 'none';
+        redeemStatusMessage.textContent = '請對準 QR Code...';
+        redeemStatusMessage.style.color = 'var(--color-text-primary)'; // 恢復預設顏色
+
+        if (html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+            console.log("Scanner already running.");
+            return; // 已經在掃描了
+        }
+
+        // 初始化掃描器
+        if (!html5QrCodeScanner) {
+            try {
+                // 確保 Html5Qrcode 存在
+                if (typeof Html5Qrcode === 'undefined') {
+                    throw new Error('Html5Qrcode library not loaded');
+                }
+                html5QrCodeScanner = new Html5Qrcode("redeem-qr-reader");
+                console.log("New Html5Qrcode instance created for redeem.");
+            } catch (e) {
+                console.error("初始化 Html5Qrcode 失敗:", e);
+                redeemStatusMessage.textContent = `掃碼器初始化失敗: ${e.message}`;
+                redeemStatusMessage.style.color = 'var(--color-danger)';
+                redeemQrReader.style.display = 'none';
+                startRedeemScanBtn.style.display = 'block';
+                return;
+            }
+        }
+
+        // 啟動掃描
+        html5QrCodeScanner.start(
+            { facingMode: "environment" }, // 優先使用後置鏡頭
+            { 
+                fps: 10, 
+                qrbox: (videoWidth, videoHeight) => {
+                    const minEdge = Math.min(videoWidth, videoHeight);
+                    const qrboxSize = Math.floor(minEdge * 0.7); // 使用 70% 的大小
+                    return { width: qrboxSize, height: qrboxSize };
+                }
+            },
+            onRedeemScanSuccess, // 成功掃描後的回呼
+            (errorMessage) => { 
+                // 掃描中的錯誤 (通常不用顯示)
+                // console.warn(`QR scan error: ${errorMessage}`); 
+            }
+        ).catch((err) => {
+            console.error("啟動相機失敗:", err);
+            redeemStatusMessage.textContent = `無法啟動相機: ${err}`;
+            redeemStatusMessage.style.color = 'var(--color-danger)';
+            redeemQrReader.style.display = 'none';
+            startRedeemScanBtn.style.display = 'block';
+        });
+    }
+
+    /**
+     * 任務 3.5: 掃描成功後的回呼函式
+     * @param {string} decodedText - 掃描到的 QR Code 內容 (應為 voucherId)
+     */
+    async function onRedeemScanSuccess(decodedText, decodedResult) {
+        if (!html5QrCodeScanner) return;
+        
+        try {
+            redeemStatusMessage.textContent = `掃描成功: ${decodedText}。\n正在核銷...`;
+            
+            // 停止掃描器
+            if (html5QrCodeScanner.isScanning) {
+                 await html5QrCodeScanner.stop();
+            }
+            redeemQrReader.style.display = 'none';
+            
+            // 呼叫 Task 3.2 建立的 API
+            const result = await fetchData('/api/admin/redeem-voucher', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ voucherId: decodedText }) // 假設 QR Code 內容就是 voucherId
+            });
+
+            if (result.success) {
+                redeemStatusMessage.textContent = `✅ 核銷成功！\n(${result.message || '已標記為已使用'})`;
+                redeemStatusMessage.style.color = 'var(--color-success)';
+            } else {
+                // API 回傳了 { error: "..." }
+                throw new Error(result.error || '核銷失敗');
+            }
+
+        } catch (error) {
+            console.error("核銷失敗:", error);
+            redeemStatusMessage.textContent = `❌ 核銷失敗：\n${error.message}`;
+            redeemStatusMessage.style.color = 'var(--color-danger)';
+        } finally {
+            // 允許再次掃描
+            if(startRedeemScanBtn) {
+                startRedeemScanBtn.style.display = 'block';
+                startRedeemScanBtn.textContent = '掃描下一個';
+            }
+        }
+    }
+    // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
+
 
     // --- 編輯顧客功能 (v6.3 邏輯) ---
     function openEditCustomerModal() {

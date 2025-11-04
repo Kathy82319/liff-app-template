@@ -17,6 +17,8 @@
             min-height: 100vh;
         }
 
+        /* 【刪除】#app-header 相關樣式 (因為元素已移除) */
+
         #app-container {
             flex-grow: 1;
             padding: 15px;
@@ -303,8 +305,7 @@
                 <button id="start-redeem-scan-btn" class="cta-button" style="margin: 20px auto; width: 80%;">啟動相機掃碼</button>
                 <div id="redeem-qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto; display: none; border: 1px solid var(--color-secondary); border-radius: 5px;"></div>
                 <div id="redeem-status-message" style="margin-top: 20px; font-size: 1.1em; min-height: 2em; white-space: pre-wrap;"></div>
-            </div>    
-
+            </div>
             <button id="go-to-admin-panel-btn" class="cta-button" style="margin-top: 30px; background-color: var(--color-secondary);">開啟完整版後台</button>
 
         </div>
@@ -444,6 +445,7 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="owner-liff.js"></script>
 </body>
 </html>

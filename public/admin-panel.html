@@ -682,23 +682,21 @@
     opacity: 0.8;
 }
 
-/* --- ▼▼▼ 修正 1：優惠券表格溢出 ▼▼▼ --- */
-#voucher-tab-content-templates {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
+
 
 /* --- ▼▼▼ 修正 2：優惠券 Modal 滾動 ▼▼▼ --- */
 #edit-voucher-modal .modal-content {
     display: flex;
     flex-direction: column;
     max-height: 90vh; /* 最大高度為視窗的 90% */
+    box-sizing: border-box;
 }
 #edit-voucher-modal #edit-voucher-form {
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* 延展以填滿可用空間 */
     overflow: hidden; /* 防止內部元素溢出 form */
+    min-height: 0; /* 幫助 flex-grow/shrink 正常運作 */
 }
 #edit-voucher-modal .modal-body {
     flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
@@ -707,7 +705,7 @@
 }
 #edit-voucher-modal .modal-header,
 #edit-voucher-modal .form-actions {
-    flex-shrink: 0;
+    flex-shrink: 0; /* 確保頭尾不會被壓縮 */
 }
 #edit-voucher-modal .form-actions {
     padding-top: 20px;
@@ -1191,21 +1189,24 @@
                             <h3 style="margin: 0;">優惠券樣板庫</h3>
                             <button id="add-voucher-btn" class="action-btn btn-save">建立新樣板</button>
                         </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>標題 (內部名稱)</th>
-                                    <th>類型</th>
-                                    <th>數值</th>
-                                    <th>有效期間</th>
-                                    <th>狀態</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="voucher-list-tbody">
-                                <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
-                            </tbody>
-                        </table>
+                        
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>標題 (內部名稱)</th>
+                                        <th>類型</th>
+                                        <th>數值</th>
+                                        <th>有效期間</th>
+                                        <th>狀態</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="voucher-list-tbody">
+                                    <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div id="voucher-tab-content-issuance" class="settings-tab-content">

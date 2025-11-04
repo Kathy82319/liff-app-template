@@ -104,14 +104,26 @@
         .rc-table th:first-child {
             z-index: 11;
         }
-        /* 控房表格內的輸入框和按鈕 */
-        .rc-table input[type="number"] {
-            width: 90%;
-            padding: 4px;
-            font-size: 0.9em;
-            text-align: center;
-            -moz-appearance: textfield; /* Firefox */
-        }
+/* 控房表格內的輸入框和按鈕 */
+.rc-table input[type="number"] {
+    width: 90%;
+    padding: 4px;
+    font-size: 0.9em;
+    text-align: center;
+    
+    /* 【新增】標準屬性 (消除警告) */
+    appearance: textfield;
+    
+    /* 【保留】Firefox 專用 (確保功能) */
+    -moz-appearance: textfield; /* Firefox */
+}
+
+/* (後面的 -webkit- 樣式保持不變，它們是用來隱藏 Chrome/Safari 箭頭的) */
+.rc-table input::-webkit-outer-spin-button,
+.rc-table input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
         .rc-table input::-webkit-outer-spin-button,
         .rc-table input::-webkit-inner-spin-button {
             -webkit-appearance: none;

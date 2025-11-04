@@ -34,8 +34,7 @@
         color: var(--color-text-dark); /* 主要文字改為深色 */
     }
 
-    /* --- 佈局 --- */
-    .header {
+.header {
         background-color: var(--color-header-bg);
         color: var(--color-text-dark);
         padding: 0.8rem 1.5rem;
@@ -681,6 +680,39 @@
     background-color: var(--color-warning);
     color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
     opacity: 0.8;
+}
+
+/* --- ▼▼▼ 修正 1：優惠券表格溢出 ▼▼▼ --- */
+#voucher-tab-content-templates {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* --- ▼▼▼ 修正 2：優惠券 Modal 滾動 ▼▼▼ --- */
+#edit-voucher-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* 最大高度為視窗的 90% */
+}
+#edit-voucher-modal #edit-voucher-form {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* 延展以填滿可用空間 */
+    overflow: hidden; /* 防止內部元素溢出 form */
+}
+#edit-voucher-modal .modal-body {
+    flex-grow: 1; /* 延展以填滿 form 內的可用空間 */
+    overflow-y: auto;  /* 當內容垂直溢出時，顯示滾動條 */
+    padding: 0 15px; /* 增加一點左右內距 */
+}
+#edit-voucher-modal .modal-header,
+#edit-voucher-modal .form-actions {
+    flex-shrink: 0;
+}
+#edit-voucher-modal .form-actions {
+    padding-top: 20px;
+    margin-top: 15px;
+    border-top: 1px solid var(--color-border);
 }
 
 </style>
@@ -1490,9 +1522,10 @@
                                 <label for="voucher-valid-dates">有效期間 (留空=永久)</label>
                                 <input type="text" id="voucher-valid-dates" placeholder="請選擇日期範圍">
                             </div>
+                            
                             <div class="form-group">
-                                <label for="voucher-applicable-products">適用項目 (留空=全部適用)</label>
-                                <select id="voucher-applicable-products" multiple style="height: 100px;"></select>
+                                <label for="voucher-applicable-products">適用項目 (可多選，留空=全部適用)</label>
+                                <select id="voucher-applicable-products" multiple style="height: 150px;"></select>
                             </div>
                             <div class="form-group">
                                 <label>適用星期 (預設全選)</label>
@@ -1541,7 +1574,6 @@
                     </form>
                 </div>
             </div>
-
 
 <div id="issue-voucher-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px;">

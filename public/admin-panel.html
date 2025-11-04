@@ -1542,6 +1542,32 @@
                 </div>
             </div>
 
+
+<div id="issue-voucher-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="issue-voucher-modal-title">發送優惠券</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="issue-voucher-form">
+                <input type="hidden" id="issue-voucher-user-id">
+                <div class="modal-body">
+                    <p>您正在發送優惠券給 <strong id="issue-voucher-user-name">...</strong></p>
+                    <div class="form-group">
+                        <label for="issue-voucher-template-select">選擇優惠券樣板</label>
+                        <select id="issue-voucher-template-select" required>
+                            <option value="">-- 載入中... --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                    <button type="submit" id="issue-voucher-submit-btn" class="action-btn btn-save">確認發送</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="confirmation-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">

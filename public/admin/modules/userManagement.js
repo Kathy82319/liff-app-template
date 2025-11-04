@@ -371,9 +371,41 @@ function renderCustomerActions(profile) {
     // 儲值按鈕、編輯按鈕、發送訊息按鈕
     return `
         <button type="button" class="action-btn" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-success);">儲值/扣款</button>
-        <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
+        <button type="button" class="action-btn" data-action="issue-voucher" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-info);">發送優惠券</button> <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
         <button type="button" id="send-direct-message-btn" class="action-btn" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">確認發送</button>
     `;
+}
+
+function openIssueVoucherModal(userId, userName) {
+    const modal = document.getElementById('issue-voucher-modal');
+    if (!modal) return;
+    
+    // 重置表單
+    document.getElementById('issue-voucher-form').reset();
+    
+    // 填入使用者資訊
+    document.getElementById('issue-voucher-user-id').value = userId;
+    document.getElementById('issue-voucher-user-name').textContent = userName;
+    
+    // 填充優惠券樣板下拉選單
+    const select = document.getElementById('issue-voucher-template-select');
+    select.innerHTML = '<option value="">-- 請選擇要發送的樣板 --</option>';
+    
+    const activeTemplates = allVoucherTemplates.filter(t => t.is_active);
+    if (activeTemplates.length === 0) {
+        select.innerHTML = '<option value="">-- 沒有已啟用的優惠券樣板 --</option>';
+    } else {
+        activeTemplates.forEach(t => {
+            select.add(new Option(`${t.title} (${t.internal_name})`, t.template_id));
+        });
+    }
+
+    // 恢復按鈕狀態
+    const submitBtn = document.getElementById('issue-voucher-submit-btn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '確認發送';
+    
+    ui.showModal('#issue-voucher-modal');
 }
 
 // 【新增】開啟儲值/扣款 Modal 的輔助函式
@@ -411,6 +443,12 @@ async function handleModalAction(event) {
         return; // 直接返回，不禁用按鈕
     }
     
+    // --- ▼▼▼ 新增：處理發送優惠券按鈕點擊 ▼▼▼ ---
+    if (action === 'issue-voucher') {
+        openIssueVoucherModal(targetUserId, targetName);
+        return; 
+    }
+
     // 【新增】處理編輯資料按鈕
     if (action === 'edit-customer') {
         openEditUserModal(targetUserId); // targetUserId 在這裡
@@ -471,6 +509,7 @@ function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
     
+    // ... (綁定 userSearchInput, userListTbody, editUserForm 的邏輯保持不變) ...
     // --- 綁定靜態元素 ---
     const userSearchInput = document.getElementById('user-search-input');
     // 確保監聽器只綁定一次
@@ -542,7 +581,7 @@ function setupEventListeners() {
         editUserForm.dataset.listenerAttached = 'true';
     }
 
-    // --- 【新增】綁定儲值 Modal 的提交事件 ---
+    // --- 綁定儲值 Modal 的提交事件 --- (保持不變)
     const storedValueForm = document.getElementById('stored-value-form');
     if (storedValueForm && !storedValueForm.dataset.listenerAttached) {
         storedValueForm.addEventListener('submit', async (e) => {
@@ -572,17 +611,7 @@ function setupEventListeners() {
                 ui.toast.success(`儲值金更新成功！新餘額: $${result.newBalance}`);
                 ui.hideModal('#stored-value-modal');
                 
-                // 更新 allUsers 快取中的餘額 (如果 api.getUsers 支援)
-                const userInCache = allUsers.find(u => u.user_id === userId);
-                if (userInCache) {
-                    // 注意：allUsers 可能沒有 stored_value_balance 欄位
-                    // 最好還是重新 init()
-                }
-
-                // 重新載入列表
                 await init(); 
-                
-                // 重新開啟 CRM 視窗以顯示新餘額
                 await openUserDetailsModal(userId); 
 
             } catch (error) {
@@ -594,33 +623,54 @@ function setupEventListeners() {
         storedValueForm.dataset.listenerAttached = 'true';
     }
 
-    // --- 【新增】綁定 CRM 視窗中所有按鈕的點擊事件 (使用事件委派) ---
+    // --- 綁定 CRM 視窗中所有按鈕的點擊事件 --- (保持不變)
     const userDetailsModal = document.getElementById('user-details-modal');
     if (userDetailsModal && !userDetailsModal.dataset.actionListenerAttached) {
-        const actionsContainer = userDetailsModal.querySelector('#details-modal-actions');
-        if (actionsContainer) {
-            // 綁定到 actionsContainer
-            actionsContainer.addEventListener('click', (e) => {
-                const button = e.target.closest('button[data-action]');
-                if (button) {
-                    handleModalAction(e); // 呼叫我們修改過的 handleModalAction
-                }
-            });
-            userDetailsModal.dataset.actionListenerAttached = 'true'; // 標記已綁定
-        } else {
-            // 備用方案：如果 actionsContainer 尚未渲染 (不應該發生)
-            // 綁定到 contentContainer
-            const contentContainer = userDetailsModal.querySelector('#user-details-content');
-            contentContainer.addEventListener('click', (e) => {
-                const button = e.target.closest('button[data-action]');
-                if (button) {
-                    handleModalAction(e);
-                }
-            });
-            userDetailsModal.dataset.actionListenerAttached = 'true'; // 標記已綁定
-        }
+        const contentContainer = userDetailsModal.querySelector('#user-details-content');
+        contentContainer.addEventListener('click', (e) => {
+            const button = e.target.closest('button[data-action]');
+            if (button) {
+                handleModalAction(e);
+            }
+        });
+        userDetailsModal.dataset.actionListenerAttached = 'true'; 
     }
+    
+    // --- ▼▼▼ 新增：綁定「發送優惠券」Modal 的提交事件 ▼▼▼ ---
+    const issueVoucherForm = document.getElementById('issue-voucher-form');
+    if (issueVoucherForm && !issueVoucherForm.dataset.listenerAttached) {
+        issueVoucherForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('issue-voucher-user-id').value;
+            const templateId = document.getElementById('issue-voucher-template-select').value;
+            const submitBtn = document.getElementById('issue-voucher-submit-btn');
+
+            if (!templateId) {
+                ui.toast.error('請選擇一個優惠券樣板！');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '發送中...';
+
+            try {
+                await api.issueVoucher({ userId, templateId: Number(templateId) });
+                ui.toast.success('優惠券發送成功！');
+                ui.hideModal('#issue-voucher-modal');
+                // 重新整理 CRM 視窗 (未來可以更新 CRM 內的優惠券列表)
+                await openUserDetailsModal(userId);
+
+            } catch (error) {
+                ui.toast.error(`發送失敗：${error.message}`);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '確認發送';
+            }
+        });
+        issueVoucherForm.dataset.listenerAttached = 'true';
+    }
+    // --- ▲▲▲ 新增結束 ▲▲▲ ---
 }
+// --- ▲▲▲ 修改結束 ▲▲▲ ---
 
 // 模組初始化函式 (已替換)
 export const init = async () => {
@@ -633,48 +683,43 @@ export const init = async () => {
     }
     
     userListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在載入顧客資料...</td></tr>';
-    // 同時清除/設定表頭
     const userListTheadTr = document.querySelector('#page-users thead tr');
     if (userListTheadTr) userListTheadTr.innerHTML = '<th>載入中...</th>';
 
     try {
-        // --- 1. 獲取當前啟用的樣板 (關鍵步驟) ---
+        // ... (獲取 activeTemplate 的邏輯保持不變) ...
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
              console.error("[UserManagement Init] window.CONFIG is not ready!");
              throw new Error("核心設定尚未載入。");
         }
         
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]; // 存到模組變數
+        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]; 
 
         if (!activeTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-        // 驗證此頁面需要的設定
         if (!activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
              throw new Error(`樣板 "${activeTemplateKey}" 缺少 'logic.adminUserColumns' 陣列設定。`);
         }
         console.log("[UserManagement Init] Active template loaded:", activeTemplateKey);
 
-        // --- 2. 獲取 allSettings (編輯 Modal 需要) ---
-        if (allSettings.length === 0) {
-            allSettings = await api.getSettings();
-        }
-        
-        // --- 3. 獲取 allDrafts (CRM Modal 需要) ---
-        if (allDrafts.length === 0) {
-            allDrafts = await api.getMessageDrafts();
-        }
+        // --- 併發執行所有 API 請求 ---
+        const [users, settings, drafts, templates] = await Promise.all([
+            api.getUsers(),
+            allSettings.length > 0 ? Promise.resolve(allSettings) : api.getSettings(),
+            allDrafts.length > 0 ? Promise.resolve(allDrafts) : api.getMessageDrafts(),
+            api.getVoucherTemplates() // <-- ▼▼▼ 新增 API 呼叫 ▼▼▼
+        ]);
 
-        // --- 4. 獲取使用者資料 ---
-        // *** 警告：目前的 api.getUsers() (get-users.js) 沒有包含 stored_value_balance
-        // *** 這代表列表上的 "儲值金" 欄位 (如果系統設定有加) 會顯示 N/A
-        // *** 但 CRM Modal (呼叫 user-details API) 會顯示正確金額
-        allUsers = await api.getUsers();
+        allUsers = users;
+        allSettings = settings;
+        allDrafts = drafts;
+        allVoucherTemplates = templates || []; // <-- ▼▼▼ 儲存快取 ▼▼▼
+        console.log(`[UserManagement Init] Fetched ${allVoucherTemplates.length} voucher templates.`);
+
+        renderUserList(allUsers); 
         
-        renderUserList(allUsers); // 使用動態渲染函式
-        
-        // --- 5. 綁定靜態事件 (確保只綁定一次) ---
         if (page.dataset.initialized !== 'true') {
             setupEventListeners();
             page.dataset.initialized = 'true';
@@ -684,7 +729,6 @@ export const init = async () => {
     } catch (error) {
         console.error('獲取使用者列表失敗:', error);
         userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取使用者資料失敗: ${error.message}</td></tr>`;
-        // 同時更新表頭以顯示錯誤
         if (userListTheadTr) userListTheadTr.innerHTML = '<th>錯誤</th>';
     }
 };

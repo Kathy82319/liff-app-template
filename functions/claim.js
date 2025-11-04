@@ -130,11 +130,11 @@ export async function onRequest(context) {
                     window.location.href = '/#my-vouchers';
                 }, 3000);
             }
-        }
+        
         
         // 執行
         claimVoucher();
-    <\/script>
+    </script>
     </body>
 </html>
     `;

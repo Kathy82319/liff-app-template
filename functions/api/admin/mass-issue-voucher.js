@@ -1,15 +1,14 @@
 // functions/api/admin/mass-issue-voucher.js
 
 /**
- * 核心發券邏輯 (從 issue-voucher.js 抽離並修改)
+ * 核心發券邏輯 (保持不變)
  * @param {object} db - D1 資料庫實例
  * @param {number} templateId - 樣板 ID
  * @param {string} userId - 使用者 ID
- * @param {object} template - 樣板的詳細資料 (包含 .total_supply, .limit_per_user)
+ * @param {object} template - 樣板的詳細資料 (包含 .limit_per_user)
  * @returns {Promise<{success: boolean, reason: string}>}
  */
 async function issueSingleVoucher(db, templateId, userId, template) {
-    // ... (此輔助函式內容不變) ...
     // 1. 檢查「每人限領」
     if (template.limit_per_user !== null && template.limit_per_user > 0) {
         try {
@@ -38,14 +37,11 @@ async function issueSingleVoucher(db, templateId, userId, template) {
     }
 }
 
-// --- ▼▼▼ 新增：發送 LINE 訊息的輔助函式 ▼▼▼ ---
 /**
- * 輔助函式：發送 LINE Push Message
- * @param {string} accessToken - LINE Channel Access Token
- * @param {string} userId - 目標使用者 ID
- * @param {string} message - 要發送的文字訊息
+ * 輔助函式：發送 LINE Push Message (保持不變)
  */
 async function sendPushMessage(accessToken, userId, message) {
+    // ... (此函式內容不變) ...
     if (!accessToken) {
         throw new Error("LINE_CHANNEL_ACCESS_TOKEN 未設定");
     }
@@ -67,7 +63,6 @@ async function sendPushMessage(accessToken, userId, message) {
     }
     console.log(`[sendPushMessage] 成功發送通知給 ${userId}`);
 }
-// --- ▲▲▲ 新增結束 ▲▲▲ ---
 
 
 /**
@@ -77,10 +72,9 @@ async function sendPushMessage(accessToken, userId, message) {
  * @param {Array<string>} userIds - 目標使用者 ID 列表
  * @param {boolean} sendNotification - 是否發送通知
  */
-// --- ▼▼▼ 修改：runMassIssueTask 函式簽章與內部邏輯 ▼▼▼ ---
+// --- ▼▼▼ 修正：重寫 runMassIssueTask 邏輯 ▼▼▼ ---
 async function runMassIssueTask(context, templateId, userIds, sendNotification) {
     const db = context.env.DB;
-    // 只有在需要時才獲取 token
     const lineToken = sendNotification ? context.env.LINE_CHANNEL_ACCESS_TOKEN : null; 
     
     console.log(`[Mass Issue Task] 開始為 ${userIds.length} 位使用者發送樣板 ID: ${templateId} (發送通知: ${sendNotification})`);
@@ -96,63 +90,69 @@ async function runMassIssueTask(context, templateId, userIds, sendNotification) 
             return;
         }
         
-        // --- 新增：如果需要發送通知，但 Token 不存在，則中止 ---
+        // 檢查 Token (這段邏輯在主線程已做過，但在背景任務中再次確認)
         if (sendNotification && !lineToken) {
             console.error("[Mass Issue Task] 任務中止：已勾選發送通知，但伺服器未設定 LINE_CHANNEL_ACCESS_TOKEN");
             return;
         }
-        // --- 新增結束 ---
 
-        // 2. 檢查「發行總量」 (邏輯不變)
-        if (template.total_supply !== null && template.total_supply > 0) {
-            const countResult = await db.prepare("SELECT COUNT(voucher_id) as count FROM UserVouchers WHERE template_id = ?")
-                                        .bind(templateId)
-                                        .first();
-            const issuedCount = countResult?.count || 0;
-            const remainingSupply = template.total_supply - issuedCount;
-
-            if (remainingSupply <= 0) {
-                console.error(`[Mass Issue Task] 任務中止：樣板 ${templateId} 已達總發行上限。`);
-                return;
-            }
-            
-            if (userIds.length > remainingSupply) {
-                console.warn(`[Mass Issue Task] 樣板 ${templateId} 剩餘 ${remainingSupply} 張，但目標為 ${userIds.length} 人。將只發送給前 ${remainingSupply} 位符合資格的使用者。`);
-                userIds = userIds.slice(0, remainingSupply);
-            }
-        }
+        // 2. 獲取「當前」已發行數量
+        const countResult = await db.prepare("SELECT COUNT(voucher_id) as count FROM UserVouchers WHERE template_id = ?")
+                                    .bind(templateId)
+                                    .first();
+        
+        // 這是我們在這個任務開始時的計數器
+        let currentTotalIssued = countResult?.count || 0;
+        const maxSupply = template.total_supply; // e.g., 20
+        
+        console.log(`[Mass Issue Task] 樣板 ${templateId}：總量上限 ${maxSupply === null ? '無限' : maxSupply}，目前已發行 ${currentTotalIssued}。`);
 
         // 3. 遍歷使用者並發送
-        let issuedCount = 0;
-        let notificationSentCount = 0; // <-- 追蹤通知
+        let issuedCountThisTask = 0;
+        let notificationSentCount = 0;
         
         for (const userId of userIds) {
+            
+            // --- 核心修正：在迴圈*內部*檢查總量 ---
+            if (maxSupply !== null && currentTotalIssued >= maxSupply) {
+                console.warn(`[Mass Issue Task] 樣板 ${templateId} 已達總發行上限 (${maxSupply})。提前中止任務。`);
+                break; // 總量已滿，停止發送
+            }
+
+            // 檢查「每人限領」(由 issueSingleVoucher 處理)
             const result = await issueSingleVoucher(db, templateId, userId, template);
+            
             if (result.success) {
-                issuedCount++;
+                // 如果發券成功
+                issuedCountThisTask++;
+                currentTotalIssued++; // <-- 關鍵：更新我們的即時計數器
                 
-                // --- 修改：如果發券成功 *且* 需要通知 ---
+                // 檢查是否發送通知
                 if (sendNotification) {
                     try {
                         const message = `🎁 您已收到一張新的優惠券：\n「${template.title}」\n\n請至會員中心「我的優惠券」頁面查看！`;
                         await sendPushMessage(lineToken, userId, message);
                         notificationSentCount++;
                     } catch (msgError) {
-                        // 即使通知失敗，券也已經發了，所以只記錄警告
                         console.warn(`[Mass Issue Task] 成功發券給 ${userId}，但發送通知失敗: ${msgError.message}`);
                     }
                 }
-                // --- 修改結束 ---
+            } else if (result.reason === 'exceeded_user_limit') {
+                // 如果只是超過「每人限領」，我們不視為錯誤，但也不發通知
+                console.log(`[Mass Issue Task] 略過 ${userId}：已達個人限領。`);
+            } else {
+                // 其他資料庫錯誤
+                console.error(`[Mass Issue Task] 發券給 ${userId} 時發生資料庫錯誤: ${result.reason}`);
             }
-            // 我們不為 "exceeded_user_limit" 停下，因為這在群發中是正常情況
         }
-        console.log(`[Mass Issue Task] 任務完成：成功為 ${issuedCount} / ${userIds.length} 位使用者發送了樣板 ID: ${templateId}。成功發送 ${notificationSentCount} 則通知。`);
+        
+        console.log(`[Mass Issue Task] 任務完成：成功為 ${issuedCountThisTask} / ${userIds.length} 位使用者發送了樣板 ID: ${templateId}。成功發送 ${notificationSentCount} 則通知。`);
 
     } catch (error) {
         console.error(`[Mass Issue Task] 執行群發任務時發生嚴重錯誤: ${error.message}`);
     }
 }
-// --- ▲▲▲ 修改結束 ▲▲▲ ---
+// --- ▲▲▲ 修正結束 ▲▲▲ ---
 
 
 // --- 主 API 處理函式 ---
@@ -165,23 +165,34 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ error: '無效的請求方法' }), { status: 405 });
         }
 
-        // --- ▼▼▼ 修改：讀取 sendNotification ▼▼▼ ---
         const body = await request.json();
         const { templateId, filterType, filterValue } = body;
-        const sendNotification = body.sendNotification || false; // 讀取新值，預設為 false
-        // --- ▲▲▲ 修改結束 ▲▲▲ ---
+        const sendNotification = body.sendNotification || false;
 
-        // 1. 驗證輸入
+        // 1. 驗證輸入 (不變)
         if (!templateId || !filterType || filterValue === undefined || filterValue === null) {
             return new Response(JSON.stringify({ error: '缺少樣板 ID、篩選類型或篩選值' }), { status: 400 });
         }
-        
+        // ... (其他驗證不變) ...
         const validFilterTypes = ['class', 'tag', 'level_gt'];
         if (!validFilterTypes.includes(filterType)) {
             return new Response(JSON.stringify({ error: '無效的篩選類型' }), { status: 400 });
         }
 
-        // 2. 根據篩選器建立查詢
+        // --- ▼▼▼ 修正：在啟動背景任務前，先檢查 LINE Token 是否存在 ▼▼▼ ---
+        if (sendNotification && !context.env.LINE_CHANNEL_ACCESS_TOKEN) {
+            console.error("[Mass Issue API] 請求群發並通知，但伺服器未設定 LINE_CHANNEL_ACCESS_TOKEN");
+            // 立即回傳 500 錯誤，而不是默默失敗
+            return new Response(JSON.stringify({ 
+                error: '無法啟動任務：已勾選發送通知，但伺服器未設定 LINE Channel Access Token。' 
+            }), { 
+                status: 500, // Internal Server Error
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+        // --- ▲▲▲ 修正結束 ▲▲▲ ---
+
+        // 2. 根據篩選器建立查詢 (不變)
         let userQuery;
         const queryParams = [filterValue];
         
@@ -201,7 +212,7 @@ export async function onRequest(context) {
                 break;
         }
 
-        // 3. 查詢目標使用者
+        // 3. 查詢目標使用者 (不變)
         const { results: users } = await db.prepare(userQuery).bind(...queryParams).all();
         
         if (!users || users.length === 0) {
@@ -210,12 +221,10 @@ export async function onRequest(context) {
         
         const userIds = users.map(u => u.user_id);
 
-        // --- ▼▼▼ 修改：傳遞 sendNotification 到背景任務 ▼▼▼ ---
-        // 4. 啟動背景任務
+        // 4. 啟動背景任務 (不變)
         context.waitUntil(runMassIssueTask(context, Number(templateId), userIds, sendNotification));
-        // --- ▲▲▲ 修改結束 ▲▲▲ ---
 
-        // 5. 立即回傳
+        // 5. 立即回傳 (不變)
         return new Response(JSON.stringify({ 
             success: true, 
             message: `群發任務已啟動，目標 ${userIds.length} 位顧客。` 

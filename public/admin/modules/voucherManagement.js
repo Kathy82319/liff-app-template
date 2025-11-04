@@ -8,6 +8,7 @@ let voucherDatepicker = null;
 
 // --- 渲染列表 ---
 function renderVoucherList(templates) {
+    // ... (此函式內容不變) ...
     const tbody = document.getElementById('voucher-list-tbody');
     if (!tbody) return;
 
@@ -61,8 +62,75 @@ function renderVoucherList(templates) {
     }).join('');
 }
 
+// --- ▼▼▼ 新增：渲染「公開領取」列表 ▼▼▼ ---
+function renderPublicVoucherList(templates) {
+    const container = document.getElementById('public-vouchers-container');
+    if (!container) return;
+
+    // 篩選出可公開領取的樣板
+    const publicTemplates = templates.filter(t => t.is_public && t.is_active);
+
+    if (publicTemplates.length === 0) {
+        container.innerHTML = '<p style="color: var(--color-text-light);">目前沒有已啟用的公開優惠券。</p>';
+        return;
+    }
+
+    container.innerHTML = publicTemplates.map(t => {
+        const claimUrl = `${window.location.origin}/claim?code=${t.public_claim_code}`;
+        return `
+            <div style="background: var(--color-sidebar-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1rem; margin-bottom: 1rem;">
+                <h5 style="margin-top: 0;">${t.title}</h5>
+                <p style="font-size: 0.9em; color: var(--color-text-light);">領取代碼: <code style="color: var(--color-primary); background: #eee; padding: 2px 4px; border-radius: 4px;">${t.public_claim_code}</code></p>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <input type="text" value="${claimUrl}" readonly style="flex-grow: 1; font-size: 0.9em;">
+                    <button class="action-btn btn-copy-claim-link" data-url="${claimUrl}" style="background-color: var(--color-primary); flex-shrink: 0;">複製連結</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// --- ▼▼▼ 新增：渲染「指定群發」UI (目前為佔位符) ▼▼▼ ---
+function renderMassIssueUI(templates) {
+    const container = document.getElementById('mass-issue-container');
+    if (!container) return;
+
+    // 篩選出所有已啟用的樣板 (不論是否 public)
+    const activeTemplates = templates.filter(t => t.is_active);
+
+    let optionsHtml = '<option value="">-- 請選擇要群發的優惠券 --</option>';
+    activeTemplates.forEach(t => {
+        optionsHtml += `<option value="${t.template_id}">${t.title} (${t.internal_name})</option>`;
+    });
+
+    container.innerHTML = `
+        <div style="background: var(--color-sidebar-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1rem;">
+            <div class="form-group">
+                <label for="mass-issue-template-select">選擇優惠券樣板:</label>
+                <select id="mass-issue-template-select">${optionsHtml}</select>
+            </div>
+            <div class="form-group">
+                <label for="mass-issue-filter-type">篩選條件:</label>
+                <select id="mass-issue-filter-type">
+                    <option value="">-- 選擇篩選類型 --</option>
+                    <option value="class">依會員方案</option>
+                    <option value="tag">依顧客標籤</option>
+                    <option value="level_gt">依等級 (大於等於)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="mass-issue-filter-value">篩選值:</label>
+                <input type="text" id="mass-issue-filter-value" placeholder="例如: VIP, 或 5">
+            </div>
+            <button id="btn-execute-mass-issue" class="action-btn btn-save" style="width: 100%; padding: 10px; background-color: var(--color-danger);">執行群發</button>
+        </div>
+    `;
+}
+// --- ▲▲▲ 新增結束 ▲▲▲ ---
+
 // --- 開啟 Modal ---
 function openVoucherModal(template = null) {
+    // ... (此函式內容不變) ...
     const form = document.getElementById('edit-voucher-form');
     const modalTitle = document.getElementById('modal-voucher-title');
     if (!form || !modalTitle) return;
@@ -70,6 +138,7 @@ function openVoucherModal(template = null) {
     form.reset();
     document.getElementById('edit-voucher-id').value = '';
     
+    // --- 填充「適用項目」下拉選單 ---
     const productContainer = document.getElementById('voucher-applicable-products');
     if (productContainer) {
         productContainer.innerHTML = ''; // 清空舊選項
@@ -127,7 +196,7 @@ function openVoucherModal(template = null) {
             voucherDatepicker.setDate([template.valid_from, template.valid_to]);
         }
 
-        // ▼▼▼ 修正 2：修改「設定適用項目」的邏輯 ▼▼▼
+        // 設定適用項目 (多選)
         if (Array.isArray(template.applicable_product_ids)) {
             // 遍歷容器中所有的 checkbox
             productContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -165,6 +234,7 @@ function openVoucherModal(template = null) {
 
 // --- 處理 Modal 內的動態 UI ---
 function handleVoucherTypeChange(type) {
+    // ... (此函式內容不變) ...
     const valueGroup = document.getElementById('voucher-value-group');
     const redeemGroup = document.getElementById('voucher-redeem-group');
     
@@ -173,12 +243,14 @@ function handleVoucherTypeChange(type) {
 }
 
 function handlePublicClaimChange(isPublic) {
+    // ... (此函式內容不變) ...
     const codeGroup = document.getElementById('voucher-public-code-group');
     codeGroup.style.display = isPublic ? 'block' : 'none';
 }
 
 // --- 處理表單提交 ---
 async function handleFormSubmit(event) {
+    // ... (此函式內容不變) ...
     event.preventDefault();
     const saveButton = event.target.querySelector('button[type="submit"]');
     saveButton.disabled = true;
@@ -186,7 +258,7 @@ async function handleFormSubmit(event) {
 
     const template_id = document.getElementById('edit-voucher-id').value;
     
-    // --- ▼▼▼ 修正 3：修改「收集適用項目」的邏輯 ▼▼▼ ---
+    // --- 收集適用項目 (多選) ---
     const applicable_product_ids = Array.from(
         document.querySelectorAll('#voucher-applicable-products input[type="checkbox"]:checked')
     ).map(cb => cb.value);
@@ -237,6 +309,7 @@ async function handleFormSubmit(event) {
 
 // --- 處理刪除 ---
 async function handleDelete(templateId) {
+    // ... (此函式內容不變) ...
     if (!templateId) return;
     
     // TODO: 未來這裡要改成檢查是否已發送
@@ -257,27 +330,24 @@ function setupEventListeners() {
     const page = document.getElementById('page-vouchers');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // --- ▼▼▼ 新增：子分頁切換邏輯 ▼▼▼ ---
+    // --- 子分頁切換邏輯 ---
     const subTabsContainer = document.getElementById('voucher-sub-tabs');
     subTabsContainer?.addEventListener('click', (e) => {
         if (e.target.matches('.settings-tab')) {
-            // 移除舊的 active
+            // ( ... 內容不變 ... )
             subTabsContainer.querySelector('.active')?.classList.remove('active');
             e.target.classList.add('active');
             
-            // 隱藏所有 content
             page.querySelectorAll('.settings-tab-content').forEach(content => {
                 content.classList.remove('active');
             });
             
-            // 顯示目標 content
             const targetContent = document.getElementById(e.target.dataset.target);
             if (targetContent) {
                 targetContent.classList.add('active');
             }
         }
     });
-    // --- ▲▲▲ 新增結束 ▲▲▲ ---
 
     // "建立新樣板" 按鈕
     document.getElementById('add-voucher-btn')?.addEventListener('click', () => {
@@ -287,6 +357,7 @@ function setupEventListeners() {
     // 列表事件委派 (編輯 / 刪除 / 群發)
     const tbody = document.getElementById('voucher-list-tbody');
     tbody?.addEventListener('click', (e) => {
+        // ( ... 編輯、刪除按鈕邏輯不變 ... )
         const editBtn = e.target.closest('.btn-edit-voucher');
         if (editBtn) {
             const id = editBtn.dataset.templateId;
@@ -313,6 +384,37 @@ function setupEventListeners() {
         }
     });
 
+    // --- ▼▼▼ 新增：「發送中心」事件委派 ▼▼▼ ---
+    const issuanceTab = document.getElementById('voucher-tab-content-issuance');
+    issuanceTab?.addEventListener('click', (e) => {
+        // 處理「複製連結」
+        const copyBtn = e.target.closest('.btn-copy-claim-link');
+        if (copyBtn) {
+            const url = copyBtn.dataset.url;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => {
+                    ui.toast.success('領取連結已複製！');
+                }).catch(err => {
+                    ui.toast.error('複製失敗');
+                });
+            } else {
+                ui.toast.error('您的瀏覽器不支援自動複製');
+            }
+            return;
+        }
+        
+        // 處理「執行群發」
+        const massIssueBtn = e.target.closest('#btn-execute-mass-issue');
+        if (massIssueBtn) {
+            // 目前先顯示提示，等後端 API 完成
+            ui.toast.info('群發功能之後將在此實作 (Task 4)。');
+            // (未來實作：呼叫 handleMassIssueSubmit())
+            return;
+        }
+    });
+    // --- ▲▲▲ 新增結束 ▲▲▲ ---
+
+
     // Modal 表單事件
     const form = document.getElementById('edit-voucher-form');
     form?.addEventListener('submit', handleFormSubmit);
@@ -328,7 +430,7 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-// --- 初始化 ---
+// --- ▼▼▼ 修改：init 函式 ▼▼▼ ---
 export const init = async () => {
     const tbody = document.getElementById('voucher-list-tbody');
     if (!tbody) return;
@@ -350,7 +452,11 @@ export const init = async () => {
         allVoucherTemplates = templates;
         allProducts = (products || []).filter(p => p.is_visible); // 只顯示上架的產品
         
+        // 渲染 3 個區塊
         renderVoucherList(allVoucherTemplates);
+        renderPublicVoucherList(allVoucherTemplates); // <-- 新增
+        renderMassIssueUI(allVoucherTemplates);       // <-- 新增
+        
         setupEventListeners();
         
     } catch (error) {
@@ -358,3 +464,4 @@ export const init = async () => {
         tbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
     }
 };
+// --- ▲▲▲ 修改結束 ▲▲▲ ---

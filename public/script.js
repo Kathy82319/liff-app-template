@@ -264,6 +264,7 @@ function getPriceForDate(dateString, product) {
             const response = await fetch('/api/get-app-config');
             if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
             const configData = await response.json();
+            
             if(!configData || !configData.LOGIC){
                  throw new Error('獲取到的設定檔格式不正確。');
             }
@@ -277,8 +278,7 @@ function getPriceForDate(dateString, product) {
                 throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
             }
 
-            await initializeLiff();
-
+            await checkVoucherClaim();
         } catch (error) {
             console.error("初始化失敗:", error);
             appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
@@ -356,19 +356,79 @@ function applyConfiguration() {
     // =================================================================
     // LIFF 初始化 & 全域事件
     // =================================================================
+    async function checkVoucherClaim() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const claimCode = urlParams.get('code');
+
+        // 先初始化 LIFF 並登入
+        await initializeLiff(); // <-- 將 initializeLiff 移到這裡
+        
+        if (claimCode && userProfile) {
+            // 如果有代碼，且 LIFF 已登入
+            console.log(`偵測到領券代碼: ${claimCode}`);
+            
+            // 顯示一個簡單的載入提示
+            appContent.innerHTML = `<p style="text-align: center; padding: 30px;">正在領取優惠券...</p>`;
+            
+            try {
+                const response = await fetch('/api/claim-voucher', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userProfile.userId,
+                        public_claim_code: claimCode
+                    })
+                });
+                
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '領取失敗');
+                }
+                
+                // 領取成功
+                alert(`✅ 領取成功！\n${result.message}\n\n即將跳轉至「我的優惠券」...`);
+                
+            } catch (error) {
+                // 領取失敗
+                console.error("領券 API 失敗:", error);
+                alert(`❌ 領取失敗：\n${error.message}`);
+            } finally {
+                // 無論成功失敗，都清除 URL 代碼並跳轉到優惠券頁面
+                history.replaceState(null, '', window.location.pathname); // 清除 code
+                showPage('page-my-vouchers'); // 顯示優惠券頁面
+            }
+        } else {
+         
+            console.log("沒有領券代碼，正常啟動 App。");
+        }
+    }
+    
+    
     async function initializeLiff() {
         try {
             await liff.init({ liffId: myLiffId });
             if (!liff.isLoggedIn()) {
-                liff.login();
+                // --- ▼▼▼ 修改：登入時保留 URL 參數 ▼▼▼ ---
+                // 這樣使用者登入後，才能帶著 code 回來
+                liff.login({ redirectUri: window.location.href }); 
+                // --- ▲▲▲ 修改結束 ▲▲▲ ---
                 return;
             }
             userProfile = await liff.getProfile();
-            history.replaceState({ page: 'page-home', data: null }, '', '#home');
-            applyConfiguration(); 
-            setupGlobalEventListeners();
-            const initialPageId = window.location.hash.substring(1);
-            renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
+            
+            // --- ▼▼▼ 修改：路由處理移到 checkVoucherClaim 之後 ▼▼▼ ---
+            // 只有在 *沒有* 領券代碼時，才執行預設的路由
+            const urlParams = new URLSearchParams(window.location.search);
+            if (!urlParams.has('code')) {
+                history.replaceState({ page: 'page-home', data: null }, '', '#home');
+                applyConfiguration(); 
+                setupGlobalEventListeners();
+                const initialPageId = window.location.hash.substring(1);
+                renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
+            }
+            // --- ▲▲▲ 修改結束 ▲▲▲ ---
+            
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
             history.replaceState({ page: 'page-home', data: null }, '', '#home');

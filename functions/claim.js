@@ -62,8 +62,11 @@ export async function onRequest(context) {
 </html>
     `;
 
+    // --- ▼▼▼ 核心修正 ▼▼▼ ---
+    // 將 'application/json' 改為 'text/html; charset=utf-8'
     return new Response(html, {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
+    // --- ▲▲▲ 修正結束 ▲▲▲ ---
 }

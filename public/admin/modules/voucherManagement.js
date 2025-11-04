@@ -309,22 +309,25 @@ async function handleFormSubmit(event) {
 
 // --- 處理刪除 ---
 async function handleDelete(templateId) {
-    // ... (此函式內容不變) ...
     if (!templateId) return;
     
-    // TODO: 未來這裡要改成檢查是否已發送
-    const confirmed = await ui.confirm('確定要刪除這個樣板嗎？此操作無法復原。');
+    // --- ▼▼▼ 修正：更新提示文字 ▼▼▼ ---
+    const confirmed = await ui.confirm('確定要刪除或停用此樣板嗎？\n\n(注意：如果此樣板已被發行，它將被設為「停用」而不是永久刪除。)');
     if (!confirmed) return;
 
     try {
-        await api.deleteVoucherTemplate(Number(templateId));
-        ui.toast.success('樣板刪除成功！');
+        // 呼叫的 API 保持不變 (api.deleteVoucherTemplate)
+        const result = await api.deleteVoucherTemplate(Number(templateId));
+        
+        // 顯示後端回傳的訊息
+        ui.toast.success(result.message || '操作成功！'); 
+        // --- ▲▲▲ 修正結束 ▲▲▲ ---
+        
         await init(); // 重新載入列表
     } catch (error) {
-        ui.toast.error(`刪除失敗: ${error.message}`);
+        ui.toast.error(`操作失敗: ${error.message}`);
     }
 }
-
 // --- 綁定事件 ---
 function setupEventListeners() {
     const page = document.getElementById('page-vouchers');

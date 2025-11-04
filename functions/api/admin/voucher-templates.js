@@ -102,15 +102,36 @@ export async function onRequest(context) {
         }
 
         // --- DELETE: 刪除樣板 ---
+// --- DELETE: 刪除樣板 ---
         if (request.method === 'DELETE') {
             const { template_id } = await request.json();
-            if (!template_id) return new Response(JSON.stringify({ error: '缺少 template_id' }), { status: 400 });
+            if (!template_id) {
+                return new Response(JSON.stringify({ error: '缺少 template_id' }), { status: 400 });
+            }
 
-            // TODO: 未來可以檢查這張券是否已發出 (UserVouchers)，如果已發出則不允許刪除，只能設為 is_active = 0
+            // --- ▼▼▼ 修正：執行「智慧刪除」 ▼▼▼ ---
+            let message = '';
             
-            await db.prepare("DELETE FROM VoucherTemplates WHERE template_id = ?").bind(template_id).run();
+            // 1. 檢查這張券是否已被發行
+            const checkStmt = db.prepare("SELECT 1 FROM UserVouchers WHERE template_id = ? LIMIT 1");
+            const issuedVoucher = await checkStmt.bind(template_id).first();
+
+            if (issuedVoucher) {
+                // 2a. 如果已被發行：執行「軟刪除」(設為停用)
+                await db.prepare("UPDATE VoucherTemplates SET is_active = 0 WHERE template_id = ?")
+                      .bind(template_id)
+                      .run();
+                message = '樣板已停用 (因已被發行，故無法永久刪除)';
+            } else {
+                // 2b. 如果從未發行：執行「永久刪除」
+                await db.prepare("DELETE FROM VoucherTemplates WHERE template_id = ?")
+                      .bind(template_id)
+                      .run();
+                message = '樣板已成功刪除';
+            }
+            // --- ▲▲▲ 修正結束 ▲▲▲ ---
             
-            return new Response(JSON.stringify({ success: true, message: '優惠券樣板已刪除' }), { status: 200 });
+            return new Response(JSON.stringify({ success: true, message: message }), { status: 200 });
         }
 
         return new Response('無效的請求方法', { status: 405 });

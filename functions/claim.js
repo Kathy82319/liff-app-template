@@ -1,5 +1,5 @@
 // functions/claim.js
-// 這個檔案會處理 /claim 路由，動態產生 HTML 來修復 LINE 預覽標題
+// v2.0 - 嵌入獨立的 JS 邏輯，不再引用 /script.js
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -49,24 +49,99 @@ export async function onRequest(context) {
     <link rel="stylesheet" href="/style.css">
     <style>
         body { padding: 30px 15px; }
+        #status-message {
+            text-align: center;
+            padding: 30px;
+            font-size: 1.1em;
+            white-space: pre-wrap; /* 支援換行 */
+        }
+        #status-message.success { color: var(--color-success, green); }
+        #status-message.error { color: var(--color-danger, red); }
     </style>
 </head>
 <body>
     <main id="app-content" class="page">
-        <p style="text-align: center; padding: 30px;">正在載入 LIFF 並嘗試領取優惠券...</p>
+        <p id="status-message">正在載入 LIFF 並嘗試領取優惠券...</p>
     </main>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="/script.js"></script>
-</body>
+    
+    <script>
+        async function claimVoucher() {
+            const statusEl = document.getElementById('status-message');
+            const urlParams = new URLSearchParams(window.location.search);
+            const claimCode = urlParams.get('code');
+            const myLiffId = "2008032417-3yJQGaO6"; // 你的客戶端 LIFF ID
+
+            if (!claimCode) {
+                statusEl.textContent = '錯誤：缺少優惠券代碼。';
+                statusEl.className = 'error';
+                return;
+            }
+
+            try {
+                statusEl.textContent = '正在初始化 LIFF...';
+                await liff.init({ liffId: myLiffId });
+
+                if (!liff.isLoggedIn()) {
+                    statusEl.textContent = '請先登入以領取優惠券...';
+                    liff.login({ redirectUri: window.location.href });
+                    return;
+                }
+
+                statusEl.textContent = '正在獲取使用者資料...';
+                const profile = await liff.getProfile();
+                const userId = profile.userId;
+
+                statusEl.textContent = '正在領取優惠券...';
+                const response = await fetch('/api/claim-voucher', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        public_claim_code: claimCode
+                    })
+                });
+                
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '領取失敗');
+                }
+                
+                // 領取成功
+                const successMsg = \`✅ 領取成功！\\n\${result.message}\`;
+                statusEl.textContent = successMsg;
+                statusEl.className = 'success';
+                alert(successMsg);
+
+            } catch (error) {
+                // 領取失敗
+                console.error("領券失敗:", error);
+                const errorMsg = \`❌ 領取失敗：\\n\${error.message}\`;
+                statusEl.textContent = errorMsg;
+                statusEl.className = 'error';
+                alert(errorMsg);
+            } finally {
+                // 無論成功失敗，都清除 URL 代碼並跳轉到優惠券頁面
+                statusEl.textContent += \`\\n\\n即將跳轉至「我的優惠券」..._`;
+                setTimeout(() => {
+                    // 使用 /#my-vouchers 重定向到主應用的優惠券頁面
+                    window.location.href = '/#my-vouchers';
+                }, 3000);
+            }
+        }
+        
+        // 執行
+        claimVoucher();
+    <\/script>
+    </body>
 </html>
     `;
+    // --- 核心修正結束 ---
 
-    // --- ▼▼▼ 核心修正 ▼▼▼ ---
-    // 將 'application/json' 改為 'text/html; charset=utf-8'
     return new Response(html, {
         status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }, // 保持 text/html
     });
-    // --- ▲▲▲ 修正結束 ▲▲▲ ---
 }

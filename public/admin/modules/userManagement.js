@@ -5,7 +5,8 @@ import { ui } from '../ui.js';
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
 let allDrafts = []; // 存放訊息草稿的快取
-let activeTemplate = null; // 【新增】存放當前啟用的樣板藍圖
+let allVoucherTemplates = []; // <-- 【修正】宣告優惠券樣板快取
+let activeTemplate = null; // 存放當前啟用的樣板藍圖
 
 /**
  * 安全地獲取物件的巢狀屬性
@@ -206,7 +207,7 @@ function renderHistoryTable(items, columns, headers) {
             const cell = row.insertCell();
             let value = item[col];
             if (col.includes('date') || col.includes('_at')) {
-                value = new Date(value).toLocaleDateString();
+                value = new Date(value).toLocaleString('sv-SE'); // 改用 toLocaleString 顯示時間
             }
             cell.textContent = value;
         });
@@ -234,7 +235,8 @@ async function loadAndBindMessageDrafts(userId) {
     }
 
     select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
-    allDrafts.forEach(d => select.add(new Option(d.title, d.content)));
+    // 篩選掉固定草稿
+    allDrafts.filter(d => !d.is_fixed).forEach(d => select.add(new Option(d.title, d.content)));
     
     select.onchange = () => { content.value = select.value; };
 
@@ -290,10 +292,12 @@ const { profile, bookings, exp_history, stored_value_history } = data;
                     <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
                     <button class="details-tab" data-target="tab-exp">點數紀錄</button>
                     <button class="details-tab" data-target="tab-stored-value">儲值金紀錄</button>
+                    <button class="details-tab" data-target="tab-vouchers">持有優惠券</button>
                 </div>
                 <div class="details-tab-content active" id="tab-bookings"></div>
                 <div class="details-tab-content" id="tab-exp"></div>
                 <div class="details-tab-content" id="tab-stored-value"></div>
+                <div class="details-tab-content" id="tab-vouchers"><p>載入中...</p></div>
             </div>
         </div>
         <div class="message-sender">
@@ -318,21 +322,18 @@ const { profile, bookings, exp_history, stored_value_history } = data;
     // --- 【修改】渲染儲值金紀錄 ---
     const storedValueTab = contentContainer.querySelector('#tab-stored-value');
     
-    // 輔助對照表
     const typeMap = {
         'admin_topup': '店家儲值',
         'admin_deduct': '店家扣款',
         'booking_payment': '訂房扣款'
     };
 
-    // 處理資料，加入翻譯後的 type_display 欄位
     const formattedHistory = (stored_value_history || []).map(record => ({
         ...record,
-        created_at: new Date(record.created_at).toLocaleString('sv-SE'), // 格式化日期
-        type_display: typeMap[record.type] || record.type // 翻譯類型
+        created_at: new Date(record.created_at).toLocaleString('sv-SE'), 
+        type_display: typeMap[record.type] || record.type 
     }));
 
-    // 呼叫 renderHistoryTable
     storedValueTab.appendChild(renderHistoryTable(
         formattedHistory, 
         ['created_at', 'type_display', 'amount_changed', 'current_balance', 'notes'], 
@@ -344,6 +345,13 @@ const { profile, bookings, exp_history, stored_value_history } = data;
             notes: '備註'
         }
     ));
+
+    // --- ▼▼▼ 新增：渲染優惠券紀錄 ▼▼▼ ---
+    // (目前 User Details API 尚未回傳優惠券，我們先放一個預留位置)
+    // (我們將在 v12.3 步驟 3.1 建立 API 後回來修改這裡)
+    const voucherTab = contentContainer.querySelector('#tab-vouchers');
+    voucherTab.innerHTML = '<p>優惠券紀錄功能待開發 (API: get /api/my-vouchers?userId=...)</p>';
+
 
     // 綁定頁籤切換事件
     contentContainer.querySelector('.details-tabs').addEventListener('click', e => {
@@ -358,57 +366,26 @@ const { profile, bookings, exp_history, stored_value_history } = data;
     // 呼叫函式來載入訊息草稿
     loadAndBindMessageDrafts(profile.user_id);
 
-    // 【新增】動態渲染操作按鈕
+    // 動態渲染操作按鈕
     const actionsContainer = contentContainer.querySelector('#details-modal-actions');
     if (actionsContainer) {
         actionsContainer.innerHTML = renderCustomerActions(profile);
     }
 }
 
-// 【新增】渲染 CRM 視窗中的操作按鈕
+// --- ▼▼▼ 修改：渲染 CRM 視窗中的操作按鈕 ▼▼▼ ---
 function renderCustomerActions(profile) {
     const targetName = profile.nickname || profile.line_display_name;
     // 儲值按鈕、編輯按鈕、發送訊息按鈕
     return `
         <button type="button" class="action-btn" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-success);">儲值/扣款</button>
-        <button type="button" class="action-btn" data-action="issue-voucher" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-info);">發送優惠券</button> <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
+        <button type="button" class="action-btn" data-action="issue-voucher" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-info);">發送優惠券</button>
+        <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
         <button type="button" id="send-direct-message-btn" class="action-btn" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">確認發送</button>
     `;
 }
 
-function openIssueVoucherModal(userId, userName) {
-    const modal = document.getElementById('issue-voucher-modal');
-    if (!modal) return;
-    
-    // 重置表單
-    document.getElementById('issue-voucher-form').reset();
-    
-    // 填入使用者資訊
-    document.getElementById('issue-voucher-user-id').value = userId;
-    document.getElementById('issue-voucher-user-name').textContent = userName;
-    
-    // 填充優惠券樣板下拉選單
-    const select = document.getElementById('issue-voucher-template-select');
-    select.innerHTML = '<option value="">-- 請選擇要發送的樣板 --</option>';
-    
-    const activeTemplates = allVoucherTemplates.filter(t => t.is_active);
-    if (activeTemplates.length === 0) {
-        select.innerHTML = '<option value="">-- 沒有已啟用的優惠券樣板 --</option>';
-    } else {
-        activeTemplates.forEach(t => {
-            select.add(new Option(`${t.title} (${t.internal_name})`, t.template_id));
-        });
-    }
-
-    // 恢復按鈕狀態
-    const submitBtn = document.getElementById('issue-voucher-submit-btn');
-    submitBtn.disabled = false;
-    submitBtn.textContent = '確認發送';
-    
-    ui.showModal('#issue-voucher-modal');
-}
-
-// 【新增】開啟儲值/扣款 Modal 的輔助函式
+// 【新增】開啟儲值/扣款 Modal 的輔助函式 (保持不變)
 function openAdjustStoredValueModal(userId, userName) {
     const modal = document.getElementById('stored-value-modal');
     if (!modal) return;
@@ -428,7 +405,43 @@ function openAdjustStoredValueModal(userId, userName) {
     ui.showModal('#stored-value-modal');
 }
 
-// 【新增】處理 CRM Modal 中所有按鈕點擊的函式
+// --- ▼▼▼ 新增：開啟「發送優惠券」Modal 的輔助函式 ▼▼▼ ---
+function openIssueVoucherModal(userId, userName) {
+    const modal = document.getElementById('issue-voucher-modal');
+    if (!modal) return;
+    
+    // 重置表單
+    document.getElementById('issue-voucher-form').reset();
+    
+    // 填入使用者資訊
+    document.getElementById('issue-voucher-user-id').value = userId;
+    document.getElementById('issue-voucher-user-name').textContent = userName;
+    
+    // 填充優惠券樣板下拉選單
+    const select = document.getElementById('issue-voucher-template-select');
+    select.innerHTML = '<option value="">-- 請選擇要發送的樣板 --</option>';
+    
+    // 使用快取的 allVoucherTemplates
+    const activeTemplates = allVoucherTemplates.filter(t => t.is_active);
+    if (activeTemplates.length === 0) {
+        select.innerHTML = '<option value="">-- 沒有已啟用的優惠券樣板 --</option>';
+    } else {
+        activeTemplates.forEach(t => {
+            select.add(new Option(`${t.title} (${t.internal_name})`, t.template_id));
+        });
+    }
+
+    // 恢復按鈕狀態
+    const submitBtn = document.getElementById('issue-voucher-submit-btn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '確認發送';
+    
+    ui.showModal('#issue-voucher-modal');
+}
+// --- ▲▲▲ 新增結束 ▲▲▲ ---
+
+
+// --- ▼▼▼ 修改：處理 CRM Modal 中所有按鈕點擊的函式 ▼▼▼ ---
 async function handleModalAction(event) {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
@@ -437,10 +450,9 @@ async function handleModalAction(event) {
     const targetUserId = button.dataset.userId;
     const targetName = button.dataset.targetName;
     
-    // 【新增】處理儲值按鈕點擊
     if (action === 'adjust-stored-value') {
         openAdjustStoredValueModal(targetUserId, targetName);
-        return; // 直接返回，不禁用按鈕
+        return; 
     }
     
     // --- ▼▼▼ 新增：處理發送優惠券按鈕點擊 ▼▼▼ ---
@@ -448,16 +460,16 @@ async function handleModalAction(event) {
         openIssueVoucherModal(targetUserId, targetName);
         return; 
     }
+    // --- ▲▲▲ 新增結束 ▲▲▲ ---
 
-    // 【新增】處理編輯資料按鈕
     if (action === 'edit-customer') {
-        openEditUserModal(targetUserId); // targetUserId 在這裡
-        ui.hideModal('#user-details-modal'); // 關閉 CRM 視窗
+        openEditUserModal(targetUserId); 
+        ui.hideModal('#user-details-modal'); 
         return;
     }
     
-    // 【修改】處理發送訊息按鈕 (原 sendBtn.onclick 的邏輯)
     if (action === 'send-message') {
+        // ... (發送訊息的邏輯保持不變) ...
         const content = document.querySelector('#direct-message-content');
         const message = content.value.trim();
         if (!message) { ui.toast.error('訊息內容不可為空！'); return; }
@@ -479,9 +491,9 @@ async function handleModalAction(event) {
         return;
     }
     
-    // 處理其他未知的 action (如果有的話)
     console.warn('未知的 Modal 操作:', action);
 }
+// --- ▲▲▲ 修改結束 ▲▲▲ ---
 
 
 // 函式：開啟使用者詳細資料 (CRM) Modal (保持不變)
@@ -509,7 +521,6 @@ function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
     
-    // ... (綁定 userSearchInput, userListTbody, editUserForm 的邏輯保持不變) ...
     // --- 綁定靜態元素 ---
     const userSearchInput = document.getElementById('user-search-input');
     // 確保監聽器只綁定一次
@@ -566,13 +577,15 @@ function setupEventListeners() {
                 tag: newTag,
                 user_class: newClass,
                 perk: document.getElementById('edit-perk-input').value.trim(),
-                notes: document.getElementById('edit-notes-textarea').value
+                notes: document.getElementById('edit-notes-textarea').value,
+                phone: document.getElementById('edit-phone-input')?.value // 確保 phone 欄位存在
             };
 
             try {
-                await api.updateUserDetails(updatedData);
+                // 使用 admin API 來更新
+                await api.updateUserDetails(updatedData); 
                 ui.hideModal('#edit-user-modal');
-                // 重新載入列表以顯示更新後的資料
+                ui.toast.success('顧客資料更新成功！');
                 await init(); // 呼叫 init 重新獲取並渲染
             } catch (error) {
                 ui.toast.error(`錯誤：${error.message}`);
@@ -626,8 +639,9 @@ function setupEventListeners() {
     // --- 綁定 CRM 視窗中所有按鈕的點擊事件 --- (保持不變)
     const userDetailsModal = document.getElementById('user-details-modal');
     if (userDetailsModal && !userDetailsModal.dataset.actionListenerAttached) {
-        const contentContainer = userDetailsModal.querySelector('#user-details-content');
-        contentContainer.addEventListener('click', (e) => {
+        // 我們需要監聽 modal-content 或更高層級，因為 contentContainer 會被重繪
+        const modalContent = userDetailsModal.querySelector('.modal-content');
+        modalContent.addEventListener('click', (e) => {
             const button = e.target.closest('button[data-action]');
             if (button) {
                 handleModalAction(e);
@@ -654,10 +668,12 @@ function setupEventListeners() {
             submitBtn.textContent = '發送中...';
 
             try {
-                await api.issueVoucher({ userId, templateId: Number(templateId) });
+                // 使用我們在 api.js 中定義的 issueVoucher
+                await api.issueVoucher({ userId, templateId: Number(templateId) }); 
                 ui.toast.success('優惠券發送成功！');
                 ui.hideModal('#issue-voucher-modal');
-                // 重新整理 CRM 視窗 (未來可以更新 CRM 內的優惠券列表)
+                
+                // 重新開啟 CRM 視窗 (未來會更新 CRM 內的優惠券列表)
                 await openUserDetailsModal(userId);
 
             } catch (error) {
@@ -670,9 +686,9 @@ function setupEventListeners() {
     }
     // --- ▲▲▲ 新增結束 ▲▲▲ ---
 }
-// --- ▲▲▲ 修改結束 ▲▲▲ ---
 
-// 模組初始化函式 (已替換)
+
+// --- ▼▼▼ 修改：模組初始化函式 (init) ▼▼▼ ---
 export const init = async () => {
     console.log("[UserManagement Init] Starting...");
     const userListTbody = document.getElementById('user-list-tbody');
@@ -687,7 +703,7 @@ export const init = async () => {
     if (userListTheadTr) userListTheadTr.innerHTML = '<th>載入中...</th>';
 
     try {
-        // ... (獲取 activeTemplate 的邏輯保持不變) ...
+        // ... (獲取 activeTemplate 的邏K輯保持不變) ...
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
              console.error("[UserManagement Init] window.CONFIG is not ready!");
              throw new Error("核心設定尚未載入。");
@@ -704,19 +720,21 @@ export const init = async () => {
         }
         console.log("[UserManagement Init] Active template loaded:", activeTemplateKey);
 
-        // --- 併發執行所有 API 請求 ---
+        // --- [MODIFY THIS PART] ---
+        // 併發執行所有 API 請求
         const [users, settings, drafts, templates] = await Promise.all([
             api.getUsers(),
             allSettings.length > 0 ? Promise.resolve(allSettings) : api.getSettings(),
             allDrafts.length > 0 ? Promise.resolve(allDrafts) : api.getMessageDrafts(),
-            api.getVoucherTemplates() // <-- ▼▼▼ 新增 API 呼叫 ▼▼▼
+            api.getVoucherTemplates() // <-- 新增 API 呼叫
         ]);
 
         allUsers = users;
         allSettings = settings;
         allDrafts = drafts;
-        allVoucherTemplates = templates || []; // <-- ▼▼▼ 儲存快取 ▼▼▼
+        allVoucherTemplates = templates || []; // <-- 儲存快取
         console.log(`[UserManagement Init] Fetched ${allVoucherTemplates.length} voucher templates.`);
+        // --- [END OF MODIFICATION] ---
 
         renderUserList(allUsers); 
         
@@ -732,3 +750,4 @@ export const init = async () => {
         if (userListTheadTr) userListTheadTr.innerHTML = '<th>錯誤</th>';
     }
 };
+// --- ▲▲▲ 修改結束 ▲▲▲ ---

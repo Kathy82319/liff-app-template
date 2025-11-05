@@ -222,15 +222,6 @@ async function loadAndBindMessageDrafts(userId) {
     const select = document.querySelector('#message-draft-select');
     const content = document.querySelector('#direct-message-content');
     const sendBtn = document.querySelector('#send-direct-message-btn');
-    if (!select || !content || !sendBtn) return;
-    
-    // 如果快取中沒有草稿資料，才從 API 獲取
-        try {
-            allDrafts = await api.getMessageDrafts();
-        } catch (e) {
-            console.error("無法載入訊息草稿:", e);
-            ui.toast.error("載入訊息草稿失敗");
-        }
 
     select.innerHTML = '<option value="">-- 手動輸入或選擇草稿 --</option>';
     // 篩選掉固定草稿

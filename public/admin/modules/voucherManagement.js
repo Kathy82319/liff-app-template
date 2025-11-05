@@ -369,6 +369,7 @@ async function handleMassIssueSubmit(event) {
             templateId: Number(templateId),
             filterType: filterType,
             filterValue: filterValue
+            sendNotification: sendNotification
         });
 
         // 顯示 API 的立即回傳訊息 (202 Accepted)

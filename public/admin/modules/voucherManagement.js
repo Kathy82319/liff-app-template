@@ -368,7 +368,7 @@ async function handleMassIssueSubmit(event) {
         const result = await api.massIssueVoucher({
             templateId: Number(templateId),
             filterType: filterType,
-            filterValue: filterValue
+            filterValue: filterValue,
             sendNotification: sendNotification
         });
 

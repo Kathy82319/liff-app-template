@@ -1,12 +1,15 @@
 // public/script.js
 document.addEventListener('DOMContentLoaded', () => {
 
-    const myLiffId = "2008032417-3yJQGaO6"; 
+    // --- 設定區 ---
+    const myLiffId = "2008032417-3yJQGaO6"; // 您的 LIFF ID
+    
+    // --- 全域變數 ---
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
-    let activeTemplate = null; // 當前啟用的樣板
+    let activeTemplate = null; 
     let CONFIG; 
 
     let productView = { 
@@ -32,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let flatpickrRangeInstance = null; 
 
+    // 頁面初始化映射表
     const pageInitializers = {
         'page-home': initializeHomePage,
         'page-products': initializeProductsPage,
@@ -48,7 +52,53 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-my-vouchers': initializeMyVouchersPage, 
     };
 
-    // 計算所選房間及入住天數的預估總金額
+    // =================================================================
+    // 核心輔助函式 (含修復後的 fetchproductData)
+    // =================================================================
+
+    /**
+     * 獲取/同步會員資料的函式 【關鍵修復：防止 400 錯誤】
+     * @param {boolean} sync - 是否為同步模式
+     */
+    async function fetchproductData(sync = false) {
+        // 1. 安全檢查：如果 LIFF 還沒載入完成，直接回傳 null，不呼叫 API
+        if (!userProfile || !userProfile.userId) {
+            console.warn("[script.js] fetchproductData: userProfile 尚未就緒，跳過 API 呼叫。");
+            return null;
+        }
+
+        try {
+            // 2. 準備 payload
+            const payload = {
+                userId: userProfile.userId,
+                displayName: userProfile.displayName || 'Unknown',
+                pictureUrl: userProfile.pictureUrl || ''
+            };
+
+            // 3. 發送 POST 請求
+            const response = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // 4. 錯誤處理
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`會員 API 錯誤 (${response.status}): ${errorText}`);
+            }
+
+            // 5. 回傳資料
+            const userData = await response.json();
+            return userData;
+
+        } catch (error) {
+            console.error("[script.js] fetchproductData 執行失敗:", error);
+            throw error; 
+        }
+    }
+
+    // 計算預估總金額 (民宿用)
     function calculateTotalPrice() {
         let total = 0;
         const estimatedTotalPriceEl = document.getElementById('estimated-total-price');
@@ -221,9 +271,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
+            // 呼叫對應頁面的初始化函式
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId](data);
             }
+            // 更新下方導覽列狀態
             const isMainTab = Array.from(document.querySelectorAll('.tab-button')).some(btn => btn.dataset.target === pageId);
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
@@ -575,51 +627,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
     
-    /**
-     * 獲取/同步會員資料的函式 【修復：已新增此函式】
-     * @param {boolean} sync - 是否為同步模式 (目前邏輯皆為呼叫同一 API)
-     */
-    async function fetchproductData(sync = false) {
-        // 1. 檢查 LIFF 是否已取得 userProfile
-        if (!userProfile || !userProfile.userId) {
-            console.warn("fetchproductData: userProfile 尚未載入或無效");
-            return null;
-        }
-
-        try {
-            // 2. 準備 payload，確保包含 userId
-            const payload = {
-                userId: userProfile.userId,
-                displayName: userProfile.displayName || 'Unknown',
-                pictureUrl: userProfile.pictureUrl || ''
-            };
-
-            console.log("fetchproductData: 正在呼叫 API /api/user", payload);
-
-            // 3. 發送 POST 請求
-            const response = await fetch('/api/user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }, // 確保 Content-Type 正確
-                body: JSON.stringify(payload)
-            });
-
-            // 4. 錯誤處理
-            if (!response.ok) {
-                const errorText = await response.text();
-                // 如果是 400，通常是因為 payload 格式錯誤或缺少 userId
-                throw new Error(`會員 API 錯誤 (${response.status}): ${errorText}`);
-            }
-
-            // 5. 回傳資料
-            const userData = await response.json();
-            return userData;
-
-        } catch (error) {
-            console.error("fetchproductData 執行失敗:", error);
-            throw error; // 將錯誤拋出給呼叫者處理 (例如顯示「資料載入失敗」)
-        }
-    }
-
     function updateProfileDisplay(data) {
         if (!data) return;
 

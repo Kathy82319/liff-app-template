@@ -225,25 +225,46 @@ function getPriceForDate(dateString, product) {
     // =================================================================
     // 頁面渲染與導航核心
     // =================================================================
-    function renderPage(pageId, data = null) {
+function renderPage(pageId, data = null) {
+        // 處理 pageId 可能為空的情況
+        if(!pageId) pageId = 'page-home';
+        
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
+            
+            // 呼叫對應頁面的初始化函式
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId](data);
+            } else {
+                // 如果是詳情頁但沒有資料 (例如重新整理)，嘗試從 URL 恢復或導回列表
+                // (這裡暫時簡化處理，若無初始化函式則不動作)
             }
-            const isMainTab = Array.from(document.querySelectorAll('.tab-button')).some(btn => btn.dataset.target === pageId);
+
+            // 更新底部導覽列狀態
+            const targetId = pageId;
             document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
+                const btnTarget = btn.dataset.target;
+                // 處理首頁的特殊情況 (page-home vs home)
+                const isActive = (btnTarget === targetId) || (btnTarget === 'page-home' && targetId === 'home');
+                btn.classList.toggle('active', isActive);
             });
+            
+            // 捲動到頂部
+            window.scrollTo(0, 0);
+            
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
-            renderPage('page-home');
+            // 避免無窮迴圈，如果 page-home 也找不到就不跳轉
+            if (pageId !== 'page-home') {
+                renderPage('page-home');
+            }
         }
     }
 
     function showPage(pageId, data = null) {
-        history.pushState({ page: pageId, data: data }, '', `#${pageId.replace('page-', '')}`);
+        const hash = pageId.replace('page-', '');
+        history.pushState({ page: pageId, data: data }, '', `#${hash}`);
         renderPage(pageId, data);
     }
 
@@ -526,11 +547,11 @@ function renderBookings(bookings, container, isPast = false) {
     }).join('');
 }
  
-// =================================================================
+    // =================================================================
     // LIFF 初始化 & 全域事件 (整合修正版)
     // =================================================================
     
-    async function checkVoucherClaim() {
+async function checkVoucherClaim() {
         const urlParams = new URLSearchParams(window.location.search);
         const claimCode = urlParams.get('code');
 
@@ -570,17 +591,19 @@ function renderBookings(bookings, container, isPast = false) {
                 // 步驟 3: 領取動作結束 (無論成功失敗)
                 // 清除網址參數，並跳轉到優惠券頁面
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                // 強制跳轉到我的優惠券
                 window.history.replaceState({ page: 'page-my-vouchers' }, '', cleanUrl + '#my-vouchers');
+                applyConfiguration();
+                setupGlobalEventListeners();
                 renderPage('page-my-vouchers');
             }
         } else {
-            // 步驟 4: 沒有代碼，或是剛登入回來
-            // 這裡什麼都不用做，initializeLiff 內的路由邏輯會處理正常頁面顯示
-            console.log("沒有領券代碼或等待登入中，執行一般流程。");
+            // 步驟 4: 沒有代碼，執行一般路由
+            console.log("沒有領券代碼，執行一般頁面路由。");
         }
     }
     
-    async function initializeLiff() {
+async function initializeLiff() {
         try {
             await liff.init({ liffId: myLiffId });
             
@@ -594,7 +617,7 @@ function renderBookings(bookings, container, isPast = false) {
             userProfile = await liff.getProfile();
             
             // C. 處理一般路由 (只有在「沒有」要領券的時候才執行預設路由)
-            // 如果有 code，checkVoucherClaim 會接手處理 UI，這裡就不干涉
+            // 如果有 code，checkVoucherClaim 的 if 區塊會接手處理 UI，這裡就不干涉
             const urlParams = new URLSearchParams(window.location.search);
             if (!urlParams.has('code')) {
                 // 1. 讀取網址上的 Hash (例如 #my-vouchers)
@@ -610,6 +633,7 @@ function renderBookings(bookings, container, isPast = false) {
                 setupGlobalEventListeners();
                 
                 // 3. 渲染頁面
+                console.log(`[Router] Rendering page: page-${currentHash}`);
                 renderPage(`page-${currentHash}`);
             }
             

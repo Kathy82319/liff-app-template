@@ -39,8 +39,9 @@ async function issueSingleVoucher(db, templateId, userId, template) {
 
 /**
  * 輔助函式：發送 LINE Push Message
+ * 【修改】現在接受 messages 陣列，支援 Flex Message
  */
-async function sendPushMessage(accessToken, userId, message) {
+async function sendPushMessage(accessToken, userId, messages) {
     if (!accessToken) {
         throw new Error("LINE_CHANNEL_ACCESS_TOKEN 未設定");
     }
@@ -52,7 +53,7 @@ async function sendPushMessage(accessToken, userId, message) {
         },
         body: JSON.stringify({
             to: userId,
-            messages: [{ type: 'text', text: message }],
+            messages: messages, // 直接傳遞訊息物件陣列
         }),
     });
     if (!response.ok) {
@@ -70,6 +71,8 @@ async function sendPushMessage(accessToken, userId, message) {
 async function runMassIssueTask(context, templateId, userIds, sendNotification) {
     const db = context.env.DB;
     const lineToken = sendNotification ? context.env.LINE_CHANNEL_ACCESS_TOKEN : null; 
+    // 您的客戶端 LIFF ID (用於產生連結)
+    const CLIENT_LIFF_ID = "2008032417-3yJQGaO6"; 
     
     console.log(`[Mass Issue Task] 開始為 ${userIds.length} 位使用者發送樣板 ID: ${templateId} (發送通知: ${sendNotification})`);
 
@@ -89,7 +92,7 @@ async function runMassIssueTask(context, templateId, userIds, sendNotification) 
             return;
         }
 
-        // 2. 獲取「當前」已發行數量 (任務開始時的基準)
+        // 2. 獲取「當前」已發行數量
         const countResult = await db.prepare("SELECT COUNT(voucher_id) as count FROM UserVouchers WHERE template_id = ?")
                                     .bind(templateId)
                                     .first();
@@ -99,7 +102,48 @@ async function runMassIssueTask(context, templateId, userIds, sendNotification) 
         
         console.log(`[Mass Issue Task] 樣板 ${templateId}：總量上限 ${maxSupply === null ? '無限' : maxSupply}，目前已發行 ${currentTotalIssued}。`);
 
-        // 3. 遍歷使用者並發送
+        // 3. 準備 Flex Message 內容 (如果需要通知)
+        let flexMessage = null;
+        if (sendNotification) {
+            flexMessage = {
+                type: "flex",
+                altText: `🎁 您收到一張新的優惠券：${template.title}`,
+                contents: {
+                    type: "bubble",
+                    body: {
+                        type: "box",
+                        layout: "vertical",
+                        contents: [
+                            { type: "text", text: "🎁 獲得優惠券", weight: "bold", color: "#1DB446", size: "sm" },
+                            { type: "text", text: template.title, weight: "bold", size: "xl", margin: "md", wrap: true },
+                            { type: "text", text: "已存入您的會員帳戶，請點擊下方按鈕查看。", size: "xs", color: "#aaaaaa", margin: "md", wrap: true }
+                        ]
+                    },
+                    footer: {
+                        type: "box",
+                        layout: "vertical",
+                        spacing: "sm",
+                        contents: [
+                            {
+                                type: "button",
+                                style: "primary",
+                                height: "sm",
+                                action: {
+                                    type: "uri",
+                                    label: "查看我的優惠券",
+                                    // 直接連結到 LIFF 的優惠券頁面
+                                    uri: `https://liff.line.me/${CLIENT_LIFF_ID}/#my-vouchers`
+                                },
+                                color: "#58a6ff"
+                            }
+                        ],
+                        flex: 0
+                    }
+                }
+            };
+        }
+
+        // 4. 遍歷使用者並發送
         let issuedCountThisTask = 0;
         let notificationSentCount = 0;
         
@@ -114,12 +158,12 @@ async function runMassIssueTask(context, templateId, userIds, sendNotification) 
             
             if (result.success) {
                 issuedCountThisTask++;
-                currentTotalIssued++; // 更新計數器
+                currentTotalIssued++; 
                 
-                if (sendNotification) {
+                if (sendNotification && flexMessage) {
                     try {
-                        const message = `🎁 您已收到一張新的優惠券：\n「${template.title}」\n\n請至會員中心「我的優惠券」頁面查看！`;
-                        await sendPushMessage(lineToken, userId, message);
+                        // 傳送 Flex Message
+                        await sendPushMessage(lineToken, userId, [flexMessage]);
                         notificationSentCount++;
                     } catch (msgError) {
                         console.warn(`[Mass Issue Task] 成功發券給 ${userId}，但發送通知失敗: ${msgError.message}`);
@@ -159,7 +203,7 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ error: '缺少樣板 ID、篩選類型或篩選值' }), { status: 400 });
         }
 
-        // --- 【新增】2. 預先檢查優惠券總量 (在查詢使用者前先擋下) ---
+        // 2. 預先檢查優惠券總量
         const template = await db.prepare("SELECT title, total_supply, is_active FROM VoucherTemplates WHERE template_id = ?").bind(templateId).first();
         
         if (!template) {
@@ -175,20 +219,17 @@ export async function onRequest(context) {
              const countResult = await db.prepare("SELECT COUNT(voucher_id) as count FROM UserVouchers WHERE template_id = ?").bind(templateId).first();
              const currentCount = countResult?.count || 0;
              
-             // 如果已額滿，直接報錯
              if (currentCount >= template.total_supply) {
                   return new Response(JSON.stringify({ 
                       error: `發送失敗：此優惠券已達總發行上限 (${template.total_supply} 張)，目前已發出 ${currentCount} 張。` 
-                  }), { status: 409 }); // 409 Conflict
+                  }), { status: 409 }); 
              }
 
-             // 準備剩餘數量資訊
              const remaining = template.total_supply - currentCount;
              supplyWarning = ` (注意：剩餘發行量僅剩 ${remaining} 張，將依序發送至額滿為止)`;
         }
-        // --- 檢查結束 ---
 
-        // 3. 檢查 LINE Token (若需要通知)
+        // 3. 檢查 LINE Token
         if (sendNotification && !context.env.LINE_CHANNEL_ACCESS_TOKEN) {
             return new Response(JSON.stringify({ 
                 error: '無法啟動任務：已勾選發送通知，但伺服器未設定 LINE Channel Access Token。' 
@@ -217,7 +258,7 @@ export async function onRequest(context) {
         
         const userIds = users.map(u => u.user_id);
 
-        // --- 【新增】如果目標人數 > 剩餘數量，強化警告訊息 ---
+        // 檢查是否超過剩餘數量
         if (template.total_supply !== null) {
             const countResult = await db.prepare("SELECT COUNT(voucher_id) as count FROM UserVouchers WHERE template_id = ?").bind(templateId).first();
             const currentCount = countResult?.count || 0;
@@ -231,7 +272,7 @@ export async function onRequest(context) {
         // 5. 啟動背景任務
         context.waitUntil(runMassIssueTask(context, Number(templateId), userIds, sendNotification));
 
-        // 6. 回傳成功 (包含警告訊息)
+        // 6. 回傳成功
         return new Response(JSON.stringify({ 
             success: true, 
             message: `群發任務已啟動，目標包含 ${userIds.length} 位顧客。${supplyWarning}` 

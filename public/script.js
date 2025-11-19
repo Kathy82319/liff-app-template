@@ -1,18 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-
-/**
- * 根據日期和產品資料獲取當日價格
- * @param {string} dateString - 日期字串 (YYYY-MM-DD)
- * @param {object} product - 產品物件 (包含 price_weekday, price_friday, price_saturday)
- * @returns {number | null} 當日價格或 null
- */    
-const myLiffId = "2008032417-3yJQGaO6"; 
+    const myLiffId = "2008032417-3yJQGaO6"; 
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
     const pageTemplates = document.getElementById('page-templates');
-    let activeTemplate = null; // 當前啟用的樣板
+    let activeTemplate = null; 
     let CONFIG; 
 
     let productView = { 
@@ -30,13 +23,13 @@ const myLiffId = "2008032417-3yJQGaO6";
     let bookingData = {};
 
     let guesthouseBookingData = { 
-    startDate: null,
-    endDate: null,
-    numberOfNights: 0,
-    roomAvailability: {}, 
-    selectedRooms: {} 
+        startDate: null,
+        endDate: null,
+        numberOfNights: 0,
+        roomAvailability: {}, 
+        selectedRooms: {} 
     };
-    let flatpickrRangeInstance = null; 
+    let flatpickrRangeInstance = null;
 
     const pageInitializers = {
         'page-home': initializeHomePage,
@@ -51,7 +44,7 @@ const myLiffId = "2008032417-3yJQGaO6";
         'page-news-details': (data) => renderNewsDetails(data.news),
         'page-booking-details': initializeBookingDetailsPage, 
         'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
-        'page-my-vouchers': initializeMyVouchersPage, // <-- ▼▼▼ 新增 ▼▼▼
+        'page-my-vouchers': initializeMyVouchersPage,
     };
 
  // 計算所選房間及入住天數的預估總金額
@@ -261,6 +254,7 @@ function getPriceForDate(dateString, product) {
     // =================================================================
     async function main() {
         try {
+            // 1. 獲取設定檔
             const response = await fetch('/api/get-app-config');
             if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
             const configData = await response.json();
@@ -270,7 +264,6 @@ function getPriceForDate(dateString, product) {
             }
             
             CONFIG = configData;
-
             const activeTemplateKey = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
             activeTemplate = CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
             
@@ -278,81 +271,168 @@ function getPriceForDate(dateString, product) {
                 throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
             }
 
-            await checkVoucherClaim();
+            // 2. 初始化 LIFF 並處理路由
+            await initializeAppFlow();
+
         } catch (error) {
             console.error("初始化失敗:", error);
             appContent.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--color-danger);">
-                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台 API (get-app-config) 運作正常，且已在「系統設定」中儲存並啟用一個樣板。</p>
+                <h2>系統啟動失敗</h2><p>${error.message}</p><p>請確認後台設定正常。</p>
             </div>`;
         }
     }
     
 
+// =================================================================
+    // LIFF 初始化與路由判斷 (修正版)
+    // =================================================================
+    async function initializeAppFlow() {
+        try {
+            await liff.init({ liffId: myLiffId });
+
+            // 1. 登入檢查
+            if (!liff.isLoggedIn()) {
+                // 網頁版會跳轉至 LINE 登入頁，登入後帶回原網址 (包含參數)
+                liff.login({ redirectUri: window.location.href });
+                return; 
+            }
+            
+            userProfile = await liff.getProfile();
+
+            // 2. 檢查網址參數 (處理優惠券與路由)
+            const urlParams = new URLSearchParams(window.location.search);
+            const rawCode = urlParams.get('code');
+            
+            // 【修正邏輯】分辨 "優惠券代碼" 與 "LINE登入授權碼"
+            // 優惠券代碼通常較短 (例如 8 碼)，LINE 授權碼非常長
+            // 這裡設定：只有存在且長度小於 15 的 code 才視為優惠券
+            const isVoucherCode = rawCode && rawCode.trim() !== '' && rawCode.length < 15;
+
+            if (isVoucherCode) {
+                console.log(`偵測到優惠券代碼: ${rawCode}`);
+                await handleVoucherClaim(rawCode);
+            } else {
+                // 正常進入 App 流程
+                // 如果網址上有殘留的長 code (登入授權碼)，清除它以保持網址乾淨
+                if (rawCode && rawCode.length >= 15) {
+                     history.replaceState(null, '', window.location.pathname + window.location.hash);
+                }
+                
+                handleDefaultRouting();
+            }
+
+        } catch (err) {
+            console.error("LIFF 初始化失敗", err);
+            handleDefaultRouting(); // 失敗時嘗試載入首頁
+        }
+    }
+
+    // 處理預設路由 (首頁或 Hash 頁面)
+    function handleDefaultRouting() {
+        // 優先使用網址 Hash，若無則預設 home
+        let currentHash = window.location.hash.substring(1); 
+        const initialPageId = currentHash || 'home'; 
+        
+        history.replaceState({ page: `page-${initialPageId}`, data: null }, '', `#${initialPageId}`);
+        applyConfiguration(); 
+        setupGlobalEventListeners();
+        renderPage(`page-${initialPageId}`);
+    }
+
+    // 處理優惠券領取
+    async function handleVoucherClaim(claimCode) {
+        // 顯示載入畫面
+        appContent.innerHTML = `<p style="text-align: center; padding: 30px;">正在領取優惠券...</p>`;
+        
+        try {
+            const response = await fetch('/api/claim-voucher', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userProfile.userId,
+                    public_claim_code: claimCode
+                })
+            });
+            
+            const result = await response.json();
+
+            if (!response.ok) {
+                // 如果是 409 (已領過)，我們視為一種"資訊"，不算是嚴重錯誤
+                if (response.status === 409) {
+                     alert(`訊息：\n${result.error}`);
+                } else {
+                     throw new Error(result.error || '領取失敗');
+                }
+            } else {
+                alert(`✅ 領取成功！\n${result.message}`);
+            }
+
+        } catch (error) {
+            console.error("領券 API 失敗:", error);
+            alert(`❌ 領取失敗：\n${error.message}`);
+        } finally {
+            // 無論結果如何，清除 URL 參數並跳轉至「我的優惠券」
+            history.replaceState(null, '', window.location.pathname); 
+            applyConfiguration(); 
+            setupGlobalEventListeners();
+            showPage('page-my-vouchers'); 
+        }
+    }
+
     // 設定檔應用函式
 function applyConfiguration() {
-      try {
-            if (!CONFIG || !activeTemplate) {
-                console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
-            }
-
-            const features = activeTemplate.features || {};
-            const terms = activeTemplate.terms || {};
-            const logic = activeTemplate.logic || {};
-            const navBarConfig = logic.navBar || []; // 獲取 navBar 設定，如果不存在則為空陣列
-
-            console.log("[applyConfiguration] 正在套用 navBarConfig:", navBarConfig);
-
-            // --- 【關鍵修正】修改導覽列按鈕的顯示邏輯 ---
-            document.querySelectorAll('.tab-button').forEach(tab => {
-                const targetPage = tab.dataset.target;
-                const config = navBarConfig.find(item => item.target === targetPage);
-
-                if (config) {
-                    // 1. 如果在「系統設定」中找到了這個按鈕的設定
-                    if (config.enabled === false) {
-                        // 1a. 如果明確設定為 "enabled: false"，則隱藏
-                        tab.style.display = 'none';
-                    } else {
-                        // 1b. "enabled: true" 或 "enabled: undefined" (預設為顯示)
-                        const label = config.label || '未命名'; 
-                        tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
-                        tab.style.display = ''; // 確保顯示
-                    }
-                } else {
-                    // 2. 【重要】如果根本沒找到設定 (config is undefined)
-                    // 保持 HTML 預設的顯示狀態 (不隱藏它)
-                    // 這樣可以防止設定檔出錯時，整個導覽列消失
-                    console.warn(`[applyConfiguration] 找不到 target='${targetPage}' 的導覽列設定，將使用 HTML 預設值。`);
-                    tab.style.display = ''; // 確保它一定是顯示的
+          try {
+                if (!CONFIG || !activeTemplate) {
+                    console.error("嚴重錯誤：CONFIG 或 activeTemplate 設定檔不存在！"); return;
                 }
-            });
-            // --- 【修正結束】 ---
-            
-            document.title = terms.BUSINESS_NAME || '載入中...';
 
-            if (pageTemplates) {
-                const setContent = (selector, content) => {
-                    const el = pageTemplates.querySelector(selector);
-                    if (el) el.textContent = content;
-                };
-                const setPlaceholder = (selector, content) => {
-                    const el = pageTemplates.querySelector(selector);
-                    if (el) el.setAttribute('placeholder', content);
-                };
+                const features = activeTemplate.features || {};
+                const terms = activeTemplate.terms || {};
+                const logic = activeTemplate.logic || {};
+                const navBarConfig = logic.navBar || []; 
 
-                setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE || '最新情報');
-                setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE || '產品型錄');
-                setContent('#page-profile .page-main-title', "會員中心"); 
-                setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || '線上預約');
-                setContent('#page-info .page-main-title', "店家資訊"); 
+                document.querySelectorAll('.tab-button').forEach(tab => {
+                    const targetPage = tab.dataset.target;
+                    const config = navBarConfig.find(item => item.target === targetPage);
+
+                    if (config) {
+                        if (config.enabled === false) {
+                            tab.style.display = 'none';
+                        } else {
+                            const label = config.label || '未命名'; 
+                            tab.innerHTML = label.length > 2 ? label.substring(0, 2) + '<br>' + label.substring(2) : label;
+                            tab.style.display = ''; 
+                        }
+                    } else {
+                        tab.style.display = ''; 
+                    }
+                });
                 
-                setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
-            }
+                document.title = terms.BUSINESS_NAME || '載入中...';
 
-        } catch (e) {
-            console.error("套用設定檔時發生錯誤:", e);
-        }
-}
+                if (pageTemplates) {
+                    const setContent = (selector, content) => {
+                        const el = pageTemplates.querySelector(selector);
+                        if (el) el.textContent = content;
+                    };
+                    const setPlaceholder = (selector, content) => {
+                        const el = pageTemplates.querySelector(selector);
+                        if (el) el.setAttribute('placeholder', content);
+                    };
+
+                    setContent('#page-home .page-main-title', terms.NEWS_PAGE_TITLE || '最新情報');
+                    setContent('#page-products .page-main-title', terms.PRODUCT_CATALOG_TITLE || '產品型錄');
+                    setContent('#page-profile .page-main-title', "會員中心"); 
+                    setContent('#page-booking .page-main-title', terms.BOOKING_PAGE_TITLE || '線上預約');
+                    setContent('#page-info .page-main-title', "店家資訊"); 
+                    
+                    setPlaceholder('#page-products #keyword-search', `搜尋${terms.PRODUCT_NAME || '項目'}關鍵字...`);
+                }
+
+            } catch (e) {
+                console.error("套用設定檔時發生錯誤:", e);
+            }
+    }
     // =================================================================
     // LIFF 初始化 & 全域事件
     // =================================================================
@@ -447,7 +527,7 @@ async function initializeLiff() {
         }
     }
 
-    function setupGlobalEventListeners() {
+function setupGlobalEventListeners() {
         appContent.addEventListener('click', (event) => {
             const target = event.target;
             
@@ -640,7 +720,6 @@ function renderBookings(bookings, container, isPast = false) {
             renderPage('page-home');
         }
     }
-
     async function fetchproductData(forceRefresh = false) {
         if (!forceRefresh && productData.user_id) return productData;
         try {
@@ -666,18 +745,20 @@ function updateProfileDisplay(data) {
         const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
 
+        // 優先顯示真實姓名，若無則顯示 LINE 暱稱
+        const displayNameEl = document.getElementById('display-name');
+        if(displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
 
-    const displayNameEl = document.getElementById('display-name');
-    if(displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
-
-    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-    const perkP = document.getElementById('user-perk-line');
-    const qrcodeContainer = document.getElementById('qrcode-container');
+        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+        const perkP = document.getElementById('user-perk-line');
+        const qrcodeContainer = document.getElementById('qrcode-container');
+        
+        // 【修正】補上這一行變數定義！
+        const storedValueEl = document.getElementById('user-stored-value');
 
         if (features.ENABLE_MEMBERSHIP_SYSTEM) {
-            
             if (classP) {
                  classP.style.display = 'block';
                  classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
@@ -690,9 +771,6 @@ function updateProfileDisplay(data) {
                  expP.style.display = 'block';
                  expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
             }
-
-            console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
-
             if (perkP) {
                 if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
                     perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
@@ -708,6 +786,8 @@ function updateProfileDisplay(data) {
             if (expP) expP.style.display = 'none';
             if (perkP) perkP.style.display = 'none';
         }
+        
+        // 【修正】現在這段程式碼可以安全執行了
         if (storedValueEl) {
             storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
         }

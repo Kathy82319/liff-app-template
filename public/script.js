@@ -613,6 +613,51 @@ function renderBookings(bookings, container, isPast = false) {
     }).join('');
 }
  
+    // =================================================================
+    // LIFF 初始化 & 啟動
+    // =================================================================
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: myLiffId });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            userProfile = await liff.getProfile();
+
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+
+            applyConfiguration(); 
+            setupGlobalEventListeners();
+
+            renderPage('page-home');
+
+        } catch (err) {
+            console.error("LIFF 初始化失敗", err);
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+            applyConfiguration();
+            setupGlobalEventListeners();
+            renderPage('page-home');
+        }
+    }
+
+    async function fetchproductData(forceRefresh = false) {
+        if (!forceRefresh && productData.user_id) return productData;
+        try {
+            const response = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
+            });
+            if (!response.ok) throw new Error('無法取得會員資料');
+            productData = await response.json();
+            return productData;
+        } catch (error) {
+            console.error('會員API失敗:', error);
+            return null;
+        }
+    }
+
 
 
 function updateProfileDisplay(data) {

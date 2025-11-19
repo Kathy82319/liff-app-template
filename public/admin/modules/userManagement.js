@@ -5,7 +5,7 @@ import { ui } from '../ui.js';
 let allUsers = []; // 存放所有使用者資料的快取
 let allSettings = []; // 存放系統設定的快取
 let allDrafts = []; // 存放訊息草稿的快取
-let allVoucherTemplates = []; // <-- 【修正】宣告優惠券樣板快取
+let allVoucherTemplates = []; // 存放優惠券樣板快取
 let activeTemplate = null; // 存放當前啟用的樣板藍圖
 
 /**
@@ -269,7 +269,7 @@ const displayName = profile.real_name || profile.line_display_name;
                 <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
                 <hr>
                 <p><strong>儲值金:</strong> <span style="font-size: 1.2em; font-weight: bold; color: var(--color-primary);">$${storedValueBalance}</span></p>
-                <p><strong>等級:</strong> ${profile.level} (${profile.current_exp}/10 EXP)</p>
+                <p><strong>等級:</strong> ${profile.level} (點數：${profile.current_exp})</p>
                 <p><strong>會員方案:</strong> ${profile.class}</p>
                 <p><strong>標籤:</strong> ${profile.tag}</p>
             </div>
@@ -335,7 +335,6 @@ const displayName = profile.real_name || profile.line_display_name;
 
     // --- ▼▼▼ 新增：渲染優惠券紀錄 ▼▼▼ ---
     // (目前 User Details API 尚未回傳優惠券，我們先放一個預留位置)
-    // (我們將在 v12.3 步驟 3.1 建立 API 後回來修改這裡)
     const voucherTab = contentContainer.querySelector('#tab-vouchers');
     voucherTab.innerHTML = '<p>優惠券紀錄功能待開發 (API: get /api/my-vouchers?userId=...)</p>';
 
@@ -544,6 +543,55 @@ function setupEventListeners() {
     };
     userListTbody.addEventListener('click', newHandler);
     userListTbody.handler = newHandler; // 儲存參照以便移除
+    
+    // --- ▼▼▼ 關鍵更新：綁定「會員方案」和「標籤」的 change 事件 ▼▼▼ ---
+    // 這部分是修復您問題的關鍵
+    
+    // 1. 會員方案 (Class)
+    const classSelect = document.getElementById('edit-class-select');
+    const otherClassInput = document.getElementById('edit-class-other-input');
+    const perkInput = document.getElementById('edit-perk-input');
+    
+    if (classSelect && !classSelect.dataset.listenerAttached) {
+        classSelect.addEventListener('change', () => {
+            if (classSelect.value === 'other') {
+                otherClassInput.style.display = 'block';
+                perkInput.value = ''; // 自訂方案時清空優惠內容，讓用戶自己填
+                otherClassInput.focus();
+            } else {
+                otherClassInput.style.display = 'none';
+                // 自動帶入預設方案的優惠內容
+                const plansSetting = allSettings.find(s => s.key === 'LOGIC_MEMBERSHIP_PLANS');
+                let membershipPlans = [];
+                if (plansSetting && plansSetting.value) {
+                    try { membershipPlans = JSON.parse(plansSetting.value); } catch(e) {}
+                }
+                const selectedPlan = membershipPlans.find(p => p.planName === classSelect.value);
+                if (selectedPlan) {
+                    perkInput.value = selectedPlan.perk || '';
+                }
+            }
+        });
+        classSelect.dataset.listenerAttached = 'true';
+    }
+
+    // 2. 標籤 (Tag)
+    const tagSelect = document.getElementById('edit-tag-select');
+    const otherTagInput = document.getElementById('edit-tag-other-input');
+    
+    if (tagSelect && !tagSelect.dataset.listenerAttached) {
+        tagSelect.addEventListener('change', () => {
+            if (tagSelect.value === 'other') {
+                otherTagInput.style.display = 'block';
+                otherTagInput.focus();
+            } else {
+                otherTagInput.style.display = 'none';
+            }
+        });
+        tagSelect.dataset.listenerAttached = 'true';
+    }
+    // --- ▲▲▲ 更新結束 ▲▲▲ ---
+
     
     // 編輯使用者表單提交 (確保只綁定一次)
     const editUserForm = document.getElementById('edit-user-form');

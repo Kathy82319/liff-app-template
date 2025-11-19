@@ -840,36 +840,10 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-// public/admin/modules/productManagement.js
 
 export const init = async () => {
     console.log("[ProductManagement Init] Init called.");
 
-    // ========== ▼▼▼ 【關鍵修正 3】移除內部的等待迴圈 ▼▼▼ ==========
-    /*
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    let attempts = 0;
-    const maxAttempts = 15; 
-
-    while (
-        (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) &&
-        attempts < maxAttempts
-    ) {
-        attempts++;
-        console.warn(`[ProductManagement Internal Wait] window.CONFIG not fully ready (Attempt ${attempts}). Waiting 100ms...`);
-        await delay(100);
-    }
-
-    if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
-        console.error("[ProductManagement Internal Wait] window.CONFIG still not ready after waiting. Aborting init.");
-        const inventoryPage = document.getElementById('page-inventory');
-        if (inventoryPage) {
-            inventoryPage.innerHTML = `<p style="color:red;">讀取核心設定失敗，請重新整理頁面或檢查系統設定。</p>`;
-        }
-        return; 
-    }
-    */
-    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
 
     console.log("[ProductManagement Init] window.CONFIG is guaranteed by app.js. Proceeding...");
 

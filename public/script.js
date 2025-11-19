@@ -283,39 +283,52 @@ function getPriceForDate(dateString, product) {
     }
     
 
-// =================================================================
+    // =================================================================
     // LIFF 初始化與路由判斷 (修正版)
     // =================================================================
-    async function initializeAppFlow() {
+async function initializeAppFlow() {
         try {
             await liff.init({ liffId: myLiffId });
 
             // 1. 登入檢查
             if (!liff.isLoggedIn()) {
-                // 網頁版會跳轉至 LINE 登入頁，登入後帶回原網址 (包含參數)
-                liff.login({ redirectUri: window.location.href });
+                // 【關鍵修正】建立一個乾淨的 redirectUri
+                // 這是為了解決網頁版 400 Bad Request 的問題
+                const destinationUrl = new URL(window.location.href);
+                
+                // 移除 LINE 自動帶入的參數，避免參數汙染導致登入失敗
+                destinationUrl.searchParams.delete('code');
+                destinationUrl.searchParams.delete('state');
+                destinationUrl.searchParams.delete('liffClientId');
+                destinationUrl.searchParams.delete('liffRedirectUri');
+                
+                console.log("準備登入，重導向至:", destinationUrl.toString());
+                liff.login({ redirectUri: destinationUrl.toString() });
                 return; 
             }
             
             userProfile = await liff.getProfile();
 
-            // 2. 檢查網址參數 (處理優惠券與路由)
+            // 2. 參數判斷：區分「領券」與「一般登入」
             const urlParams = new URLSearchParams(window.location.search);
-            const rawCode = urlParams.get('code');
             
-            // 【修正邏輯】分辨 "優惠券代碼" 與 "LINE登入授權碼"
-            // 優惠券代碼通常較短 (例如 8 碼)，LINE 授權碼非常長
-            // 這裡設定：只有存在且長度小於 15 的 code 才視為優惠券
-            const isVoucherCode = rawCode && rawCode.trim() !== '' && rawCode.length < 15;
+            // 【修正】明確檢查 voucher_code 參數
+            // 我們不再依賴長度猜測，而是依賴參數名稱，這是最穩健的做法
+            const voucherCode = urlParams.get('voucher_code');
+            
+            // 檢查是否有 LINE 登入回傳的 auth code (用於清理網址)
+            const authCode = urlParams.get('code');
 
-            if (isVoucherCode) {
-                console.log(`偵測到優惠券代碼: ${rawCode}`);
-                await handleVoucherClaim(rawCode);
+            if (voucherCode) {
+                console.log(`偵測到優惠券代碼 (voucher_code): ${voucherCode}`);
+                await handleVoucherClaim(voucherCode);
             } else {
                 // 正常進入 App 流程
-                // 如果網址上有殘留的長 code (登入授權碼)，清除它以保持網址乾淨
-                if (rawCode && rawCode.length >= 15) {
-                     history.replaceState(null, '', window.location.pathname + window.location.hash);
+                // 如果網址上有殘留的 auth code，清除它以保持網址乾淨
+                if (authCode) {
+                     // 移除查詢參數，只保留 hash (如果有的話)
+                     const cleanUrl = window.location.pathname + window.location.hash;
+                     history.replaceState(null, '', cleanUrl);
                 }
                 
                 handleDefaultRouting();
@@ -323,7 +336,7 @@ function getPriceForDate(dateString, product) {
 
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            handleDefaultRouting(); // 失敗時嘗試載入首頁
+            handleDefaultRouting();
         }
     }
 

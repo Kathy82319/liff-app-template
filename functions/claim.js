@@ -1,11 +1,12 @@
 // functions/claim.js
-// v2.1 - 修正 Content-Type 和嵌入的 JS 語法錯誤
 
 export async function onRequest(context) {
     const { request, env } = context;
     const db = env.DB;
     const url = new URL(request.url);
-    const claimCode = url.searchParams.get('code');
+    
+    // 【修正】優先讀取 voucher_code，如果沒有才讀取 code (為了相容舊連結，雖然我們建議用新的)
+    const claimCode = url.searchParams.get('voucher_code') || url.searchParams.get('code');
 
     let pageTitle = "優惠券領取頁面";
     let pageDescription = "請點擊以領取您的專屬優惠券。";
@@ -70,21 +71,28 @@ export async function onRequest(context) {
         async function claimVoucher() {
             const statusEl = document.getElementById('status-message');
             const urlParams = new URLSearchParams(window.location.search);
-            const claimCode = urlParams.get('code');
-            const myLiffId = "2008032417-3yJQGaO6"; // 你的客戶端 LIFF ID
+            
+            // 【修正】前端也改為讀取 voucher_code
+            const claimCode = urlParams.get('voucher_code') || urlParams.get('code');
+            
+            const myLiffId = "2008032417-3yJQGaO6"; 
 
             if (!claimCode) {
-                statusEl.textContent = '錯誤：缺少優惠券代碼。';
+                statusEl.textContent = '錯誤：缺少優惠券代碼 (voucher_code)。';
                 statusEl.className = 'error';
                 return;
             }
 
             try {
+                // ... (中間 LIFF 初始化與登入邏輯保持不變) ...
+                // 注意：這裡的 liff.login 不需修改，因為我們已經避開了 code 參數衝突
+                
                 statusEl.textContent = '正在初始化 LIFF...';
                 await liff.init({ liffId: myLiffId });
 
                 if (!liff.isLoggedIn()) {
                     statusEl.textContent = '請先登入以領取優惠券...';
+                    // 在此處，我們讓它跳轉回帶有 voucher_code 的網址，這樣登入後參數還在
                     liff.login({ redirectUri: window.location.href });
                     return;
                 }
@@ -98,8 +106,8 @@ export async function onRequest(context) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        userId: userId,
-                        public_claim_code: claimCode
+                        userId: profile.userId,
+                        public_claim_code: claimCode // 傳送給後端
                     })
                 });
                 
@@ -133,18 +141,14 @@ export async function onRequest(context) {
                 }, 3000);
             }
         }
-        
-        // 執行
         claimVoucher();
     <\/script>
     </body>
 </html>
     `;
 
-    // --- ▼▼▼ 核心修正：將 'application/json' 改為 'text/html' ▼▼▼ ---
     return new Response(html, {
         status: 200,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    // --- ▲▲▲ 修正結束 ▲▲▲ ---
 }

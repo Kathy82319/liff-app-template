@@ -75,7 +75,7 @@ function renderPublicVoucherList(templates) {
     }
 
     container.innerHTML = publicTemplates.map(t => {
-        const claimUrl = `${window.location.origin}/claim?code=${t.public_claim_code}`;
+    const claimUrl = `${window.location.origin}/claim?voucher_code=${t.public_claim_code}`;
         return `
             <div style="background: var(--color-sidebar-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1rem; margin-bottom: 1rem;">
                 <h5 style="margin-top: 0;">${t.title}</h5>

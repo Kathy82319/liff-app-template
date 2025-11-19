@@ -436,7 +436,7 @@ function switchTab(tabId) {
 
     // --- 數據加載與渲染 (v6.3 邏輯) ---
     async function loadActivities() {
-        // ... (保持不變) ...
+        
         activityListContent.innerHTML = '<p>正在載入動態...</p>';
         try {
             const activities = await fetchData('/api/admin/activities');
@@ -470,7 +470,7 @@ function switchTab(tabId) {
         } catch (error) {}
     }
     async function initializeCalendar() {
-        // ... (保持不變) ...
+        
         calendarPlaceholder.innerHTML = '';
         let eventsMarkDates = [];
         try {
@@ -502,7 +502,7 @@ function switchTab(tabId) {
         });
     }
     function markCalendarDates(calendarInstance, datesToMark) {
-        // ... (保持不變) ...
+        
         if (!calendarInstance || !datesToMark || datesToMark.length === 0) return;
         calendarInstance.calendarContainer.querySelectorAll('.has-event').forEach(day => day.classList.remove('has-event'));
         datesToMark.forEach(dateStr => {
@@ -511,7 +511,7 @@ function switchTab(tabId) {
         });
     }
     async function loadDailyCards(date) {
-        // ... (保持不變) ...
+        
         dailyCardsContainer.innerHTML = '<p>正在載入今日事項...</p>';
         const dateStr = date.toISOString().split('T')[0];
         let apiUrl = '';
@@ -555,7 +555,7 @@ function switchTab(tabId) {
         } catch (error) {}
     }
     async function loadOrderList() {
-        // ... (保持不變) ...
+        
         orderListContent.innerHTML = '<p>正在載入列表...</p>';
         let apiUrl = '';
         const search = document.getElementById('order-search-input').value;
@@ -605,7 +605,7 @@ function switchTab(tabId) {
         } catch (error) {}
     }
      async function searchCustomers() {
-        // ... (保持不變) ...
+        
         const query = document.getElementById('customer-search-input').value.trim();
         customerSearchResults.innerHTML = '<p>搜尋中...</p>';
         if (query.length < 1) {
@@ -620,7 +620,7 @@ function switchTab(tabId) {
              }
              customerSearchResults.innerHTML = users.map(user => `
                 <div class="customer-result-item" data-user-id="${user.user_id}" style="padding: 10px; border-bottom: 1px solid var(--color-secondary); cursor: pointer;">
-                    <p><strong>${user.nickname || user.line_display_name}</strong></p>
+                    <p><strong>${user.line_display_name}</strong></p>
                     <small>${user.phone || '未設定電話'}</small>
                 </div>
              `).join('');
@@ -629,7 +629,7 @@ function switchTab(tabId) {
 
      // --- Modal 內容生成與操作 (v6.3 邏輯) ---
      async function openDetailsModal(type, id) {
-        // ... (保持不變) ...
+        
         showModal('載入中...', '<p>正在獲取詳細資料...</p>');
         try {
             let title = '', bodyHtml = '', actionsHtml = '';
@@ -652,7 +652,7 @@ function switchTab(tabId) {
                 const orderDetails = { // 模擬數據
                     order: { order_id: id, customer_name: '電商客', status: 'pending', total_amount: 500, user_id: 'U456...', created_at: Date.now(), shipping_info: '...' },
                     items: [{ product_name: '商品A', quantity: 2, price: 250 }],
-                    user: { nickname: '電商客', line_display_name: '電商 LINE', phone: '0987654321'}
+                    user: { line_display_name: '電商 LINE', phone: '0987654321'}
                 };
                  title = `訂單 #${id} (${orderDetails.order.customer_name})`;
                  bodyHtml = renderOrderDetailsBody(orderDetails);
@@ -675,12 +675,12 @@ function switchTab(tabId) {
         }
      }
      async function openCustomerDetailsModal(targetUserId) {
-        // ... (保持不變) ...
+        
          showModal('載入中...', '<p>正在獲取顧客資料...</p>');
          try {
              const data = await fetchData(`/api/admin/user-details?userId=${targetUserId}`);
              currentEditingProfile = data.profile; 
-             const title = `顧客: ${data.profile.nickname || data.profile.line_display_name}`;
+             const title = `顧客: ${data.profile.line_display_name}`;
              const bodyHtml = renderCustomerDetailsBody(data);
              const actionsHtml = renderCustomerActions(data.profile);
              showModal(title, bodyHtml, actionsHtml);
@@ -690,7 +690,7 @@ function switchTab(tabId) {
          }
      }
      function renderBookingDetailsBody(details) {
-        // ... (保持不變) ...
+        
          const { booking, items, user } = details;
          let html = `
              <h4>預約資訊</h4>
@@ -707,14 +707,14 @@ function switchTab(tabId) {
          });
          html += `
              <h4>顧客資訊</h4>
-             <p><strong>姓名:</strong> ${user?.nickname || user?.line_display_name || booking.contact_name}</p>
+             <p><strong>姓名:</strong> ${user?.line_display_name || booking.contact_name}</p>
              <p><strong>電話:</strong> ${user?.phone || booking.contact_phone || '未提供'}</p>
              <p><strong>User ID:</strong> ${booking.user_id}</p>
              `;
          return html;
      }
      function renderOrderDetailsBody(details) {
-        // ... (保持不變) ...
+        
          const { order, items, user } = details;
           let html = `
              <h4>訂單資訊</h4>
@@ -729,19 +729,18 @@ function switchTab(tabId) {
          });
          html += `
              <h4>顧客資訊</h4>
-             <p><strong>姓名:</strong> ${user?.nickname || user?.line_display_name || order.customer_name}</p>
+             <p><strong>姓名:</strong> ${user?.line_display_name || order.customer_name}</p>
              <p><strong>電話:</strong> ${user?.phone || '未提供'}</p>
              <p><strong>User ID:</strong> ${order.user_id}</p>
          `;
          return html;
      }
     function renderCustomerDetailsBody(data) {
-        // ... (保持不變) ...
+        
          const { profile, bookings, exp_history } = data;
          let html = `
              <h4>基本資料</h4>
              <p><strong>LINE 名稱:</strong> ${profile.line_display_name}</p>
-             <p><strong>暱稱:</strong> ${profile.nickname || '未設定'}</p>
              <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
              <p><strong>User ID:</strong> ${profile.user_id}</p>
              <p><strong>等級/點數:</strong> ${profile.level} / ${profile.current_exp}</p>
@@ -756,7 +755,7 @@ function switchTab(tabId) {
          return html;
      }
      function renderBookingActions(booking, user) {
-        // ... (保持不變) ...
+        
          let actions = [];
          if (currentTemplate === 'studio_template') {
              if (booking.status === 'confirmed') {
@@ -770,12 +769,12 @@ function switchTab(tabId) {
          if (booking.status !== 'cancelled' && booking.status !== 'no-show') {
               actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id}" style="background-color: var(--color-danger);">取消預約</button>`);
          }
-         const targetName = user?.nickname || user?.line_display_name || booking.contact_name;
+         const targetName = user?.line_display_name || booking.contact_name;
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${booking.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
      function renderOrderActions(order, user) {
-        // ... (保持不變) ...
+        
           let actions = [];
          if (currentTemplate === 'ecommerce_template') {
             if (order.status === 'pending') {
@@ -785,26 +784,24 @@ function switchTab(tabId) {
                   actions.push(`<button class="cta-button" data-action="cancel-order" data-id="${order.order_id}" style="background-color: var(--color-danger);">取消訂單</button>`);
              }
          }
-         const targetName = user?.nickname || user?.line_display_name || order.customer_name;
+         const targetName = user?.line_display_name || order.customer_name;
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${order.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
      function renderCustomerActions(profile) {
-        // ... (保持不變) ...
-          const targetName = profile.nickname || profile.line_display_name;
+          const targetName = profile.line_display_name;
           return `
             <button class="cta-button" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
             <button class="cta-button" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>
           `;
      }
      function bindModalActions() {
-        // ... (保持不變) ...
          detailsModalActions.querySelectorAll('button').forEach(button => {
              button.addEventListener('click', handleModalAction);
          });
      }
      async function handleModalAction(event) {
-        // ... (保持不變) ...
+        
          const button = event.target;
          const action = button.dataset.action;
          const id = button.dataset.id;
@@ -869,7 +866,7 @@ function switchTab(tabId) {
          }
      }
     async function openSendMessageModal(targetUserId, targetName) {
-        // ... (保持不變) ...
+        
         if (!sendMessageModal || !messageDraftSelect || !directMessageContent || !sendMessageSubmitBtn) {
             alert('訊息介面初始化失敗！'); return;
         }
@@ -902,7 +899,7 @@ function switchTab(tabId) {
         }
     }
     async function handleSendMessageSubmit(event) {
-        // ... (保持不變) ...
+        
         const button = event.target;
         const targetUserId = button.dataset.userId;
         const message = directMessageContent.value.trim();
@@ -929,7 +926,7 @@ function switchTab(tabId) {
 
     // --- 快速預約相關功能 (v6.3 邏輯) ---
     function openQuickBookingModal() {
-        // ... (保持不變) ...
+        
         console.log("開啟快速預約 Modal...");
         quickBookingForm.reset();
         resetCustomerSearch();
@@ -957,7 +954,6 @@ function switchTab(tabId) {
         updateHistoryState('quick-booking', 'open');
     }
     async function handleCustomerSearchInput(e) {
-        // ... (保持不變) ...
         const query = e.target.value.trim();
         qbCustomerSearchResults.innerHTML = '';
         if (query.length < 1) {
@@ -968,8 +964,8 @@ function switchTab(tabId) {
             const users = await fetchData(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
             if (users.length > 0) {
                 qbCustomerSearchResults.innerHTML = users.map(user => `
-                    <div class="customer-result-item" data-user-id="${user.user_id}" data-user-name="${user.nickname || user.line_display_name}" data-user-phone="${user.phone || ''}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--color-secondary);">
-                        <p style="margin:0; font-weight: bold;">${user.nickname || user.line_display_name}</p>
+                    <div class="customer-result-item" data-user-id="${user.user_id}" data-user-name="${ user.line_display_name}" data-user-phone="${user.phone || ''}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--color-secondary);">
+                        <p style="margin:0; font-weight: bold;">${user.line_display_name}</p>
                         <small style="color: var(--color-text-secondary);">${user.phone || '未設定電話'}</small>
                     </div>
                 `).join('');
@@ -984,7 +980,7 @@ function switchTab(tabId) {
         }
     }
     function handleCustomerSelect(e) {
-        // ... (保持不變) ...
+        
         const item = e.target.closest('.customer-result-item');
         if (!item) return;
         const userId = item.dataset.userId;
@@ -998,7 +994,7 @@ function switchTab(tabId) {
         qbCustomerSelectedView.style.display = 'block';
     }
     function resetCustomerSearch() {
-        // ... (保持不變) ...
+        
         qbCustomerSelectedId.value = '';
         qbCustomerSelectedName.textContent = '';
         qbContactPhone.value = '';
@@ -1008,7 +1004,7 @@ function switchTab(tabId) {
         qbCustomerSelectedView.style.display = 'none';
     }
     async function handleQuickBookingSubmit(e) {
-        // ... (保持不變) ...
+        
         e.preventDefault();
         const button = document.getElementById('quick-booking-submit-btn');
         button.disabled = true;
@@ -1067,7 +1063,7 @@ function switchTab(tabId) {
         }
     }
     function getPriceForDate(dateString, product) {
-        // ... (保持不變) ...
+        
         if (!dateString || !product) return product?.price_weekday || null;
         const date = new Date(dateString + 'T00:00:00');
         const dayOfWeek = date.getDay();
@@ -1545,12 +1541,12 @@ function renderRoomControlGrid() {
 
     // --- 編輯顧客功能 (v6.3 邏輯) ---
     function openEditCustomerModal() {
-        // ... (保持不變) ...
+        
         if (!currentEditingProfile) {
             alert("錯誤：找不到要編輯的顧客資料。");
             return;
         }
-        editCustomerModalTitle.textContent = `編輯: ${currentEditingProfile.nickname || currentEditingProfile.line_display_name}`;
+        editCustomerModalTitle.textContent = `編輯: ${ currentEditingProfile.line_display_name}`;
         editCustomerUserId.value = currentEditingProfile.user_id;
         editCustomerPhone.value = currentEditingProfile.phone || '';
         editCustomerNotes.value = currentEditingProfile.notes || '';
@@ -1558,7 +1554,7 @@ function renderRoomControlGrid() {
         updateHistoryState('edit-customer', 'open');
     }
     async function handleEditCustomerSubmit(e) {
-        // ... (保持不變) ...
+        
         e.preventDefault();
         const button = document.getElementById('edit-customer-submit-btn');
         button.disabled = true;
@@ -1595,7 +1591,7 @@ function renderRoomControlGrid() {
 
     // --- (generateAndOpenAdminLink - 保持不變) ---
     async function generateAndOpenAdminLink() {
-        // ... (保持不變) ...
+        
         const adminPanelBtn = document.getElementById('go-to-admin-panel-btn');
         adminPanelBtn.disabled = true;
         adminPanelBtn.textContent = '正在產生安全連結...';

@@ -68,12 +68,6 @@ function renderExpHistoryList(records) {
             const cell = row.insertCell();
             let cellContent;
 
-            // 特殊處理：使用者 (合併 nickname)
-            // (我們在 systemSettings.js 中定義的 key 是 'nickname')
-            if (col.key === 'nickname') {
-                const displayName = record.nickname || record.line_display_name || '未知使用者';
-                cellContent = `<div class="main-info">${displayName}</div><div class="sub-info">${record.user_id}</div>`;
-            }
             // 特殊處理：日期
             else if (col.key === 'created_at') {
                 cellContent = new Date(record.created_at).toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS
@@ -104,7 +98,7 @@ function handleHistoryFilter() {
     const searchTerm = expUserFilterInput.value.toLowerCase().trim();
     const filteredRecords = searchTerm
         ? allExpHistory.filter(record => 
-            (record.nickname || record.line_display_name || '').toLowerCase().includes(searchTerm) ||
+            (record.line_display_name || '').toLowerCase().includes(searchTerm) ||
             (record.user_id || '').toLowerCase().includes(searchTerm)
           )
         : allExpHistory;

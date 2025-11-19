@@ -63,9 +63,9 @@ async function handleUserSearchForPoints(query) {
         } else {
             users.forEach(user => {
                 const li = document.createElement('li');
-                li.textContent = `${user.nickname || user.line_display_name} (${user.user_id.substring(0, 15)}...)`;
+                li.textContent = `${user.line_display_name} (${user.user_id.substring(0, 15)}...)`;
                 li.dataset.userId = user.user_id;
-                li.dataset.userName = user.nickname || user.line_display_name;
+                li.dataset.userName =  user.line_display_name;
                 userSearchResults.appendChild(li);
             });
         }
@@ -121,7 +121,7 @@ function startQrScanner() {
                 const user = users[0];
                 selectUserForPoints({
                     id: user.user_id,
-                    name: user.nickname || user.line_display_name
+                    user.line_display_name
                 });
             } else {
                 ui.toast.error('在資料庫中找不到此使用者！');

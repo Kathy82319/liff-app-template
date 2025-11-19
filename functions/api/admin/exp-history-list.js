@@ -7,13 +7,11 @@ export const onRequest = async (context) => {
 
         const db = context.env.DB;
 
-        // 【修正】將 ExpHistory 改為 Purchase_history
     const stmt = db.prepare(`
       SELECT
         ph.history_id,
         ph.user_id,
         u.line_display_name,
-        u.nickname,
         ph.exp_added,
         ph.reason,
         ph.created_at

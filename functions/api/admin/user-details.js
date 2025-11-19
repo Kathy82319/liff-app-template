@@ -17,7 +17,7 @@ export async function onRequest(context) {
         // --- 【修改】明確列出所有欄位，確保 stored_value_balance 被選取 ---
         const profileStmt = db.prepare(
           `SELECT user_id, line_display_name, line_picture_url, 
-                  real_name, nickname, phone, email, 
+                  real_name, phone, email, 
                   class, level, current_exp, tag, perk, notes, 
                   stored_value_balance 
            FROM Users WHERE user_id = ?`

@@ -666,16 +666,15 @@ function updateProfileDisplay(data) {
         const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
 
-        console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
 
-        const displayNameEl = document.getElementById('display-name');
-        if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
+    const displayNameEl = document.getElementById('display-name');
+    if(displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
 
-        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-        const perkP = document.getElementById('user-perk-line');
-        const qrcodeContainer = document.getElementById('qrcode-container'); 
+    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+    const perkP = document.getElementById('user-perk-line');
+    const qrcodeContainer = document.getElementById('qrcode-container');
 
         if (features.ENABLE_MEMBERSHIP_SYSTEM) {
             
@@ -1356,7 +1355,6 @@ async function initializeEditProfilePage() {
         if (!userData) return;
         
         document.getElementById('edit-profile-real-name').value = userData.real_name || '';
-        document.getElementById('edit-profile-nickname').value = userData.nickname || '';
         document.getElementById('edit-profile-phone').value = userData.phone || '';
         document.getElementById('edit-profile-email').value = userData.email || '';
 
@@ -1419,7 +1417,6 @@ async function initializeEditProfilePage() {
             const formData = {
                 userId: userProfile.userId,
                 realName: document.getElementById('edit-profile-real-name').value.trim(),
-                nickname: document.getElementById('edit-profile-nickname').value,
                 phone: document.getElementById('edit-profile-phone').value,
                 email: document.getElementById('edit-profile-email').value,
                 displayName: userProfile.displayName,
@@ -1990,7 +1987,7 @@ const removeBtn = document.createElement('button');
              if (userData) {
                  const nameInput = document.getElementById('contact-name');
                  const phoneInput = document.getElementById('contact-phone');
-                 if (nameInput) nameInput.value = userData.nickname || userData.real_name || userProfile?.displayName || '';
+                 if (nameInput) nameInput.value = userData.real_name || userProfile?.displayName || '';
                  if (phoneInput) phoneInput.value = userData.phone || '';
              }
          } catch(err){

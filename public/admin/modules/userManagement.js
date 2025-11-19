@@ -75,11 +75,10 @@ function renderUserList(users) {
             const cell = row.insertCell();
             let cellContent;
 
-            // 特殊處理：顯示名稱 (合併 nickname)
             if (col.key === 'line_display_name') {
-                const displayName = user.nickname ? `${user.line_display_name} (${user.nickname})` : user.line_display_name;
-                cellContent = `<div class="main-info">${displayName || 'N/A'}</div><div class="sub-info">${user.user_id}</div>`;
-            } 
+                // 直接顯示 LINE 名稱
+                cellContent = `<div class="main-info">${user.line_display_name || 'N/A'}</div><div class="sub-info">${user.user_id}</div>`;
+            }
             // 特殊處理：等級/點數 (合併)
             else if (col.key === 'level_exp') {
                  cellContent = `${user.level} / ${user.current_exp}`;
@@ -113,8 +112,7 @@ function handleUserSearch() {
     const searchTerm = userSearchInput.value.toLowerCase().trim();
     const filteredUsers = searchTerm
         ? allUsers.filter(user =>
-            (user.line_display_name || '').toLowerCase().includes(searchTerm) ||
-            (user.nickname || '').toLowerCase().includes(searchTerm)
+            (user.line_display_name || '').toLowerCase().includes(searchTerm)
         )
         : allUsers;
     renderUserList(filteredUsers);
@@ -257,7 +255,7 @@ function renderUserDetails(data) {
     if (!contentContainer) return;
 
 const { profile, bookings, exp_history, stored_value_history } = data;
-    const displayName = profile.nickname || profile.line_display_name;
+const displayName = profile.real_name || profile.line_display_name;
     userDetailsModal.querySelector('#user-details-title').textContent = displayName;
 
     const storedValueBalance = profile.stored_value_balance || 0;
@@ -364,7 +362,7 @@ const { profile, bookings, exp_history, stored_value_history } = data;
 
 // --- ▼▼▼ 修改：渲染 CRM 視窗中的操作按鈕 ▼▼▼ ---
 function renderCustomerActions(profile) {
-    const targetName = profile.nickname || profile.line_display_name;
+    const targetName = profile.real_name || profile.line_display_name;
     // 儲值按鈕、編輯按鈕、發送訊息按鈕
     return `
         <button type="button" class="action-btn" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-success);">儲值/扣款</button>

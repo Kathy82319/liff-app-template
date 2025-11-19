@@ -6,16 +6,14 @@ export async function onRequest(context) {
 
     const body = await context.request.json();
     // 【修正】移除 preferredproduct
-    const { userId, realName, nickname, phone, email, displayName, pictureUrl } = body;
+    const { userId, realName, phone, email, displayName, pictureUrl } = body;
 
     // --- 【修正的驗證區塊】 ---
     const errors = [];
     if (!userId || typeof userId !== 'string') {
         errors.push('無效的使用者 ID。');
     }
-    if (!nickname || typeof nickname !== 'string' || nickname.trim().length === 0 || nickname.length > 50) {
-        errors.push('暱稱為必填，且長度不可超過 50 字。');
-    }
+
     
     // 【修正】允許 phone 為空字串，但如果不為空，則必須符合格式
     if (phone && (typeof phone !== 'string' || !/^\d{10}$/.test(phone))) {
@@ -45,13 +43,12 @@ export async function onRequest(context) {
     const db = context.env.DB;
 
     const stmt = db.prepare(
-      'UPDATE Users SET real_name = ?, nickname = ?, phone = ?, email = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
+      'UPDATE Users SET real_name = ?,  phone = ?, email = ?, line_display_name = ?, line_picture_url = ? WHERE user_id = ?'
     );
     
     // 【修正】bind 參數中移除 preferredproductString
     const result = await stmt.bind(
         realName || '',
-        nickname, 
         phone || '', // 允許空字串
         email || '', // 允許空字串
         displayName,

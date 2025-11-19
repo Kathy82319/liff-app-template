@@ -7,10 +7,9 @@ export async function onRequest(context) {
 
     const db = context.env.DB;
     
-    // ** 需求 1 修正：在查詢中加入 real_name 欄位 **
-    // --- 【新增修改】在這裡加入 stored_value_balance ---
+
     const stmt = db.prepare(
-      `SELECT user_id, line_display_name, nickname, real_name, level, current_exp, tag, class, stored_value_balance 
+      `SELECT user_id, line_display_name, real_name, level, current_exp, tag, class, stored_value_balance 
        FROM Users ORDER BY created_at DESC`
     );
     const { results } = await stmt.all();

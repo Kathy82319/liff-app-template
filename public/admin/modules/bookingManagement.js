@@ -163,7 +163,7 @@ html = `<h4>顧客資訊</h4>`;
         if (userProfile) {
             html += `
                 <div class="details-grid-container">
-                    <div><strong>姓名:</strong> ${userProfile.real_name || userProfile.nickname || userProfile.line_display_name || booking.contact_name}</div>
+                    <div><strong>姓名:</strong> ${userProfile.real_name  || userProfile.line_display_name || booking.contact_name}</div>
                     <div><strong>電話:</strong> ${userProfile.phone || booking.contact_phone || '未提供'}</div>
                     <div><strong>等級:</strong> ${userProfile.level || '-'}</div>
                     <div><strong>會員方案:</strong> ${userProfile.class || '無'}</div>
@@ -605,7 +605,7 @@ async function initializeCreateBookingModal() {
                 if (users.length > 0) {
                     userSelectElement.add(new Option('-- 請選擇顧客 --', '')); // 加入預設選項
                     users.forEach(user => {
-                        const displayName = user.nickname || user.line_display_name;
+                        const displayName = user.line_display_name;
                         // 將 user name 存在 option 的 dataset 中，方便後續選取時取得
                         const option = new Option(`${displayName} (${user.user_id.substring(0, 10)}...)`, user.user_id);
                         option.dataset.userName = displayName; // 儲存顯示名稱

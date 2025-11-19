@@ -700,7 +700,7 @@ function setupEventListeners() {
      console.log("首次綁定 Settings event listeners...");
 
     const templateSelector = document.getElementById('template-selector');
-    const tabsContainer = document.querySelector('.settings-tabs');
+    const tabsContainer = page.querySelector('.settings-tabs');
     const settingsForm = document.getElementById('settings-form');
     // 【新增】獲取所有 Tab 內容父容器
     const liffSettingsContainer = document.getElementById('liff-app-settings');

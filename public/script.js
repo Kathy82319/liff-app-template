@@ -405,32 +405,41 @@ function applyConfiguration() {
     }
     
     
-    async function initializeLiff() {
+async function initializeLiff() {
         try {
             await liff.init({ liffId: myLiffId });
             if (!liff.isLoggedIn()) {
-                // --- ▼▼▼ 修改：登入時保留 URL 參數 ▼▼▼ ---
-                // 這樣使用者登入後，才能帶著 code 回來
+                // 登入時保留 URL 參數
                 liff.login({ redirectUri: window.location.href }); 
-                // --- ▲▲▲ 修改結束 ▲▲▲ ---
                 return;
             }
             userProfile = await liff.getProfile();
             
-            // --- ▼▼▼ 修改：路由處理移到 checkVoucherClaim 之後 ▼▼▼ ---
-            // 只有在 *沒有* 領券代碼時，才執行預設的路由
+            // 只有在 *沒有* 領券代碼 (code) 時，才執行路由初始化
             const urlParams = new URLSearchParams(window.location.search);
             if (!urlParams.has('code')) {
-                history.replaceState({ page: 'page-home', data: null }, '', '#home');
+                
+                // --- ▼▼▼ 修正開始：優先使用網址上的 Hash ▼▼▼ ---
+                // 1. 取得目前的 Hash (移除 # 號)
+                let currentHash = window.location.hash.substring(1); 
+                
+                // 2. 如果沒有 Hash，才預設為 'home'
+                const initialPageId = currentHash || 'home'; 
+                
+                // 3. 設定 History 狀態 (保留原本的 Hash 或使用 home)
+                history.replaceState({ page: `page-${initialPageId}`, data: null }, '', `#${initialPageId}`);
+                
                 applyConfiguration(); 
                 setupGlobalEventListeners();
-                const initialPageId = window.location.hash.substring(1);
-                renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
+                
+                // 4. 渲染正確的頁面
+                renderPage(`page-${initialPageId}`);
+                // --- ▲▲▲ 修正結束 ▲▲▲ ---
             }
-            // --- ▲▲▲ 修改結束 ▲▲▲ ---
             
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
+            // 發生錯誤時的回退機制
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
             applyConfiguration();
             setupGlobalEventListeners();
@@ -604,51 +613,6 @@ function renderBookings(bookings, container, isPast = false) {
     }).join('');
 }
  
-    // =================================================================
-    // LIFF 初始化 & 啟動
-    // =================================================================
-    async function initializeLiff() {
-        try {
-            await liff.init({ liffId: myLiffId });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-            userProfile = await liff.getProfile();
-
-            history.replaceState({ page: 'page-home', data: null }, '', '#home');
-
-            applyConfiguration(); 
-            setupGlobalEventListeners();
-
-            renderPage('page-home');
-
-        } catch (err) {
-            console.error("LIFF 初始化失敗", err);
-            history.replaceState({ page: 'page-home', data: null }, '', '#home');
-            applyConfiguration();
-            setupGlobalEventListeners();
-            renderPage('page-home');
-        }
-    }
-
-    async function fetchproductData(forceRefresh = false) {
-        if (!forceRefresh && productData.user_id) return productData;
-        try {
-            const response = await fetch('/api/user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl }),
-            });
-            if (!response.ok) throw new Error('無法取得會員資料');
-            productData = await response.json();
-            return productData;
-        } catch (error) {
-            console.error('會員API失敗:', error);
-            return null;
-        }
-    }
-
 
 
 function updateProfileDisplay(data) {

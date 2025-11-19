@@ -594,6 +594,7 @@ async function openUserDetailsModal(userId) {
 
 
 // 綁定此頁面所有事件監聽器 (【修改】)
+// 綁定此頁面所有事件監聽器
 function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
@@ -607,7 +608,9 @@ function setupEventListeners() {
                 e.target.classList.add('active');
                 
                 page.querySelectorAll('.settings-tab-content').forEach(el => el.classList.remove('active'));
-                document.getElementById(e.target.dataset.target).classList.add('active');
+                const targetId = e.target.dataset.target;
+                const targetContent = document.getElementById(targetId);
+                if (targetContent) targetContent.classList.add('active');
             }
         });
     }
@@ -621,28 +624,31 @@ function setupEventListeners() {
 
     // 3. 顧客列表點擊 (編輯/CRM)
     const userListTbody = document.getElementById('user-list-tbody');
-    // 確保移除舊的監聽器 (如果有的話)
-    const oldHandler = userListTbody.handler;
-    if (oldHandler) userListTbody.removeEventListener('click', oldHandler);
+    if (userListTbody) {
+        // 定義點擊處理函式 (這就是原本報錯找不到的部分)
+        const newListHandler = (event) => {
+            const target = event.target;
+            // 檢查是否點擊了「編輯」按鈕
+            const editButton = target.closest('.btn-edit-user');
+            if (editButton) {
+                event.stopPropagation();
+                openEditUserModal(editButton.dataset.userid);
+                return;
+            }
+            // 檢查是否點擊了「行」本身 (開啟 CRM Modal)
+            const row = target.closest('tr[data-user-id]');
+            if (row) {
+                openUserDetailsModal(row.dataset.userId);
+            }
+        };
 
-    const newHandler = (event) => {
-        const target = event.target;
-        const editButton = target.closest('.btn-edit-user');
-        if (editButton) {
-            event.stopPropagation(); // 阻止事件冒泡觸發點擊行
-            const userId = editButton.dataset.userid;
-            if (userId) openEditUserModal(userId);
-            return;
+        // 移除舊監聽器並綁定新的
+        if (userListTbody.handler) {
+            userListTbody.removeEventListener('click', userListTbody.handler);
         }
-        const row = target.closest('tr[data-user-id]');
-        if (row) {
-            openUserDetailsModal(row.dataset.userId);
-        }
-    };
-    // 移除舊監聽器並綁定新的
-    if (userListTbody.handler) userListTbody.removeEventListener('click', userListTbody.handler);
-    userListTbody.addEventListener('click', newListHandler);
-    userListTbody.handler = newListHandler;
+        userListTbody.addEventListener('click', newListHandler);
+        userListTbody.handler = newListHandler; // 儲存參照以便未來移除
+    }
 
     // 4. 會員方案管理 (新增/編輯/刪除)
     const addPlanBtn = document.getElementById('add-membership-plan-btn');
@@ -676,32 +682,17 @@ function setupEventListeners() {
             } else {
                 otherClassInput.style.display = 'none';
                 // 自動帶入預設優惠
-                const selectedPlan = membershipPlans.find(p => p.planName === classSelect.value);
-                if (selectedPlan) perkInput.value = selectedPlan.perk || '';
+                // 注意：這裡依賴全域變數 membershipPlans
+                if (typeof membershipPlans !== 'undefined') {
+                    const selectedPlan = membershipPlans.find(p => p.planName === classSelect.value);
+                    if (selectedPlan) perkInput.value = selectedPlan.perk || '';
+                }
             }
         });
         classSelect.dataset.listenerAttached = 'true';
     }
-
-    // 2. 標籤 (Tag)
-    const tagSelect = document.getElementById('edit-tag-select');
-    const otherTagInput = document.getElementById('edit-tag-other-input');
     
-    if (tagSelect && !tagSelect.dataset.listenerAttached) {
-        tagSelect.addEventListener('change', () => {
-            if (tagSelect.value === 'other') {
-                otherTagInput.style.display = 'block';
-                otherTagInput.focus();
-            } else {
-                otherTagInput.style.display = 'none';
-            }
-        });
-        tagSelect.dataset.listenerAttached = 'true';
-    }
-    // --- ▲▲▲ 更新結束 ▲▲▲ ---
-
-    
-    // 編輯使用者表單提交 (確保只綁定一次)
+    // 7. 顧客編輯表單提交
     const editUserForm = document.getElementById('edit-user-form');
     if (editUserForm && !editUserForm.dataset.listenerAttached) {
         editUserForm.addEventListener('submit', async (e) => {
@@ -709,125 +700,40 @@ function setupEventListeners() {
             const userId = document.getElementById('edit-user-id').value;
             let newClass = document.getElementById('edit-class-select').value;
             if (newClass === 'other') newClass = document.getElementById('edit-class-other-input').value.trim();
-            let newTag = document.getElementById('edit-tag-select').value;
-            if (newTag === 'other') newTag = document.getElementById('edit-tag-other-input').value.trim();
+            
+            // 處理標籤
+            const tagSelect = document.getElementById('edit-tag-select');
+            const otherTagInput = document.getElementById('edit-tag-other-input');
+            let tagValue = '';
+            if (tagSelect && otherTagInput) {
+                tagValue = tagSelect.value === 'other' ? otherTagInput.value : tagSelect.value;
+            }
 
             const updatedData = {
                 userId: userId,
                 level: document.getElementById('edit-level-input').value,
                 current_exp: document.getElementById('edit-exp-input').value,
-                tag: document.getElementById('edit-tag-select').value === 'other' ? document.getElementById('edit-tag-other-input').value : document.getElementById('edit-tag-select').value,
+                tag: tagValue,
                 user_class: newClass,
                 perk: document.getElementById('edit-perk-input').value.trim(),
                 notes: document.getElementById('edit-notes-textarea').value,
-                phone: document.getElementById('edit-phone-input')?.value // 確保 phone 欄位存在
             };
 
             try {
                 await api.updateUserDetails(updatedData); 
                 ui.hideModal('#edit-user-modal');
                 ui.toast.success('顧客資料更新成功！');
-                await init(); 
+                // 重新載入 (假設 init 函式存在)
+                if (typeof init === 'function') {
+                    await init(); 
+                }
             } catch (error) {
                 ui.toast.error(`錯誤：${error.message}`);
             }
         });
         editUserForm.dataset.listenerAttached = 'true';
     }
-
-    // --- 綁定儲值 Modal 的提交事件 --- (保持不變)
-    const storedValueForm = document.getElementById('stored-value-form');
-    if (storedValueForm && !storedValueForm.dataset.listenerAttached) {
-        storedValueForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const userId = document.getElementById('stored-value-user-id').value;
-            const amountInput = document.getElementById('stored-value-amount');
-            const notes = document.getElementById('stored-value-notes').value.trim();
-            const submitBtn = document.getElementById('stored-value-submit-btn');
-
-            const amount = Number(amountInput.value);
-
-            if (!userId || !amount || amount === 0) {
-                ui.toast.error('金額必須是一個非零的數字！');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = '處理中...';
-
-            try {
-                const result = await api.adjustStoredValue({
-                    userId: userId,
-                    amount_to_add: amount,
-                    notes: notes
-                });
-                
-                ui.toast.success(`儲值金更新成功！新餘額: $${result.newBalance}`);
-                ui.hideModal('#stored-value-modal');
-                
-                await init(); 
-                await openUserDetailsModal(userId); 
-
-            } catch (error) {
-                ui.toast.error(`更新失敗：${error.message}`);
-                submitBtn.disabled = false;
-                submitBtn.textContent = '確認變更';
-            }
-        });
-        storedValueForm.dataset.listenerAttached = 'true';
-    }
-
-    // --- 綁定 CRM 視窗中所有按鈕的點擊事件 --- (保持不變)
-    const userDetailsModal = document.getElementById('user-details-modal');
-    if (userDetailsModal && !userDetailsModal.dataset.actionListenerAttached) {
-        // 我們需要監聽 modal-content 或更高層級，因為 contentContainer 會被重繪
-        const modalContent = userDetailsModal.querySelector('.modal-content');
-        modalContent.addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-action]');
-            if (button) {
-                handleModalAction(e);
-            }
-        });
-        userDetailsModal.dataset.actionListenerAttached = 'true'; 
-    }
-    
-    // --- ▼▼▼ 新增：綁定「發送優惠券」Modal 的提交事件 ▼▼▼ ---
-    const issueVoucherForm = document.getElementById('issue-voucher-form');
-    if (issueVoucherForm && !issueVoucherForm.dataset.listenerAttached) {
-        issueVoucherForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const userId = document.getElementById('issue-voucher-user-id').value;
-            const templateId = document.getElementById('issue-voucher-template-select').value;
-            const submitBtn = document.getElementById('issue-voucher-submit-btn');
-
-            if (!templateId) {
-                ui.toast.error('請選擇一個優惠券樣板！');
-                return;
-            }
-            
-            submitBtn.disabled = true;
-            submitBtn.textContent = '發送中...';
-
-            try {
-                // 使用我們在 api.js 中定義的 issueVoucher
-                await api.issueVoucher({ userId, templateId: Number(templateId) }); 
-                ui.toast.success('優惠券發送成功！');
-                ui.hideModal('#issue-voucher-modal');
-                
-                // 重新開啟 CRM 視窗 (未來會更新 CRM 內的優惠券列表)
-                await openUserDetailsModal(userId);
-
-            } catch (error) {
-                ui.toast.error(`發送失敗：${error.message}`);
-                submitBtn.disabled = false;
-                submitBtn.textContent = '確認發送';
-            }
-        });
-        issueVoucherForm.dataset.listenerAttached = 'true';
-    }
-    // --- ▲▲▲ 新增結束 ▲▲▲ ---
 }
-
 
 // --- ▼▼▼ 修改：模組初始化函式 (init) ▼▼▼ ---
 export const init = async () => {

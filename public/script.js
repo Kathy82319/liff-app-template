@@ -667,58 +667,63 @@ async function initializeLiff() {
 
 
 function updateProfileDisplay(data) {
-        if (!data) return;
+    if (!data) return;
 
-        const terms = activeTemplate?.terms || {};
-        const features = activeTemplate?.features || {};
+    const terms = activeTemplate?.terms || {};
+    const features = activeTemplate?.features || {};
 
-        console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
+    console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
 
-        const displayNameEl = document.getElementById('display-name');
-        if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
+    const displayNameEl = document.getElementById('display-name');
+    if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
 
-        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-        const perkP = document.getElementById('user-perk-line');
-        const qrcodeContainer = document.getElementById('qrcode-container'); 
+    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+    const perkP = document.getElementById('user-perk-line');
+    const qrcodeContainer = document.getElementById('qrcode-container'); 
+    
+    // 【修正點】新增這行定義，獲取儲值金的 DOM 元素
+    const storedValueEl = document.getElementById('user-stored-value'); 
 
-        if (features.ENABLE_MEMBERSHIP_SYSTEM) {
-            
-            if (classP) {
-                 classP.style.display = 'block';
-                 classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
-            }
-            if (levelP) {
-                 levelP.style.display = 'block';
-                 levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
-            }
-            if (expP) {
-                 expP.style.display = 'block';
-                 expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
-            }
-
-            console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
-
-            if (perkP) {
-                if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
-                    perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
-                    perkP.style.display = 'block';
-                } else {
-                    perkP.style.display = 'none';
-                }
-            }
-        } else {
-            if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
-            if (classP) classP.style.display = 'none';
-            if (levelP) levelP.style.display = 'none';
-            if (expP) expP.style.display = 'none';
-            if (perkP) perkP.style.display = 'none';
+    if (features.ENABLE_MEMBERSHIP_SYSTEM) {
+        
+        if (classP) {
+             classP.style.display = 'block';
+             classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
         }
-        if (storedValueEl) {
-            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+        if (levelP) {
+             levelP.style.display = 'block';
+             levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
         }
+        if (expP) {
+             expP.style.display = 'block';
+             expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
+        }
+
+        console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
+
+        if (perkP) {
+            if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
+                perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
+                perkP.style.display = 'block';
+            } else {
+                perkP.style.display = 'none';
+            }
+        }
+    } else {
+        if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
+        if (classP) classP.style.display = 'none';
+        if (levelP) levelP.style.display = 'none';
+        if (expP) expP.style.display = 'none';
+        if (perkP) perkP.style.display = 'none';
     }
+
+    // 現在 storedValueEl 已經有定義了，這段程式碼就不會報錯
+    if (storedValueEl) {
+        storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+    }
+}
     // =================================================================
     // 各頁面初始化函式
     // =================================================================

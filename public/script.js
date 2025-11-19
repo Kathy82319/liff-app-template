@@ -615,7 +615,30 @@ function renderBookings(bookings, container, isPast = false) {
     // =================================================================
     // LIFF 初始化 & 啟動
     // =================================================================
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: myLiffId });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            userProfile = await liff.getProfile();
 
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+
+            applyConfiguration(); 
+            setupGlobalEventListeners();
+
+            renderPage('page-home');
+
+        } catch (err) {
+            console.error("LIFF 初始化失敗", err);
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+            applyConfiguration();
+            setupGlobalEventListeners();
+            renderPage('page-home');
+        }
+    }
 
     async function fetchproductData(forceRefresh = false) {
         if (!forceRefresh && productData.user_id) return productData;

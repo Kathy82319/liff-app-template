@@ -803,17 +803,41 @@
                 </div>
             </div>
 
-            <div id="page-users" class="page">
+<div id="page-users" class="page">
                 <div class="page-header">
-                    <h2>顧客總表</h2>
+                    <h2>顧客管理</h2>
                 </div>
-                <input type="text" id="user-search-input" placeholder="依 LINE 名稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
-                <table>
-                    <thead>
-                        <tr><th>LINE 名稱 </th><th>會員方案</th><th>會員等級 / 點數</th><th>方案優惠</th><th>標籤</th><th>操作</th></tr>
-                    </thead>
-                    <tbody id="user-list-tbody"></tbody>
-                </table>
+
+                <div class="settings-tabs" id="user-sub-tabs" style="margin-bottom: 1.5rem;">
+                    <button type="button" class="settings-tab active" data-target="user-tab-list">顧客總表</button>
+                    <button type="button" class="settings-tab" data-target="user-tab-settings">會員制度設定</button>
+                </div>
+
+                <div id="user-tab-list" class="settings-tab-content active">
+                    <input type="text" id="user-search-input" placeholder="依 LINE 名稱或暱稱搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 1rem;">
+                    <table>
+                        <thead>
+                            <tr><th>LINE 名稱 / 暱稱</th><th>會員方案</th><th>會員等級 / 點數</th><th>方案優惠</th><th>標籤</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="user-list-tbody"></tbody>
+                    </table>
+                </div>
+
+                <div id="user-tab-settings" class="settings-tab-content">
+                    <div style="background: var(--color-sidebar-bg); padding: 1.5rem; border-radius: var(--border-radius); border: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="margin: 0;">會員方案列表</h3>
+                                <p style="color: var(--color-text-light); margin: 5px 0 0 0; font-size: 0.9em;">設定您的會員等級名稱與預設優惠。設定後，在編輯顧客資料時即可直接選用。</p>
+                            </div>
+                            <button id="add-membership-plan-btn" class="action-btn btn-save">＋ 新增方案</button>
+                        </div>
+                        
+                        <div id="membership-plans-list">
+                            <p>讀取中...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="page-inventory" class="page">
@@ -1705,6 +1729,31 @@
         </div>
     </div>
 </template>
+
+<div id="edit-membership-plan-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="modal-plan-title">新增會員方案</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="edit-membership-plan-form">
+                <input type="hidden" id="edit-plan-original-name"> <div class="form-group">
+                    <label for="edit-plan-name">方案名稱 (必填)</label>
+                    <input type="text" id="edit-plan-name" placeholder="例如：白金會員、熟客" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-plan-perk">預設優惠內容 (選填)</label>
+                    <textarea id="edit-plan-perk" rows="3" placeholder="例如：消費享 95 折、每次來店招待小菜一份&#10;此內容會自動帶入顧客資料中。"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                    <button type="submit" class="action-btn btn-save">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

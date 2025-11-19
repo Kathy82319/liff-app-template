@@ -15,7 +15,7 @@ function resetPointsCenterPage() {
     const selectedUserDisplay = document.getElementById('points-selected-user-display');
     const qrReader = document.getElementById('qr-reader');
     const pointsStatusMessage = document.getElementById('points-status-message');
-    // --- 【新增】獲取外部的狀態顯示 ---
+    // 獲取外部的狀態顯示
     const pageStatusDisplay = document.getElementById('points-page-status-display');
 
 
@@ -23,24 +23,22 @@ function resetPointsCenterPage() {
     if (userSearchResults) userSearchResults.innerHTML = '';
     if (pointsEntryForm) pointsEntryForm.style.display = 'none';
     
-    // --- 【修改】更新 *外部* 的狀態顯示 ---
+    // 更新 *外部* 的狀態顯示
     if (pageStatusDisplay) {
         pageStatusDisplay.textContent = '請先從上方搜尋或掃碼選取顧客';
         pageStatusDisplay.style.display = 'block'; // 確保它可見
     }
     
-    // (原有的 selectedUserDisplay 和 pointsStatusMessage 是在表單內，隱藏是正常的)
     if (selectedUserDisplay) selectedUserDisplay.textContent = ''; 
     if (pointsStatusMessage) pointsStatusMessage.textContent = '';
     
-    // --- ****** 關鍵修正：加入 null 檢查 ****** ---
+    // 停止 QR Code 掃描
     if (html5QrCode && html5QrCode.isScanning) {
         console.log("Stopping active QR Code scanner...");
         html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
     } else {
         console.log("QR Code scanner not running or not initialized, skipping stop().");
     }
-    // --- ****** 修正結束 ****** ---
 
     if (qrReader) qrReader.style.display = 'none';
 }
@@ -83,9 +81,12 @@ function selectUserForPoints(user) {
     const pointsEntryForm = document.getElementById('points-entry-form');
     const userSearchResults = document.getElementById('user-search-results');
     const userSearchInput = document.getElementById('user-search-input-points');
+    const pageStatusDisplay = document.getElementById('points-page-status-display');
 
     if (selectedUserDisplay) selectedUserDisplay.textContent = `${user.name} (${user.id})`;
     if (pointsEntryForm) pointsEntryForm.style.display = 'block';
+    if (pageStatusDisplay) pageStatusDisplay.style.display = 'none'; // 隱藏提示文字
+    
     if (userSearchResults) userSearchResults.innerHTML = '';
     if (userSearchInput) userSearchInput.value = '';
 
@@ -121,7 +122,7 @@ function startQrScanner() {
                 const user = users[0];
                 selectUserForPoints({
                     id: user.user_id,
-                    user.line_display_name
+                    name: user.line_display_name // ---【修正】這裡加上了 "name:" 鍵名
                 });
             } else {
                 ui.toast.error('在資料庫中找不到此使用者！');

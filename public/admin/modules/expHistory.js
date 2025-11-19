@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 
 let allExpHistory = []; // 用於快取所有點數紀錄
-let activeTemplate = null; // 【新增】存放當前啟用的樣板藍圖
+let activeTemplate = null; // 存放當前啟用的樣板藍圖
 
 /**
  * 安全地獲取物件的巢狀屬性
@@ -26,7 +26,7 @@ function getProperty(obj, path, defaultValue = 'N/A') {
 // 渲染點數紀錄列表 (藍圖驅動版)
 function renderExpHistoryList(records) {
     const expHistoryTbody = document.getElementById('exp-history-tbody');
-    // --- 【修改】獲取 Thead 中的 tr 元素 ---
+    // 獲取 Thead 中的 tr 元素
     const expHistoryTheadTr = document.querySelector('#page-exp-history thead tr');
 
     if (!expHistoryTbody || !expHistoryTheadTr) {
@@ -34,7 +34,7 @@ function renderExpHistoryList(records) {
         return;
     }
 
-    // --- 1. 檢查 activeTemplate 是否已載入 ---
+    // 1. 檢查 activeTemplate 是否已載入
     if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
         console.error("renderExpHistoryList: activeTemplate 或 adminExpHistoryColumns 尚未準備就緒。");
         expHistoryTheadTr.innerHTML = '<th>錯誤</th>';
@@ -42,10 +42,10 @@ function renderExpHistoryList(records) {
         return;
     }
     
-    // --- 2. 獲取啟用的欄位 ---
+    // 2. 獲取啟用的欄位
     const columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
 
-    // --- 3. 動態渲染表頭 ---
+    // 3. 動態渲染表頭
     let headerHTML = '';
     columns.forEach(col => {
         headerHTML += `<th>${col.label}</th>`;
@@ -53,7 +53,7 @@ function renderExpHistoryList(records) {
     // (此頁面沒有固定的操作欄位)
     expHistoryTheadTr.innerHTML = headerHTML;
 
-    // --- 4. 渲染列表內容 ---
+    // 4. 渲染列表內容
     expHistoryTbody.innerHTML = ''; // 清空
     if (!records || records.length === 0) {
         expHistoryTbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align: center;">找不到符合條件的紀錄。</td></tr>`;
@@ -63,18 +63,18 @@ function renderExpHistoryList(records) {
     records.forEach(record => {
         const row = expHistoryTbody.insertRow();
         
-        // --- 5. 根據欄位設定動態插入儲存格 ---
+        // 5. 根據欄位設定動態插入儲存格
         columns.forEach(col => {
             const cell = row.insertCell();
             let cellContent;
 
+            // --- 【修正】這裡原本是 else if，現在修正為 if ---
             // 特殊處理：日期
-            else if (col.key === 'created_at') {
+            if (col.key === 'created_at') {
                 cellContent = new Date(record.created_at).toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS
             }
             // 特殊處理：點數 (加顏色)
             else if (col.key === 'exp_added') {
-                const expClass = record.exp_added > 0 ? 'exp-gain' : 'exp-loss';
                 const expSign = record.exp_added > 0 ? '+' : '';
                 cell.style.fontWeight = 'bold';
                 cell.style.color = record.exp_added > 0 ? 'var(--color-success)' : 'var(--color-danger)';
@@ -133,7 +133,7 @@ export const init = async () => {
     if(expHistoryTheadTr) expHistoryTheadTr.innerHTML = '<th>載入中...</th>';
 
     try {
-        // --- 1. 獲取當前啟用的樣板 (關鍵步驟) ---
+        // 1. 獲取當前啟用的樣板
         if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
              console.error("[ExpHistory Init] window.CONFIG is not ready!");
              throw new Error("核心設定尚未載入。");
@@ -152,13 +152,13 @@ export const init = async () => {
         console.log("[ExpHistory Init] Active template loaded:", activeTemplateKey);
 
 
-        // --- 2. 獲取點數紀錄 ---
+        // 2. 獲取點數紀錄
         allExpHistory = await api.getExpHistory();
         
-        // --- 3. 渲染列表 (現在會動態生成表頭) ---
+        // 3. 渲染列表 (現在會動態生成表頭)
         renderExpHistoryList(allExpHistory);
         
-        // --- 4. 綁定靜態事件 (確保只綁定一次) ---
+        // 4. 綁定靜態事件 (確保只綁定一次)
         if (page.dataset.initialized !== 'true') {
             setupEventListeners();
             page.dataset.initialized = 'true';

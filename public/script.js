@@ -225,46 +225,25 @@ function getPriceForDate(dateString, product) {
     // =================================================================
     // 頁面渲染與導航核心
     // =================================================================
-function renderPage(pageId, data = null) {
-        // 處理 pageId 可能為空的情況
-        if(!pageId) pageId = 'page-home';
-        
+    function renderPage(pageId, data = null) {
         const template = pageTemplates.querySelector(`#${pageId}`);
         if (template) {
             appContent.innerHTML = template.innerHTML;
-            
-            // 呼叫對應頁面的初始化函式
             if (pageInitializers[pageId]) {
                 pageInitializers[pageId](data);
-            } else {
-                // 如果是詳情頁但沒有資料 (例如重新整理)，嘗試從 URL 恢復或導回列表
-                // (這裡暫時簡化處理，若無初始化函式則不動作)
             }
-
-            // 更新底部導覽列狀態
-            const targetId = pageId;
+            const isMainTab = Array.from(document.querySelectorAll('.tab-button')).some(btn => btn.dataset.target === pageId);
             document.querySelectorAll('.tab-button').forEach(btn => {
-                const btnTarget = btn.dataset.target;
-                // 處理首頁的特殊情況 (page-home vs home)
-                const isActive = (btnTarget === targetId) || (btnTarget === 'page-home' && targetId === 'home');
-                btn.classList.toggle('active', isActive);
+                btn.classList.toggle('active', isMainTab && btn.dataset.target === pageId);
             });
-            
-            // 捲動到頂部
-            window.scrollTo(0, 0);
-            
         } else {
             console.error(`在 page-templates 中找不到樣板: ${pageId}`);
-            // 避免無窮迴圈，如果 page-home 也找不到就不跳轉
-            if (pageId !== 'page-home') {
-                renderPage('page-home');
-            }
+            renderPage('page-home');
         }
     }
 
     function showPage(pageId, data = null) {
-        const hash = pageId.replace('page-', '');
-        history.pushState({ page: pageId, data: data }, '', `#${hash}`);
+        history.pushState({ page: pageId, data: data }, '', `#${pageId.replace('page-', '')}`);
         renderPage(pageId, data);
     }
 
@@ -377,9 +356,87 @@ function applyConfiguration() {
     // =================================================================
     // LIFF 初始化 & 全域事件
     // =================================================================
+    async function checkVoucherClaim() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const claimCode = urlParams.get('code');
 
+        // 先初始化 LIFF 並登入
+        await initializeLiff(); // <-- 將 initializeLiff 移到這裡
+        
+        if (claimCode && userProfile) {
+            // 如果有代碼，且 LIFF 已登入
+            console.log(`偵測到領券代碼: ${claimCode}`);
+            
+            // 顯示一個簡單的載入提示
+            appContent.innerHTML = `<p style="text-align: center; padding: 30px;">正在領取優惠券...</p>`;
+            
+            try {
+                const response = await fetch('/api/claim-voucher', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userProfile.userId,
+                        public_claim_code: claimCode
+                    })
+                });
+                
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '領取失敗');
+                }
+                
+                // 領取成功
+                alert(`✅ 領取成功！\n${result.message}\n\n即將跳轉至「我的優惠券」...`);
+                
+            } catch (error) {
+                // 領取失敗
+                console.error("領券 API 失敗:", error);
+                alert(`❌ 領取失敗：\n${error.message}`);
+            } finally {
+                // 無論成功失敗，都清除 URL 代碼並跳轉到優惠券頁面
+                history.replaceState(null, '', window.location.pathname); // 清除 code
+                showPage('page-my-vouchers'); // 顯示優惠券頁面
+            }
+        } else {
+         
+            console.log("沒有領券代碼，正常啟動 App。");
+        }
+    }
     
     
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: myLiffId });
+            if (!liff.isLoggedIn()) {
+                // --- ▼▼▼ 修改：登入時保留 URL 參數 ▼▼▼ ---
+                // 這樣使用者登入後，才能帶著 code 回來
+                liff.login({ redirectUri: window.location.href }); 
+                // --- ▲▲▲ 修改結束 ▲▲▲ ---
+                return;
+            }
+            userProfile = await liff.getProfile();
+            
+            // --- ▼▼▼ 修改：路由處理移到 checkVoucherClaim 之後 ▼▼▼ ---
+            // 只有在 *沒有* 領券代碼時，才執行預設的路由
+            const urlParams = new URLSearchParams(window.location.search);
+            if (!urlParams.has('code')) {
+                history.replaceState({ page: 'page-home', data: null }, '', '#home');
+                applyConfiguration(); 
+                setupGlobalEventListeners();
+                const initialPageId = window.location.hash.substring(1);
+                renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
+            }
+            // --- ▲▲▲ 修改結束 ▲▲▲ ---
+            
+        } catch (err) {
+            console.error("LIFF 初始化失敗", err);
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+            applyConfiguration();
+            setupGlobalEventListeners();
+            renderPage('page-home');
+        }
+    }
 
     function setupGlobalEventListeners() {
         appContent.addEventListener('click', (event) => {
@@ -548,98 +605,26 @@ function renderBookings(bookings, container, isPast = false) {
 }
  
     // =================================================================
-    // LIFF 初始化 & 全域事件 (整合修正版)
+    // LIFF 初始化 & 啟動
     // =================================================================
-    
-async function checkVoucherClaim() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const claimCode = urlParams.get('code');
-
-        // 步驟 1: 先初始化 LIFF 並取得使用者身分
-        // (注意：這裡直接呼叫 initializeLiff，它會處理登入)
-        await initializeLiff(); 
-        
-        // 步驟 2: 只有在「有代碼」且「已登入」的情況下才執行領取
-        if (claimCode && userProfile) {
-            console.log(`偵測到領券代碼: ${claimCode}`);
-            
-            // 顯示載入提示
-            appContent.innerHTML = `<p style="text-align: center; padding: 30px;">正在領取優惠券...</p>`;
-            
-            try {
-                const response = await fetch('/api/claim-voucher', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: userProfile.userId,
-                        public_claim_code: claimCode
-                    })
-                });
-                
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || '領取失敗');
-                }
-                
-                alert(`✅ 領取成功！\n${result.message}\n\n即將跳轉至「我的優惠券」...`);
-                
-            } catch (error) {
-                console.error("領券 API 失敗:", error);
-                alert(`❌ 領取失敗：\n${error.message}`);
-            } finally {
-                // 步驟 3: 領取動作結束 (無論成功失敗)
-                // 清除網址參數，並跳轉到優惠券頁面
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                // 強制跳轉到我的優惠券
-                window.history.replaceState({ page: 'page-my-vouchers' }, '', cleanUrl + '#my-vouchers');
-                applyConfiguration();
-                setupGlobalEventListeners();
-                renderPage('page-my-vouchers');
-            }
-        } else {
-            // 步驟 4: 沒有代碼，執行一般路由
-            console.log("沒有領券代碼，執行一般頁面路由。");
-        }
-    }
-    
-async function initializeLiff() {
+    async function initializeLiff() {
         try {
             await liff.init({ liffId: myLiffId });
-            
-            // A. 如果未登入 -> 執行登入 (並保留當前網址參數，這樣回來時 code 還在)
             if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
-                return; // 登入會重導向，這邊直接結束
+                liff.login();
+                return;
             }
-            
-            // B. 已登入 -> 獲取資料
             userProfile = await liff.getProfile();
-            
-            // C. 處理一般路由 (只有在「沒有」要領券的時候才執行預設路由)
-            // 如果有 code，checkVoucherClaim 的 if 區塊會接手處理 UI，這裡就不干涉
-            const urlParams = new URLSearchParams(window.location.search);
-            if (!urlParams.has('code')) {
-                // 1. 讀取網址上的 Hash (例如 #my-vouchers)
-                let currentHash = window.location.hash.substring(1);
-                
-                // 2. 如果沒有 Hash，預設為 home
-                if (!currentHash) {
-                    currentHash = 'home';
-                    history.replaceState({ page: 'page-home', data: null }, '', '#home');
-                }
-                
-                applyConfiguration(); 
-                setupGlobalEventListeners();
-                
-                // 3. 渲染頁面
-                console.log(`[Router] Rendering page: page-${currentHash}`);
-                renderPage(`page-${currentHash}`);
-            }
-            
+
+            history.replaceState({ page: 'page-home', data: null }, '', '#home');
+
+            applyConfiguration(); 
+            setupGlobalEventListeners();
+
+            renderPage('page-home');
+
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            // 錯誤備案：回首頁
             history.replaceState({ page: 'page-home', data: null }, '', '#home');
             applyConfiguration();
             setupGlobalEventListeners();
@@ -667,63 +652,58 @@ async function initializeLiff() {
 
 
 function updateProfileDisplay(data) {
-    if (!data) return;
+        if (!data) return;
 
-    const terms = activeTemplate?.terms || {};
-    const features = activeTemplate?.features || {};
+        const terms = activeTemplate?.terms || {};
+        const features = activeTemplate?.features || {};
 
-    console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
+        console.log("[LIFF script.js] updateProfileDisplay 讀取到的 Features:", JSON.stringify(features));
 
-    const displayNameEl = document.getElementById('display-name');
-    if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
+        const displayNameEl = document.getElementById('display-name');
+        if(displayNameEl) displayNameEl.textContent = data.nickname || (userProfile ? userProfile.displayName : '訪客');
 
-    const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-    const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-    const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-    const perkP = document.getElementById('user-perk-line');
-    const qrcodeContainer = document.getElementById('qrcode-container'); 
-    
-    // 【修正點】新增這行定義，獲取儲值金的 DOM 元素
-    const storedValueEl = document.getElementById('user-stored-value'); 
+        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
+        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
+        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
+        const perkP = document.getElementById('user-perk-line');
+        const qrcodeContainer = document.getElementById('qrcode-container'); 
 
-    if (features.ENABLE_MEMBERSHIP_SYSTEM) {
-        
-        if (classP) {
-             classP.style.display = 'block';
-             classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
-        }
-        if (levelP) {
-             levelP.style.display = 'block';
-             levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
-        }
-        if (expP) {
-             expP.style.display = 'block';
-             expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
-        }
-
-        console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
-
-        if (perkP) {
-            if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
-                perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
-                perkP.style.display = 'block';
-            } else {
-                perkP.style.display = 'none';
+        if (features.ENABLE_MEMBERSHIP_SYSTEM) {
+            
+            if (classP) {
+                 classP.style.display = 'block';
+                 classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
             }
-        }
-    } else {
-        if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
-        if (classP) classP.style.display = 'none';
-        if (levelP) levelP.style.display = 'none';
-        if (expP) expP.style.display = 'none';
-        if (perkP) perkP.style.display = 'none';
-    }
+            if (levelP) {
+                 levelP.style.display = 'block';
+                 levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
+            }
+            if (expP) {
+                 expP.style.display = 'block';
+                 expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
+            }
 
-    // 現在 storedValueEl 已經有定義了，這段程式碼就不會報錯
-    if (storedValueEl) {
-        storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+            console.log(`[LIFF script.js] 優惠行顯示邏輯: PROFILE_SHOW_PERK_LINE !== false (${features.PROFILE_SHOW_PERK_LINE !== false})`);
+
+            if (perkP) {
+                if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
+                    perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
+                    perkP.style.display = 'block';
+                } else {
+                    perkP.style.display = 'none';
+                }
+            }
+        } else {
+            if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
+            if (classP) classP.style.display = 'none';
+            if (levelP) levelP.style.display = 'none';
+            if (expP) expP.style.display = 'none';
+            if (perkP) perkP.style.display = 'none';
+        }
+        if (storedValueEl) {
+            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+        }
     }
-}
     // =================================================================
     // 各頁面初始化函式
     // =================================================================

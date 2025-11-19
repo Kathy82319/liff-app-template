@@ -421,13 +421,21 @@ function applyConfiguration() {
             // 只有在 *沒有* 領券代碼時，才執行預設的路由
             const urlParams = new URLSearchParams(window.location.search);
             if (!urlParams.has('code')) {
-                history.replaceState({ page: 'page-home', data: null }, '', '#home');
+                // 1. 先獲取當前的 Hash (例如 #my-vouchers)
+                let currentHash = window.location.hash.substring(1);
+                
+                // 2. 如果沒有 Hash，預設為 home
+                if (!currentHash) {
+                    currentHash = 'home';
+                    history.replaceState({ page: 'page-home', data: null }, '', '#home');
+                }
+                
                 applyConfiguration(); 
                 setupGlobalEventListeners();
-                const initialPageId = window.location.hash.substring(1);
-                renderPage(initialPageId ? `page-${initialPageId}` : 'page-home');
+                
+                // 3. 根據 Hash 渲染正確的頁面
+                renderPage(`page-${currentHash}`);
             }
-            // --- ▲▲▲ 修改結束 ▲▲▲ ---
             
         } catch (err) {
             console.error("LIFF 初始化失敗", err);
@@ -607,30 +615,7 @@ function renderBookings(bookings, container, isPast = false) {
     // =================================================================
     // LIFF 初始化 & 啟動
     // =================================================================
-    async function initializeLiff() {
-        try {
-            await liff.init({ liffId: myLiffId });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-            userProfile = await liff.getProfile();
 
-            history.replaceState({ page: 'page-home', data: null }, '', '#home');
-
-            applyConfiguration(); 
-            setupGlobalEventListeners();
-
-            renderPage('page-home');
-
-        } catch (err) {
-            console.error("LIFF 初始化失敗", err);
-            history.replaceState({ page: 'page-home', data: null }, '', '#home');
-            applyConfiguration();
-            setupGlobalEventListeners();
-            renderPage('page-home');
-        }
-    }
 
     async function fetchproductData(forceRefresh = false) {
         if (!forceRefresh && productData.user_id) return productData;

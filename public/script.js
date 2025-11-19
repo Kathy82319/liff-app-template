@@ -613,11 +613,51 @@ function renderBookings(bookings, container, isPast = false) {
     }).join('');
 }
  
+
     // =================================================================
     // LIFF 初始化 & 啟動
     // =================================================================
 
+async function fetchproductData(sync = false) {
+        // 1. 檢查 LIFF 是否已取得 userProfile
+        if (!userProfile || !userProfile.userId) {
+            console.warn("fetchproductData: userProfile 尚未載入或無效");
+            return null;
+        }
 
+        try {
+            // 2. 準備 payload，確保包含 userId
+            const payload = {
+                userId: userProfile.userId,
+                displayName: userProfile.displayName || 'Unknown',
+                pictureUrl: userProfile.pictureUrl || ''
+            };
+
+            console.log("fetchproductData: 正在呼叫 API /api/user", payload);
+
+            // 3. 發送 POST 請求
+            const response = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }, // 確保 Content-Type 正確
+                body: JSON.stringify(payload)
+            });
+
+            // 4. 錯誤處理
+            if (!response.ok) {
+                const errorText = await response.text();
+                // 如果是 400，通常是因為 payload 格式錯誤或缺少 userId
+                throw new Error(`會員 API 錯誤 (${response.status}): ${errorText}`);
+            }
+
+            // 5. 回傳資料
+            const userData = await response.json();
+            return userData;
+
+        } catch (error) {
+            console.error("fetchproductData 執行失敗:", error);
+            throw error; // 將錯誤拋出給呼叫者處理 (例如顯示「資料載入失敗」)
+        }
+    }
     async function fetchproductData(forceRefresh = false) {
         if (!forceRefresh && productData.user_id) return productData;
         try {

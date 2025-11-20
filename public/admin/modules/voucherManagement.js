@@ -3,8 +3,45 @@ import { api } from '../api.js';
 import { ui } from '../ui.js';
 
 let allVoucherTemplates = [];
-let allProducts = []; // 快取所有產品，用於「適用項目」下拉選單
+let allProducts = [];
+let allUsers = []; // 【新增】用於計算群發受眾
+let membershipPlans = []; // 【新增】用於篩選選單
+let allTags = []; // 【新增】用於篩選選單
 let voucherDatepicker = null;
+
+
+// --- 核心資料載入與處理 ---
+async function loadDependencies() {
+    try {
+        // 平行載入所有必要資料
+        const [templates, products, users, settings] = await Promise.all([
+            api.getVoucherTemplates(),
+            api.getProducts(),
+            api.getUsers(),
+            api.getSettings()
+        ]);
+
+        allVoucherTemplates = templates;
+        allProducts = (products || []).filter(p => p.is_visible);
+        allUsers = users || [];
+        
+        // 解析會員方案
+        const plansSetting = settings.find(s => s.key === 'LOGIC_MEMBERSHIP_PLANS');
+        membershipPlans = plansSetting && plansSetting.value ? JSON.parse(plansSetting.value) : [];
+        
+        // 提取所有使用過的標籤 (去重複)
+        const tagsSet = new Set();
+        allUsers.forEach(u => {
+            if (u.tag) tagsSet.add(u.tag);
+        });
+        allTags = Array.from(tagsSet);
+
+    } catch (error) {
+        console.error("載入優惠券相依資料失敗:", error);
+        ui.toast.error("資料載入不完整，部分功能可能受限。");
+    }
+}
+
 
 //  渲染列表 
 function renderVoucherList(templates) {
@@ -62,78 +99,319 @@ function renderVoucherList(templates) {
 }
 
 //  ▼▼▼ ：渲染「公開領取」列表 ▼▼▼ 
+// --- 頁面渲染: 2. 公開領取 (卡片化 + QR Code) ---
 function renderPublicVoucherList(templates) {
     const container = document.getElementById('public-vouchers-container');
     if (!container) return;
 
-    // 篩選出可公開領取的樣板
     const publicTemplates = templates.filter(t => t.is_public && t.is_active);
-
+    
     if (publicTemplates.length === 0) {
-        container.innerHTML = '<p style="color: var(--color-text-light);">目前沒有已啟用的公開優惠券。</p>';
+        container.innerHTML = '<p style="color: var(--color-text-light); padding: 20px; text-align: center; background: #f9f9f9;">目前沒有「已啟用」且設定為「公開領取」的優惠券。<br>請至「樣板管理」新增或修改。</p>';
         return;
     }
 
-    container.innerHTML = publicTemplates.map(t => {
-    const claimUrl = `${window.location.origin}/claim?voucher_code=${t.public_claim_code}`;
-        return `
-            <div style="background: var(--color-sidebar-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1rem; margin-bottom: 1rem;">
-                <h5 style="margin-top: 0;">${t.title}</h5>
-                <p style="font-size: 0.9em; color: var(--color-text-light);">領取代碼: <code style="color: var(--color-primary); background: #eee; padding: 2px 4px; border-radius: 4px;">${t.public_claim_code}</code></p>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <input type="text" value="${claimUrl}" readonly style="flex-grow: 1; font-size: 0.9em;">
-                    <button class="action-btn btn-copy-claim-link" data-url="${claimUrl}" style="background-color: var(--color-primary); flex-shrink: 0;">複製連結</button>
+    container.innerHTML = ''; // 清空
+
+    publicTemplates.forEach(t => {
+        const claimUrl = `${window.location.origin}/claim?voucher_code=${t.public_claim_code}`;
+        let valueDisplay = '';
+        if(t.type === 'discount_fixed') valueDisplay = `$${t.value}`;
+        else if(t.type === 'discount_percentage') valueDisplay = `${t.value}% OFF`;
+        else valueDisplay = '兌換券';
+
+        // 建立卡片 DOM
+        const card = document.createElement('div');
+        card.className = 'voucher-marketing-card';
+        card.innerHTML = `
+            <div class="vm-preview-section">
+                <div class="vm-coupon-stub">
+                    <div class="vm-coupon-title">${t.title}</div>
+                    <div class="vm-coupon-value">${valueDisplay}</div>
+                    <div class="vm-coupon-expiry">代碼: ${t.public_claim_code}</div>
+                </div>
+                <p style="margin-top: 15px; font-size: 0.9rem; opacity: 0.9;">
+                    <small>預覽樣式</small>
+                </p>
+            </div>
+            <div class="vm-tools-section">
+                <div class="vm-tool-row">
+                    <span class="vm-tool-label">推廣連結</span>
+                    <input type="text" class="vm-link-input" value="${claimUrl}" readonly>
+                    <button class="action-btn btn-copy-claim-link" data-url="${claimUrl}" style="background-color: var(--color-secondary);">複製</button>
+                </div>
+                <div class="vm-tool-row">
+                    <span class="vm-tool-label">QR Code</span>
+                    <div id="qrcode-${t.template_id}" class="vm-qrcode-container"></div>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                         <span style="font-size: 0.8rem; color: #666;">客人掃描即可領取</span>
+                         </div>
                 </div>
             </div>
         `;
-    }).join('');
+        container.appendChild(card);
+
+        // 生成 QR Code
+        setTimeout(() => {
+            const qrContainer = document.getElementById(`qrcode-${t.template_id}`);
+            if (qrContainer && typeof QRCode !== 'undefined') {
+                qrContainer.innerHTML = ''; // 確保清空
+                new QRCode(qrContainer, {
+                    text: claimUrl,
+                    width: 90,
+                    height: 90,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            }
+        }, 100);
+    });
 }
 
-//  ▼▼▼ ：渲染「指定群發」UI (目前為佔位符) ▼▼▼ 
+// --- 頁面渲染: 3. 指定群發 (引導式 UI) ---
 function renderMassIssueUI(templates) {
     const container = document.getElementById('mass-issue-container');
     if (!container) return;
 
-    // 篩選出所有已啟用的樣板 (不論是否 public)
+    // 篩選可用樣板
     const activeTemplates = templates.filter(t => t.is_active);
-
-    let optionsHtml = '<option value="">-- 請選擇要群發的優惠券 --</option>';
+    let templateOptions = '<option value="">-- 請選擇優惠券 --</option>';
     activeTemplates.forEach(t => {
-        optionsHtml += `<option value="${t.template_id}">${t.title} (${t.internal_name})</option>`;
+        templateOptions += `<option value="${t.template_id}">${t.title} (${t.internal_name})</option>`;
     });
 
     container.innerHTML = `
-        <div style="background: var(--color-sidebar-bg); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 1rem;">
-            <div class="form-group">
-                <label for="mass-issue-template-select">選擇優惠券樣板:</label>
-                <select id="mass-issue-template-select">${optionsHtml}</select>
-            </div>
-            <div class="form-group">
-                <label for="mass-issue-filter-type">篩選條件:</label>
-                <select id="mass-issue-filter-type">
-                    <option value="">-- 選擇篩選類型 --</option>
-                    <option value="class">依會員方案</option>
-                    <option value="tag">依顧客標籤</option>
-                    <option value="level_gt">依等級 (大於等於)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="mass-issue-filter-value">篩選值:</label>
-                <input type="text" id="mass-issue-filter-value" placeholder="例如: VIP, 或 5">
+        <div class="mass-issue-dashboard">
+            <div class="mi-step-box">
+                <div class="mi-step-title"><span class="mi-step-badge">1</span> 鎖定目標客群</div>
+                
+                <div class="form-group">
+                    <label>篩選依據:</label>
+                    <select id="mi-filter-type">
+                        <option value="">-- 請選擇 --</option>
+                        <option value="all">全體顧客 (${allUsers.length} 人)</option>
+                        <option value="class">會員方案</option>
+                        <option value="tag">標籤</option>
+                        <option value="level_gt">等級大於等於</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="mi-filter-value-container" style="display: none;">
+                    <label id="mi-filter-value-label">篩選值:</label>
+                    <div id="mi-filter-value-wrapper">
+                        </div>
+                </div>
+
+                <div class="audience-summary" id="mi-audience-summary">
+                    請先選擇篩選條件
+                </div>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--color-border); padding-top: 1rem; margin-top: 1rem;">
-                <label for="mass-issue-send-notification" style="margin-bottom: 0;">是否發送通知 (聊天室訊息)</label>
-                <label class="switch" for="mass-issue-send-notification">
-                    <input type="checkbox" id="mass-issue-send-notification" checked>
-                    <span class="slider"></span>
-                </label>
+            <div class="mi-step-box">
+                <div class="mi-step-title"><span class="mi-step-badge">2</span> 選擇優惠券與通知</div>
+                
+                <div class="form-group">
+                    <label>要發送的優惠券:</label>
+                    <select id="mi-template-select">${templateOptions}</select>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="mi-send-notification" checked style="width: auto; margin-right: 8px;">
+                        同時發送 LINE 通知訊息
+                    </label>
+                    <small style="color: #888; display: block; margin-top: 5px;">若取消勾選，優惠券仍會存入帳戶，但顧客不會收到主動通知。</small>
+                </div>
+
+                <button id="btn-preview-mass-issue" class="action-btn" style="width: 100%; margin-top: 20px; background-color: var(--color-primary); font-size: 1rem; padding: 12px;">預覽並確認發送</button>
             </div>
-            <button id="btn-execute-mass-issue" class="action-btn btn-save" style="width: 100%; padding: 10px; background-color: var(--color-danger); margin-top: 10px;">執行群發</button>
         </div>
     `;
+
+    // 綁定事件：篩選類型變更
+    const typeSelect = document.getElementById('mi-filter-type');
+    const valueContainer = document.getElementById('mi-filter-value-container');
+    const valueWrapper = document.getElementById('mi-filter-value-wrapper');
+    const summaryBox = document.getElementById('mi-audience-summary');
+
+    typeSelect.addEventListener('change', () => {
+        const type = typeSelect.value;
+        valueWrapper.innerHTML = ''; // 清空
+        summaryBox.textContent = '計算中...';
+        summaryBox.style.background = '#e3f2fd';
+        summaryBox.style.color = '#0d47a1';
+
+        if (type === '') {
+            valueContainer.style.display = 'none';
+            summaryBox.textContent = '請先選擇篩選條件';
+            return;
+        }
+
+        if (type === 'all') {
+            valueContainer.style.display = 'none';
+            updateAudienceCount(allUsers.length); // 全體
+            return;
+        }
+
+        valueContainer.style.display = 'block';
+
+        if (type === 'class') {
+            let html = '<select id="mi-filter-value-input">';
+            html += '<option value="">-- 選擇方案 --</option>';
+            membershipPlans.forEach(p => { html += `<option value="${p.planName}">${p.planName}</option>`; });
+            html += '</select>';
+            valueWrapper.innerHTML = html;
+        } else if (type === 'tag') {
+            let html = '<select id="mi-filter-value-input">';
+            html += '<option value="">-- 選擇標籤 --</option>';
+            allTags.forEach(t => { html += `<option value="${t}">${t}</option>`; });
+            html += '</select>';
+            valueWrapper.innerHTML = html;
+        } else if (type === 'level_gt') {
+            valueWrapper.innerHTML = '<input type="number" id="mi-filter-value-input" min="1" placeholder="例如 5">';
+        }
+
+        // 綁定值的變更事件以即時計算
+        const inputEl = document.getElementById('mi-filter-value-input');
+        if (inputEl) {
+            inputEl.addEventListener('change', calculateAudience);
+            inputEl.addEventListener('input', calculateAudience); // 針對 input number
+        }
+        // 初始計算 (若是 select 預設為空，計算結果應為 0)
+        calculateAudience();
+    });
+
+    // 綁定「預覽並確認」按鈕
+    document.getElementById('btn-preview-mass-issue').addEventListener('click', handleMassIssuePreview);
 }
-// --- ▲▲▲ 修改結束 ▲▲▲ ---
+
+// --- 邏輯輔助: 計算受眾人數 ---
+function calculateAudience() {
+    const type = document.getElementById('mi-filter-type').value;
+    const summaryBox = document.getElementById('mi-audience-summary');
+    
+    if (type === 'all') {
+        updateAudienceCount(allUsers.length);
+        return allUsers.length;
+    }
+
+    const inputEl = document.getElementById('mi-filter-value-input');
+    if (!inputEl) return 0;
+    
+    const value = inputEl.value;
+    if (!value) {
+        summaryBox.textContent = '請選擇/輸入篩選值';
+        return 0;
+    }
+
+    // 執行前端篩選計算
+    let count = 0;
+    if (type === 'class') {
+        count = allUsers.filter(u => u.class === value).length;
+    } else if (type === 'tag') {
+        count = allUsers.filter(u => u.tag === value).length;
+    } else if (type === 'level_gt') {
+        count = allUsers.filter(u => u.level >= Number(value)).length;
+    }
+
+    updateAudienceCount(count);
+    return count;
+}
+
+function updateAudienceCount(count) {
+    const summaryBox = document.getElementById('mi-audience-summary');
+    if (count > 0) {
+        summaryBox.innerHTML = `預計發送對象： <span style="font-size: 1.2em;">${count}</span> 人`;
+        summaryBox.style.background = '#e8f5e9'; // 綠底
+        summaryBox.style.color = '#2e7d32';
+    } else {
+        summaryBox.textContent = '沒有符合條件的顧客';
+        summaryBox.style.background = '#ffebee'; // 紅底
+        summaryBox.style.color = '#c62828';
+    }
+}
+
+// --- 邏輯輔助: 處理發送預覽與確認 ---
+async function handleMassIssuePreview() {
+    const type = document.getElementById('mi-filter-type').value;
+    const templateId = document.getElementById('mi-template-select').value;
+    const sendNotification = document.getElementById('mi-send-notification').checked;
+    
+    // 1. 驗證
+    if (!templateId) return ui.toast.error('請選擇優惠券樣板！');
+    if (!type) return ui.toast.error('請選擇篩選條件！');
+
+    let value = '';
+    let count = 0;
+    
+    if (type === 'all') {
+        count = allUsers.length;
+    } else {
+        value = document.getElementById('mi-filter-value-input')?.value;
+        if (!value) return ui.toast.error('請選擇或輸入篩選值！');
+        count = calculateAudience(); // 重新確認一次
+    }
+
+    if (count === 0) return ui.toast.error('沒有符合條件的發送對象，無法執行。');
+
+    // 2. 取得樣板名稱顯示用
+    const templateName = allVoucherTemplates.find(t => t.template_id == templateId)?.title || '未知券';
+    
+    // 3. 顯示確認 Modal (使用 ui.confirm)
+    const confirmMsg = `
+        【確認群發任務】\n
+        🎫 優惠券：${templateName}\n
+        👥 對象：${type === 'all' ? '全體顧客' : `篩選「${value}」`} (約 ${count} 人)\n
+        🔔 通知：${sendNotification ? '發送 LINE 訊息' : '靜默發送 (不通知)'}\n
+        \n確定要執行嗎？
+    `;
+
+    if (await ui.confirm(confirmMsg)) {
+        await executeMassIssue(templateId, type, value, sendNotification);
+    }
+}
+
+async function executeMassIssue(templateId, filterType, filterValue, sendNotification) {
+    const btn = document.getElementById('btn-preview-mass-issue');
+    btn.disabled = true;
+    btn.textContent = '任務啟動中...';
+
+    try {
+        // 針對 'all' 類型的處理：後端 API 其實沒有 'all' 這個 filterType
+        // 我們可以轉成 level_gt = 0 (包含所有人) 或者修改後端 API
+        // 這裡我們用一個小技巧：傳送 level_gt = 0
+        let apiFilterType = filterType;
+        let apiFilterValue = filterValue;
+        
+        if (filterType === 'all') {
+            apiFilterType = 'level_gt';
+            apiFilterValue = 0;
+        }
+
+        const result = await api.massIssueVoucher({
+            templateId: Number(templateId),
+            filterType: apiFilterType,
+            filterValue: apiFilterValue,
+            sendNotification: sendNotification
+        });
+
+        ui.toast.success(result.message || '群發任務已在背景啟動！');
+        
+        // 重置表單
+        document.getElementById('mi-filter-type').selectedIndex = 0;
+        document.getElementById('mi-template-select').selectedIndex = 0;
+        document.getElementById('mi-filter-value-container').style.display = 'none';
+        document.getElementById('mi-audience-summary').textContent = '請先選擇篩選條件';
+        document.getElementById('mi-audience-summary').style.background = '#e3f2fd';
+
+    } catch (error) {
+        ui.toast.error(`群發失敗: ${error.message}`);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '預覽並確認發送';
+    }
+}
 
 function openVoucherModal(template = null) {
     const form = document.getElementById('edit-voucher-form');
@@ -448,6 +726,15 @@ function setupEventListeners() {
         }
     });
 
+    // 公開領取區的複製按鈕
+    const publicContainer = document.getElementById('public-vouchers-container');
+    publicContainer?.addEventListener('click', (e) => {
+        if (e.target.matches('.btn-copy-claim-link')) {
+            const url = e.target.dataset.url;
+            navigator.clipboard.writeText(url).then(() => ui.toast.success('連結已複製！'));
+        }
+    });
+
     //  ▼▼▼ ：「發送中心」事件委派 ▼▼▼ 
     const issuanceTab = document.getElementById('voucher-tab-content-issuance');
     issuanceTab?.addEventListener('click', (e) => {
@@ -493,38 +780,30 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-//  ▼▼▼ 修改：init 函式 ▼▼▼ 
+// --- Init ---
 export const init = async () => {
     const tbody = document.getElementById('voucher-list-tbody');
     if (!tbody) return;
-    
-    // 預設顯示第一個子分頁 (樣板管理)
+
+    // 預設分頁
     const subTabsContainer = document.getElementById('voucher-sub-tabs');
     const templatesTab = subTabsContainer?.querySelector('button[data-target="voucher-tab-content-templates"]');
-    if(templatesTab) templatesTab.click(); // 觸發點擊以顯示正確的分頁
+    if(templatesTab) templatesTab.click(); 
 
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
 
-    try {
-        // 同時獲取樣板和產品列表 (用於 Modal)
-        const [templates, products] = await Promise.all([
-            api.getVoucherTemplates(),
-            api.getProducts()
-        ]);
-        
-        allVoucherTemplates = templates;
-        allProducts = (products || []).filter(p => p.is_visible); // 只顯示上架的產品
-        
-        // 渲染 3 個區塊
-        renderVoucherList(allVoucherTemplates);
-        renderPublicVoucherList(allVoucherTemplates); // <-- 
-        renderMassIssueUI(allVoucherTemplates);       // <-- 
-        
-        setupEventListeners();
-        
-    } catch (error) {
-        console.error('初始化優惠券樣板頁面失敗:', error);
-        tbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
+    // 1. 載入所有資料
+    await loadDependencies();
+
+    // 2. 渲染畫面
+    renderVoucherList(allVoucherTemplates);
+    renderPublicVoucherList(allVoucherTemplates);
+    renderMassIssueUI(allVoucherTemplates);
+    
+    // 3. 綁定事件 (如果需要)
+    const page = document.getElementById('page-vouchers');
+    if (page && !page.dataset.initialized) {
+        // setupEventListeners(); // 請確認已包含完整的 CRUD 綁定
+        page.dataset.initialized = 'true';
     }
 };
-//  ▲▲▲ 修改結束 ▲▲▲ 

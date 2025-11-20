@@ -1022,11 +1022,13 @@ async function openBookingDetailsModal(bookingId) {
 
         // --- 動態生成按鈕 ---
         // 1. 關閉按鈕
+        /*
         const closeButton = document.createElement('button');
         closeButton.type = 'button';
         closeButton.className = 'action-btn btn-cancel modal-close';
         closeButton.textContent = '關閉';
         actionsContainer.appendChild(closeButton);
+        */
 
         // --- 【修改】總是生成編輯按鈕 ---
         const editButton = document.createElement('button');
@@ -1052,6 +1054,7 @@ async function openBookingDetailsModal(bookingId) {
         // --- 【修改結束】 ---
 
         // 3. 標記入住/報到按鈕 (狀態為 confirmed)
+        /*
         if (currentBookingInModal.status === 'confirmed') {
              // ... (原有邏輯) ...
              const checkinButton = document.createElement('button');
@@ -1065,7 +1068,7 @@ async function openBookingDetailsModal(bookingId) {
              };
              actionsContainer.appendChild(checkinButton);
         }
-
+        */
         // 4. 標記未入住按鈕 (confirmed 且日期已過)
         const today = new Date().toISOString().split('T')[0];
         if (currentBookingInModal.status === 'confirmed' && currentBookingInModal.booking_date < today) {

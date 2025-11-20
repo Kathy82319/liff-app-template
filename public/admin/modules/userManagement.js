@@ -371,18 +371,49 @@ function renderUserDetails(data) {
         { created_at: '日期', type_display: '類型', amount_changed: '變動金額', current_balance: '餘額', notes: '備註' }
     ));
 
-    // 【新增】渲染優惠券紀錄
-    const vouchersFormatted = (vouchers || []).map(v => ({
-        ...v,
-        title: v.title || '(樣板已刪除)',
-        type_display: v.type === 'redeem_item' ? '兌換券' : '折扣券',
-        status_display: v.is_used ? '已使用' : '未使用',
-        issued_at: new Date(v.issued_at).toLocaleString('sv-SE'),
-        used_at: v.used_at ? new Date(v.used_at).toLocaleString('sv-SE') : '-'
-    }));
+const safeDateStr = (dateStr) => {
+        if (!dateStr) return '-';
+        // 將 "2023-10-25 12:00:00" 轉為 "2023/10/25 12:00:00" 以相容 iOS
+        return new Date(dateStr.replace(/-/g, '/')).toLocaleString('sv-SE');
+    };
+
+    // --- 2. 處理優惠券顯示邏輯 ---
+    const now = new Date();
+    const vouchersFormatted = (vouchers || []).map(v => {
+        let usageStatusText = '尚未使用';
+        
+        if (v.is_used) {
+            // 如果已使用，顯示使用日期
+            usageStatusText = safeDateStr(v.used_at);
+        } else {
+            // 如果沒使用，檢查是否過期
+            if (v.valid_to) {
+                // 設定過期時間為當天的 23:59:59
+                const expiryDate = new Date(v.valid_to.replace(/-/g, '/') + ' 23:59:59');
+                if (now > expiryDate) {
+                    usageStatusText = '已過期';
+                }
+            }
+        }
+
+        return {
+            ...v,
+            title: v.title || '(樣板已刪除)',
+            type_display: v.type === 'redeem_item' ? '兌換券' : '折扣券',
+            // 使用 safeDateStr 處理發放日
+            issued_at_display: safeDateStr(v.issued_at),
+            // 使用我們計算好的狀態文字
+            usage_status_display: usageStatusText
+        };
+    });
+
+    // --- 3. 渲染表格 ---
+    // 注意：這裡的欄位名稱改成 issued_at_display 和 usage_status_display
+    // 這樣可以避開 renderHistoryTable 內建的日期轉換，避免再次發生 Invalid Date
     contentContainer.querySelector('#tab-vouchers').appendChild(renderHistoryTable(
-        vouchersFormatted, ['title', 'type_display', 'status_display', 'issued_at', 'used_at'],
-        { title: '名稱', type_display: '類型', status_display: '狀態', issued_at: '發放日', used_at: '使用日' }
+        vouchersFormatted, 
+        ['title', 'type_display', 'issued_at_display', 'usage_status_display'],
+        { title: '名稱', type_display: '類型', issued_at_display: '發放日', usage_status_display: '狀態 / 使用日' }
     ));
 
     // 綁定頁籤切換

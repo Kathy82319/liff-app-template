@@ -41,7 +41,7 @@ export async function onRequest(context) {
 
         // --- 【新增】5. 獲取優惠券持有紀錄 ---
         const vouchersStmt = db.prepare(`
-            SELECT uv.*, vt.title, vt.type, vt.value 
+            SELECT uv.*, vt.title, vt.type, vt.value, vt.valid_to
             FROM UserVouchers uv
             LEFT JOIN VoucherTemplates vt ON uv.template_id = vt.template_id
             WHERE uv.user_id = ?

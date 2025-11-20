@@ -1,4 +1,4 @@
-// functions/api/admin/user-details.js (修正後)
+// functions/api/admin/user-details.js
 export async function onRequest(context) {
     try {
         if (context.request.method !== 'GET') {
@@ -14,7 +14,6 @@ export async function onRequest(context) {
         }
 
         // 1. 獲取使用者基本資料
-        // --- 【修改】明確列出所有欄位，確保 stored_value_balance 被選取 ---
         const profileStmt = db.prepare(
           `SELECT user_id, line_display_name, line_picture_url, 
                   real_name, phone, email, 
@@ -36,20 +35,29 @@ export async function onRequest(context) {
         const expHistoryStmt = db.prepare("SELECT * FROM Purchasehistory WHERE user_id = ? ORDER BY created_at DESC");
         const expHistoryResult = await expHistoryStmt.bind(userId).all();
         
-        // --- 【新增】4. 獲取儲值金紀錄 ---
+        // 4. 獲取儲值金紀錄
         const storedValueStmt = db.prepare("SELECT * FROM StoredValueHistory WHERE user_id = ? ORDER BY created_at DESC");
         const storedValueResult = await storedValueStmt.bind(userId).all();
 
+        // --- 【新增】5. 獲取優惠券持有紀錄 ---
+        const vouchersStmt = db.prepare(`
+            SELECT uv.*, vt.title, vt.type, vt.value 
+            FROM UserVouchers uv
+            LEFT JOIN VoucherTemplates vt ON uv.template_id = vt.template_id
+            WHERE uv.user_id = ?
+            ORDER BY uv.issued_at DESC
+        `);
+        const vouchersResult = await vouchersStmt.bind(userId).all();
 
-        // 5. 將所有結果打包回傳 (已移除 rentals)
+        // 6. 打包回傳
         const responseData = {
             profile: profile,
             bookings: bookingsResult.results || [],
             exp_history: expHistoryResult.results || [],
-            stored_value_history: storedValueResult.results || [] // 【新增】
+            stored_value_history: storedValueResult.results || [],
+            vouchers: vouchersResult.results || [] // 【新增】
         };
 
-        // --- 【新增】加入 Cache-Control header 避免快取 ---
         return new Response(JSON.stringify(responseData), {
             status: 200,
             headers: { 

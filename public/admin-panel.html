@@ -735,8 +735,36 @@
     width: auto; /* 恢復 checkbox 預設寬度 */
     height: auto; /* 恢復 checkbox 預設高度 */
 }
-/* --- ▲▲▲ 新增結束 ▲▲▲ --- */
+/* --- 顧客管理表格專用樣式 --- */
+#page-users table {
+    table-layout: fixed; /* 強制固定欄寬 */
+    width: 100%;
+}
 
+#page-users th, #page-users td {
+    word-wrap: break-word; /* 文字過長自動換行 */
+    overflow: hidden;      /* 防止撐開 */
+    text-align: left;      /* 靠左對齊較整齊 */
+    padding: 12px 8px;     /* 調整內距 */
+}
+
+/* 針對手機號碼/ID 的副標題樣式微調 */
+.sub-info {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    margin-top: 4px;
+    font-family: monospace; /* 使用等寬字體讓數字更整齊 */
+}
+
+/* 標籤樣式優化 */
+.tag-display {
+    background-color: #eef2f7;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--color-text-dark);
+    border: 1px solid #dce4ec;
+}
 </style>
 
 </head>

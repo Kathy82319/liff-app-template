@@ -1,4 +1,4 @@
-// REPLACE THIS FUNCTION
+// functions/api/get-users.js
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'GET') {
@@ -7,9 +7,9 @@ export async function onRequest(context) {
 
     const db = context.env.DB;
     
-
+    // 【修改】在 SELECT 中加入了 phone 欄位
     const stmt = db.prepare(
-      `SELECT user_id, line_display_name, real_name, level, current_exp, tag, class, stored_value_balance 
+      `SELECT user_id, line_display_name, real_name, phone, level, current_exp, tag, class, stored_value_balance 
        FROM Users ORDER BY created_at DESC`
     );
     const { results } = await stmt.all();

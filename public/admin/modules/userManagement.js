@@ -28,49 +28,55 @@ function renderUserList(users) {
     const userListTbody = document.getElementById('user-list-tbody');
     const userListTheadTr = document.querySelector('#page-users thead tr'); 
 
-    if (!userListTbody || !userListTheadTr) {
-         console.error("renderUserList: 找不到 tbody 或 thead tr 元素。");
-         return;
-    }
+    if (!userListTbody || !userListTheadTr) return;
 
-    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
-        userListTheadTr.innerHTML = '<th>錯誤</th>';
-        userListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：顧客列表欄位設定未載入。</td></tr>';
-        return;
-    }
-
-    const columns = activeTemplate.logic.adminUserColumns.filter(col => col.enabled);
-    let headerHTML = '';
-    columns.forEach(col => headerHTML += `<th>${col.label}</th>`);
-    headerHTML += '<th>操作</th>';
-    userListTheadTr.innerHTML = headerHTML;
+    // 【修改】直接定義您想要的 6 個欄位表頭
+    // 加入 "width" 樣式可以控制間距 (這裡用 CSS class 控制會更漂亮，詳見第三步)
+    userListTheadTr.innerHTML = `
+        <th style="width: 25%;">LINE名稱 / 手機</th>
+        <th style="width: 15%;">會員方案</th>
+        <th style="width: 15%;">等級 / 點數</th>
+        <th style="width: 15%;">儲值金</th>
+        <th style="width: 15%;">標籤</th>
+        <th style="width: 15%;">操作</th>
+    `;
 
     userListTbody.innerHTML = '';
     if (!users || users.length === 0) {
-         userListTbody.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">找不到符合條件的顧客。</td></tr>`;
+         userListTbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">找不到符合條件的顧客。</td></tr>`;
          return;
     }
     
     users.forEach(user => {
         const row = userListTbody.insertRow();
-        row.dataset.userId = user.user_id;
+        row.dataset.userId = user.user_id; // 點擊行可開啟 CRM
         row.style.cursor = 'pointer';
         
-        columns.forEach(col => {
-            const cell = row.insertCell();
-            let cellContent;
-            if (col.key === 'line_display_name') {
-                cellContent = `<div class="main-info">${user.line_display_name || 'N/A'}</div><div class="sub-info">${user.user_id}</div>`;
-            } else if (col.key === 'level_exp') {
-                 cellContent = `${user.level} / ${user.current_exp}`;
-            } else if (col.key === 'tag') {
-                 cellContent = `<span class="tag-display">${user.tag || '無'}</span>`;
-            } else {
-                cellContent = getProperty(user, col.key, '無');
-            }
-            cell.innerHTML = cellContent;
-        });
+        // 1. LINE名稱 / 手機 (取代原本的 ID)
+        const cellName = row.insertCell();
+        const displayName = user.real_name ? `${user.real_name} (${user.line_display_name})` : user.line_display_name;
+        // 如果有電話顯示電話，沒有則顯示 '未設定電話'
+        const phoneDisplay = user.phone ? user.phone : '<span style="color:#ccc;">未設定電話</span>';
+        cellName.innerHTML = `<div class="main-info">${displayName}</div><div class="sub-info">${phoneDisplay}</div>`;
 
+        // 2. 會員方案
+        const cellClass = row.insertCell();
+        cellClass.textContent = user.class || '無';
+
+        // 3. 等級 / 點數
+        const cellLevel = row.insertCell();
+        cellLevel.textContent = `${user.level} / ${user.current_exp}`;
+
+        // 4. 【新增】儲值金
+        const cellBalance = row.insertCell();
+        const balance = user.stored_value_balance || 0;
+        cellBalance.innerHTML = `<span style="font-weight:bold; color: var(--color-primary);">$${balance}</span>`;
+
+        // 5. 標籤
+        const cellTag = row.insertCell();
+        cellTag.innerHTML = `<span class="tag-display">${user.tag || '無'}</span>`;
+
+        // 6. 操作按鈕
         const actionCell = row.insertCell();
         actionCell.className = 'actions-cell';
         actionCell.innerHTML = `<button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>`;
@@ -219,11 +225,25 @@ async function handleDeletePlan(index) {
 function handleUserSearch() {
     const userSearchInput = document.getElementById('user-search-input');
     const searchTerm = userSearchInput.value.toLowerCase().trim();
+    
     const filteredUsers = searchTerm
-        ? allUsers.filter(user =>
-            (user.line_display_name || '').toLowerCase().includes(searchTerm)
-        )
+        ? allUsers.filter(user => {
+            // 檢查 LINE 名稱
+            const matchLineName = (user.line_display_name || '').toLowerCase().includes(searchTerm);
+            // 檢查真實姓名
+            const matchRealName = (user.real_name || '').toLowerCase().includes(searchTerm);
+            // 檢查電話
+            const matchPhone = (user.phone || '').includes(searchTerm);
+            // 檢查會員方案
+            const matchClass = (user.class || '').toLowerCase().includes(searchTerm);
+            // 檢查標籤
+            const matchTag = (user.tag || '').toLowerCase().includes(searchTerm);
+            
+            // 只要符合其中一項就回傳 true
+            return matchLineName || matchRealName || matchPhone || matchClass || matchTag;
+        })
         : allUsers;
+        
     renderUserList(filteredUsers);
 }
 

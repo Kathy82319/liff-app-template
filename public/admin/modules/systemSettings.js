@@ -26,6 +26,7 @@ function createSettingRow(setting) {
     return row;
 }
 
+// ... (createNavBarModule 保持不變) ...
 function createNavBarModule(navBarConfig = [], availablePages = []) { 
     const container = document.createElement('div');
     container.className = 'setting-visual-guide';
@@ -59,6 +60,7 @@ function createNavBarModule(navBarConfig = [], availablePages = []) {
     return container;
 }
 
+// ... (createLiffPageSettingsModule 保持不變) ...
 function createLiffPageSettingsModule(pageConfig, templateFeatures, templateTerms) {
     const accordionTemplate = document.getElementById('accordion-template');
     if (!accordionTemplate) return document.createElement('div');
@@ -149,21 +151,21 @@ function createLiffPageSettingsModule(pageConfig, templateFeatures, templateTerm
     return accordionItem;
 }
 
+// ... (renderAdminPageEnablement, renderAdminColumnsSettings 保持不變) ...
 function renderAdminPageEnablement(adminPagesConfig = {}, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = ''; 
 
-    // 定義所有後台頁面 key 與中文 (包含新增的 vouchers, points)
     const allAdminPages = {
         "dashboard": "儀表板",
         "users": "顧客管理",
         "inventory": "產品/服務管理",
         "room-availability": "房量控管",
         "bookings": "訂位/訂單管理",
-        "vouchers": "優惠券管理", // 新增
+        "vouchers": "優惠券管理", 
         "exp-history": "點數紀錄",
-        "points": "點數發放中心", // 新增
+        "points": "點數發放中心", 
         "news": "資訊管理",
         "drafts": "訊息草稿",
         "store-info": "店家資訊",
@@ -250,34 +252,42 @@ function renderTemplateSettings(templateKey) {
                 label: '線上預約系統', hint: '啟用後，顧客才能使用線上預約/訂房功能。',
                 key: 'FEATURES_ENABLE_BOOKING_SYSTEM', value: template.features.ENABLE_BOOKING_SYSTEM || false, type: 'toggle' 
             }));
+            liffSettingsContainer.appendChild(globalAccordion);
+
+            // 【核心修改】 (2) 客戶端專屬功能開關 (分流設定)
+            const clientFeaturesAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
+            clientFeaturesAccordion.querySelector('h4').textContent = '功能模組顯示 (客戶端)';
+            const clientFeaturesContent = clientFeaturesAccordion.querySelector('.accordion-content');
             
-            // [新增] 儲值金 & 優惠券 總開關
-            globalContent.appendChild(createSettingRow({
-                label: '儲值金功能', hint: '啟用後，會員中心將顯示儲值餘額與紀錄按鈕。',
-                key: 'FEATURES_ENABLE_STORED_VALUE', value: template.features.ENABLE_STORED_VALUE || false, type: 'toggle'
+            // 儲值金
+            clientFeaturesContent.appendChild(createSettingRow({
+                label: '顯示儲值金功能', hint: '控制是否在會員中心顯示餘額、在預約時顯示付款選項。',
+                key: 'FEATURES_CLIENT_SHOW_STORED_VALUE', value: template.features.CLIENT_SHOW_STORED_VALUE !== false, type: 'toggle'
             }));
-            globalContent.appendChild(createSettingRow({
+            clientFeaturesContent.appendChild(createSettingRow({
                 label: '儲值金名稱', hint: '例如：儲值金、錢包餘額。',
                 key: 'TERMS_STORED_VALUE_NAME', value: template.terms.STORED_VALUE_NAME || '儲值金', type: 'text'
             }));
-            globalContent.appendChild(createSettingRow({
-                label: '優惠券功能', hint: '啟用後，會員中心將顯示「我的優惠券」按鈕。',
-                key: 'FEATURES_ENABLE_VOUCHER_SYSTEM', value: template.features.ENABLE_VOUCHER_SYSTEM || false, type: 'toggle'
+            
+            // 優惠券
+            clientFeaturesContent.appendChild(createSettingRow({
+                label: '顯示優惠券功能', hint: '控制是否在會員中心顯示「我的優惠券」按鈕。',
+                key: 'FEATURES_CLIENT_SHOW_VOUCHERS', value: template.features.CLIENT_SHOW_VOUCHERS !== false, type: 'toggle'
             }));
-            globalContent.appendChild(createSettingRow({
+            clientFeaturesContent.appendChild(createSettingRow({
                 label: '優惠券名稱', hint: '例如：優惠券、折價券。',
                 key: 'TERMS_VOUCHER_NAME', value: template.terms.VOUCHER_NAME || '優惠券', type: 'text'
             }));
+            
+            liffSettingsContainer.appendChild(clientFeaturesAccordion);
 
-            liffSettingsContainer.appendChild(globalAccordion);
-
-            // (2) 頁面設定 (NavBar)
+            // (3) 頁面設定 (NavBar)
             template.logic.navBar.forEach(pageConfig => {
                 const pageModule = createLiffPageSettingsModule(pageConfig, template.features, template.terms);
                 if (pageModule) liffSettingsContainer.appendChild(pageModule);
             });
 
-            // (3) 導覽列排序
+            // (4) 導覽列排序
             const navBarAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
             navBarAccordion.querySelector('h4').textContent = '底部導覽列管理';
             navBarAccordion.querySelector('.accordion-content').appendChild(createNavBarModule(template.logic.navBar, template.logic.availablePages));
@@ -291,7 +301,6 @@ function renderTemplateSettings(templateKey) {
     }
 
     // --- 2. 渲染商家後台 (Admin) 設定 ---
-    // 重構 HTML 結構以包含新區塊
     adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示、列表欄位與功能開關。</p>
         <div class="accordion-item">
@@ -334,15 +343,15 @@ function renderTemplateSettings(templateKey) {
     // 渲染頁面啟用開關
     renderAdminPageEnablement(logic.adminPagesEnabled, 'admin-pages-enablement-container');
 
-    // 渲染 CRM 功能開關 (新增)
+    // 【核心修改】渲染 CRM 功能開關 (Admin 專用)
     const crmContainer = document.getElementById('admin-crm-settings-container');
     crmContainer.appendChild(createSettingRow({
-        label: '顯示「發送優惠券」按鈕', hint: '是否在顧客詳細資料視窗中顯示發券按鈕。',
-        key: 'FEATURES_CRM_SHOW_ISSUE_VOUCHER', value: features.CRM_SHOW_ISSUE_VOUCHER !== false, type: 'toggle'
+        label: '顯示「儲值金」模組', hint: '是否在詳細資料視窗中顯示儲值金餘額、紀錄與操作按鈕。',
+        key: 'FEATURES_ADMIN_CRM_SHOW_STORED_VALUE', value: features.ADMIN_CRM_SHOW_STORED_VALUE !== false, type: 'toggle'
     }));
     crmContainer.appendChild(createSettingRow({
-        label: '顯示「儲值/扣款」按鈕', hint: '是否在顧客詳細資料視窗中顯示儲值金操作按鈕。',
-        key: 'FEATURES_CRM_SHOW_ADJUST_BALANCE', value: features.CRM_SHOW_ADJUST_BALANCE !== false, type: 'toggle'
+        label: '顯示「優惠券」模組', hint: '是否在詳細資料視窗中顯示優惠券列表與發送按鈕。',
+        key: 'FEATURES_ADMIN_CRM_SHOW_VOUCHERS', value: features.ADMIN_CRM_SHOW_VOUCHERS !== false, type: 'toggle'
     }));
 
     // 渲染產品名稱設定
@@ -371,7 +380,14 @@ function renderTemplateSettings(templateKey) {
     // 渲染欄位設定
     renderAdminColumnsSettings('product', logic.adminColumns, 'admin-columns-product');
     renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking');
-    renderAdminColumnsSettings('user', logic.adminUserColumns || [], 'admin-columns-user');
+    
+    // 確保 user columns 中包含 stored_value_balance
+    let userColumns = logic.adminUserColumns || [];
+    if (!userColumns.some(col => col.key === 'stored_value_balance')) {
+        userColumns.push({ key: 'stored_value_balance', label: '儲值金', enabled: false });
+    }
+    renderAdminColumnsSettings('user', userColumns, 'admin-columns-user');
+    
     renderAdminColumnsSettings('news', logic.adminNewsColumns || [], 'admin-columns-news');
     renderAdminColumnsSettings('drafts', logic.adminDraftColumns || [], 'admin-columns-drafts');
     renderAdminColumnsSettings('exp-history', logic.adminExpHistoryColumns || [], 'admin-columns-exp-history');
@@ -382,7 +398,7 @@ function renderTemplateSettings(templateKey) {
     ownerLiffSettingsContainer.innerHTML = ''; 
     const terms = template.terms || {};
     
-    // (1) 預約/訂房設定 (從 LIFF Tab 移入)
+    // (1) 預約/訂房設定
     const bookingAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
     bookingAccordion.querySelector('h4').textContent = '預約/訂房 頁面設定';
     const bookingContent = bookingAccordion.querySelector('.accordion-content');
@@ -394,7 +410,6 @@ function renderTemplateSettings(templateKey) {
         label: '線上預約頁面標題', hint: '顯示在預約頁頂部的標題。',
         key: 'TERMS_BOOKING_PAGE_TITLE', value: terms.BOOKING_PAGE_TITLE || '線上預約', type: 'text'
     }));
-    // [新增] 預約政策 Terms
     bookingContent.appendChild(createSettingRow({
         label: '取消政策標題', hint: '對應「入住須知編輯欄」中的取消政策欄位。',
         key: 'TERMS_BOOKING_POLICY_LABEL', value: terms.BOOKING_POLICY_LABEL || '取消政策', type: 'text'
@@ -405,7 +420,7 @@ function renderTemplateSettings(templateKey) {
     }));
     ownerLiffSettingsContainer.appendChild(bookingAccordion);
 
-    // (2) 現場作業設定 (新增)
+    // (2) 現場作業設定 (CRM 分流)
     const opAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
     opAccordion.querySelector('h4').textContent = '現場作業功能 (手機板)';
     const opContent = opAccordion.querySelector('.accordion-content');
@@ -414,9 +429,19 @@ function renderTemplateSettings(templateKey) {
         key: 'FEATURES_OWNER_LIFF_ENABLE_REDEEM', value: features.OWNER_LIFF_ENABLE_REDEEM !== false, type: 'toggle'
     }));
     opContent.appendChild(createSettingRow({
-        label: '啟用相機掃碼', hint: '是否啟用 QR Code 掃描器 (若設備不支援可關閉)。',
+        label: '啟用相機掃碼', hint: '是否啟用 QR Code 掃描器。',
         key: 'FEATURES_OWNER_LIFF_ENABLE_SCANNER', value: features.OWNER_LIFF_ENABLE_SCANNER !== false, type: 'toggle'
     }));
+    // 【新增】Owner CRM 開關
+    opContent.appendChild(createSettingRow({
+        label: 'CRM 顯示儲值金', hint: '手機查詢顧客時，是否顯示儲值金資訊與操作。',
+        key: 'FEATURES_OWNER_CRM_SHOW_STORED_VALUE', value: features.OWNER_CRM_SHOW_STORED_VALUE !== false, type: 'toggle'
+    }));
+    opContent.appendChild(createSettingRow({
+        label: 'CRM 顯示優惠券', hint: '手機查詢顧客時，是否顯示優惠券資訊與操作。',
+        key: 'FEATURES_OWNER_CRM_SHOW_VOUCHERS', value: features.OWNER_CRM_SHOW_VOUCHERS !== false, type: 'toggle'
+    }));
+    
     ownerLiffSettingsContainer.appendChild(opAccordion);
 
     // (3) 民宿專用設定

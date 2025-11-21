@@ -2,16 +2,13 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js'; 
 
-let allUsers = []; // 顧客資料快取
-let allSettings = []; // 系統設定快取
-let allVoucherTemplates = []; // 優惠券樣板快取
-let activeTemplate = null; // 樣板藍圖
-let membershipPlans = []; // 會員方案快取
-let allDrafts = []; // 快取訊息草稿 (用於 CRM Modal)
+let allUsers = []; 
+let allSettings = []; 
+let allVoucherTemplates = []; 
+let activeTemplate = null; 
+let membershipPlans = []; 
+let allDrafts = []; 
 
-/**
- * 安全地獲取物件的巢狀屬性
- */
 function getProperty(obj, path, defaultValue = 'N/A') {
     const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
     const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
@@ -21,28 +18,31 @@ function getProperty(obj, path, defaultValue = 'N/A') {
     return result;
 }
 
-// --- 渲染函式區 ---
-
-// 渲染使用者列表
+// --- 列表渲染：使用藍圖控制欄位 (包含 stored_value_balance) ---
 function renderUserList(users) {
     const userListTbody = document.getElementById('user-list-tbody');
     const userListTheadTr = document.querySelector('#page-users thead tr'); 
 
     if (!userListTbody || !userListTheadTr) return;
 
-    // 固定欄位定義
-    userListTheadTr.innerHTML = `
-        <th style="width: 25%;">LINE名稱 / 手機</th>
-        <th style="width: 15%;">會員方案</th>
-        <th style="width: 15%;">等級 / 點數</th>
-        <th style="width: 15%;">儲值金</th>
-        <th style="width: 15%;">標籤</th>
-        <th style="width: 15%;">操作</th>
-    `;
+    // 1. 使用藍圖定義的欄位 (支援排序與開關)
+    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
+         console.error("adminUserColumns 未定義");
+         return;
+    }
+    const columns = activeTemplate.logic.adminUserColumns.filter(col => col.enabled);
+
+    // 2. 渲染表頭
+    let theadHTML = '';
+    columns.forEach(col => {
+        theadHTML += `<th>${col.label}</th>`;
+    });
+    theadHTML += `<th>標籤</th><th>操作</th>`; // 標籤和操作固定顯示
+    userListTheadTr.innerHTML = theadHTML;
 
     userListTbody.innerHTML = '';
     if (!users || users.length === 0) {
-         userListTbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">找不到符合條件的顧客。</td></tr>`;
+         userListTbody.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align: center;">找不到符合條件的顧客。</td></tr>`;
          return;
     }
     
@@ -51,37 +51,32 @@ function renderUserList(users) {
         row.dataset.userId = user.user_id;
         row.style.cursor = 'pointer';
         
-        // 1. LINE名稱 / 手機
-        const cellName = row.insertCell();
-        const displayName = user.real_name ? `${user.real_name} (${user.line_display_name})` : user.line_display_name;
-        const phoneDisplay = user.phone ? user.phone : '<span style="color:#ccc;">未設定電話</span>';
-        cellName.innerHTML = `<div class="main-info">${displayName}</div><div class="sub-info">${phoneDisplay}</div>`;
+        // 3. 渲染自訂欄位
+        columns.forEach(col => {
+            const cell = row.insertCell();
+            if (col.key === 'stored_value_balance') {
+                // 特殊處理儲值金顯示
+                const balance = user.stored_value_balance || 0;
+                cell.innerHTML = `<span style="font-weight:bold; color: var(--color-primary);">$${balance}</span>`;
+            } else if (col.key === 'line_display_name') {
+                // 特殊處理名稱
+                const displayName = user.real_name ? `${user.real_name} (${user.line_display_name})` : user.line_display_name;
+                const phoneDisplay = user.phone ? user.phone : '<span style="color:#ccc;">未設定電話</span>';
+                cell.innerHTML = `<div class="main-info">${displayName}</div><div class="sub-info">${phoneDisplay}</div>`;
+            } else {
+                cell.textContent = getProperty(user, col.key, 'N/A');
+            }
+        });
 
-        // 2. 會員方案
-        const cellClass = row.insertCell();
-        cellClass.textContent = user.class || '無';
-
-        // 3. 等級 / 點數
-        const cellLevel = row.insertCell();
-        cellLevel.textContent = `${user.level} / ${user.current_exp}`;
-
-        // 4. 儲值金
-        const cellBalance = row.insertCell();
-        const balance = user.stored_value_balance || 0;
-        cellBalance.innerHTML = `<span style="font-weight:bold; color: var(--color-primary);">$${balance}</span>`;
-
-        // 5. 標籤
-        const cellTag = row.insertCell();
-        cellTag.innerHTML = `<span class="tag-display">${user.tag || '無'}</span>`;
-
-        // 6. 操作按鈕
+        // 4. 渲染固定欄位
+        row.insertCell().innerHTML = `<span class="tag-display">${user.tag || '無'}</span>`;
         const actionCell = row.insertCell();
         actionCell.className = 'actions-cell';
         actionCell.innerHTML = `<button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>`;
     });
 }
 
-// 渲染會員方案列表
+// ... (其他函式保持不變) ...
 function renderMembershipPlans() {
     const container = document.getElementById('membership-plans-list');
     if (!container) return;
@@ -112,8 +107,6 @@ function renderMembershipPlans() {
     html += '</div>';
     container.innerHTML = html;
 }
-
-// --- 邏輯處理函式區 ---
 
 function openEditPlanModal(index = null) {
     const form = document.getElementById('edit-membership-plan-form');
@@ -299,124 +292,101 @@ async function loadAndBindMessageDrafts(userId) {
 
     allDrafts.filter(d => d.draft_id > 2).forEach(d => select.add(new Option(d.title, d.content)));    
     select.onchange = () => { content.value = select.value; };
-
-    // 注意：此按鈕的 click 事件已移至 handleModalAction 統一管理
 }
 
-// --- 【核心修改】渲染顧客詳細資料 Modal (CRM) ---
+// --- 【核心修改】CRM 詳情渲染：分流控制 ---
 function renderUserDetails(data) {
     const userDetailsModal = document.getElementById('user-details-modal');
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
     if (!contentContainer) return;
 
-    const { profile, bookings, exp_history, stored_value_history, vouchers } = data; // 接收 vouchers
-    const displayName = profile.real_name || profile.line_display_name;
-    userDetailsModal.querySelector('#user-details-title').textContent = displayName;
-    const storedValueBalance = profile.stored_value_balance || 0;
+    const { profile, bookings, exp_history, stored_value_history, vouchers } = data;
+    
+    // 1. 讀取【Admin CRM】專屬開關
+    const showStoredValue = activeTemplate?.features?.ADMIN_CRM_SHOW_STORED_VALUE !== false;
+    const showVouchers = activeTemplate?.features?.ADMIN_CRM_SHOW_VOUCHERS !== false;
+
+    // 2. 動態生成 Tab 按鈕
+    let tabsHTML = `
+        <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
+        <button class="details-tab" data-target="tab-exp">點數紀錄</button>
+    `;
+    if (showStoredValue) tabsHTML += `<button class="details-tab" data-target="tab-stored-value">儲值金紀錄</button>`;
+    if (showVouchers) tabsHTML += `<button class="details-tab" data-target="tab-vouchers">持有優惠券</button>`;
+
+    // 3. 動態生成操作按鈕
+    let actionsHTML = '';
+    if (showStoredValue) {
+        actionsHTML += `<button type="button" class="action-btn" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${profile.line_display_name}" style="background-color: var(--color-success);">儲值/扣款</button>`;
+    }
+    if (showVouchers) {
+        actionsHTML += `<button type="button" class="action-btn" data-action="issue-voucher" data-user-id="${profile.user_id}" data-target-name="${profile.line_display_name}" style="background-color: var(--color-info);">發送優惠券</button>`;
+    }
+    // 編輯與發訊息永遠顯示
+    actionsHTML += `
+        <button type="button" class="action-btn" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
+        <button type="button" id="send-direct-message-btn" class="action-btn" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${profile.line_display_name}" style="background-color: var(--color-secondary);">確認發送</button>
+    `;
 
     contentContainer.innerHTML = `
         <div class="details-grid">
             <div class="profile-summary">
                 <img src="/api/admin/get-avatar?userId=${profile.user_id}" alt="Avatar">
-                <h4>${displayName}</h4>
-                <p><strong>姓名:</strong> ${profile.real_name || '未設定'}</p>
+                <h4>${profile.real_name || profile.line_display_name}</h4>
                 <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
                 <hr>
-                <p><strong>儲值金:</strong> <span style="font-size: 1.2em; font-weight: bold; color: var(--color-primary);">$${storedValueBalance}</span></p>
+                ${showStoredValue ? `<p><strong>儲值金:</strong> <span style="font-size: 1.2em; font-weight: bold; color: var(--color-primary);">$${profile.stored_value_balance || 0}</span></p>` : ''}
                 <p><strong>等級:</strong> ${profile.level} (點數：${profile.current_exp})</p>
-                <p><strong>會員方案:</strong> ${profile.class || '無'}</p>
-                <p><strong>標籤:</strong> ${profile.tag || '無'}</p>
+                <p><strong>方案:</strong> ${profile.class || '無'}</p>
             </div>
             <div class="profile-details">
                 ${profile.notes ? `<div class="crm-notes-section"><h4>顧客備註</h4><p>${profile.notes}</p></div>` : ''}
                 <div class="details-tabs">
-                    <button class="details-tab active" data-target="tab-bookings">預約紀錄</button>
-                    <button class="details-tab" data-target="tab-exp">點數紀錄</button>
-                    <button class="details-tab" data-target="tab-stored-value">儲值金紀錄</button>
-                    <button class="details-tab" data-target="tab-vouchers">持有優惠券</button>
+                    ${tabsHTML}
                 </div>
                 <div class="details-tab-content active" id="tab-bookings"></div>
                 <div class="details-tab-content" id="tab-exp"></div>
-                <div class="details-tab-content" id="tab-stored-value"></div>
-                <div class="details-tab-content" id="tab-vouchers"></div>
+                ${showStoredValue ? `<div class="details-tab-content" id="tab-stored-value"></div>` : ''}
+                ${showVouchers ? `<div class="details-tab-content" id="tab-vouchers"></div>` : ''}
             </div>
         </div>
         <div class="message-sender">
             <h4>操作</h4>
             <div class="form-group">
-                <label for="message-draft-select">選擇訊息草稿 (發送訊息用)</label>
+                <label>選擇訊息草稿</label>
                 <select id="message-draft-select"><option value="">-- 手動輸入或選擇草稿 --</option></select>
             </div>
             <div class="form-group">
-                <label for="direct-message-content">訊息內容</label>
-                <textarea id="direct-message-content" rows="4"></textarea>
+                <textarea id="direct-message-content" rows="4" placeholder="訊息內容..."></textarea>
             </div>
             <div class="form-actions" id="details-modal-actions" style="flex-wrap: wrap;">
-                ${renderCustomerActions(profile)}
+                ${actionsHTML}
             </div>
         </div>
     `;
 
-    // 渲染表格
     contentContainer.querySelector('#tab-bookings').appendChild(renderHistoryTable(bookings, ['booking_date', 'num_of_people', 'status'], { booking_date: '預約日', num_of_people: '人數', status: '狀態' }));
     contentContainer.querySelector('#tab-exp').appendChild(renderHistoryTable(exp_history, ['created_at', 'reason', 'exp_added'], { created_at: '日期', reason: '原因', exp_added: '點數' }));
 
-    // 渲染儲值金紀錄
-    const typeMap = { 'admin_topup': '店家儲值', 'admin_deduct': '店家扣款', 'booking_payment': '訂房扣款' };
-    const formattedHistory = (stored_value_history || []).map(r => ({
-        ...r, created_at: new Date(r.created_at).toLocaleString('sv-SE'), type_display: typeMap[r.type] || r.type
-    }));
-    contentContainer.querySelector('#tab-stored-value').appendChild(renderHistoryTable(
-        formattedHistory, ['created_at', 'type_display', 'amount_changed', 'current_balance', 'notes'], 
-        { created_at: '日期', type_display: '類型', amount_changed: '變動金額', current_balance: '餘額', notes: '備註' }
-    ));
+    if (showStoredValue) {
+        const typeMap = { 'admin_topup': '店家儲值', 'admin_deduct': '店家扣款', 'booking_payment': '訂房扣款' };
+        const formattedHistory = (stored_value_history || []).map(r => ({ ...r, type_display: typeMap[r.type] || r.type }));
+        contentContainer.querySelector('#tab-stored-value').appendChild(renderHistoryTable(
+            formattedHistory, ['created_at', 'type_display', 'amount_changed', 'current_balance'], 
+            { created_at: '日期', type_display: '類型', amount_changed: '變動', current_balance: '餘額' }
+        ));
+    }
 
-const safeDateStr = (dateStr) => {
-        if (!dateStr) return '-';
-        // 將 "2023-10-25 12:00:00" 轉為 "2023/10/25 12:00:00" 以相容 iOS
-        return new Date(dateStr.replace(/-/g, '/')).toLocaleString('sv-SE');
-    };
+    if (showVouchers) {
+        const safeDateStr = (d) => d ? new Date(d.replace(/-/g, '/')).toLocaleDateString() : '-';
+        const formattedVouchers = (vouchers || []).map(v => ({
+            ...v, title: v.title, status: v.is_used ? `已用(${safeDateStr(v.used_at)})` : '未使用'
+        }));
+        contentContainer.querySelector('#tab-vouchers').appendChild(renderHistoryTable(
+            formattedVouchers, ['title', 'status', 'valid_to'], { title: '名稱', status: '狀態', valid_to: '效期' }
+        ));
+    }
 
-    // --- 2. 處理優惠券顯示邏輯 ---
-    const now = new Date();
-    const vouchersFormatted = (vouchers || []).map(v => {
-        let usageStatusText = '尚未使用';
-        
-        if (v.is_used) {
-            // 如果已使用，顯示使用日期
-            usageStatusText = safeDateStr(v.used_at);
-        } else {
-            // 如果沒使用，檢查是否過期
-            if (v.valid_to) {
-                // 設定過期時間為當天的 23:59:59
-                const expiryDate = new Date(v.valid_to.replace(/-/g, '/') + ' 23:59:59');
-                if (now > expiryDate) {
-                    usageStatusText = '已過期';
-                }
-            }
-        }
-
-        return {
-            ...v,
-            title: v.title || '(樣板已刪除)',
-            type_display: v.type === 'redeem_item' ? '兌換券' : '折扣券',
-            // 使用 safeDateStr 處理發放日
-            issued_at_display: safeDateStr(v.issued_at),
-            // 使用我們計算好的狀態文字
-            usage_status_display: usageStatusText
-        };
-    });
-
-    // --- 3. 渲染表格 ---
-    // 注意：這裡的欄位名稱改成 issued_at_display 和 usage_status_display
-    // 這樣可以避開 renderHistoryTable 內建的日期轉換，避免再次發生 Invalid Date
-    contentContainer.querySelector('#tab-vouchers').appendChild(renderHistoryTable(
-        vouchersFormatted, 
-        ['title', 'type_display', 'issued_at_display', 'usage_status_display'],
-        { title: '名稱', type_display: '類型', issued_at_display: '發放日', usage_status_display: '狀態 / 使用日' }
-    ));
-
-    // 綁定頁籤切換
     contentContainer.querySelector('.details-tabs').addEventListener('click', e => {
         if (e.target.tagName === 'BUTTON') {
             contentContainer.querySelector('.details-tab.active')?.classList.remove('active');
@@ -427,14 +397,11 @@ const safeDateStr = (dateStr) => {
     });
     
     loadAndBindMessageDrafts(profile.user_id);
-    
-    // 綁定操作按鈕
     const actionsContainer = contentContainer.querySelector('#details-modal-actions');
-    if (actionsContainer) {
-        actionsContainer.addEventListener('click', handleModalAction);
-    }
+    if (actionsContainer) actionsContainer.addEventListener('click', handleModalAction);
 }
 
+// ... (renderCustomerActions, openAdjustStoredValueModal, openIssueVoucherModal, handleModalAction 保持不變) ...
 function renderCustomerActions(profile) {
     const targetName = profile.real_name || profile.line_display_name;
     return `
@@ -444,8 +411,6 @@ function renderCustomerActions(profile) {
         <button type="button" id="send-direct-message-btn" class="action-btn" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">確認發送</button>
     `;
 }
-
-// --- Modal 操作輔助函式 ---
 
 function openAdjustStoredValueModal(userId, userName) {
     const modal = document.getElementById('stored-value-modal');
@@ -483,7 +448,6 @@ function openIssueVoucherModal(userId, userName) {
     ui.showModal('#issue-voucher-modal');
 }
 
-// --- 【核心修改】處理 CRM Modal 中所有按鈕點擊的函式 ---
 async function handleModalAction(event) {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
@@ -494,7 +458,6 @@ async function handleModalAction(event) {
 
     if (action === 'edit-customer') {
         openEditUserModal(targetUserId); 
-        // 編輯時先不關閉 CRM Modal，因為編輯 Modal 會疊在上面
         return;
     }
     
@@ -531,15 +494,13 @@ async function handleModalAction(event) {
     }
 }
 
-// 刷新 CRM Modal 資料
 async function openUserDetailsModal(userId) {
     const userDetailsModal = document.getElementById('user-details-modal');
     const contentContainer = userDetailsModal.querySelector('#user-details-content');
     if (!userDetailsModal || !contentContainer) return;
     
-    // 如果 Modal 已經開啟且有內容，顯示更新中
     if (userDetailsModal.style.display === 'flex' && contentContainer.innerHTML !== '') {
-        // 可以在某處顯示 loading indicator，這裡簡單重刷
+        // loading
     } else {
         contentContainer.innerHTML = '<p>讀取中...</p>';
         ui.showModal('#user-details-modal');
@@ -548,20 +509,11 @@ async function openUserDetailsModal(userId) {
     try {
         const data = await api.getUserDetails(userId);
         renderUserDetails(data);
-        // 更新列表中的儲值金顯示 (因為在 CRM 改了，列表也要變)
-        const row = document.querySelector(`#user-list-tbody tr[data-user-id="${userId}"]`);
-        if (row) {
-             // 簡單觸發重新搜尋來更新列表，或者直接修改 DOM
-             // 為了確保資料一致，建議有空時重新載入列表，這裡從簡
-        }
     } catch (error) {
         console.error("CRM 執行錯誤:", error);
         contentContainer.innerHTML = `<p style="color:red;">載入資料時發生錯誤：${error.message}</p>`;
     }
 }
-
-
-// --- 表單提交處理 ---
 
 async function handleIssueVoucherSubmit(e) {
     e.preventDefault();
@@ -604,8 +556,7 @@ async function handleStoredValueSubmit(e) {
         ui.toast.success('儲值金變更成功！');
         ui.hideModal('#stored-value-modal');
         openUserDetailsModal(userId); // 刷新 CRM 資料
-        // 同時更新列表
-        handleUserSearch(); // 簡單觸發重新搜尋以更新列表上的金額
+        handleUserSearch(); // 更新列表
     } catch (error) {
         ui.toast.error(`變更失敗: ${error.message}`);
     } finally {
@@ -614,14 +565,10 @@ async function handleStoredValueSubmit(e) {
     }
 }
 
-
-// --- 初始化與事件綁定 ---
-
 function setupEventListeners() {
     const page = document.getElementById('page-users');
     if (!page) return;
     
-    // 1. 子分頁切換
     const tabsContainer = document.getElementById('user-sub-tabs');
     if (tabsContainer) {
         tabsContainer.addEventListener('click', (e) => {
@@ -634,14 +581,12 @@ function setupEventListeners() {
         });
     }
 
-    // 2. 搜尋
     const userSearchInput = document.getElementById('user-search-input');
     if (userSearchInput && !userSearchInput.dataset.listenerAttached) {
         userSearchInput.addEventListener('input', handleUserSearch); 
         userSearchInput.dataset.listenerAttached = 'true';
     }
 
-    // 3. 列表點擊
     const userListTbody = document.getElementById('user-list-tbody');
     if (userListTbody) {
         const newListHandler = (event) => {
@@ -662,7 +607,6 @@ function setupEventListeners() {
         userListTbody.handler = newListHandler;
     }
 
-    // 4. 方案管理
     const addPlanBtn = document.getElementById('add-membership-plan-btn');
     if (addPlanBtn) addPlanBtn.addEventListener('click', () => openEditPlanModal());
 
@@ -676,24 +620,20 @@ function setupEventListeners() {
         });
     }
 
-    // 5. 表單提交
     document.getElementById('edit-membership-plan-form')?.addEventListener('submit', handlePlanSubmit);
     
-    // 【新增】發送優惠券表單提交
     const issueVoucherForm = document.getElementById('issue-voucher-form');
     if(issueVoucherForm && !issueVoucherForm.dataset.listenerAttached) {
         issueVoucherForm.addEventListener('submit', handleIssueVoucherSubmit);
         issueVoucherForm.dataset.listenerAttached = 'true';
     }
 
-    // 【新增】儲值金表單提交
     const storedValueForm = document.getElementById('stored-value-form');
     if(storedValueForm && !storedValueForm.dataset.listenerAttached) {
         storedValueForm.addEventListener('submit', handleStoredValueSubmit);
         storedValueForm.dataset.listenerAttached = 'true';
     }
 
-    // 6. 編輯使用者 Modal 邏輯 (省略重複部分，保持原樣)
     const classSelect = document.getElementById('edit-class-select');
     const otherClassInput = document.getElementById('edit-class-other-input');
     const perkInput = document.getElementById('edit-perk-input');
@@ -733,14 +673,12 @@ function setupEventListeners() {
             };
             try {
                 const result = await api.updateUserDetails(updatedData);
-                // 更新本地快取
                 const userIndex = allUsers.findIndex(u => u.user_id === userId);
                 if (userIndex !== -1 && result.updatedUser) {
                     allUsers[userIndex] = { ...allUsers[userIndex], ...result.updatedUser };
                 }
                 ui.hideModal('#edit-user-modal');
                 ui.toast.success('顧客資料更新成功！');
-                // 重新渲染列表
                 handleUserSearch();
             } catch (error) {
                 ui.toast.error(`錯誤：${error.message}`);

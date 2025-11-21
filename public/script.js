@@ -757,7 +757,7 @@ function updateProfileDisplay(data) {
 
         const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
-
+        const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
         // 優先顯示真實姓名，若無則顯示 LINE 暱稱
         const displayNameEl = document.getElementById('display-name');
         if(displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
@@ -770,7 +770,18 @@ function updateProfileDisplay(data) {
         
         // 【修正】補上這一行變數定義！
         const storedValueEl = document.getElementById('user-stored-value');
-
+if (!showStoredValue) {
+        if (storedValueEl) {
+            const parentP = storedValueEl.closest('p'); 
+            if (parentP) parentP.style.display = 'none';
+        }
+    } else {
+        if (storedValueEl) {
+            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+            const parentP = storedValueEl.closest('p');
+            if (parentP) parentP.style.display = 'block';
+        }
+    }
         if (features.ENABLE_MEMBERSHIP_SYSTEM) {
             if (classP) {
                  classP.style.display = 'block';
@@ -899,10 +910,16 @@ function updateProfileDisplay(data) {
 
 async function initializeProfilePage() {
         if (!userProfile) return;
-
-        const terms = activeTemplate?.terms || {};
         const features = activeTemplate?.features || {};
-        
+        const terms = activeTemplate?.terms || {};
+        // 【分流控制】讀取 CLIENT 專屬開關
+    const showVouchers = features.CLIENT_SHOW_VOUCHERS !== false;
+    const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
+
+    const myStoredValueBtn = document.querySelector('#my-stored-value-btn');
+
+    if (myVouchersBtn) myVouchersBtn.style.display = showVouchers ? 'block' : 'none';
+    if (myStoredValueBtn) myStoredValueBtn.style.display = showStoredValue ? 'block' : 'none';
         console.log("[LIFF script.js] initializeProfilePage 讀取到的 Features:", JSON.stringify(features));
 
         const bookingsBtn = document.querySelector('#my-bookings-btn');
@@ -2023,6 +2040,13 @@ const removeBtn = document.createElement('button');
 // 檔案：public/script.js
 
     async function initializeBookingPage() {
+    const features = activeTemplate?.features || {};
+    const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
+    const storedValuePaymentGroup = document.getElementById('stored-value-payment-group');
+    
+    if (storedValuePaymentGroup) {
+        storedValuePaymentGroup.style.display = showStoredValue ? 'block' : 'none';
+    }
         console.log("初始化預約頁面 - 當前樣板:", CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE);
 
         try {

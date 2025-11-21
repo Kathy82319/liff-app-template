@@ -7,6 +7,7 @@ let currentSelectedUserForPoints = null;
 let allExpHistory = []; 
 let activeTemplate = null; 
 
+// 定義預設欄位 (若藍圖未定義時使用)
 const EXP_HISTORY_COLUMNS_DEFINITION = [
      { key: 'created_at', label: '日期', enabled: true },
      { key: 'user_info', label: '顧客 (姓名/電話)', enabled: true },
@@ -43,64 +44,75 @@ function setupTabs() {
     });
 }
 
-// --- 【新增】初始化原因輸入框與建議列表 ---
-function initReasonInput() {
-    const reasonInput = document.getElementById('reason-input');
-    if (!reasonInput) return;
+// --- 【核心功能】初始化下拉選單 ---
+function initReasonSelect(historyData = []) {
+    const reasonSelect = document.getElementById('reason-select');
+    if (!reasonSelect) return;
 
-    // 1. 建立或獲取 datalist
-    let dataList = document.getElementById('reason-suggestions');
-    if (!dataList) {
-        dataList = document.createElement('datalist');
-        dataList.id = 'reason-suggestions';
-        document.body.appendChild(dataList); // 必須加到 DOM 中
-        reasonInput.setAttribute('list', 'reason-suggestions');
+    // 1. 保留目前選中的值 (如果有的話，避免重刷時跳掉)
+    const currentValue = reasonSelect.value;
+
+    // 2. 清空選項
+    reasonSelect.innerHTML = '';
+
+    // 3. 定義系統預設選項
+    const defaultReasons = ["消費回饋", "活動獎勵", "生日禮金", "補償", "會員升級禮"];
+    
+    // 4. 從歷史紀錄提取不重複的原因
+    const historyReasons = historyData
+        .map(r => r.reason)
+        .filter(r => r && typeof r === 'string' && !defaultReasons.includes(r)); // 排除空值和已存在的預設值
+
+    // 5. 合併所有選項 (預設 + 歷史)
+    const allReasons = [...defaultReasons, ...new Set(historyReasons)];
+
+    // 6. 渲染選項
+    allReasons.forEach(r => {
+        reasonSelect.add(new Option(r, r));
+    });
+
+    // 7. 加入「其他」選項
+    reasonSelect.add(new Option("其他 (手動輸入)", "other"));
+
+    // 8. 恢復選取狀態 (如果之前選的值還在列表裡)
+    if (currentValue && (allReasons.includes(currentValue) || currentValue === 'other')) {
+        reasonSelect.value = currentValue;
+    } else {
+        reasonSelect.value = defaultReasons[0]; // 預設選第一個
     }
-
-    // 2. 定義預設選項
-    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "會員升級禮", "補償"];
     
-    // 3. 從 LocalStorage 讀取自訂選項
-    let savedReasons = [];
-    try {
-        const stored = localStorage.getItem('admin_custom_point_reasons');
-        if (stored) savedReasons = JSON.parse(stored);
-    } catch (e) { console.warn("讀取儲存的原因失敗", e); }
-
-    // 4. 合併並去重複
-    const allReasons = Array.from(new Set([...defaultReasons, ...savedReasons]));
-
-    // 5. 渲染選項
-    dataList.innerHTML = allReasons.map(r => `<option value="${r}">`).join('');
+    // 觸發一次 change 事件以控制 custom input 的顯示
+    reasonSelect.dispatchEvent(new Event('change'));
 }
 
-// --- 【新增】儲存新的原因 ---
-function saveNewReason(reason) {
-    if (!reason) return;
-    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "會員升級禮", "補償"];
+// --- DOM 復原函式 ---
+// 確保 HTML 結構符合 Select 模式 (如果之前被改成 Input 模式)
+function restoreReasonSelectStructure() {
+    const container = document.getElementById('reason-input-container');
+    if (!container) return;
+
+    // 如果已經是 Select，就不做任何事
+    if (document.getElementById('reason-select')) return;
+
+    container.innerHTML = '';
     
-    // 如果是預設的，不用存
-    if (defaultReasons.includes(reason)) return;
+    const label = document.createElement('label');
+    label.htmlFor = 'reason-select';
+    label.textContent = '點數名稱 (原因):';
+    container.appendChild(label);
 
-    let savedReasons = [];
-    try {
-        const stored = localStorage.getItem('admin_custom_point_reasons');
-        if (stored) savedReasons = JSON.parse(stored);
-    } catch (e) { }
+    const select = document.createElement('select');
+    select.id = 'reason-select';
+    container.appendChild(select);
 
-    // 如果已經存過，也不用存
-    if (savedReasons.includes(reason)) return;
-
-    // 加入並限制數量 (例如只存最近 20 個)
-    savedReasons.unshift(reason);
-    if (savedReasons.length > 20) savedReasons.pop();
-
-    localStorage.setItem('admin_custom_point_reasons', JSON.stringify(savedReasons));
-    
-    // 重新整理列表
-    initReasonInput(); 
+    const customInput = document.createElement('input');
+    customInput.type = 'text';
+    customInput.id = 'custom-reason-input';
+    customInput.placeholder = '請輸入自訂原因';
+    customInput.style.display = 'none';
+    customInput.style.marginTop = '10px';
+    container.appendChild(customInput);
 }
-
 
 function resetPointsCenterPage() {
     currentSelectedUserForPoints = null;
@@ -128,9 +140,18 @@ function resetPointsCenterPage() {
     }
     if (qrReader) qrReader.style.display = 'none';
     
-    // 重置原因輸入框 (如果有)
-    const reasonInput = document.getElementById('reason-input');
-    if (reasonInput) reasonInput.value = '';
+    // 重置表單
+    const form = document.getElementById('points-entry-form');
+    if (form) {
+        form.querySelector('#exp-input').value = '';
+        const reasonSelect = form.querySelector('#reason-select');
+        if (reasonSelect) {
+            reasonSelect.selectedIndex = 0;
+            reasonSelect.dispatchEvent(new Event('change'));
+        }
+        const customInput = form.querySelector('#custom-reason-input');
+        if (customInput) customInput.value = '';
+    }
 }
 
 async function handleUserSearchForPoints(query) {
@@ -176,16 +197,6 @@ function selectUserForPoints(user) {
     
     if (userSearchResults) userSearchResults.innerHTML = '';
     if (userSearchInput) userSearchInput.value = '';
-
-    const form = document.getElementById('points-entry-form');
-    if (form) {
-        form.querySelector('#exp-input').value = '';
-        // 重置原因
-        const reasonInput = form.querySelector('#reason-input');
-        if (reasonInput) reasonInput.value = '';
-        
-        form.querySelector('#points-status-message').textContent = '';
-    }
 }
 
 function startQrScanner() {
@@ -235,12 +246,11 @@ async function loadExpHistory() {
              activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
         }
 
-        if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
-             throw new Error(`樣板缺少 'logic.adminExpHistoryColumns' 設定。`);
-        }
-
         allExpHistory = await api.getExpHistory();
         renderExpHistoryList(allExpHistory);
+        
+        // 【關鍵修改】載入紀錄後，更新選單的歷史選項
+        initReasonSelect(allExpHistory);
 
     } catch (error) {
         console.error('獲取點數紀錄失敗:', error);
@@ -330,9 +340,8 @@ function setupEventListeners() {
     const userSearchResults = document.getElementById('user-search-results');
     const startScanBtn = document.getElementById('start-scan-btn');
     const submitExpBtn = document.getElementById('submit-exp-btn');
-    // 移除 reasonSelect 相關
-    // const reasonSelect = document.getElementById('reason-select');
-    // const customReasonInput = document.getElementById('custom-reason-input');
+    const reasonSelect = document.getElementById('reason-select');
+    const customReasonInput = document.getElementById('custom-reason-input');
 
     if (userSearchInput) {
         userSearchInput.addEventListener('input', (e) => handleUserSearchForPoints(e.target.value));
@@ -352,7 +361,13 @@ function setupEventListeners() {
         startScanBtn.addEventListener('click', startQrScanner);
     }
     
-    // 【修改】提交按鈕邏輯：讀取新的 input
+    // 控制自訂原因輸入框顯示
+    if (reasonSelect && customReasonInput) {
+        reasonSelect.addEventListener('change', () => {
+            customReasonInput.style.display = (reasonSelect.value === 'other') ? 'block' : 'none';
+        });
+    }
+
     if (submitExpBtn) {
         submitExpBtn.addEventListener('click', async () => {
             if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
@@ -363,9 +378,11 @@ function setupEventListeners() {
             const expInput = document.getElementById('exp-input');
             const expValue = Number(expInput.value);
             
-            // 讀取智慧輸入框
-            const reasonInput = document.getElementById('reason-input');
-            const reason = reasonInput ? reasonInput.value.trim() : '';
+            // 取得原因
+            let reason = reasonSelect.value;
+            if (reason === 'other') {
+                reason = customReasonInput.value.trim();
+            }
 
             if (!expValue || expValue <= 0 || !reason) {
                 pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
@@ -379,16 +396,13 @@ function setupEventListeners() {
             try {
                 await api.addPoints({ userId: currentSelectedUserForPoints.id, expValue, reason });
                 
-                // 成功後，儲存這個原因
-                saveNewReason(reason);
-
                 pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
                 pointsStatusMessage.style.color = 'var(--color-success)';
                 expInput.value = '';
-                // 發放成功後，如果有載入過紀錄，就重新載入一次以顯示最新資料
-                if (allExpHistory.length > 0) {
-                    loadExpHistory();
-                }
+                
+                // 成功後重新載入紀錄，這會自動更新原因選單
+                loadExpHistory(); 
+
             } catch (error) {
                 pointsStatusMessage.textContent = `新增失敗: ${error.message}`;
                 pointsStatusMessage.style.color = 'var(--color-danger)';
@@ -404,48 +418,19 @@ function setupEventListeners() {
     }
 }
 
-// --- 【新增】DOM 修改函式：動態替換 HTML ---
-function transformReasonInput() {
-    const container = document.getElementById('reason-input-container');
-    if (!container) return;
-
-    // 檢查是否已經轉換過
-    if (document.getElementById('reason-input')) return;
-
-    // 清空舊的 select
-    container.innerHTML = '';
-
-    // 建立 Label
-    const label = document.createElement('label');
-    label.htmlFor = 'reason-input';
-    label.textContent = '點數名稱 (原因):';
-    container.appendChild(label);
-
-    // 建立 Input
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'reason-input';
-    input.placeholder = '選擇或輸入原因...';
-    input.setAttribute('list', 'reason-suggestions'); // 綁定 datalist
-    container.appendChild(input);
-
-    // 初始化列表
-    initReasonInput();
-}
-
-
 export const init = () => {
-    // 先執行 DOM 轉換，把 Select 換成 Input
-    transformReasonInput();
-
+    restoreReasonSelectStructure();
     resetPointsCenterPage();
-    
     const page = document.getElementById('page-points');
     if (page && !page.dataset.initialized) {
         setupEventListeners();
         page.dataset.initialized = 'true';
     }
+    // 初始化時先載入一次選項
+    initReasonSelect(allExpHistory);
     
-    // 每次進入頁面都重新整理列表 (讀取 localStorage)
-    initReasonInput();
+    // 如果還沒載入過歷史紀錄，則載入
+    if(allExpHistory.length === 0) {
+        loadExpHistory();
+    }
 };

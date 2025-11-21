@@ -45,19 +45,14 @@ export async function onRequest(context) {
         // --- 設定 Cookie Header ---
         const headers = new Headers();
         headers.set('Content-Type', 'application/json');
-        // ---【關鍵】檢查 Set-Cookie 指令 ---
-        // HttpOnly: 防止 JS 讀取 Cookie，增加安全性
-        // Secure: 只在 HTTPS 連線下傳送 Cookie (Cloudflare Pages 預設是 HTTPS，所以需要)
-        // Path=/: Cookie 適用於整個網站
-        // Max-Age=28800: Cookie 有效期 8 小時 (單位秒)
-        // SameSite=Lax: 大多數情況下會傳送 Cookie，是一種安全平衡
-        const cookieString = `AuthToken=${jwt}; HttpOnly; Secure; Path=/; Max-Age=28800; SameSite=Lax`;
+        const cookieString = `AuthToken=${jwt}; HttpOnly; Path=/; Max-Age=28800; SameSite=Lax`; 
+        
         headers.set('Set-Cookie', cookieString);
-        console.log("Login API: 準備設定 Cookie:", cookieString); // <--- 加入日誌
+        console.log("Login API: Setting debug Cookie:", cookieString); 
 
         return new Response(JSON.stringify({ success: true, user: { userId: user.user_id, displayName: user.line_display_name } }), {
             status: 200,
-            headers: headers // 使用包含 Set-Cookie 的 headers
+            headers: headers 
         });
     } catch (error) {
         console.error('Login error:', error);

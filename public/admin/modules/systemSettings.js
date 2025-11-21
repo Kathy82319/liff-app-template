@@ -418,7 +418,6 @@ adminSettingsContainer.innerHTML = `
 
     // --- 3. 渲染手機板後台 (Owner LIFF) 設定 ---
     ownerLiffSettingsContainer.innerHTML = ''; 
-    const terms = template.terms || {};
     
     // (1) 預約/訂房設定
     const bookingAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');

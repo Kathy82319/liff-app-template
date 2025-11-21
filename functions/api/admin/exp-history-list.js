@@ -12,6 +12,8 @@ export const onRequest = async (context) => {
         ph.history_id,
         ph.user_id,
         u.line_display_name,
+        u.real_name, // <-- 新增：真實姓名
+        u.phone, // <-- 新增：電話
         ph.exp_added,
         ph.reason,
         ph.created_at

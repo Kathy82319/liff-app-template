@@ -1427,11 +1427,16 @@
                 <div id="points-tab-history" class="settings-tab-content">
                     <div style="margin-top: 1.5rem;">
                         <div class="filter-bar">
-                            <input type="search" id="exp-user-filter-input" placeholder="依使用者名稱或 LINE ID 搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
+                            <input type="search" id="exp-user-filter-input" placeholder="依顧客名稱、電話、ID 或原因搜尋..." style="width: 100%; box-sizing: border-box; padding: 8px;">
                         </div>
                         <table>
                             <thead>
-                                <tr><th>載入中...</th></tr>
+                                <tr>
+                                    <th style="width: 25%;">日期</th>
+                                    <th style="width: 30%;">顧客 (姓名/電話)</th>
+                                    <th style="width: 30%;">原因</th>
+                                    <th style="width: 15%;">點數</th>
+                                </tr>
                             </thead>
                             <tbody id="exp-history-tbody"></tbody>
                         </table>

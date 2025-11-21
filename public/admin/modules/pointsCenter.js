@@ -206,7 +206,20 @@ function renderExpHistoryList(records) {
 
     if (!expHistoryTbody || !expHistoryTheadTr) return;
 
-    const columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
+    let columns = [];
+    if (activeTemplate && Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
+        // 使用藍圖定義的欄位
+        columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
+    } else {
+        // 如果沒有藍圖或載入失敗，使用一個包含使用者資訊的預設集
+        columns = [
+             { key: 'created_at', label: '日期', isDate: true },
+             { key: 'user_info', label: '顧客 (姓名/電話)' }, // Custom key for combined info
+             { key: 'reason', label: '原因' },
+             { key: 'exp_added', label: '點數' },
+        ];
+        console.warn("使用預設的點數紀錄欄位，因為藍圖載入失敗或不存在。");
+    }
 
     // 渲染表頭
     let headerHTML = '';
@@ -227,14 +240,29 @@ function renderExpHistoryList(records) {
         columns.forEach(col => {
             const cell = row.insertCell();
             let cellContent;
-            if (col.key === 'created_at') {
-                cellContent = new Date(record.created_at).toLocaleString('sv-SE');
-            } else if (col.key === 'exp_added') {
+            
+            // 1. 特殊處理：日期 (顯示更完整的日期時間)
+            if (col.key === 'created_at' || col.isDate) {
+                // 使用 toLocaleString 以顯示更完整的日期時間
+                cellContent = new Date(record.created_at).toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } 
+            // 2. 特殊處理：點數 (exp_added)
+            else if (col.key === 'exp_added') {
                 const expSign = record.exp_added > 0 ? '+' : '';
                 cell.style.fontWeight = 'bold';
                 cell.style.color = record.exp_added > 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 cellContent = `${expSign}${record.exp_added}`;
-            } else {
+            } 
+            // 3. 特殊處理：顧客資訊 (新需求)
+            else if (col.key === 'user_info') {
+                 // 優先使用 real_name，其次是 line_display_name
+                 const displayName = record.real_name || record.line_display_name || 'N/A';
+                 const phoneDisplay = record.phone ? record.phone : '無電話';
+                 // 使用 compound-cell 樣式 (已在 admin-panel.html 的 style 中定義)
+                 cellContent = `<div class="main-info compound-cell">${displayName}</div><div class="sub-info compound-cell">${phoneDisplay}</div>`;
+            }
+            // 4. 預設：使用 getProperty
+            else {
                 cellContent = getProperty(record, col.key, 'N/A');
             }
             cell.innerHTML = cellContent;
@@ -249,13 +277,16 @@ function handleHistoryFilter() {
     const searchTerm = expUserFilterInput.value.toLowerCase().trim();
     const filteredRecords = searchTerm
         ? allExpHistory.filter(record => 
+            // 擴增搜尋範圍：line_display_name, real_name, phone, user_id, reason
             (record.line_display_name || '').toLowerCase().includes(searchTerm) ||
-            (record.user_id || '').toLowerCase().includes(searchTerm)
+            (record.real_name || '').toLowerCase().includes(searchTerm) ||
+            (record.phone || '').includes(searchTerm) ||
+            (record.user_id || '').toLowerCase().includes(searchTerm) ||
+            (record.reason || '').toLowerCase().includes(searchTerm)
           )
         : allExpHistory;
     renderExpHistoryList(filteredRecords);
 }
-
 
 // --- 初始化與事件綁定 ---
 

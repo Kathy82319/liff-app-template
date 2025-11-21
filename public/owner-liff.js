@@ -1,3 +1,10 @@
+{
+type: uploaded file
+fileName: public/owner-liff.js
+fullContent:
+// public/owner-liff.js
+// 【v6.6 - 修復 404 錯誤視窗干擾、移除標記入住按鈕】
+
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
     let userId = null;
@@ -8,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allProducts = []; // 【控房】需要讀取所有產品
     let currentHistoryState = { modal: null };
     let currentEditingProfile = null;
-    let currentOpUser = null; // 【新增】當前現場作業選中的顧客
+    let currentOpUser = null; // 當前現場作業選中的顧客
 
     // --- DOM 元素快取 ---
     const loadingView = document.getElementById('loading-view');
@@ -95,8 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 樣板特定元素 ---
     const ecommerceManageBtns = document.querySelector('.ecommerce-manage-buttons');
 
-    // --- API 輔助函式 (【修正 2】加入 credentials 解決權限問題) ---
+    // --- API 輔助函式 (【修正】加入 skipGlobalError 選項) ---
     async function fetchData(url, options = {}) {
+        const skipGlobalError = options.skipGlobalError || false; // 新增：是否跳過全域錯誤提示
+        
         try {
             // 預設加入 credentials: 'same-origin' 以傳送 Cookie
             const defaultOptions = { credentials: 'same-origin' };
@@ -126,9 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(error);
-            alert(`[fetchData Error] ${error.message}\n\nURL: ${url.split('/').pop()}`);
-            displayInlineError(error.message, getCurrentVisibleTabContentId());
-            throw error;
+            // 【修正】如果設定了 skipGlobalError，就不顯示 alert 和 inline error
+            if (!skipGlobalError) {
+                alert(`[fetchData Error] ${error.message}\n\nURL: ${url.split('/').pop()}`);
+                displayInlineError(error.message, getCurrentVisibleTabContentId());
+            }
+            throw error; // 依然拋出錯誤供呼叫端處理
         }
     }
 
@@ -645,8 +657,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  
                  let userProfile = null;
                  try {
-                    userProfile = (await fetchData(`/api/admin/user-details?userId=${bookingData.user_id}`)).profile;
-                 } catch (e) { console.warn("獲取 booking 的 user profile 失敗", e); }
+                    // 【修正 3】查詢 User Profile 時加入 skipGlobalError 選項，避免 404 跳出 Alert
+                    userProfile = (await fetchData(`/api/admin/user-details?userId=${bookingData.user_id}`, { skipGlobalError: true })).profile;
+                 } catch (e) { console.warn("獲取 booking 的 user profile 失敗 (可能為訪客或 ID 不存在)", e); }
                  
                  const bookingDetails = { booking: bookingData, items: bookingData.items, user: userProfile };
                  title = `預約 #${id} (${bookingDetails.booking.contact_name})`;
@@ -732,6 +745,9 @@ document.addEventListener('DOMContentLoaded', () => {
      }
      function renderBookingActions(booking, user) {
          let actions = [];
+         
+         // 【修正 4】移除產生「標記入住/報到」按鈕的程式碼
+         /*
          if (currentTemplate === 'studio_template') {
              if (booking.status === 'confirmed') {
                  actions.push(`<button class="cta-button" data-action="check-in" data-id="${booking.booking_id}" style="background-color: var(--color-success);">標記報到</button>`);
@@ -741,6 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  actions.push(`<button class="cta-button" data-action="check-in" data-id="${booking.booking_id}" style="background-color: var(--color-success);">標記入住</button>`);
              }
          }
+         */
+
          if (booking.status !== 'cancelled' && booking.status !== 'no-show') {
               actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id}" style="background-color: var(--color-danger);">取消預約</button>`);
          }
@@ -1441,10 +1459,6 @@ document.addEventListener('DOMContentLoaded', () => {
         opSearchResultContainer.innerHTML = '<p>查詢中...</p>';
         opSearchResultContainer.style.display = 'block';
 
-        // 嘗試判斷是 Voucher ID 還是 使用者搜尋
-        // 假設 Voucher ID 是 8 碼亂數 (不含中文)，而名字通常含中文或手機是數字
-        // 這裡簡化邏輯：都先當作使用者搜尋，如果是 Voucher ID 再另外判斷(較複雜，先做 User Search)
-        
         try {
             const users = await fetchData(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
             
@@ -1628,3 +1642,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 啟動 App ---
     main();
 });
+}

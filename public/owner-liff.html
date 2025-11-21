@@ -1,3 +1,7 @@
+{
+type: uploaded file
+fileName: public/owner-liff.html
+fullContent:
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -9,32 +13,29 @@
     <style>
         /* 老闆 LIFF 專屬樣式調整 */
         body {
-            /* 【修改】移除頂部標題橫幅的空間 */
-            padding-top: 15px; /* 原本是 60px */
-            padding-bottom: 70px; /* 為固定 TabBar 預留空間 */
+            padding-top: 15px;
+            padding-bottom: 70px;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        /* 【刪除】#app-header 相關樣式 (因為元素已移除) */
-
         #app-container {
             flex-grow: 1;
             padding: 15px;
             box-sizing: border-box;
-            overflow-y: auto; /* 允許內容滾動 */
+            overflow-y: auto;
         }
 
         /* Tab 內容頁基本樣式 */
         .tab-content {
-            display: none; /* 預設隱藏 */
+            display: none;
         }
         .tab-content.active {
-            display: block; /* 顯示當前 Tab */
+            display: block;
         }
 
-        /* --- 【新增】視圖切換按鈕 --- */
+        /* --- 視圖切換按鈕 --- */
         .view-switcher {
             display: flex;
             justify-content: center;
@@ -61,27 +62,27 @@
             color: var(--color-bg);
         }
         .sub-view {
-            display: none; /* 子視圖預設隱藏 */
+            display: none;
         }
         .sub-view.active {
-            display: block; /* 顯示當前的子視圖 */
+            display: block;
         }
 
-        /* --- 【新增】控房管理 (RC) 樣式 --- */
+        /* --- 控房管理 (RC) 樣式 --- */
         #rc-grid-container {
-            overflow-x: auto; /* 關鍵：允許表格水平滾動 */
+            overflow-x: auto;
             margin-top: 1rem;
         }
         .rc-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 700px; /* 確保表格有最小寬度以觸發滾動 */
+            min-width: 700px;
         }
         .rc-table th, .rc-table td {
             border: 1px solid var(--color-secondary);
             padding: 5px;
             text-align: center;
-            min-width: 100px; /* 每格最小寬度 */
+            min-width: 100px;
             vertical-align: top;
             font-size: 0.9rem;
         }
@@ -91,7 +92,6 @@
             top: 0;
             z-index: 10;
         }
-        /* 固定第一欄 (房型名稱) */
         .rc-table th:first-child, .rc-table td:first-child {
             position: sticky;
             left: 0;
@@ -100,30 +100,17 @@
             font-weight: bold;
             z-index: 5;
         }
-        /* 左上角固定 */
         .rc-table th:first-child {
             z-index: 11;
         }
-/* 控房表格內的輸入框和按鈕 */
-.rc-table input[type="number"] {
-    width: 90%;
-    padding: 4px;
-    font-size: 0.9em;
-    text-align: center;
-    
-    /* 【新增】標準屬性 (消除警告) */
-    appearance: textfield;
-    
-    /* 【保留】Firefox 專用 (確保功能) */
-    -moz-appearance: textfield; /* Firefox */
-}
-
-/* (後面的 -webkit- 樣式保持不變，它們是用來隱藏 Chrome/Safari 箭頭的) */
-.rc-table input::-webkit-outer-spin-button,
-.rc-table input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
+        .rc-table input[type="number"] {
+            width: 90%;
+            padding: 4px;
+            font-size: 0.9em;
+            text-align: center;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
         .rc-table input::-webkit-outer-spin-button,
         .rc-table input::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -139,12 +126,9 @@
             cursor: pointer;
             margin-bottom: 5px;
         }
-        /* 狀態按鈕顏色 */
         .rc-status-btn.status-open { background-color: #28a745; }
         .rc-status-btn.status-closed { background-color: #dc3545; }
         .rc-status-btn.status-soldout { background-color: #ffc107; color: #212529; }
-        
-        /* 警告圖示 */
         .rc-price-warning {
              color: #ffc107;
              font-weight: bold;
@@ -152,8 +136,7 @@
              cursor: help;
         }
 
-
-        /* --- (原有的動態/日曆/訂單卡片/Modal 樣式保持不變) --- */
+        /* --- 動態/日曆/訂單卡片/Modal 樣式 --- */
         .activity-card {
             background-color: var(--color-card-bg); border-radius: var(--border-radius); padding: 15px; margin-bottom: 15px; border-left: 5px solid var(--color-accent); cursor: pointer;
         }
@@ -219,6 +202,21 @@
         }
          #owner-tab-bar .tab-button.active {
              color: var(--color-accent); transform: scale(1.1);
+        }
+        
+        /* --- 核銷分頁專用樣式 --- */
+        .redeem-section {
+            border: 1px solid var(--color-secondary);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            background-color: rgba(255,255,255,0.05);
+        }
+        .redeem-user-card {
+            background-color: var(--color-card-bg);
+            border-left: 4px solid var(--color-success);
+            padding: 10px;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -311,13 +309,58 @@
                 <div id="customer-search-results"></div>
             </div>
 
-            <div id="tab-content-redeem" class="tab-content" style="text-align: center;">
-                <h2 class="page-main-title">優惠券核銷</h2>
-                <p>請掃描顧客 LIFF App 上的優惠券 QR Code</p>
-                <button id="start-redeem-scan-btn" class="cta-button" style="margin: 20px auto; width: 80%;">啟動相機掃碼</button>
-                <div id="redeem-qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto; display: none; border: 1px solid var(--color-secondary); border-radius: 5px;"></div>
-                <div id="redeem-status-message" style="margin-top: 20px; font-size: 1.1em; min-height: 2em; white-space: pre-wrap;"></div>
+            <div id="tab-content-redeem" class="tab-content">
+                <h2 class="page-main-title">現場作業中心</h2>
+                
+                <div class="redeem-section" style="text-align: center;">
+                    <h3 style="margin-top: 0;">快速核銷</h3>
+                    <button id="start-redeem-scan-btn" class="cta-button" style="margin: 10px auto; width: 80%; background-color: var(--color-info);">啟動相機掃碼</button>
+                    <div id="redeem-qr-reader" style="width: 100%; max-width: 400px; margin: 10px auto; display: none; border: 1px solid var(--color-secondary); border-radius: 5px;"></div>
+                    <div id="redeem-status-message" style="margin-top: 10px; font-size: 1.1em; min-height: 1.5em; white-space: pre-wrap;"></div>
+                </div>
+
+                <div class="redeem-section">
+                    <h3 style="margin-top: 0;">手動搜尋 / 點數發放</h3>
+                    <div class="filter-controls">
+                        <input type="search" id="op-search-input" placeholder="輸入姓名、電話或優惠券 ID..." style="flex-grow: 2;">
+                        <button id="op-search-btn" class="cta-button" style="padding: 8px 15px; width: auto;">查詢</button>
+                    </div>
+                    
+                    <div id="op-search-result-container" style="display: none;">
+                        </div>
+
+                    <div id="op-action-panel" style="display: none; margin-top: 15px; border-top: 1px dashed var(--color-secondary); padding-top: 15px;">
+                        
+                        <div class="view-switcher" style="margin-bottom: 10px;">
+                            <button class="view-switch-btn active" data-op-view="points">發放點數</button>
+                            <button class="view-switch-btn" data-op-view="vouchers">核銷優惠券</button>
+                        </div>
+
+                        <div id="op-view-points" style="display: block;">
+                            <div class="form-group">
+                                <label>點數:</label>
+                                <input type="number" id="op-points-input" placeholder="輸入點數" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>原因:</label>
+                                <select id="op-points-reason">
+                                    <option value="消費回饋">消費回饋</option>
+                                    <option value="活動獎勵">活動獎勵</option>
+                                    <option value="補償">補償</option>
+                                </select>
+                            </div>
+                            <button id="op-submit-points-btn" class="cta-button" style="background-color: var(--color-success);">確認發放</button>
+                        </div>
+
+                        <div id="op-view-vouchers" style="display: none;">
+                            <p style="margin-bottom: 5px;">該顧客持有之優惠券：</p>
+                            <div id="op-voucher-list" style="max-height: 200px; overflow-y: auto;">
+                                </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
             <button id="go-to-admin-panel-btn" class="cta-button" style="margin-top: 30px; background-color: var(--color-secondary);">開啟完整版後台</button>
 
         </div>
@@ -450,7 +493,7 @@
         <button class="tab-button active" data-tab="activity">最新<br>動態</button>
         <button class="tab-button" data-tab="booking">預約<br>管理</button>
         <button class="tab-button" data-tab="room-control" style="display: none;">控房<br>管理</button> 
-        <button class="tab-button" data-tab="redeem">核銷<br>票券</button>
+        <button class="tab-button" data-tab="redeem">核銷<br>點數</button>
         <button class="tab-button" data-tab="customer">顧客<br>查詢</button>
     </nav>
 
@@ -461,3 +504,4 @@
     <script src="owner-liff.js"></script>
 </body>
 </html>
+}

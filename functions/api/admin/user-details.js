@@ -27,19 +27,38 @@ export async function onRequest(context) {
              return new Response(JSON.stringify({ error: '找不到該使用者' }), { status: 404 });
         }
 
-        // 2. 獲取預約紀錄
+        // 2. 獲取預約紀錄 (主檔)
         const bookingsStmt = db.prepare("SELECT * FROM Bookings WHERE user_id = ? ORDER BY booking_date DESC");
         const bookingsResult = await bookingsStmt.bind(userId).all();
+        const bookings = bookingsResult.results || [];
 
-        // 3. 獲取消費紀錄
+        // --- 【新增】3. 獲取預約項目 (明細) 並組裝 ---
+        if (bookings.length > 0) {
+            const bookingIds = bookings.map(b => b.booking_id);
+            // 為了避免 SQL 語法錯誤，確保 ID 列表不為空
+            const placeholders = bookingIds.map(() => '?').join(',');
+            
+            const itemsStmt = db.prepare(`SELECT * FROM BookingItems WHERE booking_id IN (${placeholders})`);
+            // 使用 spread operator 傳入參數
+            const itemsResult = await itemsStmt.bind(...bookingIds).all();
+            const allItems = itemsResult.results || [];
+
+            // 將項目分配回對應的預約
+            bookings.forEach(booking => {
+                booking.items = allItems.filter(item => item.booking_id === booking.booking_id);
+            });
+        }
+        // --- 【新增結束】 ---
+
+        // 4. 獲取消費紀錄
         const expHistoryStmt = db.prepare("SELECT * FROM Purchasehistory WHERE user_id = ? ORDER BY created_at DESC");
         const expHistoryResult = await expHistoryStmt.bind(userId).all();
         
-        // 4. 獲取儲值金紀錄
+        // 5. 獲取儲值金紀錄
         const storedValueStmt = db.prepare("SELECT * FROM StoredValueHistory WHERE user_id = ? ORDER BY created_at DESC");
         const storedValueResult = await storedValueStmt.bind(userId).all();
 
-        // --- 【新增】5. 獲取優惠券持有紀錄 ---
+        // 6. 獲取優惠券持有紀錄
         const vouchersStmt = db.prepare(`
             SELECT uv.*, vt.title, vt.type, vt.value, vt.valid_to
             FROM UserVouchers uv
@@ -49,13 +68,13 @@ export async function onRequest(context) {
         `);
         const vouchersResult = await vouchersStmt.bind(userId).all();
 
-        // 6. 打包回傳
+        // 7. 打包回傳
         const responseData = {
             profile: profile,
-            bookings: bookingsResult.results || [],
+            bookings: bookings, // 已包含 items
             exp_history: expHistoryResult.results || [],
             stored_value_history: storedValueResult.results || [],
-            vouchers: vouchersResult.results || [] // 【新增】
+            vouchers: vouchersResult.results || []
         };
 
         return new Response(JSON.stringify(responseData), {

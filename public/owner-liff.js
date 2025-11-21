@@ -786,18 +786,17 @@ function debounce(func, delay) {
      }
 
      // --- 渲染顧客詳情 Body (修正版：支援設定開關) ---
-    function renderCustomerDetailsBody(data) {
+function renderCustomerDetailsBody(data) {
          const { profile, bookings, exp_history, vouchers } = data; 
          
-         // 讀取當前樣板的設定
+         // 讀取設定
          const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate];
          const features = templateDefinition?.features || {};
          
-         // 【關鍵修正】讀取開關，預設為開啟
          const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
          const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
 
-         // 整理優惠券 HTML (如果功能開啟)
+         // 整理優惠券 HTML
          let vouchersHtml = '';
          if (showVouchers) {
              if (vouchers && vouchers.length > 0) {
@@ -816,6 +815,52 @@ function debounce(func, delay) {
                  vouchersHtml = '<p style="color:var(--color-text-secondary);">無可用優惠券</p>';
              }
          }
+
+         // --- 【重點修改】近期預約 HTML 生成 ---
+         let bookingsHtml = '';
+         if (bookings && bookings.length > 0) {
+             bookingsHtml = bookings.slice(0, 5).map(b => { // 顯示最近 5 筆
+                 // 1. 處理時間顯示 (區間 或 時段)
+                 let timeDisplay = b.booking_date;
+                 if (b.check_out_date && b.check_out_date !== b.booking_date) {
+                     timeDisplay += ` ~ ${b.check_out_date}`; // 民宿：日期範圍
+                 } else if (b.time_slot) {
+                     timeDisplay += ` ${b.time_slot}`; // 工作室：日期+時間
+                 }
+
+                 // 2. 處理項目顯示
+                 const itemsDisplay = (b.items && b.items.length > 0)
+                     ? b.items.map(i => `${i.item_name} x${i.quantity}`).join(', ')
+                     : '無項目資料';
+
+                 // 3. 處理金額顯示
+                 const amountDisplay = b.total_amount !== null ? `$${b.total_amount}` : '-';
+
+                 // 4. 狀態顏色
+                 let statusColor = '#666';
+                 if (b.status === 'confirmed') statusColor = 'var(--color-primary)';
+                 if (b.status === 'checked-in') statusColor = 'var(--color-success)';
+                 if (b.status === 'cancelled') statusColor = '#dc3545';
+
+                 return `
+                    <div style="background: var(--color-bg); border: 1px solid var(--color-secondary); border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-weight: bold; font-size: 0.95rem;">${timeDisplay}</span>
+                            <span style="font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; background: ${statusColor}; color: white;">${translateStatus(b.status)}</span>
+                        </div>
+                        <div style="font-size: 0.9rem; color: var(--color-text-dark); margin-bottom: 3px;">
+                            ${itemsDisplay}
+                        </div>
+                        <div style="text-align: right; font-size: 0.9rem; color: var(--color-text-secondary);">
+                            總金額: <strong style="color: var(--color-primary);">${amountDisplay}</strong>
+                        </div>
+                    </div>
+                 `;
+             }).join('');
+         } else {
+             bookingsHtml = '<p style="color: var(--color-text-secondary);">尚無預約紀錄</p>';
+         }
+         // --- 【修改結束】 ---
 
          let html = `
              <h4>基本資料</h4>
@@ -839,12 +884,11 @@ function debounce(func, delay) {
              <p><strong>備註:</strong> ${profile.notes || '無'}</p>
          `;
 
-         // 【關鍵修正】只有在開啟時才顯示優惠券區塊
          if (showVouchers) {
              html += `<h4>持有優惠券</h4><div style="max-height: 150px; overflow-y: auto;">${vouchersHtml}</div>`;
          }
 
-         html += `<h4>近期預約</h4>${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}`;
+         html += `<h4>近期預約</h4><div style="max-height: 300px; overflow-y: auto;">${bookingsHtml}</div>`;
          
          return html;
     }
@@ -974,7 +1018,7 @@ function debounce(func, delay) {
           return buttonsHtml;
     }
 
-    
+
      function bindModalActions() {
          detailsModalActions.querySelectorAll('button').forEach(button => {
              button.addEventListener('click', handleModalAction);

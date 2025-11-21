@@ -10,6 +10,16 @@ let currentSelectedUserForPoints = null;
 let allExpHistory = []; 
 let activeTemplate = null; 
 
+
+// --- 【新增】所需預設欄位定義 (包含新的 user_info key) ---
+const EXP_HISTORY_COLUMNS_DEFINITION = [
+     // 預設欄位必須在這裡明確定義，否則不會被渲染
+     { key: 'created_at', label: '日期', enabled: true },
+     { key: 'user_info', label: '顧客 (姓名/電話)', enabled: true }, // 新增：自定義 Key
+     { key: 'reason', label: '原因', enabled: true },
+     { key: 'exp_added', label: '點數', enabled: true },
+];
+
 /**
  * 安全地獲取物件的巢狀屬性 (用於紀錄列表)
  */
@@ -201,26 +211,28 @@ async function loadExpHistory() {
 
 function renderExpHistoryList(records) {
     const expHistoryTbody = document.getElementById('exp-history-tbody');
-    // 注意：這裡要找的是 #page-points 裡面的 table head
     const expHistoryTheadTr = document.querySelector('#points-tab-history thead tr');
 
     if (!expHistoryTbody || !expHistoryTheadTr) return;
 
     let columns = [];
+    
+    // 【修改點 1】：優先使用藍圖，但如果藍圖沒有定義 'user_info'，則使用增強型預設
     if (activeTemplate && Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
-        // 使用藍圖定義的欄位
-        columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
+        // 檢查藍圖中是否包含 user_info 的 key
+        if (!activeTemplate.logic.adminExpHistoryColumns.some(col => col.key === 'user_info')) {
+             // 如果藍圖中沒有，則使用我們定義的增強型預設
+             columns = EXP_HISTORY_COLUMNS_DEFINITION.slice(); 
+             console.warn("點數紀錄：藍圖缺少 'user_info' 欄位定義，使用增強型預設欄位。");
+        } else {
+             // 否則，使用藍圖定義並過濾未啟用的
+             columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
+        }
     } else {
-        // 如果沒有藍圖或載入失敗，使用一個包含使用者資訊的預設集
-        columns = [
-             { key: 'created_at', label: '日期', isDate: true },
-             { key: 'user_info', label: '顧客 (姓名/電話)' }, // Custom key for combined info
-             { key: 'reason', label: '原因' },
-             { key: 'exp_added', label: '點數' },
-        ];
-        console.warn("使用預設的點數紀錄欄位，因為藍圖載入失敗或不存在。");
+        // 如果沒有載入藍圖，直接使用增強型預設。
+        columns = EXP_HISTORY_COLUMNS_DEFINITION.slice();
     }
-
+    
     // 渲染表頭
     let headerHTML = '';
     columns.forEach(col => {
@@ -242,8 +254,7 @@ function renderExpHistoryList(records) {
             let cellContent;
             
             // 1. 特殊處理：日期 (顯示更完整的日期時間)
-            if (col.key === 'created_at' || col.isDate) {
-                // 使用 toLocaleString 以顯示更完整的日期時間
+            if (col.key === 'created_at') {
                 cellContent = new Date(record.created_at).toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             } 
             // 2. 特殊處理：點數 (exp_added)
@@ -253,12 +264,10 @@ function renderExpHistoryList(records) {
                 cell.style.color = record.exp_added > 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 cellContent = `${expSign}${record.exp_added}`;
             } 
-            // 3. 特殊處理：顧客資訊 (新需求)
-            else if (col.key === 'user_info') {
-                 // 優先使用 real_name，其次是 line_display_name
+            // 3. 【關鍵修改】：處理 'user_info' 自定義欄位
+            else if (col.key === 'user_info') { 
                  const displayName = record.real_name || record.line_display_name || 'N/A';
                  const phoneDisplay = record.phone ? record.phone : '無電話';
-                 // 使用 compound-cell 樣式 (已在 admin-panel.html 的 style 中定義)
                  cellContent = `<div class="main-info compound-cell">${displayName}</div><div class="sub-info compound-cell">${phoneDisplay}</div>`;
             }
             // 4. 預設：使用 getProperty

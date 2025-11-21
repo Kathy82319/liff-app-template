@@ -910,28 +910,24 @@ if (!showStoredValue) {
 
 async function initializeProfilePage() {
         if (!userProfile) return;
-        const features = activeTemplate?.features || {};
+
+        // 1. 獲取設定
         const terms = activeTemplate?.terms || {};
-        // 【分流控制】讀取 CLIENT 專屬開關
-    const showVouchers = features.CLIENT_SHOW_VOUCHERS !== false;
-    const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
-
-    const myStoredValueBtn = document.querySelector('#my-stored-value-btn');
-
-    if (myVouchersBtn) myVouchersBtn.style.display = showVouchers ? 'block' : 'none';
-    if (myStoredValueBtn) myStoredValueBtn.style.display = showStoredValue ? 'block' : 'none';
+        const features = activeTemplate?.features || {};
+        
         console.log("[LIFF script.js] initializeProfilePage 讀取到的 Features:", JSON.stringify(features));
 
+        // 2. 宣告所有 DOM 元素 (確保在使用前宣告)
         const bookingsBtn = document.querySelector('#my-bookings-btn');
         const expHistoryBtn = document.querySelector('#my-exp-history-btn');
-        const editProfileBtn = document.querySelector('#edit-profile-btn');
-
         const myVouchersBtn = document.querySelector('#my-vouchers-btn');
-        if (myVouchersBtn) {
-            // 假設優惠券功能是跟隨會員系統的
-            myVouchersBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM) ? 'block' : 'none';
-        }
+        const myStoredValueBtn = document.querySelector('#my-stored-value-btn'); // 新增的儲值金按鈕
+        const editProfileBtn = document.querySelector('#edit-profile-btn');
+        const profilePicture = document.getElementById('profile-picture');
+        const qrcodeContainer = document.getElementById('qrcode-container');
+        const qrcodeElement = document.getElementById('qrcode');
 
+        // 3. 設定按鈕文字 (依據 Terms)
         if (bookingsBtn) {
             bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
         }
@@ -942,26 +938,41 @@ async function initializeProfilePage() {
             editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
         }
 
-        console.log(`[LIFF script.js] 點數按鈕顯示邏輯: ENABLE_MEMBERSHIP_SYSTEM (${features.ENABLE_MEMBERSHIP_SYSTEM}) && PROFILE_SHOW_EXP_HISTORY_BTN !== false (${features.PROFILE_SHOW_EXP_HISTORY_BTN !== false})`);
-
+        // 4. 設定按鈕顯示狀態 (依據 Features 分流設定)
+        
+        // 點數紀錄按鈕：需啟用會員系統 且 未被隱藏
         if (expHistoryBtn) {
-            expHistoryBtn.style.display = (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false) ? 'block' : 'none';
+            const showExp = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false;
+            expHistoryBtn.style.display = showExp ? 'block' : 'none';
         }
+
+        // 預約紀錄按鈕：需啟用預約系統
         if (bookingsBtn) {
             bookingsBtn.style.display = features.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
         }
 
-        const profilePicture = document.getElementById('profile-picture');
+        // 優惠券按鈕：依據 CLIENT_SHOW_VOUCHERS 設定 (預設開啟)
+        if (myVouchersBtn) {
+            const showVouchers = features.CLIENT_SHOW_VOUCHERS !== false;
+            myVouchersBtn.style.display = showVouchers ? 'block' : 'none';
+        }
+
+        // 儲值金按鈕：依據 CLIENT_SHOW_STORED_VALUE 設定 (預設開啟)
+        if (myStoredValueBtn) {
+            const showStored = features.CLIENT_SHOW_STORED_VALUE !== false;
+            myStoredValueBtn.style.display = showStored ? 'block' : 'none';
+        }
+
+        // 5. 設定頭像
         if (profilePicture && userProfile.pictureUrl) {
             profilePicture.src = userProfile.pictureUrl;
         }
 
-        console.log(`[LIFF script.js] QR Code 顯示邏輯: ENABLE_MEMBERSHIP_SYSTEM (${features.ENABLE_MEMBERSHIP_SYSTEM}) && PROFILE_SHOW_QR_CODE !== false (${features.PROFILE_SHOW_QR_CODE !== false})`);
-
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        const qrcodeElement = document.getElementById('qrcode');
+        // 6. QR Code 顯示邏輯
         if (qrcodeContainer && qrcodeElement) {
-             if (features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false) {
+             const showQr = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false;
+             
+             if (showQr) {
                  qrcodeContainer.style.display = 'flex';
                  qrcodeElement.innerHTML = ''; 
                  try {
@@ -975,6 +986,7 @@ async function initializeProfilePage() {
              }
         }
 
+        // 7. 載入會員資料並更新顯示
         try {
             const userData = await fetchproductData(true); 
             updateProfileDisplay(userData); 

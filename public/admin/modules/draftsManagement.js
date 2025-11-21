@@ -11,7 +11,7 @@ const FIXED_DRAFT_IDS = {
 };
 
 const FIXED_DRAFT_TITLES = {
-    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "入住自動發送的通知"
+    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "預約自動發送的通知"
 };
 
 /**

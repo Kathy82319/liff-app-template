@@ -11,6 +11,10 @@ function populateStoreInfoForm(info) {
     document.getElementById('info-phone').value = info.phone || '';
     document.getElementById('info-hours').value = info.opening_hours || '';
     document.getElementById('info-desc').value = info.description || '';
+    
+    // 【新增】填充政策欄位
+    document.getElementById('info-policy').value = info.cancellationPolicy || '';
+    document.getElementById('info-instructions').value = info.checkInInstructions || '';
 }
 
 // 綁定事件監聽器
@@ -20,18 +24,22 @@ function setupEventListeners() {
         storeInfoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitButton = storeInfoForm.querySelector('button[type="submit"]');
+            
             const formData = {
                 address: document.getElementById('info-address').value,
                 phone: document.getElementById('info-phone').value,
                 opening_hours: document.getElementById('info-hours').value,
-                description: document.getElementById('info-desc').value
+                description: document.getElementById('info-desc').value,
+                // 【新增】收集政策欄位
+                cancellationPolicy: document.getElementById('info-policy').value,
+                checkInInstructions: document.getElementById('info-instructions').value
             };
 
             try {
                 submitButton.textContent = '儲存中...';
                 submitButton.disabled = true;
                 await api.updateStoreInfo(formData);
-                ui.toast.success('店家資訊更新成功！');
+                ui.toast.success('店家資訊與政策更新成功！');
             } catch (error) {
                 ui.toast.error(`錯誤：${error.message}`);
             } finally {
@@ -51,7 +59,6 @@ export const init = async () => {
         const info = await api.getStoreInfo();
         populateStoreInfoForm(info);
         
-        // 確保事件只被綁定一次
         if (!storeInfoForm.dataset.initialized) {
             setupEventListeners();
             storeInfoForm.dataset.initialized = 'true';

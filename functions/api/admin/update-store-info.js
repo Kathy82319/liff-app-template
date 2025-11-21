@@ -1,44 +1,56 @@
+// functions/api/admin/update-store-info.js
 export async function onRequest(context) {
   try {
-    if (context.request.method !== 'POST') { //
-      return new Response('Invalid request method.', { status: 405 }); //
+    if (context.request.method !== 'POST') {
+      return new Response('Invalid request method.', { status: 405 });
     }
 
-    const body = await context.request.json(); //
-    const { address, phone, opening_hours, description } = body; //
+    const body = await context.request.json();
+    const { address, phone, opening_hours, description, cancellationPolicy, checkInInstructions } = body;
 
-    // --- (驗證區塊保持不變) ---
-    const errors = []; //
-    if (!address || typeof address !== 'string' || address.trim().length === 0 || address.length > 200) { errors.push('地址為必填，且長度不可超過 200 字。'); } //
-    if (!phone || typeof phone !== 'string' || phone.trim().length === 0 || phone.length > 50) { errors.push('電話為必填，且長度不可超過 50 字。'); } //
-    if (!opening_hours || typeof opening_hours !== 'string' || opening_hours.trim().length === 0 || opening_hours.length > 500) { errors.push('營業時間為必填，且長度不可超過 500 字。'); } //
-    // 【修改】修正原本複製錯誤的"公會介紹" -> "店家介紹"
-    if (!description || typeof description !== 'string' || description.trim().length === 0 || description.length > 2000) { errors.push('店家介紹為必填，且長度不可超過 2000 字。'); } //
+    // --- 驗證 ---
+    const errors = [];
+    if (!address) errors.push('地址為必填。');
+    if (!phone) errors.push('電話為必填。');
+    // 政策欄位是選填的，但如果有傳，我們就更新
 
-
-    if (errors.length > 0) { //
-        return new Response(JSON.stringify({ error: errors.join(' ') }), { status: 400 }); //
+    if (errors.length > 0) {
+        return new Response(JSON.stringify({ error: errors.join(' ') }), { status: 400 });
     }
-    // --- 【驗證區塊結束】 ---
 
-    const db = context.env.DB; //
+    const db = context.env.DB;
+    const operations = [];
 
-    const stmt = db.prepare(
-      'UPDATE StoreInfo SET address = ?, phone = ?, opening_hours = ?, description = ? WHERE id = 1'
-    ); //
-    await stmt.bind(address, phone, opening_hours, description).run(); //
+    // 1. 更新 StoreInfo
+    operations.push(
+        db.prepare('UPDATE StoreInfo SET address = ?, phone = ?, opening_hours = ?, description = ? WHERE id = 1')
+          .bind(address, phone, opening_hours, description)
+    );
 
-    // --- 【移除】Google Sheets 同步 ---
-    // const infoDataToSync = { ... };
-    // context.waitUntil(updateRowInSheet(...));
+    // 2. 更新 MessageDrafts (ID 1) - 如果有傳入政策欄位
+    if (cancellationPolicy !== undefined || checkInInstructions !== undefined) {
+        const policyContent = JSON.stringify({
+            cancellationPolicy: cancellationPolicy || '',
+            checkInInstructions: checkInInstructions || ''
+        });
+        
+        // 使用 Upsert (如果不存在則插入，存在則更新)
+        operations.push(
+            db.prepare(`
+                INSERT INTO MessageDrafts (draft_id, title, content) VALUES (1, '入住須知編輯欄', ?)
+                ON CONFLICT(draft_id) DO UPDATE SET content=excluded.content
+            `).bind(policyContent)
+        );
+    }
 
-    return new Response(JSON.stringify({ success: true, message: '成功更新店家資訊！' }), { //
-      status: 200, headers: { 'Content-Type': 'application/json' }, //
+    await db.batch(operations);
+
+    return new Response(JSON.stringify({ success: true, message: '店家資訊與政策更新成功！' }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in update-store-info API:', error); //
-    // --- 【修改】回傳詳細錯誤 ---
-    return new Response(JSON.stringify({ error: '更新店家資訊失敗。', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' }}); //
+    console.error('Error in update-store-info API:', error);
+    return new Response(JSON.stringify({ error: '更新失敗。', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' }});
   }
 }

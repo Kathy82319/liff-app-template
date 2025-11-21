@@ -96,7 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 樣板特定元素 ---
     const ecommerceManageBtns = document.querySelector('.ecommerce-manage-buttons');
 
-    // --- API 輔助函式 (【修正】加入 skipGlobalError 選項) ---
+
+// --- 工具函式：防抖動 (避免輸入時頻繁觸發 API) ---
+function debounce(func, delay) {
+    let timer;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timer);
+        timer = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
 // --- API 輔助函式 ---
     async function fetchData(url, options = {}) {
         const skipGlobalError = options.skipGlobalError || false; 
@@ -429,13 +439,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        const custSearchInput = document.getElementById('customer-search-input');
         // 篩選與搜尋按鈕
         document.getElementById('order-filter-apply-btn')?.addEventListener('click', loadOrderList);
-        document.getElementById('customer-search-btn')?.addEventListener('click', searchCustomers);
-        customerSearchResults.addEventListener('click', (e) => {
+        if (custSearchInput) {
+            // 移除舊的按鈕點擊強制搜尋 (保留按鈕作為輔助)
+            document.getElementById('customer-search-btn')?.addEventListener('click', searchCustomers);
+            // 新增輸入監聽 (延遲 500ms)
+            custSearchInput.addEventListener('input', debounce(searchCustomers, 500));
+        }        
+            customerSearchResults.addEventListener('click', (e) => {
              const item = e.target.closest('.customer-result-item');
              if(item && item.dataset.userId){ openCustomerDetailsModal(item.dataset.userId); }
          });
+        // --- 【修改】核銷/點數 搜尋 (改為輸入即搜尋) ---
+        const opInput = document.getElementById('op-search-input');
+        if (opInput) {
+            document.getElementById('op-search-btn')?.addEventListener('click', handleOpSearch);
+            opInput.addEventListener('input', debounce(handleOpSearch, 500));
+        }
          
         // 核銷/點數 頁面按鈕
         startRedeemScanBtn?.addEventListener('click', startRedeemScanner);
@@ -633,26 +655,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
         } catch (error) {}
     }
-     async function searchCustomers() {
+    async function searchCustomers() {
         const query = document.getElementById('customer-search-input').value.trim();
-        customerSearchResults.innerHTML = '<p>搜尋中...</p>';
-        if (query.length < 1) {
-            customerSearchResults.innerHTML = '<p>請輸入至少一個字元進行搜尋。</p>';
+        
+        // 如果清空了輸入框，就清空結果
+        if (query.length === 0) {
+            customerSearchResults.innerHTML = '';
             return;
         }
+
+        customerSearchResults.innerHTML = '<p style="color:#888; padding:10px;">搜尋中...</p>';
+        
         try {
              const users = await fetchData(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
+             
              if (users.length === 0) {
-                customerSearchResults.innerHTML = '<p>找不到符合的顧客。</p>';
+                customerSearchResults.innerHTML = '<p style="padding:10px;">找不到符合的顧客。</p>';
                 return;
              }
-             customerSearchResults.innerHTML = users.map(user => `
-                <div class="customer-result-item" data-user-id="${user.user_id}" style="padding: 10px; border-bottom: 1px solid var(--color-secondary); cursor: pointer;">
-                    <p><strong>${user.line_display_name}</strong></p>
-                    <small>${user.phone || '未設定電話'}</small>
+             
+             customerSearchResults.innerHTML = users.map(user => {
+                // 組合顯示名稱：LINE暱稱 (真實姓名)
+                const displayName = user.real_name 
+                    ? `${user.line_display_name} <span style="color:var(--color-text-secondary); font-size:0.9em;">(${user.real_name})</span>` 
+                    : user.line_display_name;
+                
+                return `
+                <div class="customer-result-item" data-user-id="${user.user_id}" style="padding: 12px; border-bottom: 1px solid var(--color-secondary); cursor: pointer; background: var(--color-card-bg);">
+                    <p style="margin:0 0 5px 0; font-size: 1.1em; font-weight: bold;">${displayName}</p>
+                    <p style="margin:0; color: var(--color-text-secondary); font-size: 0.9em;">
+                        📞 ${user.phone || '未設定電話'}
+                    </p>
                 </div>
-             `).join('');
-        } catch (error) {}
+             `}).join('');
+        } catch (error) {
+            customerSearchResults.innerHTML = `<p style="color:red; padding:10px;">搜尋失敗: ${error.message}</p>`;
+        }
      }
 
      // --- Modal 內容生成與操作 ---
@@ -745,19 +783,56 @@ document.addEventListener('DOMContentLoaded', () => {
          return html;
      }
     function renderCustomerDetailsBody(data) {
-         const { profile, bookings, exp_history } = data;
+         // 解構出 vouchers (需確認後端 user-details API 有回傳此欄位)
+         const { profile, bookings, exp_history, vouchers } = data; 
+         
+         // 整理優惠券 HTML
+         let vouchersHtml = '<p>無可用優惠券</p>';
+         if (vouchers && vouchers.length > 0) {
+             const activeVouchers = vouchers.filter(v => !v.is_used); // 只顯示未使用的
+             if (activeVouchers.length > 0) {
+                 vouchersHtml = activeVouchers.map(v => `
+                    <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #e9ecef;">
+                        <span style="color: #28a745; font-weight: bold;">●</span> ${v.title} 
+                        <span style="font-size: 0.8em; color: #666;">(效期: ${v.valid_to || '永久'})</span>
+                    </div>
+                 `).join('');
+             } else {
+                 vouchersHtml = '<p style="color:#888;">無可用優惠券 (皆已使用或過期)</p>';
+             }
+         }
+
          let html = `
              <h4>基本資料</h4>
              <p><strong>LINE 名稱:</strong> ${profile.line_display_name}</p>
+             <p><strong>真實姓名:</strong> ${profile.real_name || '未設定'}</p>
              <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
              <p><strong>User ID:</strong> ${profile.user_id}</p>
-             <p><strong>等級/點數:</strong> ${profile.level} / ${profile.current_exp}</p>
-             <p><strong>方案:</strong> ${profile.class || '無'}</p>
+             
+             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; background: #f0f7ff; padding: 10px; border-radius: 8px;">
+                 <div>
+                    <strong style="color: #007bff;">等級/點數</strong><br>
+                    ${profile.level} / ${profile.current_exp}
+                 </div>
+                 <div>
+                    <strong style="color: #28a745;">儲值金</strong><br>
+                    $${profile.stored_value_balance || 0}
+                 </div>
+             </div>
+
+             <p style="margin-top: 10px;"><strong>方案:</strong> ${profile.class || '無'}</p>
              <p><strong>標籤:</strong> ${profile.tag || '無'}</p>
              <p><strong>備註:</strong> ${profile.notes || '無'}</p>
-             <h4>近期預約/訂單 (${bookings.length})</h4>
+
+             <h4>持有優惠券</h4>
+             <div style="max-height: 150px; overflow-y: auto;">
+                ${vouchersHtml}
+             </div>
+
+             <h4>近期預約 (${bookings.length})</h4>
              ${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} ${b.time_slot || ''} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}
-             <h4>近期點數紀錄 (${exp_history.length})</h4>
+             
+             <h4>近期點數紀錄</h4>
              ${exp_history.slice(0, 3).map(h => `<p>- ${new Date(h.created_at).toLocaleDateString()} ${h.reason} (${h.exp_added > 0 ? '+' : ''}${h.exp_added})</p>`).join('') || '<p>無</p>'}
          `;
          return html;
@@ -1471,25 +1546,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleOpSearch() {
-        const query = opSearchInput.value.trim();
-        if (!query) return alert('請輸入搜尋內容');
+        const query = document.getElementById('op-search-input').value.trim();
         
-        resetOpSearch(false); // 清空結果但不清空輸入
-        opSearchResultContainer.innerHTML = '<p>查詢中...</p>';
+        // 輸入為空時，重置搜尋結果，但不清空已選中的人(如果有的話)
+        if (!query) {
+            if (!currentOpUser) { // 如果還沒選人，就隱藏結果框
+                opSearchResultContainer.style.display = 'none';
+            }
+            return;
+        }
+        
+        opSearchResultContainer.innerHTML = '<p style="padding:10px;">搜尋中...</p>';
         opSearchResultContainer.style.display = 'block';
 
         try {
             const users = await fetchData(`/api/admin/user-search?q=${encodeURIComponent(query)}`);
             
             if (users.length === 0) {
-                opSearchResultContainer.innerHTML = '<p>找不到相關顧客。</p>';
+                opSearchResultContainer.innerHTML = '<p style="padding:10px;">找不到相關顧客。</p>';
             } else {
-                opSearchResultContainer.innerHTML = users.map(u => `
-                    <div class="redeem-user-card" data-user-id="${u.user_id}" style="cursor: pointer;">
-                        <div style="font-weight: bold;">${u.line_display_name}</div>
-                        <div style="font-size: 0.9rem; color: #888;">${u.phone || '無電話'}</div>
+                opSearchResultContainer.innerHTML = users.map(u => {
+                    // 組合顯示名稱：LINE暱稱 (真實姓名)
+                    const displayName = u.real_name 
+                        ? `${u.line_display_name} (${u.real_name})` 
+                        : u.line_display_name;
+
+                    return `
+                    <div class="redeem-user-card" data-user-id="${u.user_id}" style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
+                        <div style="font-weight: bold;">${displayName}</div>
+                        <div style="font-size: 0.9rem; color: #888;">📞 ${u.phone || '無電話'}</div>
                     </div>
-                `).join('');
+                `}).join('');
                 
                 // 綁定點擊事件
                 opSearchResultContainer.querySelectorAll('.redeem-user-card').forEach(card => {
@@ -1497,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         } catch (error) {
-            opSearchResultContainer.innerHTML = `<p style="color:red;">查詢失敗: ${error.message}</p>`;
+            opSearchResultContainer.innerHTML = `<p style="color:red; padding:10px;">查詢失敗: ${error.message}</p>`;
         }
     }
 

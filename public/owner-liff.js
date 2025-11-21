@@ -1,10 +1,3 @@
-{
-type: uploaded file
-fileName: public/owner-liff.js
-fullContent:
-// public/owner-liff.js
-// 【v6.5 - 修正預約詳情 ID 錯誤、Fix Cookie Auth、增強核銷點數功能】
-
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
     let userId = null;
@@ -1635,4 +1628,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 啟動 App ---
     main();
 });
-}

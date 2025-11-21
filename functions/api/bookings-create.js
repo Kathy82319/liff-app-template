@@ -1,16 +1,6 @@
 // functions/api/bookings-create.js (v4.1 - 修正活動日誌 link)
 
-// 輔助函式：產生指定日期範圍內的所有日期字串 (YYYY-MM-DD)
-function getDateRange(startDateStr, endDateStr) {
-    const dates = [];
-    let currentDate = new Date(startDateStr + 'T00:00:00');
-    const endDate = new Date(endDateStr + 'T00:00:00');
-    while (currentDate < endDate) {
-        dates.push(currentDate.toISOString().split('T')[0]);
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return dates;
-}
+import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
 
 const FIXED_DRAFT_IDS = {
     AUTO_CONFIRMATION: 2

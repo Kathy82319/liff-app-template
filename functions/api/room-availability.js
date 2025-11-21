@@ -1,24 +1,6 @@
 // functions/api/room-availability.js
 
-// 輔助函式：產生指定日期範圍內的所有日期字串 (YYYY-MM-DD)
-// 注意：這個版本不包含 endDate 本身
-function getDateRange(startDateStr, endDateStr) {
-    const dates = [];
-    let currentDate = new Date(startDateStr + 'T00:00:00');
-    const endDate = new Date(endDateStr + 'T00:00:00'); // 結束日期本身不包含
-    while (currentDate < endDate) {
-        dates.push(currentDate.toISOString().split('T')[0]);
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return dates;
-}
-
-// 輔助函式：根據日期字串獲取星期幾 (0=週日, 6=週六)
-function getDayOfWeek(dateString) {
-    // 加 T00:00:00 確保解析為當地日期
-    const date = new Date(dateString + 'T00:00:00');
-    return date.getDay();
-}
+import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
 
 export async function onRequest(context) {
     try {

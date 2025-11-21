@@ -1,66 +1,53 @@
-// functions/api/admin/_middleware.js (簡化版 - 僅 Cookie 驗證)
-import * as jose from 'jose';
+// functions/api/admin/_middleware.js - 安全修正版本
 
-async function authMiddleware(context) {
-    const { request, env, next } = context;
-    const url = new URL(request.url);
+// 引入用於 JWT 驗證的函式，假設您的專案已經有這個設定
+import { verifyAuthToken } from '../../../utils/auth-helpers.js';
 
-    if (!url.pathname.startsWith('/api/admin/')) {
-        return await next();
-    }
+// **重要：只有與「登入流程」和「狀態檢查」相關的 API 才是公開的。**
+// 任何涉及資料 CRUD（新增、讀取、修改、刪除）的 Admin API 都必須移除。
+const isPublicRoute = (pathname) => {
+  const publicRoutes = [
+    '/api/admin/auth/login',    // 允許：未登入狀態下呼叫登入
+    '/api/admin/auth/status',   // 允許：檢查登入狀態
+    '/api/admin/auth/logout',   // 允許：登出操作
+  ];
+  // 檢查當前路徑是否在公開清單中
+  return publicRoutes.some(route => pathname.endsWith(route));
+};
 
-    // 1. 公開路由檢查 (登入/登出 API)
-    const isPublicRoute = url.pathname.startsWith('/api/admin/auth/login') ||
-                          url.pathname.startsWith('/api/admin/auth/logout') ||
-                          url.pathname.startsWith('/api/admin/verify-liff-user') ||
-                          url.pathname.startsWith('/api/generate-admin-link') ||
-                          url.pathname.startsWith('/api/admin/dashboard-stats') ||
-                          url.pathname.startsWith('/api/get-bookings') ||     
-                          url.pathname.startsWith('/api/update-booking-status') || 
-                          url.pathname.startsWith('/api/admin/get-orders');      
-                          url.pathname.startsWith('/api/admin/activities') ||
-                          url.pathname.startsWith('/api/admin/user-search') ||
-                          url.pathname.startsWith('/api/admin/user-details');
-                          url.pathname.startsWith('/api/admin/message-drafts') || 
-                          url.pathname.startsWith('/api/admin/create-booking') || 
-                          url.pathname.startsWith('/api/admin/update-room-inventory'); 
+export const onRequest = async (context) => {
+  const { request, next } = context;
+  const url = new URL(request.url);
+  const pathname = url.pathname.toLowerCase();
 
-    if (isPublicRoute) {
-        console.log(`[Middleware] 放行公開路由: ${url.pathname}`);
-        return await next();
-    }
+  // 1. 如果是公開路由，直接跳過驗證
+  if (isPublicRoute(pathname)) {
+    console.log(`Middleware: Public route - skipping auth for ${pathname}`);
+    return next();
+  }
 
-    // 2. 驗證 AuthToken Cookie
-    console.log(`[Middleware] 執行 Cookie 驗證: ${url.pathname}`);
-    const cookie = request.headers.get('Cookie') || '';
-    const tokenMatch = cookie.match(/AuthToken=([^;]+)/);
-    const token = tokenMatch ? tokenMatch[1] : null;
+  // 2. 處理需要驗證的路由
+  const authHeader = request.headers.get('Authorization');
 
-    if (token) {
-        try {
-            const secret = new TextEncoder().encode(env.JWT_SECRET);
-            const { payload } = await jose.jwtVerify(token, secret, {
-                 issuer: 'urn:tabletop-product:issuer',
-                 audience: 'urn:tabletop-product:audience',
-             });
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response('Unauthorized: Missing or invalid token', { status: 401 });
+  }
 
-            if (payload.role !== 'admin') {
-                console.log(`[Middleware] Cookie 驗證失敗: 權限不足 (role: ${payload.role})`);
-                return new Response(JSON.stringify({ error: 'Forbidden: Insufficient privileges' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
-            }
+  const token = authHeader.split(' ')[1];
 
-            context.data.user = payload;
-            console.log(`[Middleware] Cookie 驗證成功`);
-            return await next();
+  try {
+    // 驗證 JWT Token。這會檢查 Token 是否有效、未過期。
+    const decoded = await verifyAuthToken(token, context.env.JWT_SECRET); 
 
-        } catch (err) { /* Token 無效處理 */ }
-    }
+    // 將解碼後的用戶資訊（如 Admin ID 或角色）附加到 request context，供後續 API 存取
+    context.data = context.data || {};
+    context.data.adminUser = decoded;
 
-    // 3. 驗證失敗
-    console.log('[Middleware] Cookie 驗證失敗: 缺少或無效的 Token');
-    // 可以選擇重導向到登入頁，或直接回傳 401
-    // return Response.redirect(`https://${url.hostname}/admin-login.html`, 302); // 選項 A: 重導向
-    return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid token' }), { status: 401, headers: { /* Set-Cookie 清除 */ } }); // 選項 B: 回傳 401
-}
+    // 驗證通過，繼續處理請求
+    return next();
 
-export const onRequest = [authMiddleware];
+  } catch (error) {
+    console.error('JWT Verification Failed:', error.message);
+    return new Response('Forbidden: Invalid or expired token', { status: 403 });
+  }
+};

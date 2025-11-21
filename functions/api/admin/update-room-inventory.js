@@ -1,22 +1,8 @@
 // functions/api/admin/update-room-inventory.js
 
-// 輔助函式：產生指定日期範圍內的所有日期字串 (YYYY-MM-DD)
-function getDateRange(startDateStr, endDateStr) {
-    const dates = [];
-    let currentDate = new Date(startDateStr + 'T00:00:00');
-    const endDate = new Date(endDateStr + 'T00:00:00');
-    while (currentDate <= endDate) {
-        dates.push(currentDate.toISOString().split('T')[0]);
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return dates;
-}
+import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
 
-// 輔助函式：根據日期字串獲取星期幾 (0=週日, 6=週六)
-function getDayOfWeek(dateString) {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.getDay();
-}
+
 
 // D1 Upsert 輔助函式 (修正 key 檢查與資料類型處理 v3 - 再次修正)
 function prepareUpsertStatement(db, updates) {

@@ -483,71 +483,7 @@ adminSettingsContainer.innerHTML = `
     bindAccordionEvents(ownerLiffSettingsContainer);
 }
 
-function reconstructTemplateFromUI() {
-    const selectedKey = document.getElementById('template-selector').value;
-    if (!templateDefinitions[selectedKey]) {
-         throw new Error(`無法重構樣板：找不到樣板 key "${selectedKey}"`);
-    }
-    const currentTemplate = JSON.parse(JSON.stringify(templateDefinitions[selectedKey]));
-
-    if (!currentTemplate.features) currentTemplate.features = {};
-    if (!currentTemplate.terms) currentTemplate.terms = {};
-
-    document.querySelectorAll('#liff-app-settings, #owner-liff-settings, #admin-crm-settings-container').forEach(container => {
-        container.querySelectorAll('.setting-row [data-key]').forEach(input => {
-            const key = input.dataset.key; 
-            if (!key) return;
-
-            const keyParts = key.split('_');
-            if (keyParts.length < 2) return;
-
-            const mainKey = keyParts[0].toLowerCase(); 
-            const subKey = keyParts.slice(1).join('_');
-
-            if (currentTemplate[mainKey]) {
-                if (input.type === 'checkbox') {
-                    currentTemplate[mainKey][subKey] = input.checked;
-                } else {
-                     currentTemplate[mainKey][subKey] = input.value;
-                }
-            }
-        });
-    });
-
-    const navBar = [];
-    document.querySelectorAll('#nav-items-container .nav-item-row').forEach(row => {
-        const labelInput = row.querySelector('[name="nav_label"]');
-        const targetSelect = row.querySelector('[name="nav_target"]');
-        const enabledCheckbox = row.querySelector('[name="nav_enabled"]');
-        if (labelInput && targetSelect && enabledCheckbox) {
-            navBar.push({
-                label: labelInput.value,
-                target: targetSelect.value,
-                enabled: enabledCheckbox.checked
-            });
-        }
-    });
-
-    if (!currentTemplate.logic) currentTemplate.logic = {};
-    currentTemplate.logic.navBar = navBar;
-
-    const adminEntityNameInput = document.getElementById('setting-admin-entity-name');
-    const adminEntityNamePluralInput = document.getElementById('setting-admin-entity-name-plural');
-    if (adminEntityNameInput) currentTemplate.logic.adminEntityName = adminEntityNameInput.value.trim() || '';
-    if (adminEntityNamePluralInput) currentTemplate.logic.adminEntityNamePlural = adminEntityNamePluralInput.value.trim() || '';
-
-    const adminPagesEnabled = {};
-    const enablementContainer = document.getElementById('admin-pages-enablement-container');
-    if (enablementContainer) {
-        enablementContainer.querySelectorAll('input[type="checkbox"][data-page-key]').forEach(checkbox => {
-            const pageKey = checkbox.dataset.pageKey;
-            if (pageKey) {
-                adminPagesEnabled[pageKey] = checkbox.checked;
-            }
-        });
-        currentTemplate.logic.adminPagesEnabled = adminPagesEnabled;
-    }
-
+// --- 讀取後台欄位設定 (保持不變) ---
      function reconstructAdminColumns(containerId) {
         const container = document.getElementById(containerId);
         const columns = [];
@@ -575,6 +511,7 @@ function reconstructTemplateFromUI() {
     currentTemplate.logic.adminDraftColumns = reconstructAdminColumns('admin-columns-drafts');
     currentTemplate.logic.adminExpHistoryColumns = reconstructAdminColumns('admin-columns-exp-history');
 
+    console.log("重構完成的樣板資料:", JSON.stringify(currentTemplate, null, 2));
     return { [selectedKey]: currentTemplate };
 }
 

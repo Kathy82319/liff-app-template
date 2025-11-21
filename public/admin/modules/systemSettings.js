@@ -6,6 +6,7 @@ let allSettings = [];
 let templateDefinitions = {}; 
 let sortableInstances = {}; 
 
+// 建立單個設定列
 function createSettingRow(setting) {
     const row = document.createElement('div');
     row.className = 'setting-row';
@@ -26,7 +27,7 @@ function createSettingRow(setting) {
     return row;
 }
 
-// ... (createNavBarModule 保持不變) ...
+// 建立底部導覽列設定模組
 function createNavBarModule(navBarConfig = [], availablePages = []) { 
     const container = document.createElement('div');
     container.className = 'setting-visual-guide';
@@ -60,7 +61,7 @@ function createNavBarModule(navBarConfig = [], availablePages = []) {
     return container;
 }
 
-// ... (createLiffPageSettingsModule 保持不變) ...
+// 建立客戶端分頁設定模組
 function createLiffPageSettingsModule(pageConfig, templateFeatures, templateTerms) {
     const accordionTemplate = document.getElementById('accordion-template');
     if (!accordionTemplate) return document.createElement('div');
@@ -151,7 +152,7 @@ function createLiffPageSettingsModule(pageConfig, templateFeatures, templateTerm
     return accordionItem;
 }
 
-// ... (renderAdminPageEnablement, renderAdminColumnsSettings 保持不變) ...
+// 渲染後台頁面啟用設定 UI
 function renderAdminPageEnablement(adminPagesConfig = {}, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -192,6 +193,7 @@ function renderAdminPageEnablement(adminPagesConfig = {}, containerId) {
     }
 }
 
+// 渲染後台欄位設定 UI
 function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -220,6 +222,7 @@ function renderAdminColumnsSettings(moduleKey, adminColumnsConfig, containerId) 
     }
 }
 
+// 渲染整個樣板設定
 function renderTemplateSettings(templateKey) {
     const template = templateDefinitions[templateKey];
     if (!template) return;
@@ -254,12 +257,11 @@ function renderTemplateSettings(templateKey) {
             }));
             liffSettingsContainer.appendChild(globalAccordion);
 
-            // 【核心修改】 (2) 客戶端專屬功能開關 (分流設定)
+            // (2) 客戶端專屬功能開關
             const clientFeaturesAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
             clientFeaturesAccordion.querySelector('h4').textContent = '功能模組顯示 (客戶端)';
             const clientFeaturesContent = clientFeaturesAccordion.querySelector('.accordion-content');
             
-            // 儲值金
             clientFeaturesContent.appendChild(createSettingRow({
                 label: '顯示儲值金功能', hint: '控制是否在會員中心顯示餘額、在預約時顯示付款選項。',
                 key: 'FEATURES_CLIENT_SHOW_STORED_VALUE', value: template.features.CLIENT_SHOW_STORED_VALUE !== false, type: 'toggle'
@@ -268,8 +270,6 @@ function renderTemplateSettings(templateKey) {
                 label: '儲值金名稱', hint: '例如：儲值金、錢包餘額。',
                 key: 'TERMS_STORED_VALUE_NAME', value: template.terms.STORED_VALUE_NAME || '儲值金', type: 'text'
             }));
-            
-            // 優惠券
             clientFeaturesContent.appendChild(createSettingRow({
                 label: '顯示優惠券功能', hint: '控制是否在會員中心顯示「我的優惠券」按鈕。',
                 key: 'FEATURES_CLIENT_SHOW_VOUCHERS', value: template.features.CLIENT_SHOW_VOUCHERS !== false, type: 'toggle'
@@ -281,7 +281,7 @@ function renderTemplateSettings(templateKey) {
             
             liffSettingsContainer.appendChild(clientFeaturesAccordion);
 
-            // (3) 頁面設定 (NavBar)
+            // (3) 頁面設定
             template.logic.navBar.forEach(pageConfig => {
                 const pageModule = createLiffPageSettingsModule(pageConfig, template.features, template.terms);
                 if (pageModule) liffSettingsContainer.appendChild(pageModule);
@@ -301,7 +301,7 @@ function renderTemplateSettings(templateKey) {
     }
 
     // --- 2. 渲染商家後台 (Admin) 設定 ---
-adminSettingsContainer.innerHTML = `
+    adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示、列表欄位與功能開關。</p>
         <div class="accordion-item">
             <div class="accordion-header"><h4>後台頁面啟用管理</h4><span>▼</span></div>
@@ -311,12 +311,10 @@ adminSettingsContainer.innerHTML = `
             <div class="accordion-header"><h4>顧客管理 (CRM) 功能設定</h4><span>▼</span></div>
             <div class="accordion-content" id="admin-crm-settings-container"></div>
         </div>
-        
         <div class="accordion-item">
             <div class="accordion-header"><h4>店家資訊管理 後台設定</h4><span>▼</span></div>
             <div class="accordion-content" id="admin-store-info-settings-container"></div>
         </div>
-
         <div class="accordion-item">
             <div class="accordion-header"><h4 data-module-title="product">產品/服務管理 列表欄位</h4><span>▼</span></div>
             <div class="accordion-content"><div id="admin-columns-product" class="admin-columns-container"></div></div>
@@ -345,12 +343,11 @@ adminSettingsContainer.innerHTML = `
 
     const logic = template.logic || {};
     const features = template.features || {};
-    const terms = template.terms || {}; 
+    const terms = template.terms || {};
     
-    // 渲染頁面啟用開關
     renderAdminPageEnablement(logic.adminPagesEnabled, 'admin-pages-enablement-container');
 
-    // 【核心修改】渲染 CRM 功能開關 (Admin 專用)
+    // 渲染 CRM 功能開關
     const crmContainer = document.getElementById('admin-crm-settings-container');
     crmContainer.appendChild(createSettingRow({
         label: '顯示「儲值金」模組', hint: '是否在詳細資料視窗中顯示儲值金餘額、紀錄與操作按鈕。',
@@ -361,7 +358,7 @@ adminSettingsContainer.innerHTML = `
         key: 'FEATURES_ADMIN_CRM_SHOW_VOUCHERS', value: features.ADMIN_CRM_SHOW_VOUCHERS !== false, type: 'toggle'
     }));
 
-    // 【新增】渲染店家資訊設定
+    // 渲染店家資訊設定
     const storeInfoContainer = document.getElementById('admin-store-info-settings-container');
     storeInfoContainer.appendChild(createSettingRow({
         label: '政策區塊標題', hint: '預設為「預約政策設定」。',
@@ -403,7 +400,6 @@ adminSettingsContainer.innerHTML = `
     renderAdminColumnsSettings('product', logic.adminColumns, 'admin-columns-product');
     renderAdminColumnsSettings('booking', logic.adminBookingColumns || [], 'admin-columns-booking');
     
-    // 確保 user columns 中包含 stored_value_balance
     let userColumns = logic.adminUserColumns || [];
     if (!userColumns.some(col => col.key === 'stored_value_balance')) {
         userColumns.push({ key: 'stored_value_balance', label: '儲值金', enabled: false });
@@ -441,7 +437,7 @@ adminSettingsContainer.innerHTML = `
     }));
     ownerLiffSettingsContainer.appendChild(bookingAccordion);
 
-    // (2) 現場作業設定 (CRM 分流)
+    // (2) 現場作業設定
     const opAccordion = document.getElementById('accordion-template').content.cloneNode(true).querySelector('.accordion-item');
     opAccordion.querySelector('h4').textContent = '現場作業功能 (手機板)';
     const opContent = opAccordion.querySelector('.accordion-content');
@@ -453,7 +449,6 @@ adminSettingsContainer.innerHTML = `
         label: '啟用相機掃碼', hint: '是否啟用 QR Code 掃描器。',
         key: 'FEATURES_OWNER_LIFF_ENABLE_SCANNER', value: features.OWNER_LIFF_ENABLE_SCANNER !== false, type: 'toggle'
     }));
-    // 【新增】Owner CRM 開關
     opContent.appendChild(createSettingRow({
         label: 'CRM 顯示儲值金', hint: '手機查詢顧客時，是否顯示儲值金資訊與操作。',
         key: 'FEATURES_OWNER_CRM_SHOW_STORED_VALUE', value: features.OWNER_CRM_SHOW_STORED_VALUE !== false, type: 'toggle'
@@ -483,7 +478,75 @@ adminSettingsContainer.innerHTML = `
     bindAccordionEvents(ownerLiffSettingsContainer);
 }
 
-// --- 讀取後台欄位設定 (保持不變) ---
+// 從 UI 反向建構樣板 (擴大資料收集範圍版)
+function reconstructTemplateFromUI() {
+    const selectedKey = document.getElementById('template-selector').value;
+    if (!templateDefinitions[selectedKey]) {
+         throw new Error(`無法重構樣板：找不到樣板 key "${selectedKey}"`);
+    }
+    const currentTemplate = JSON.parse(JSON.stringify(templateDefinitions[selectedKey]));
+
+    if (!currentTemplate.features) currentTemplate.features = {};
+    if (!currentTemplate.terms) currentTemplate.terms = {};
+
+    // 【關鍵修正】擴大搜尋範圍，直接包含所有主分頁容器
+    const containers = document.querySelectorAll('#liff-app-settings, #owner-liff-settings, #admin-panel-settings');
+    
+    containers.forEach(container => {
+        container.querySelectorAll('.setting-row [data-key]').forEach(input => {
+            const key = input.dataset.key; 
+            if (!key) return;
+
+            const keyParts = key.split('_');
+            if (keyParts.length < 2) return;
+
+            const mainKey = keyParts[0].toLowerCase(); 
+            const subKey = keyParts.slice(1).join('_');
+
+            if (!currentTemplate[mainKey]) currentTemplate[mainKey] = {};
+
+            if (input.type === 'checkbox') {
+                currentTemplate[mainKey][subKey] = input.checked;
+            } else {
+                 currentTemplate[mainKey][subKey] = input.value;
+            }
+        });
+    });
+
+    const navBar = [];
+    document.querySelectorAll('#nav-items-container .nav-item-row').forEach(row => {
+        const labelInput = row.querySelector('[name="nav_label"]');
+        const targetSelect = row.querySelector('[name="nav_target"]');
+        const enabledCheckbox = row.querySelector('[name="nav_enabled"]');
+        if (labelInput && targetSelect && enabledCheckbox) {
+            navBar.push({
+                label: labelInput.value,
+                target: targetSelect.value,
+                enabled: enabledCheckbox.checked
+            });
+        }
+    });
+
+    if (!currentTemplate.logic) currentTemplate.logic = {};
+    currentTemplate.logic.navBar = navBar;
+
+    const adminEntityNameInput = document.getElementById('setting-admin-entity-name');
+    const adminEntityNamePluralInput = document.getElementById('setting-admin-entity-name-plural');
+    if (adminEntityNameInput) currentTemplate.logic.adminEntityName = adminEntityNameInput.value.trim() || '';
+    if (adminEntityNamePluralInput) currentTemplate.logic.adminEntityNamePlural = adminEntityNamePluralInput.value.trim() || '';
+
+    const adminPagesEnabled = {};
+    const enablementContainer = document.getElementById('admin-pages-enablement-container');
+    if (enablementContainer) {
+        enablementContainer.querySelectorAll('input[type="checkbox"][data-page-key]').forEach(checkbox => {
+            const pageKey = checkbox.dataset.pageKey;
+            if (pageKey) {
+                adminPagesEnabled[pageKey] = checkbox.checked;
+            }
+        });
+        currentTemplate.logic.adminPagesEnabled = adminPagesEnabled;
+    }
+
      function reconstructAdminColumns(containerId) {
         const container = document.getElementById(containerId);
         const columns = [];
@@ -511,7 +574,6 @@ adminSettingsContainer.innerHTML = `
     currentTemplate.logic.adminDraftColumns = reconstructAdminColumns('admin-columns-drafts');
     currentTemplate.logic.adminExpHistoryColumns = reconstructAdminColumns('admin-columns-exp-history');
 
-    console.log("重構完成的樣板資料:", JSON.stringify(currentTemplate, null, 2));
     return { [selectedKey]: currentTemplate };
 }
 
@@ -550,6 +612,10 @@ function setupEventListeners() {
     const templateSelector = document.getElementById('template-selector');
     const tabsContainer = page.querySelector('.settings-tabs');
     const settingsForm = document.getElementById('settings-form');
+
+    const liffSettingsContainer = document.getElementById('liff-app-settings');
+    const adminSettingsContainer = document.getElementById('admin-panel-settings');
+    const ownerLiffSettingsContainer = document.getElementById('owner-liff-settings');
 
     templateSelector.addEventListener('change', () => {
         Object.keys(sortableInstances).forEach(key => {
@@ -614,10 +680,6 @@ function setupEventListeners() {
             saveButton.textContent = '儲存並啟用';
         }
     });
-
-    const liffSettingsContainer = document.getElementById('liff-app-settings');
-    const adminSettingsContainer = document.getElementById('admin-panel-settings');
-    const ownerLiffSettingsContainer = document.getElementById('owner-liff-settings');
     
     bindAccordionEvents(liffSettingsContainer);
     bindAccordionEvents(adminSettingsContainer);

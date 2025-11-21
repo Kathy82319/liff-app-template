@@ -1,4 +1,4 @@
-// functions/utils/date-helpers.js - 日期輔助函式共用庫
+// functions/api/utils/date-helpers.js - 日期輔助函式共用庫
 
 /**
  * 取得指定日期範圍內的所有日期字串 (包含起日和迄日)

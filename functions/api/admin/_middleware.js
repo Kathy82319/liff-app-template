@@ -1,7 +1,8 @@
 // functions/api/admin/_middleware.js - 安全修正版本
 
 // 引入用於 JWT 驗證的函式，假設您的專案已經有這個設定
-import { verifyAuthToken } from '../../utils/auth-helpers.js';
+import { verifyAuthToken } from '../utils/auth-helpers.js';
+
 
 // **重要：只有與「登入流程」和「狀態檢查」相關的 API 才是公開的。**
 // 任何涉及資料 CRUD（新增、讀取、修改、刪除）的 Admin API 都必須移除。

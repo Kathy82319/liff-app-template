@@ -1,7 +1,6 @@
 // functions/api/bookings-create.js (v4.1 - 修正活動日誌 link)
 
-import { getDateRange, getDayOfWeek } from '../../utils/date-helpers.js';
-
+import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
 const FIXED_DRAFT_IDS = {
     AUTO_CONFIRMATION: 2
 };

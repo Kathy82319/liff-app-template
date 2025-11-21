@@ -1,4 +1,5 @@
 // functions/api/admin/exp-history-list.js
+
 export const onRequest = async (context) => {
     try {
         if (context.request.method !== 'GET') {
@@ -7,13 +8,15 @@ export const onRequest = async (context) => {
 
         const db = context.env.DB;
 
+    // 【修正】使用 COALESCE 確保 real_name 和 phone 即使為 NULL 也能被正確解析為空字串，
+    // 以繞過 D1 上潛在的查詢執行錯誤，同時保留欄位名稱供前端使用。
     const stmt = db.prepare(`
       SELECT
         ph.history_id,
         ph.user_id,
         u.line_display_name,
-        u.real_name, // <-- 新增：真實姓名
-        u.phone, // <-- 新增：電話
+        COALESCE(u.real_name, '') AS real_name, 
+        COALESCE(u.phone, '') AS phone, 
         ph.exp_added,
         ph.reason,
         ph.created_at

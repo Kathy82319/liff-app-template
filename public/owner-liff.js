@@ -784,61 +784,56 @@ function debounce(func, delay) {
              `;
          return html;
      }
-    function renderCustomerDetailsBody(data) {
-         // 解構出 vouchers (需確認後端 user-details API 有回傳此欄位)
-         const { profile, bookings, exp_history, vouchers } = data; 
-         
-         // 整理優惠券 HTML
-         let vouchersHtml = '<p>無可用優惠券</p>';
+// public/owner-liff.js (僅修改 renderCustomerDetailsBody)
+
+function renderCustomerDetailsBody(data) {
+     const { profile, bookings, exp_history, vouchers } = data; 
+     // 讀取設定 (假設 window.CONFIG 已由 main() 載入)
+     const features = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate]?.features || {};
+     
+     // 【分流控制】讀取 OWNER_CRM 專屬開關
+     const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
+     const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
+
+     let vouchersHtml = '';
+     if (showVouchers) {
          if (vouchers && vouchers.length > 0) {
-             const activeVouchers = vouchers.filter(v => !v.is_used); // 只顯示未使用的
-             if (activeVouchers.length > 0) {
-                 vouchersHtml = activeVouchers.map(v => `
-                    <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #e9ecef;">
-                        <span style="color: #28a745; font-weight: bold;">●</span> ${v.title} 
-                        <span style="font-size: 0.8em; color: #666;">(效期: ${v.valid_to || '永久'})</span>
-                    </div>
-                 `).join('');
-             } else {
-                 vouchersHtml = '<p style="color:#888;">無可用優惠券 (皆已使用或過期)</p>';
-             }
+             const activeVouchers = vouchers.filter(v => !v.is_used);
+             vouchersHtml = activeVouchers.length > 0 
+                ? activeVouchers.map(v => `<div style="background:#f9f9f9; padding:5px; border-radius:4px; margin-bottom:5px;">${v.title}</div>`).join('')
+                : '<p style="color:#888;">無可用優惠券</p>';
+         } else {
+             vouchersHtml = '<p style="color:#888;">無可用優惠券</p>';
          }
-
-         let html = `
-             <h4>基本資料</h4>
-             <p><strong>LINE 名稱:</strong> ${profile.line_display_name}</p>
-             <p><strong>真實姓名:</strong> ${profile.real_name || '未設定'}</p>
-             <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
-             <p><strong>User ID:</strong> ${profile.user_id}</p>
-             
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; background: #f0f7ff; padding: 10px; border-radius: 8px;">
-                 <div>
-                    <strong style="color: #007bff;">等級/點數</strong><br>
-                    ${profile.level} / ${profile.current_exp}
-                 </div>
-                 <div>
-                    <strong style="color: #28a745;">儲值金</strong><br>
-                    $${profile.stored_value_balance || 0}
-                 </div>
-             </div>
-
-             <p style="margin-top: 10px;"><strong>方案:</strong> ${profile.class || '無'}</p>
-             <p><strong>標籤:</strong> ${profile.tag || '無'}</p>
-             <p><strong>備註:</strong> ${profile.notes || '無'}</p>
-
-             <h4>持有優惠券</h4>
-             <div style="max-height: 150px; overflow-y: auto;">
-                ${vouchersHtml}
-             </div>
-
-             <h4>近期預約 (${bookings.length})</h4>
-             ${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} ${b.time_slot || ''} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}
-             
-             <h4>近期點數紀錄</h4>
-             ${exp_history.slice(0, 3).map(h => `<p>- ${new Date(h.created_at).toLocaleDateString()} ${h.reason} (${h.exp_added > 0 ? '+' : ''}${h.exp_added})</p>`).join('') || '<p>無</p>'}
-         `;
-         return html;
      }
+
+     let html = `
+         <h4>基本資料</h4>
+         <p><strong>名稱:</strong> ${profile.line_display_name}</p>
+         <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
+         
+         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; background: #f0f7ff; padding: 10px; border-radius: 8px;">
+             <div>
+                <strong style="color: #007bff;">等級/點數</strong><br>
+                ${profile.level} / ${profile.current_exp}
+             </div>
+             ${showStoredValue ? `
+             <div>
+                <strong style="color: #28a745;">儲值金</strong><br>
+                $${profile.stored_value_balance || 0}
+             </div>` : ''}
+         </div>
+     `;
+
+     if (showVouchers) {
+         html += `<h4>持有優惠券</h4><div style="max-height: 150px; overflow-y: auto;">${vouchersHtml}</div>`;
+     }
+
+     html += `<h4>近期預約</h4>${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}`;
+     
+     return html;
+}
+
      function renderBookingActions(booking, user) {
          let actions = [];
          

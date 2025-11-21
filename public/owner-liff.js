@@ -1,9 +1,3 @@
-{
-type: uploaded file
-fileName: public/owner-liff.js
-fullContent:
-// public/owner-liff.js
-// 【v6.6 - 修復 404 錯誤視窗干擾、移除標記入住按鈕】
 
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
@@ -1667,4 +1661,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 啟動 App ---
     main();
 });
-}

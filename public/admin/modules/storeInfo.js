@@ -12,9 +12,36 @@ function populateStoreInfoForm(info) {
     document.getElementById('info-hours').value = info.opening_hours || '';
     document.getElementById('info-desc').value = info.description || '';
     
-    // 【新增】填充政策欄位
     document.getElementById('info-policy').value = info.cancellationPolicy || '';
     document.getElementById('info-instructions').value = info.checkInInstructions || '';
+}
+
+// 【新增】應用文字設定
+function applyTermSettings() {
+    // 確保 CONFIG 已載入 (app.js 會處理，但這裡做個防呆)
+    const config = window.CONFIG;
+    if (!config || !config.LOGIC || !config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE) return;
+
+    const activeKey = config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+    const template = config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey];
+    const terms = template?.terms || {};
+
+    // 更新區塊標題
+    const sectionTitle = document.getElementById('store-policy-section-title');
+    if (sectionTitle && terms.ADMIN_POLICY_SECTION_TITLE) {
+        sectionTitle.textContent = terms.ADMIN_POLICY_SECTION_TITLE;
+    }
+
+    // 更新欄位標籤
+    const policyLabel = document.querySelector('label[for="info-policy"]');
+    if (policyLabel && terms.ADMIN_CANCELLATION_POLICY_LABEL) {
+        policyLabel.textContent = terms.ADMIN_CANCELLATION_POLICY_LABEL;
+    }
+
+    const instructionsLabel = document.querySelector('label[for="info-instructions"]');
+    if (instructionsLabel && terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL) {
+        instructionsLabel.textContent = terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL;
+    }
 }
 
 // 綁定事件監聽器
@@ -30,7 +57,6 @@ function setupEventListeners() {
                 phone: document.getElementById('info-phone').value,
                 opening_hours: document.getElementById('info-hours').value,
                 description: document.getElementById('info-desc').value,
-                // 【新增】收集政策欄位
                 cancellationPolicy: document.getElementById('info-policy').value,
                 checkInInstructions: document.getElementById('info-instructions').value
             };
@@ -54,6 +80,9 @@ function setupEventListeners() {
 export const init = async () => {
     const storeInfoForm = document.getElementById('store-info-form');
     if (!storeInfoForm) return;
+
+    // 1. 先應用文字設定
+    applyTermSettings();
 
     try {
         const info = await api.getStoreInfo();

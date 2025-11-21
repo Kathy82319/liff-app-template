@@ -301,7 +301,7 @@ function renderTemplateSettings(templateKey) {
     }
 
     // --- 2. 渲染商家後台 (Admin) 設定 ---
-    adminSettingsContainer.innerHTML = `
+adminSettingsContainer.innerHTML = `
         <p style="margin-bottom: 1.5rem; color: var(--color-text-light);">設定商家後台各管理頁面的顯示、列表欄位與功能開關。</p>
         <div class="accordion-item">
             <div class="accordion-header"><h4>後台頁面啟用管理</h4><span>▼</span></div>
@@ -311,6 +311,12 @@ function renderTemplateSettings(templateKey) {
             <div class="accordion-header"><h4>顧客管理 (CRM) 功能設定</h4><span>▼</span></div>
             <div class="accordion-content" id="admin-crm-settings-container"></div>
         </div>
+        
+        <div class="accordion-item">
+            <div class="accordion-header"><h4>店家資訊管理 後台設定</h4><span>▼</span></div>
+            <div class="accordion-content" id="admin-store-info-settings-container"></div>
+        </div>
+
         <div class="accordion-item">
             <div class="accordion-header"><h4 data-module-title="product">產品/服務管理 列表欄位</h4><span>▼</span></div>
             <div class="accordion-content"><div id="admin-columns-product" class="admin-columns-container"></div></div>
@@ -339,6 +345,7 @@ function renderTemplateSettings(templateKey) {
 
     const logic = template.logic || {};
     const features = template.features || {};
+    const terms = template.terms || {}; 
     
     // 渲染頁面啟用開關
     renderAdminPageEnablement(logic.adminPagesEnabled, 'admin-pages-enablement-container');
@@ -352,6 +359,21 @@ function renderTemplateSettings(templateKey) {
     crmContainer.appendChild(createSettingRow({
         label: '顯示「優惠券」模組', hint: '是否在詳細資料視窗中顯示優惠券列表與發送按鈕。',
         key: 'FEATURES_ADMIN_CRM_SHOW_VOUCHERS', value: features.ADMIN_CRM_SHOW_VOUCHERS !== false, type: 'toggle'
+    }));
+
+    // 【新增】渲染店家資訊設定
+    const storeInfoContainer = document.getElementById('admin-store-info-settings-container');
+    storeInfoContainer.appendChild(createSettingRow({
+        label: '政策區塊標題', hint: '預設為「預約政策設定」。',
+        key: 'TERMS_ADMIN_POLICY_SECTION_TITLE', value: terms.ADMIN_POLICY_SECTION_TITLE || '預約政策設定', type: 'text'
+    }));
+    storeInfoContainer.appendChild(createSettingRow({
+        label: '取消政策標題', hint: '預設為「取消政策」。',
+        key: 'TERMS_ADMIN_CANCELLATION_POLICY_LABEL', value: terms.ADMIN_CANCELLATION_POLICY_LABEL || '取消政策', type: 'text'
+    }));
+    storeInfoContainer.appendChild(createSettingRow({
+        label: '入住須知標題', hint: '預設為「入住須知」。',
+        key: 'TERMS_ADMIN_CHECKIN_INSTRUCTIONS_LABEL', value: terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL || '入住須知', type: 'text'
     }));
 
     // 渲染產品名稱設定

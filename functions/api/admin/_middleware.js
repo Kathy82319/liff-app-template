@@ -6,7 +6,6 @@ import { verifyAuthToken } from '../utils/auth-helpers.js';
 const isPublicRoute = (pathname) => {
   const publicRoutes = [
     '/api/admin/auth/login',
-    '/api/admin/auth/status',
     '/api/admin/auth/logout',
   ];
   return publicRoutes.some(route => pathname.endsWith(route));

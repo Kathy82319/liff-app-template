@@ -1359,25 +1359,37 @@
                 </table>
             </div>
 
-            <div id="page-store-info" class="page">
+<div id="page-store-info" class="page">
                 <div class="page-header"><h2>店家資訊管理</h2></div>
                 <form id="store-info-form">
-                    <div class="form-group"><label for="info-hours">營業時間 (換行請直接按 Enter)</label><textarea id="info-hours" rows="5" required></textarea></div>
-                    <div class="form-group"><label for="info-desc">店家介紹</label><textarea id="info-desc" rows="8" required></textarea></div>
-                    
+                    <div class="form-group">
+                        <label for="info-address">地址</label>
+                        <input type="text" id="info-address" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="info-phone">電話</label>
+                        <input type="text" id="info-phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="info-hours">營業時間 (換行請直接按 Enter)</label>
+                        <textarea id="info-hours" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="info-desc">店家介紹</label>
+                        <textarea id="info-desc" rows="8" required></textarea>
+                    </div>
                     <hr style="margin: 20px 0; border-color: var(--color-border);">
                     
                     <h3 id="store-policy-section-title" style="font-size: 1.2rem; color: var(--color-primary); margin-bottom: 15px;">預約政策設定</h3>
                     
                     <div class="form-group">
                         <label for="info-policy">取消政策</label>
-                        <textarea id="info-policy" ...></textarea>
+                        <textarea id="info-policy" rows="5" placeholder="..."></textarea>
                     </div>
                     <div class="form-group">
                         <label for="info-instructions">入住須知</label>
-                        <textarea id="info-instructions" ...></textarea>
+                        <textarea id="info-instructions" rows="5" placeholder="..."></textarea>
                     </div>
-
                     <div class="form-actions"><button type="submit" class="action-btn btn-save">儲存變更</button></div>
                 </form>
             </div>

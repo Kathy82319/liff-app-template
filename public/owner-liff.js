@@ -784,55 +784,125 @@ function debounce(func, delay) {
              `;
          return html;
      }
-// public/owner-liff.js (僅修改 renderCustomerDetailsBody)
 
-function renderCustomerDetailsBody(data) {
-     const { profile, bookings, exp_history, vouchers } = data; 
-     // 讀取設定 (假設 window.CONFIG 已由 main() 載入)
-     const features = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate]?.features || {};
-     
-     // 【分流控制】讀取 OWNER_CRM 專屬開關
-     const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
-     const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
-
-     let vouchersHtml = '';
-     if (showVouchers) {
-         if (vouchers && vouchers.length > 0) {
-             const activeVouchers = vouchers.filter(v => !v.is_used);
-             vouchersHtml = activeVouchers.length > 0 
-                ? activeVouchers.map(v => `<div style="background:#f9f9f9; padding:5px; border-radius:4px; margin-bottom:5px;">${v.title}</div>`).join('')
-                : '<p style="color:#888;">無可用優惠券</p>';
-         } else {
-             vouchersHtml = '<p style="color:#888;">無可用優惠券</p>';
-         }
-     }
-
-     let html = `
-         <h4>基本資料</h4>
-         <p><strong>名稱:</strong> ${profile.line_display_name}</p>
-         <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
+     // --- 渲染顧客詳情 Body (修正版：支援設定開關) ---
+    function renderCustomerDetailsBody(data) {
+         const { profile, bookings, exp_history, vouchers } = data; 
          
-         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; background: #f0f7ff; padding: 10px; border-radius: 8px;">
-             <div>
-                <strong style="color: #007bff;">等級/點數</strong><br>
-                ${profile.level} / ${profile.current_exp}
+         // 讀取當前樣板的設定
+         const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate];
+         const features = templateDefinition?.features || {};
+         
+         // 【關鍵修正】讀取開關，預設為開啟
+         const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
+         const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
+
+         // 整理優惠券 HTML (如果功能開啟)
+         let vouchersHtml = '';
+         if (showVouchers) {
+             if (vouchers && vouchers.length > 0) {
+                 const activeVouchers = vouchers.filter(v => !v.is_used); 
+                 if (activeVouchers.length > 0) {
+                     vouchersHtml = activeVouchers.map(v => `
+                        <div style="background: var(--color-bg); padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid var(--color-secondary);">
+                            <span style="color: var(--color-success); font-weight: bold;">●</span> ${v.title} 
+                            <span style="font-size: 0.8em; color: var(--color-text-secondary);">(效期: ${v.valid_to || '永久'})</span>
+                        </div>
+                     `).join('');
+                 } else {
+                     vouchersHtml = '<p style="color:var(--color-text-secondary);">無可用優惠券 (皆已使用或過期)</p>';
+                 }
+             } else {
+                 vouchersHtml = '<p style="color:var(--color-text-secondary);">無可用優惠券</p>';
+             }
+         }
+
+         let html = `
+             <h4>基本資料</h4>
+             <p><strong>名稱:</strong> ${profile.line_display_name}</p>
+             <p><strong>電話:</strong> ${profile.phone || '未設定'}</p>
+             
+             <div style="display: grid; grid-template-columns: 1fr ${showStoredValue ? '1fr' : ''}; gap: 10px; margin-top: 10px; background: var(--color-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--color-secondary);">
+                 <div>
+                    <strong style="color: var(--color-primary);">等級/點數</strong><br>
+                    ${profile.level} / ${profile.current_exp}
+                 </div>
+                 ${showStoredValue ? `
+                 <div>
+                    <strong style="color: var(--color-success);">儲值金</strong><br>
+                    $${profile.stored_value_balance || 0}
+                 </div>` : ''}
              </div>
-             ${showStoredValue ? `
-             <div>
-                <strong style="color: #28a745;">儲值金</strong><br>
-                $${profile.stored_value_balance || 0}
-             </div>` : ''}
-         </div>
-     `;
 
-     if (showVouchers) {
-         html += `<h4>持有優惠券</h4><div style="max-height: 150px; overflow-y: auto;">${vouchersHtml}</div>`;
-     }
+             <p style="margin-top: 10px;"><strong>方案:</strong> ${profile.class || '無'}</p>
+             <p><strong>標籤:</strong> ${profile.tag || '無'}</p>
+             <p><strong>備註:</strong> ${profile.notes || '無'}</p>
+         `;
 
-     html += `<h4>近期預約</h4>${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}`;
-     
-     return html;
-}
+         // 【關鍵修正】只有在開啟時才顯示優惠券區塊
+         if (showVouchers) {
+             html += `<h4>持有優惠券</h4><div style="max-height: 150px; overflow-y: auto;">${vouchersHtml}</div>`;
+         }
+
+         html += `<h4>近期預約</h4>${bookings.slice(0, 3).map(b => `<p>- ${b.booking_date} (${translateStatus(b.status)})</p>`).join('') || '<p>無</p>'}`;
+         
+         return html;
+    }
+
+// --- 初始化 App UI (修正版：支援設定開關) ---
+    function initializeAppUI(templateKey) {
+        // 確保能讀取到設定
+        const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[templateKey];
+        const features = templateDefinition?.features || {};
+        
+        const bookingTabButton = document.querySelector('[data-tab="booking"]');
+        const roomControlTabButton = document.querySelector('[data-tab="room-control"]');
+        const redeemTabButton = document.querySelector('[data-tab="redeem"]');
+        const customerTabButton = document.querySelector('[data-tab="customer"]');
+
+        // 1. 預約管理 Tab
+        if (templateKey === 'ecommerce_template') {
+            if (bookingTabButton) bookingTabButton.style.display = 'none';
+            if (roomControlTabButton) roomControlTabButton.style.display = 'none';
+            if (ecommerceManageBtns) ecommerceManageBtns.style.display = 'flex';
+        } else {
+            if (bookingTabButton) bookingTabButton.style.display = '';
+            if (ecommerceManageBtns) ecommerceManageBtns.style.display = 'none';
+            
+            // 民宿控房 Tab
+            if (templateKey === 'guesthouse_template' && features.OWNER_LIFF_ENABLE_ROOM_CONTROL !== false) {
+                if (roomControlTabButton) roomControlTabButton.style.display = ''; 
+            } else {
+                if (roomControlTabButton) roomControlTabButton.style.display = 'none'; 
+            }
+        }
+
+        // 2. 【關鍵修正】核銷/點數 Tab (依照設定顯示/隱藏)
+        if (redeemTabButton) {
+            // 預設開啟 (true)，只有明確設為 false 才隱藏
+            redeemTabButton.style.display = (features.OWNER_LIFF_ENABLE_REDEEM !== false) ? '' : 'none';
+        }
+
+        // 3. 顧客查詢 Tab (通常都開啟)
+        if (customerTabButton) {
+            customerTabButton.style.display = '';
+        }
+
+        // 4. 掃碼器開關 (影響核銷頁面內容)
+        const scanBtn = document.getElementById('start-redeem-scan-btn');
+        if (scanBtn && features.OWNER_LIFF_ENABLE_SCANNER === false) {
+            scanBtn.style.display = 'none';
+            const container = document.querySelector('.redeem-section');
+            if(container && !container.querySelector('.scan-disabled-msg')) {
+               const p = document.createElement('p');
+               p.className = 'scan-disabled-msg';
+               p.textContent = "(相機掃碼已停用，請使用下方手動搜尋)";
+               p.style.color = '#888';
+               p.style.textAlign = 'center';
+               scanBtn.parentNode.insertBefore(p, scanBtn);
+            }
+        }
+    }
 
      function renderBookingActions(booking, user) {
          let actions = [];
@@ -871,13 +941,40 @@ function renderCustomerDetailsBody(data) {
          actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${order.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
          return actions.join('');
      }
-     function renderCustomerActions(profile) {
+// --- 渲染顧客操作按鈕 (修正版：支援設定開關) ---
+    function renderCustomerActions(profile) {
           const targetName = profile.line_display_name;
-          return `
+          
+          // 讀取設定
+          const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate];
+          const features = templateDefinition?.features || {};
+          
+          // 【關鍵修正】讀取開關
+          const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
+          const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
+
+          let buttonsHtml = '';
+
+          // 1. 儲值/扣款按鈕
+          if (showStoredValue) {
+              buttonsHtml += `<button class="cta-button" data-action="adjust-stored-value" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-success);">儲值/扣款</button>`;
+          }
+
+          // 2. 發送優惠券按鈕
+          if (showVouchers) {
+              buttonsHtml += `<button class="cta-button" data-action="issue-voucher" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-info);">發送優惠券</button>`;
+          }
+
+          // 3. 編輯與發送訊息 (永遠顯示)
+          buttonsHtml += `
             <button class="cta-button" data-action="edit-customer" data-user-id="${profile.user_id}" style="background-color: var(--color-primary);">編輯資料</button>
             <button class="cta-button" data-action="send-message" data-user-id="${profile.user_id}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>
           `;
-     }
+
+          return buttonsHtml;
+    }
+
+    
      function bindModalActions() {
          detailsModalActions.querySelectorAll('button').forEach(button => {
              button.addEventListener('click', handleModalAction);

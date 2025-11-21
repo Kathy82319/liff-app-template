@@ -1,7 +1,6 @@
 // functions/api/admin/update-room-inventory.js
 
-import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
-
+import { getDateRange, getDayOfWeek } from '../../utils/date-helpers.js';
 
 
 // D1 Upsert 輔助函式 (修正 key 檢查與資料類型處理 v3 - 再次修正)

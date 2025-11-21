@@ -28,7 +28,6 @@ function validateTemplateData(body) {
         total_supply: totalSupplyValue,
         applicable_product_ids: JSON.stringify(body.applicable_product_ids || []),
         applicable_days_of_week: JSON.stringify(body.applicable_days_of_week || []),
-        total_supply: body.total_supply ? Number(body.total_supply) : null,
         limit_per_user: body.limit_per_user ? Number(body.limit_per_user) : 1,
         is_public: body.is_public ? 1 : 0,
         is_active: body.is_active ? 1 : 0,

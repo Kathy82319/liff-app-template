@@ -2,27 +2,18 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
-// --- 變數宣告：發放點數相關 ---
 let html5QrCode = null;
 let currentSelectedUserForPoints = null;
-
-// --- 變數宣告：點數紀錄相關 ---
 let allExpHistory = []; 
 let activeTemplate = null; 
 
-
-// --- 【新增】所需預設欄位定義 (包含新的 user_info key) ---
 const EXP_HISTORY_COLUMNS_DEFINITION = [
-     // 預設欄位必須在這裡明確定義，否則不會被渲染
      { key: 'created_at', label: '日期', enabled: true },
-     { key: 'user_info', label: '顧客 (姓名/電話)', enabled: true }, // 新增：自定義 Key
+     { key: 'user_info', label: '顧客 (姓名/電話)', enabled: true },
      { key: 'reason', label: '原因', enabled: true },
      { key: 'exp_added', label: '點數', enabled: true },
 ];
 
-/**
- * 安全地獲取物件的巢狀屬性 (用於紀錄列表)
- */
 function getProperty(obj, path, defaultValue = 'N/A') {
     const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
     const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
@@ -32,24 +23,19 @@ function getProperty(obj, path, defaultValue = 'N/A') {
     return result;
 }
 
-// --- 功能區塊 1：頁面與 Tab 管理 ---
-
 function setupTabs() {
     const tabsContainer = document.getElementById('points-sub-tabs');
     if (!tabsContainer) return;
 
     tabsContainer.addEventListener('click', (e) => {
         if (e.target.matches('.settings-tab')) {
-            // 移除舊的 active
             tabsContainer.querySelector('.active')?.classList.remove('active');
             document.querySelectorAll('#page-points .settings-tab-content').forEach(el => el.classList.remove('active'));
 
-            // 加上新的 active
             e.target.classList.add('active');
             const targetId = e.target.dataset.target;
             document.getElementById(targetId)?.classList.add('active');
 
-            // 如果切換到紀錄 Tab，且尚未載入資料，則載入
             if (targetId === 'points-tab-history' && allExpHistory.length === 0) {
                 loadExpHistory();
             }
@@ -57,7 +43,65 @@ function setupTabs() {
     });
 }
 
-// 重設發放頁面狀態
+// --- 【新增】初始化原因輸入框與建議列表 ---
+function initReasonInput() {
+    const reasonInput = document.getElementById('reason-input');
+    if (!reasonInput) return;
+
+    // 1. 建立或獲取 datalist
+    let dataList = document.getElementById('reason-suggestions');
+    if (!dataList) {
+        dataList = document.createElement('datalist');
+        dataList.id = 'reason-suggestions';
+        document.body.appendChild(dataList); // 必須加到 DOM 中
+        reasonInput.setAttribute('list', 'reason-suggestions');
+    }
+
+    // 2. 定義預設選項
+    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "會員升級禮", "補償"];
+    
+    // 3. 從 LocalStorage 讀取自訂選項
+    let savedReasons = [];
+    try {
+        const stored = localStorage.getItem('admin_custom_point_reasons');
+        if (stored) savedReasons = JSON.parse(stored);
+    } catch (e) { console.warn("讀取儲存的原因失敗", e); }
+
+    // 4. 合併並去重複
+    const allReasons = Array.from(new Set([...defaultReasons, ...savedReasons]));
+
+    // 5. 渲染選項
+    dataList.innerHTML = allReasons.map(r => `<option value="${r}">`).join('');
+}
+
+// --- 【新增】儲存新的原因 ---
+function saveNewReason(reason) {
+    if (!reason) return;
+    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "會員升級禮", "補償"];
+    
+    // 如果是預設的，不用存
+    if (defaultReasons.includes(reason)) return;
+
+    let savedReasons = [];
+    try {
+        const stored = localStorage.getItem('admin_custom_point_reasons');
+        if (stored) savedReasons = JSON.parse(stored);
+    } catch (e) { }
+
+    // 如果已經存過，也不用存
+    if (savedReasons.includes(reason)) return;
+
+    // 加入並限制數量 (例如只存最近 20 個)
+    savedReasons.unshift(reason);
+    if (savedReasons.length > 20) savedReasons.pop();
+
+    localStorage.setItem('admin_custom_point_reasons', JSON.stringify(savedReasons));
+    
+    // 重新整理列表
+    initReasonInput(); 
+}
+
+
 function resetPointsCenterPage() {
     currentSelectedUserForPoints = null;
     const userSearchInput = document.getElementById('user-search-input-points');
@@ -83,10 +127,11 @@ function resetPointsCenterPage() {
         html5QrCode.stop().catch(err => console.error("停止掃描器失敗", err));
     }
     if (qrReader) qrReader.style.display = 'none';
+    
+    // 重置原因輸入框 (如果有)
+    const reasonInput = document.getElementById('reason-input');
+    if (reasonInput) reasonInput.value = '';
 }
-
-
-// --- 功能區塊 2：點數發放邏輯 ---
 
 async function handleUserSearchForPoints(query) {
     const userSearchResults = document.getElementById('user-search-results');
@@ -135,9 +180,10 @@ function selectUserForPoints(user) {
     const form = document.getElementById('points-entry-form');
     if (form) {
         form.querySelector('#exp-input').value = '';
-        form.querySelector('#reason-select').value = '消費回饋';
-        form.querySelector('#custom-reason-input').value = '';
-        form.querySelector('#custom-reason-input').style.display = 'none';
+        // 重置原因
+        const reasonInput = form.querySelector('#reason-input');
+        if (reasonInput) reasonInput.value = '';
+        
         form.querySelector('#points-status-message').textContent = '';
     }
 }
@@ -174,9 +220,6 @@ function startQrScanner() {
         .catch(err => ui.toast.error('無法啟動相機，請檢查權限設定。'));
 }
 
-
-// --- 功能區塊 3：點數紀錄邏輯 (從 expHistory.js 整合) ---
-
 async function loadExpHistory() {
     const expHistoryTbody = document.getElementById('exp-history-tbody');
     if (!expHistoryTbody) return;
@@ -184,7 +227,6 @@ async function loadExpHistory() {
     expHistoryTbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">正在載入點數紀錄...</td></tr>';
 
     try {
-        // 1. 獲取設定 (如果尚未獲取)
         if (!activeTemplate) {
              if (!window.CONFIG || !window.CONFIG.LOGIC) {
                  throw new Error("核心設定尚未載入。");
@@ -197,10 +239,7 @@ async function loadExpHistory() {
              throw new Error(`樣板缺少 'logic.adminExpHistoryColumns' 設定。`);
         }
 
-        // 2. 獲取資料
         allExpHistory = await api.getExpHistory();
-        
-        // 3. 渲染
         renderExpHistoryList(allExpHistory);
 
     } catch (error) {
@@ -217,30 +256,22 @@ function renderExpHistoryList(records) {
 
     let columns = [];
     
-    // 【修改點 1】：優先使用藍圖，但如果藍圖沒有定義 'user_info'，則使用增強型預設
     if (activeTemplate && Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
-        // 檢查藍圖中是否包含 user_info 的 key
         if (!activeTemplate.logic.adminExpHistoryColumns.some(col => col.key === 'user_info')) {
-             // 如果藍圖中沒有，則使用我們定義的增強型預設
              columns = EXP_HISTORY_COLUMNS_DEFINITION.slice(); 
-             console.warn("點數紀錄：藍圖缺少 'user_info' 欄位定義，使用增強型預設欄位。");
         } else {
-             // 否則，使用藍圖定義並過濾未啟用的
              columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
         }
     } else {
-        // 如果沒有載入藍圖，直接使用增強型預設。
         columns = EXP_HISTORY_COLUMNS_DEFINITION.slice();
     }
     
-    // 渲染表頭
     let headerHTML = '';
     columns.forEach(col => {
         headerHTML += `<th>${col.label}</th>`;
     });
     expHistoryTheadTr.innerHTML = headerHTML;
 
-    // 渲染內容
     expHistoryTbody.innerHTML = '';
     if (!records || records.length === 0) {
         expHistoryTbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align: center;">找不到符合條件的紀錄。</td></tr>`;
@@ -253,24 +284,20 @@ function renderExpHistoryList(records) {
             const cell = row.insertCell();
             let cellContent;
             
-            // 1. 特殊處理：日期 (顯示更完整的日期時間)
             if (col.key === 'created_at') {
                 cellContent = new Date(record.created_at).toLocaleString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             } 
-            // 2. 特殊處理：點數 (exp_added)
             else if (col.key === 'exp_added') {
                 const expSign = record.exp_added > 0 ? '+' : '';
                 cell.style.fontWeight = 'bold';
                 cell.style.color = record.exp_added > 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 cellContent = `${expSign}${record.exp_added}`;
             } 
-            // 3. 【關鍵修改】：處理 'user_info' 自定義欄位
             else if (col.key === 'user_info') { 
                  const displayName = record.real_name || record.line_display_name || 'N/A';
                  const phoneDisplay = record.phone ? record.phone : '無電話';
                  cellContent = `<div class="main-info compound-cell">${displayName}</div><div class="sub-info compound-cell">${phoneDisplay}</div>`;
             }
-            // 4. 預設：使用 getProperty
             else {
                 cellContent = getProperty(record, col.key, 'N/A');
             }
@@ -286,7 +313,6 @@ function handleHistoryFilter() {
     const searchTerm = expUserFilterInput.value.toLowerCase().trim();
     const filteredRecords = searchTerm
         ? allExpHistory.filter(record => 
-            // 擴增搜尋範圍：line_display_name, real_name, phone, user_id, reason
             (record.line_display_name || '').toLowerCase().includes(searchTerm) ||
             (record.real_name || '').toLowerCase().includes(searchTerm) ||
             (record.phone || '').includes(searchTerm) ||
@@ -297,19 +323,16 @@ function handleHistoryFilter() {
     renderExpHistoryList(filteredRecords);
 }
 
-// --- 初始化與事件綁定 ---
-
 function setupEventListeners() {
-    // 綁定 Tab
     setupTabs();
 
-    // 綁定發放相關事件
     const userSearchInput = document.getElementById('user-search-input-points');
     const userSearchResults = document.getElementById('user-search-results');
     const startScanBtn = document.getElementById('start-scan-btn');
     const submitExpBtn = document.getElementById('submit-exp-btn');
-    const reasonSelect = document.getElementById('reason-select');
-    const customReasonInput = document.getElementById('custom-reason-input');
+    // 移除 reasonSelect 相關
+    // const reasonSelect = document.getElementById('reason-select');
+    // const customReasonInput = document.getElementById('custom-reason-input');
 
     if (userSearchInput) {
         userSearchInput.addEventListener('input', (e) => handleUserSearchForPoints(e.target.value));
@@ -328,11 +351,8 @@ function setupEventListeners() {
     if (startScanBtn) {
         startScanBtn.addEventListener('click', startQrScanner);
     }
-    if (reasonSelect && customReasonInput) {
-        reasonSelect.addEventListener('change', () => {
-            customReasonInput.style.display = (reasonSelect.value === 'other') ? 'block' : 'none';
-        });
-    }
+    
+    // 【修改】提交按鈕邏輯：讀取新的 input
     if (submitExpBtn) {
         submitExpBtn.addEventListener('click', async () => {
             if (!currentSelectedUserForPoints || !currentSelectedUserForPoints.id) {
@@ -342,10 +362,10 @@ function setupEventListeners() {
             const pointsStatusMessage = document.getElementById('points-status-message');
             const expInput = document.getElementById('exp-input');
             const expValue = Number(expInput.value);
-            let reason = reasonSelect.value;
-            if (reason === 'other') {
-                reason = customReasonInput.value.trim();
-            }
+            
+            // 讀取智慧輸入框
+            const reasonInput = document.getElementById('reason-input');
+            const reason = reasonInput ? reasonInput.value.trim() : '';
 
             if (!expValue || expValue <= 0 || !reason) {
                 pointsStatusMessage.textContent = '錯誤：點數和原因皆為必填。';
@@ -358,6 +378,10 @@ function setupEventListeners() {
 
             try {
                 await api.addPoints({ userId: currentSelectedUserForPoints.id, expValue, reason });
+                
+                // 成功後，儲存這個原因
+                saveNewReason(reason);
+
                 pointsStatusMessage.textContent = `成功為 ${currentSelectedUserForPoints.name} 新增 ${expValue} 點！`;
                 pointsStatusMessage.style.color = 'var(--color-success)';
                 expInput.value = '';
@@ -374,21 +398,54 @@ function setupEventListeners() {
         });
     }
 
-    // 綁定紀錄相關事件
     const expUserFilterInput = document.getElementById('exp-user-filter-input');
     if (expUserFilterInput) {
          expUserFilterInput.addEventListener('input', handleHistoryFilter);
     }
 }
 
-// 模組初始化函式
+// --- 【新增】DOM 修改函式：動態替換 HTML ---
+function transformReasonInput() {
+    const container = document.getElementById('reason-input-container');
+    if (!container) return;
+
+    // 檢查是否已經轉換過
+    if (document.getElementById('reason-input')) return;
+
+    // 清空舊的 select
+    container.innerHTML = '';
+
+    // 建立 Label
+    const label = document.createElement('label');
+    label.htmlFor = 'reason-input';
+    label.textContent = '點數名稱 (原因):';
+    container.appendChild(label);
+
+    // 建立 Input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'reason-input';
+    input.placeholder = '選擇或輸入原因...';
+    input.setAttribute('list', 'reason-suggestions'); // 綁定 datalist
+    container.appendChild(input);
+
+    // 初始化列表
+    initReasonInput();
+}
+
+
 export const init = () => {
+    // 先執行 DOM 轉換，把 Select 換成 Input
+    transformReasonInput();
+
     resetPointsCenterPage();
     
-    // 確保事件只被綁定一次
     const page = document.getElementById('page-points');
     if (page && !page.dataset.initialized) {
         setupEventListeners();
         page.dataset.initialized = 'true';
     }
+    
+    // 每次進入頁面都重新整理列表 (讀取 localStorage)
+    initReasonInput();
 };

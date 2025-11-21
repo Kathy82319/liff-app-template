@@ -331,14 +331,16 @@ function debounce(func, delay) {
                 window.CONFIG = configResponse;
             }
 
-            if (verifyResult.success && verifyResult.isAdmin) {
-                currentTemplate = verifyResult.activeTemplate;
-                
-                // 成功：顯示主畫面
-                mainView.style.display = 'block';
-                initializeAppUI(currentTemplate);
-                setupEventListeners();
-                switchTab('activity');
+        if (verifyResult.success && verifyResult.isAdmin) {
+        currentTemplate = verifyResult.activeTemplate;
+        
+        mainView.style.display = 'block';
+        initializeAppUI(currentTemplate);
+        
+        initOwnerReasonInput(); // <--- 【插入】初始化智慧輸入框
+
+        setupEventListeners();
+        switchTab('activity');
             } else {
                 // 失敗：顯示權限不足
                 unauthorizedView.style.display = 'block';
@@ -1625,12 +1627,16 @@ function debounce(func, delay) {
         opVoucherList.innerHTML = '';
     }
 
-    async function handleOpSubmitPoints() {
+async function handleOpSubmitPoints() {
         if (!currentOpUser) return alert('未選擇顧客');
         const points = parseInt(opPointsInput.value);
-        const reason = opPointsReason.value;
+        
+        // 【修改】讀取新的 Input
+        const reasonInput = document.getElementById('op-points-reason-input');
+        const reason = reasonInput ? reasonInput.value.trim() : '';
         
         if (!points || points <= 0) return alert('請輸入有效點數');
+        if (!reason) return alert('請輸入發放原因'); // 新增驗證
         
         const btn = opSubmitPointsBtn;
         btn.disabled = true;
@@ -1642,8 +1648,12 @@ function debounce(func, delay) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentOpUser, expValue: points, reason: reason })
             });
+            
+            saveOwnerReason(reason); // 【新增】儲存原因
+
             alert(`成功發放 ${points} 點！`);
-            opPointsInput.value = ''; // 清空輸入
+            opPointsInput.value = ''; 
+            // reasonInput.value = ''; // 可選：是否清空原因
         } catch (error) {
             alert(`發放失敗: ${error.message}`);
         } finally {
@@ -1744,6 +1754,69 @@ function debounce(func, delay) {
             adminPanelBtn.textContent = '開啟完整版後台';
         }
     }
+
+    // --- 【新增】初始化原因輸入框 (Owner LIFF) ---
+function initOwnerReasonInput() {
+    // 找到原本的 Select 容器
+    const opPointsReasonSelect = document.getElementById('op-points-reason');
+    if (!opPointsReasonSelect) return; // 如果找不到 (可能已經被替換了)，就檢查 input 是否存在
+
+    const container = opPointsReasonSelect.parentElement;
+    
+    // 檢查是否已經替換成 Input
+    let reasonInput = document.getElementById('op-points-reason-input');
+    
+    if (!reasonInput) {
+        // 移除舊 Select
+        opPointsReasonSelect.remove();
+
+        // 建立新 Input
+        reasonInput = document.createElement('input');
+        reasonInput.type = 'text';
+        reasonInput.id = 'op-points-reason-input';
+        reasonInput.placeholder = '選擇或輸入原因...';
+        reasonInput.setAttribute('list', 'owner-reason-suggestions');
+        container.appendChild(reasonInput);
+
+        // 建立 Datalist
+        const dataList = document.createElement('datalist');
+        dataList.id = 'owner-reason-suggestions';
+        document.body.appendChild(dataList);
+    }
+
+    // 填充選項
+    const dataList = document.getElementById('owner-reason-suggestions');
+    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "補償"];
+    let savedReasons = [];
+    try {
+        const stored = localStorage.getItem('admin_custom_point_reasons'); // 共用同一個 key
+        if (stored) savedReasons = JSON.parse(stored);
+    } catch (e) {}
+
+    const allReasons = Array.from(new Set([...defaultReasons, ...savedReasons]));
+    dataList.innerHTML = allReasons.map(r => `<option value="${r}">`).join('');
+}
+
+// --- 【新增】儲存原因 (Owner LIFF) ---
+function saveOwnerReason(reason) {
+    if (!reason) return;
+    const defaultReasons = ["消費回饋", "生日禮金", "活動獎勵", "補償"];
+    if (defaultReasons.includes(reason)) return;
+
+    let savedReasons = [];
+    try {
+        const stored = localStorage.getItem('admin_custom_point_reasons');
+        if (stored) savedReasons = JSON.parse(stored);
+    } catch (e) {}
+
+    if (savedReasons.includes(reason)) return;
+
+    savedReasons.unshift(reason);
+    if (savedReasons.length > 20) savedReasons.pop();
+
+    localStorage.setItem('admin_custom_point_reasons', JSON.stringify(savedReasons));
+    initOwnerReasonInput(); // 刷新列表
+}
 
     // --- 啟動 App ---
     main();

@@ -1,6 +1,6 @@
 // functions/api/room-availability.js
 
-import { getDateRange, getDayOfWeek } from '../utils/date-helpers.js';
+import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
 export async function onRequest(context) {
     try {

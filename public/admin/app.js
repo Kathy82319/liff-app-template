@@ -18,7 +18,7 @@ const App = {
         'settings': './modules/systemSettings.js',
         'vouchers': './modules/voucherManagement.js',
     },
-    configPromise: null, // 保留 Promise
+    configPromise: null, 
 
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -160,15 +160,36 @@ async handleRouteChange() {
     console.log(`[App.js HandleRouteChange] Finished handling route for ${pageId}.`);
 },
 
-    async init() {
+async init() {
         console.log("[App Init] Starting initialization...");
         ui.initSharedEventListeners();
 
-        // (configPromise 邏輯保持不變)
+        // --- ▼▼▼ 【安全修正區塊】強制驗證登入狀態 ▼▼▼ ---
+        try {
+            const authStatus = await api.checkAuthStatus(); // 呼叫 /api/admin/auth/status
+            
+            // 如果驗證失敗 (可能是 401 或 API 回傳 loggedIn: false)
+            if (!authStatus || !authStatus.loggedIn) {
+                console.log("[App Init] Auth check failed, redirecting to login.");
+                // 強制跳轉到登入頁
+                window.location.href = '/admin-login.html';
+                return; 
+            }
+             console.log("[App Init] Auth check passed.");
+        } catch (authError) {
+             console.log("[App Init] Critical Auth Error (API failed), redirecting to login:", authError);
+             // 即使 API 呼叫失敗 (例如網路錯誤或伺服器問題)，也視為未登入
+             window.location.href = '/admin-login.html';
+             return; 
+        }
+        // --- ▲▲▲ 【安全修正區塊】結束 ▲▲▲ ---
+        
+        // 原始的 configPromise 和初始化流程
         this.configPromise = (async () => {
             console.log("[App Init] Starting config fetch...");
             try {
-                window.CONFIG = await api.getAppConfig();
+                // 由於此 API 不是 Admin 專用，不需要 JWT，所以可以放在這裡
+                window.CONFIG = await api.getAppConfig(); 
                 if (!window.CONFIG || typeof window.CONFIG !== 'object' ||
                     !window.CONFIG.LOGIC || typeof window.CONFIG.LOGIC !== 'object' ||
                     !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE ||
@@ -187,7 +208,6 @@ async handleRouteChange() {
 
         window.addEventListener('hashchange', () => this.handleRouteChange());
 
-        // (navTabsElement 監聽器保持不變)
         const navTabsElement = document.querySelector('.nav-tabs');
         if (navTabsElement) {
             navTabsElement.addEventListener('click', (event) => {
@@ -203,7 +223,6 @@ async handleRouteChange() {
             console.error("[App Init] '.nav-tabs' element not found. Navigation might not work.");
         }
 
-        // (Initial route handling 保持不變)
         console.log("[App Init] Triggering initial handleRouteChange...");
         try {
              await this.handleRouteChange();
@@ -215,8 +234,7 @@ async handleRouteChange() {
     }
 };
 
-// (DOMContentLoaded 監聽器保持不變)
 document.addEventListener('DOMContentLoaded', () => {
-     console.log('[DOMContentLoaded] Skipping frontend cookie check. Initializing App...');
+     console.log('[DOMContentLoaded] Initializing App...');
      App.init(); 
 });

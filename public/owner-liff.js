@@ -103,12 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const ecommerceManageBtns = document.querySelector('.ecommerce-manage-buttons');
 
     // --- API 輔助函式 (【修正】加入 skipGlobalError 選項) ---
+// --- API 輔助函式 ---
     async function fetchData(url, options = {}) {
-        const skipGlobalError = options.skipGlobalError || false; // 新增：是否跳過全域錯誤提示
+        const skipGlobalError = options.skipGlobalError || false; 
         
         try {
-            // 預設加入 credentials: 'same-origin' 以傳送 Cookie
-            const defaultOptions = { credentials: 'same-origin' };
+            const defaultOptions = { credentials: 'same-origin' }; // 確保帶上 Cookie
             const finalOptions = { 
                 ...defaultOptions, 
                 ...options,
@@ -119,28 +119,47 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const response = await fetch(url, finalOptions);
+            
+            // 處理 204 No Content
+            if (response.status === 204) return { success: true };
+
+            // 處理非 200-299 的錯誤狀態
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`API 請求失敗 (${url.split('/').pop()}), 狀態: ${response.status}, 回應: ${errorText}`);
+                let errorMsg = `API 錯誤 (${response.status})`;
+                try {
+                    // 嘗試解析 JSON 錯誤訊息
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.error) errorMsg = errorJson.error;
+                } catch (e) {
+                    // 解析失敗則使用原始文字
+                    if (errorText) errorMsg += `: ${errorText.substring(0, 100)}`;
+                }
+                throw new Error(errorMsg);
             }
-            if (response.status === 204) return { success: true };
+
             const text = await response.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
-                 console.warn(`API ${url.split('/').pop()} 回應非 JSON:`, text.substring(0, 100));
-                 const match = text.match(/<pre>(.*?)<\/pre>/i);
-                 const extractedError = match ? match[1] : `非預期的回應格式 (非 JSON)`;
-                 throw new Error(extractedError);
+                 console.warn(`API ${url} 回應非 JSON:`, text.substring(0, 50));
+                 throw new Error(`伺服器回應格式錯誤 (非 JSON)`);
             }
         } catch (error) {
-            console.error(error);
-            // 【修正】如果設定了 skipGlobalError，就不顯示 alert 和 inline error
+            console.error("[fetchData Error]", error);
+            
+            // 只有在「沒有」設定 skipGlobalError 時才彈出視窗
             if (!skipGlobalError) {
-                alert(`[fetchData Error] ${error.message}\n\nURL: ${url.split('/').pop()}`);
-                displayInlineError(error.message, getCurrentVisibleTabContentId());
+                alert(`操作失敗：${error.message}`);
+                // 嘗試顯示在當前 Tab 的錯誤區塊 (如果有的話)
+                const activeTabId = document.querySelector('.tab-content.active')?.id || 'loading-view';
+                if (activeTabId !== 'loading-view') {
+                     // 避免在 loading 畫面顯示錯誤文字
+                     displayInlineError(error.message, 'activity-list-content'); 
+                }
             }
-            throw error; // 依然拋出錯誤供呼叫端處理
+            // 務必將錯誤繼續拋出，讓呼叫者 (如 main) 可以 catch 到並停止 loading
+            throw error; 
         }
     }
 
@@ -278,9 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 主程式 ---
+// --- 主程式 ---
     async function main() {
         try {
             await liff.init({ liffId: myLiffId });
+            
             if (!liff.isLoggedIn()) {
                 liff.login({ redirectUri: window.location.href });
                 return;
@@ -288,14 +309,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const profile = await liff.getProfile();
             userId = profile.userId;
 
+            // 平行執行驗證與資料載入
             const [verifyResult, productsResponse, configResponse] = await Promise.all([
                 fetchData('/api/admin/verify-liff-user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userId })
                 }),
-                fetchData('/api/get-products'), 
-                fetchData('/api/get-app-config')
+                fetchData('/api/get-products', { skipGlobalError: true }), // 產品失敗不擋路
+                fetchData('/api/get-app-config', { skipGlobalError: true }) // 設定失敗不擋路
             ]);
             
             allProducts = productsResponse || [];
@@ -303,37 +325,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if(configResponse && configResponse.LOGIC) {
                 window.CONFIG = configResponse;
-                console.log("[Main] 成功獲取完整 App Config");
-            } else {
-                 throw new Error("get-app-config 回傳格式不正確");
             }
 
             if (verifyResult.success && verifyResult.isAdmin) {
                 currentTemplate = verifyResult.activeTemplate;
                 
-                loadingView.style.display = 'none';
+                // 成功：顯示主畫面
                 mainView.style.display = 'block';
-
                 initializeAppUI(currentTemplate);
-                
                 setupEventListeners();
                 switchTab('activity');
             } else {
-                loadingView.style.display = 'none';
+                // 失敗：顯示權限不足
                 unauthorizedView.style.display = 'block';
             }
+
         } catch (error) {
-             alert(`[Main Error] ${error.message}\n\nStack: ${error.stack}`);
-             console.error("Main function catch block:", error);
-             if (loadingView && unauthorizedView) {
-                loadingView.style.display = 'none';
-                unauthorizedView.style.display = 'block';
-                unauthorizedView.innerHTML = `
-                    <h2 style="color: var(--color-danger);">驗證失敗</h2>
-                    <p>無法初始化管理員介面。請確認您的帳號具備管理員權限，或檢查後台日誌。</p>
-                    <p style="font-size: 0.8em; color: var(--color-text-secondary); white-space: pre-wrap;">詳細錯誤: ${error.message || '未知錯誤'}</p>
-                `;
-             }
+             console.error("[Main] Initialization failed:", error);
+             // 發生嚴重錯誤時的顯示
+             unauthorizedView.innerHTML = `
+                <h2 style="color: var(--color-danger);">系統啟動失敗</h2>
+                <p>無法連接伺服器或發生錯誤。</p>
+                <p style="font-size: 0.8em; color: #666;">${error.message}</p>
+                <button onclick="window.location.reload()" style="padding: 10px 20px; margin-top: 10px;">重新整理</button>
+             `;
+             unauthorizedView.style.display = 'block';
+        } finally {
+             // 【關鍵修正】無論成功失敗，都隱藏 Loading 畫面
+             loadingView.style.display = 'none';
         }
     }
 
@@ -643,46 +662,52 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
      // --- Modal 內容生成與操作 ---
+// --- Modal 內容生成與操作 ---
      async function openDetailsModal(type, id) {
         showModal('載入中...', '<p>正在獲取詳細資料...</p>');
         try {
             let title = '', bodyHtml = '', actionsHtml = '';
+            
             if (type === 'booking') {
-                 // 【修正 1】使用 get-bookings + search 查詢指定 ID
+                 // 1. 獲取預約基本資料
                  const bookingResults = await fetchData(`/api/get-bookings?search=${id}`);
-                 // 因為 search 會模糊匹配，我們要精確比對 ID
                  const bookingData = bookingResults.find(b => b.booking_id == id);
                  
                  if (!bookingData) throw new Error(`找不到預約資料 (ID: ${id})`);
                  
+                 // 2. 【關鍵修正】嘗試獲取顧客資料 (靜默模式)
+                 // 如果是臨時客或測試資料，這裡會 404，但我們不希望彈出 Alert
                  let userProfile = null;
                  try {
-                    // 【修正 3】查詢 User Profile 時加入 skipGlobalError 選項，避免 404 跳出 Alert
-                    userProfile = (await fetchData(`/api/admin/user-details?userId=${bookingData.user_id}`, { skipGlobalError: true })).profile;
-                 } catch (e) { console.warn("獲取 booking 的 user profile 失敗 (可能為訪客或 ID 不存在)", e); }
+                    const userRes = await fetchData(`/api/admin/user-details?userId=${bookingData.user_id}`, { 
+                        skipGlobalError: true 
+                    });
+                    userProfile = userRes.profile;
+                 } catch (e) { 
+                     console.warn("此預約關聯的 User ID 無法在資料庫中找到 (可能是訪客或舊資料):", e); 
+                     // 保持 userProfile 為 null，繼續執行渲染
+                 }
                  
                  const bookingDetails = { booking: bookingData, items: bookingData.items, user: userProfile };
                  title = `預約 #${id} (${bookingDetails.booking.contact_name})`;
                  bodyHtml = renderBookingDetailsBody(bookingDetails);
                  actionsHtml = renderBookingActions(bookingDetails.booking, bookingDetails.user);
 
-            } else if (type === 'order') {
-                // (省略 order 部分，邏輯相同)
-                 title = `訂單 #${id}`;
-                 bodyHtml = `<p>訂單詳情暫未實作</p>`;
             } else if (type === 'user') {
                  await openCustomerDetailsModal(id);
-                 return;
+                 return; // openCustomerDetailsModal 會自己處理 showModal
             } else if (type === 'activity') {
                  title = `動態 #${id}`;
-                 bodyHtml = `<p>這是一則動態消息，但目前沒有更多詳細資料可顯示。</p>`;
+                 bodyHtml = `<p>這是一則動態消息。</p>`;
             } else {
                  throw new Error(`未知的詳細資料類型: ${type}`);
             }
+            
             showModal(title, bodyHtml, actionsHtml);
             bindModalActions();
+
         } catch (error) {
-             alert(`[openDetailsModal Error] ${error.message}\n\nStack: ${error.stack}`);
+             console.error("[openDetailsModal Error]", error);
              showModal('錯誤', `<p style="color: var(--color-danger);">載入詳細資料失敗：${error.message}</p>`);
         }
      }

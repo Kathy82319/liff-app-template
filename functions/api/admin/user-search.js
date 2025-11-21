@@ -15,14 +15,16 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: '請提供搜尋關鍵字。' }), { status: 400 });
     }
 
-    // 使用 LIKE 進行模糊查詢，查詢 LINE 名稱、暱稱或 User ID
-    // 新增 '%' 萬用字元，讓搜尋更靈活
+    // 使用 LIKE 進行模糊查詢，現在包含 real_name 和 phone
     const query = `%${searchTerm}%`;
     
     const stmt = db.prepare(
-      `SELECT user_id, line_display_name, phone
+      `SELECT user_id, line_display_name, real_name, phone
        FROM Users 
-       WHERE line_display_name LIKE ?1 OR user_id LIKE ?1
+       WHERE line_display_name LIKE ?1 
+          OR user_id LIKE ?1
+          OR real_name LIKE ?1
+          OR phone LIKE ?1
        LIMIT 10` 
     );
     

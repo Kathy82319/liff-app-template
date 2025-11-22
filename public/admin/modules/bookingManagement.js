@@ -1,8 +1,3 @@
-{
-type: file_content
-fileName: public/admin/modules/bookingManagement.js
-fullContent:
-// public/admin/modules/bookingManagement.js (v12.1 前端優化版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -1380,4 +1375,3 @@ export const init = async () => {
     setupEventListeners(); 
     await fetchDataAndRender('today');
 };
-}

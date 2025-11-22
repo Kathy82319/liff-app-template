@@ -1180,12 +1180,14 @@ function renderBookingList(bookings) {
     columns.forEach(col => {
         headerHTML += `<th>${col.label}</th>`;
     });
-    headerHTML += '<th>狀態</th><th>操作</th>';
+    // 【修正 1】移除原本硬寫的 '<th>狀態</th>'，只保留 '<th>操作</th>'
+    headerHTML += '<th>操作</th>';
     bookingListTheadTr.innerHTML = headerHTML;
 
     bookingListTbody.innerHTML = '';
     if (!bookings || bookings.length === 0) {
-        bookingListTbody.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
+        // colspan = 動態欄位數 + 1 (操作欄)
+        bookingListTbody.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
         return;
     }
 
@@ -1194,6 +1196,7 @@ function renderBookingList(bookings) {
         row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
+        // --- 遍歷「系統設定」中的欄位 ---
         columns.forEach(col => {
             const cell = row.insertCell();
             let cellContent;
@@ -1208,22 +1211,27 @@ function renderBookingList(bookings) {
                  cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div>`;
             } else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
-            } else {
+            } 
+            // 【修正 2】在這裡攔截 'status' 欄位，並填入漂亮的中文標籤
+            else if (col.key === 'status') {
+                const translatedStatus = translateStatus(booking.status);
+                let statusClass = '';
+                if (booking.status === 'confirmed') statusClass = 'status-confirmed';
+                if (booking.status === 'checked-in') statusClass = 'status-checked-in';
+                if (booking.status === 'cancelled') statusClass = 'status-cancelled';
+                if (booking.status === 'no-show') statusClass = 'status-noshow';
+                
+                cellContent = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
+            } 
+            else {
                 cellContent = getProperty(booking, col.key, 'N/A');
             }
             cell.innerHTML = cellContent;
         });
 
-        // [v12.5] 狀態顯示邏輯簡化
-        let statusClass = '';
-        const translatedStatus = translateStatus(booking.status);
-
-        if (booking.status === 'confirmed') { statusClass = 'status-confirmed'; }
-        if (booking.status === 'cancelled') { statusClass = 'status-cancelled'; }
-        if (booking.status === 'no-show') { statusClass = 'status-noshow'; }
+        // 【修正 3】移除原本硬寫在迴圈外的狀態欄位生成程式碼
         
-        // [v12.5] 移除 isMarkDisabled，讓所有狀態都可以點擊「標記」進行修改
-        row.insertCell().innerHTML = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
+        // 只保留固定的「操作」欄位
         row.insertCell().innerHTML = `<td class="actions-cell">
             <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);">標記</button>
         </td>`;

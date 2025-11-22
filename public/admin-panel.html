@@ -892,6 +892,33 @@
     .mass-issue-dashboard { grid-template-columns: 1fr; }
     .vm-preview-section { width: 100%; }
 }
+
+/* --- [修正] 預約詳細資料 Modal 滾動修正 --- */
+    #booking-details-modal .modal-content {
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh; /* 限制最大高度為視窗的 90% */
+    }
+
+    #booking-details-modal .modal-body {
+        flex-grow: 1;        /* 自動填滿中間剩餘空間 */
+        overflow-y: auto;    /* 內容過長時顯示垂直滾動條 */
+        min-height: 0;       /* 防止 Flex 子元素溢出 */
+        padding-right: 10px; /* 避免滾動條蓋住文字 */
+    }
+
+    #booking-details-modal .modal-header,
+    #booking-details-modal .form-actions {
+        flex-shrink: 0;      /* 確保標題和底部按鈕區不會被壓縮 */
+        background-color: white; /* 確保背景不透明 */
+        z-index: 1;
+    }
+    
+    #booking-details-modal .form-actions {
+        border-top: 1px solid var(--color-border);
+        padding-top: 15px;
+        margin-top: 0;
+    }
 </style>
 
 </head>

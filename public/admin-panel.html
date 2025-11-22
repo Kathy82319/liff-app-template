@@ -1478,22 +1478,22 @@
 
     <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
         <div class="stat-card">
-            <h3>本月總營收 (Revenue)</h3>
+            <h3>本月總營收</h3>
             <p id="kpi-revenue" class="stat-value" style="color: var(--color-success);">$-</p>
             <small id="kpi-revenue-sub" style="color: var(--color-text-light);">含預訂與入住</small>
         </div>
         <div class="stat-card">
-            <h3>訂單總數 (Orders)</h3>
+            <h3>訂單總數</h3>
             <p id="kpi-orders" class="stat-value">0</p>
         </div>
         <div class="stat-card">
-            <h3>平均客單價 (AOV)</h3>
+            <h3>平均客單價</h3>
             <p id="kpi-aov" class="stat-value">$-</p>
         </div>
         <div class="stat-card">
-            <h3>負債水位 (Liability)</h3>
+            <h3>當前儲值金總餘額</h3>
             <p id="kpi-liability" class="stat-value" style="color: var(--color-warning);">$-</p>
-            <small>當前儲值金總餘額</small>
+            <small>所有會員帳戶餘額總和</small>
         </div>
         <div class="stat-card">
             <h3>入住/預約率</h3>
@@ -1501,15 +1501,28 @@
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
-        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border);">
-            <h4 style="margin-top: 0;">年度營收趨勢 (含取消損失)</h4>
-            <canvas id="chart-revenue-trend" height="200"></canvas>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; align-items: start;">
+        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border); min-height: 400px;">
+            <h4 style="margin-top: 0;">年度營收 (取消)</h4>
+            <div style="height: 300px; position: relative;">
+                <canvas id="chart-revenue-trend"></canvas>
+            </div>
         </div>
-        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border);">
-            <h4 style="margin-top: 0;">新舊客佔比</h4>
-            <div style="position: relative; height: 200px;">
-                <canvas id="chart-customer-seg"></canvas>
+        
+        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border); min-height: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0;">營運佔比分析</h4>
+                <select id="chart-pie-select" style="width: auto; padding: 2px 5px; font-size: 0.9rem;">
+                    <option value="customer">新舊客佔比</option>
+                    <option value="membership">會員方案佔比</option>
+                    <option value="status">訂單狀態佔比</option>
+                    <option value="items">預約項目佔比</option>
+                </select>
+            </div>
+            <div style="height: 250px; position: relative; display: flex; justify-content: center;">
+                <canvas id="chart-pie-analysis"></canvas>
+            </div>
+            <div id="chart-pie-legend" style="margin-top: 15px; font-size: 0.9rem; color: var(--color-text-dark); display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
             </div>
         </div>
     </div>
@@ -1517,7 +1530,7 @@
     <div style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--color-border);">
         <h3 style="margin-top: 0; margin-bottom: 1rem;">交易明細與對帳</h3>
         <div style="overflow-x: auto;">
-            <table>
+            <table class="transaction-table">
                 <thead>
                     <tr>
                         <th>日期</th>
@@ -1526,12 +1539,14 @@
                         <th>顧客</th>
                         <th>金額</th>
                         <th>狀態</th>
-                        <th>對帳 (已收款)</th>
+                        <th>對帳</th>
                     </tr>
                 </thead>
                 <tbody id="report-transactions-tbody">
                     <tr><td colspan="7" style="text-align: center;">載入中...</td></tr>
                 </tbody>
+                <tfoot id="report-transactions-tfoot" style="background-color: #f1f3f5; font-weight: bold;">
+                </tfoot>
             </table>
         </div>
     </div>

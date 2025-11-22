@@ -238,15 +238,21 @@ function renderTransactions(list) {
         if (isTopup) {
             isPaid = true;
         } else {
+            // 優先讀取 DB 值
             if (item.payment_status === 'paid') {
                 isPaid = true;
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
                 // DB 無紀錄 (NULL) 時的預設邏輯：
-                // 只有 'confirmed' (預約成功) 或 'checked-in' (已入住/報到) 預設為 TRUE
-                // 'cancelled' (已取消) 或 'no-show' (未到) 則預設為 FALSE
-                isPaid = (item.status === 'confirmed' || item.status === 'checked-in');
+                // 只有 'confirmed', 'checked-in', 'completed' 預設為 TRUE
+                // 'cancelled', 'no-show' 預設為 FALSE
+                if (['confirmed', 'checked-in', 'completed'].includes(item.status)) {
+                    isPaid = true;
+                } else {
+                    // 其他狀態 (包含 cancelled, no-show) 預設關閉
+                    isPaid = false;
+                }
             }
         }
 
@@ -265,9 +271,10 @@ function renderTransactions(list) {
         }
 
         // --- 【核心修正 2】顯示項目內容 ---
+        // 加入 item_summary 顯示在單號下方
         const contentDisplay = `
             <div>${isTopup ? '後台加值' : `#${item.booking_id}`}</div>
-            <div style="font-size: 0.85em; color: #666;">${item.item_summary || ''}</div>
+            <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${item.item_summary || ''}</div>
         `;
 
         return `

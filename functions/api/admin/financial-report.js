@@ -119,7 +119,7 @@ export async function onRequest(context) {
 
 
         // --- 4. 交易明細 (修正：加入 item_summary) ---
-        // 使用子查詢 GROUP_CONCAT 組合項目名稱
+        // 【核心修正】這裡使用子查詢 GROUP_CONCAT 組合項目名稱
         const transactionsStmt = db.prepare(`
             SELECT 
                 b.booking_date, 

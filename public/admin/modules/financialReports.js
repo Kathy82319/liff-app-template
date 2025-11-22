@@ -48,30 +48,41 @@ function setupEventListeners() {
         updatePieChart(e.target.value);
     });
     
+    // --- 對帳開關監聽器 ---
     document.getElementById('report-transactions-tbody')?.addEventListener('change', async (e) => {
         if (e.target.classList.contains('payment-status-toggle')) {
             const bookingId = e.target.dataset.id;
             const isChecked = e.target.checked;
             const newStatus = isChecked ? 'paid' : 'unpaid';
             
+            // 1. 立即更新本地快取 (讓 UI 反應更即時)
             const tx = currentTransactions.find(t => t.booking_id == bookingId);
             if (tx) {
                 tx._tempIsPaid = isChecked; 
                 tx.payment_status = newStatus; 
             }
-
             updateTransactionSummary(currentTransactions);
 
+            // 2. 呼叫 API 並顯示儲存狀態
             try {
-                e.target.disabled = true; 
+                e.target.disabled = true; // 鎖定防止連點
+                // 顯示一個 "儲存中" 的小提示 (可選)
+                
                 await api.updatePaymentStatus(Number(bookingId), newStatus);
+                
+                // --- 【新增】明確的成功提示 ---
+                ui.toast.success(`單號 #${bookingId} 對帳狀態已儲存！`); 
+                console.log(`Booking #${bookingId} payment status saved as ${newStatus}`);
+
             } catch (error) {
-                ui.toast.error('狀態更新失敗，請重試');
-                e.target.checked = !isChecked;
-                if(tx) tx._tempIsPaid = !isChecked;
+                // 失敗時回滾
+                console.error("Payment status update failed:", error);
+                ui.toast.error(`儲存失敗，請重試：${error.message}`);
+                e.target.checked = !isChecked; // 開關彈回原狀
+                if(tx) tx._tempIsPaid = !isChecked; // 資料回滾
                 updateTransactionSummary(currentTransactions);
             } finally {
-                e.target.disabled = false;
+                e.target.disabled = false; // 解鎖
             }
         }
     });
@@ -233,27 +244,23 @@ function renderTransactions(list) {
         const typeLabel = isTopup ? '<span class="status-tag" style="background:#28a745">儲值</span>' : '<span class="status-tag" style="background:#007bff">訂單</span>';
         const statusText = statusMap[item.status] || item.status;
 
-
-
-        
-        // --- 【核心修正 1】對帳開關預設邏輯 ---
+        // --- 1. 對帳開關邏輯 ---
         let isPaid = false;
         if (isTopup) {
             isPaid = true;
         } else {
-            // 優先讀取 DB 值
+            // 如果資料庫有記錄 (paid/unpaid)，以資料庫為主 (這就是您要的"覆寫")
             if (item.payment_status === 'paid') {
                 isPaid = true;
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
-                // DB 無紀錄 (NULL) 時的預設邏輯：
-                // 只有 'confirmed', 'checked-in', 'completed' 預設為 TRUE
-                // 'cancelled', 'no-show' 預設為 FALSE
+                // 如果資料庫是 NULL (預設)，則根據狀態判斷
+                // confirmed, checked-in -> 預設已付
+                // cancelled, no-show -> 預設未付
                 if (['confirmed', 'checked-in', 'completed'].includes(item.status)) {
                     isPaid = true;
                 } else {
-                    // 其他狀態 (包含 cancelled, no-show) 預設關閉
                     isPaid = false;
                 }
             }
@@ -273,8 +280,7 @@ function renderTransactions(list) {
              toggleHtml = '<span style="color:green;">✔</span>';
         }
 
-        // --- 【核心修正 2】顯示項目內容 ---
-        // 加入 item_summary 顯示在單號下方
+        // --- 2. 顯示項目內容 ---
         const contentDisplay = `
             <div>${isTopup ? '後台加值' : `#${item.booking_id}`}</div>
             <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${item.item_summary || ''}</div>
@@ -433,7 +439,6 @@ function exportToCSV() {
     rows.forEach(rowArray => {
         const row = rowArray.map(cell => {
             if (cell === null || cell === undefined) return "";
-            // 處理換行符號，避免 CSV 格式跑掉
             const cellStr = String(cell).replace(/"/g, '""'); 
             return `"${cellStr}"`;
         }).join(",");

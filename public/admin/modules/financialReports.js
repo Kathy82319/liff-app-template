@@ -54,17 +54,14 @@ function setupEventListeners() {
             const isChecked = e.target.checked;
             const newStatus = isChecked ? 'paid' : 'unpaid';
             
-            // 1. 立即更新本地數據模型
             const tx = currentTransactions.find(t => t.booking_id == bookingId);
             if (tx) {
                 tx._tempIsPaid = isChecked; 
                 tx.payment_status = newStatus; 
             }
 
-            // 2. 立即重新計算底部統計
             updateTransactionSummary(currentTransactions);
 
-            // 3. 背景發送 API
             try {
                 e.target.disabled = true; 
                 await api.updatePaymentStatus(Number(bookingId), newStatus);
@@ -102,7 +99,7 @@ async function loadReportData() {
 
         renderKPIs(data.kpi);
         renderRevenueChart(data.charts.monthly);
-        updatePieChart('membership'); // 預設顯示會員方案，測試修正效果
+        updatePieChart('membership');
         renderTransactions(data.transactions);
 
     } catch (error) {
@@ -119,13 +116,10 @@ function renderKPIs(kpi) {
     document.getElementById('kpi-occupancy').textContent = `${kpi.occupancy}%`;
 }
 
-// 1. 年度營收 (直條圖) - 強制設定 Canvas 尺寸以解決模糊
 function renderRevenueChart(monthlyData) {
     if (typeof Chart === 'undefined') return;
     const canvas = document.getElementById('chart-revenue-trend');
     const parent = canvas.parentNode;
-    
-    // 強制重設 Canvas 大小以匹配容器
     canvas.width = parent.offsetWidth;
     canvas.height = parent.offsetHeight;
 
@@ -141,48 +135,19 @@ function renderRevenueChart(monthlyData) {
         data: {
             labels: labels,
             datasets: [
-                { 
-                    label: '實際營收', 
-                    data: actualData, 
-                    backgroundColor: '#28a745', 
-                    barPercentage: 0.6, 
-                    categoryPercentage: 0.8 
-                },
-                { 
-                    label: '取消/未入住損失', 
-                    data: lostData, 
-                    backgroundColor: '#dc3545', 
-                    barPercentage: 0.6,
-                    categoryPercentage: 0.8
-                }
+                { label: '實際營收', data: actualData, backgroundColor: '#28a745', barPercentage: 0.6, categoryPercentage: 0.8 },
+                { label: '取消/未入住損失', data: lostData, backgroundColor: '#dc3545', barPercentage: 0.6, categoryPercentage: 0.8 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            devicePixelRatio: window.devicePixelRatio || 1, 
+            devicePixelRatio: window.devicePixelRatio || 1,
             scales: {
-                x: { stacked: false, grid: { display: false } }, 
-                y: { 
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            if (value >= 1000) return '$' + value / 1000 + 'k';
-                            return '$' + value;
-                        }
-                    }
-                }
+                x: { stacked: false, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { callback: function(value) { if (value >= 1000) return '$' + value / 1000 + 'k'; return '$' + value; } } }
             },
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': $' + context.raw.toLocaleString();
-                        }
-                    }
-                }
-            },
+            plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': $' + context.raw.toLocaleString(); } } } },
             animation: {
                 onComplete: function () {
                     const chartInstance = this;
@@ -190,15 +155,11 @@ function renderRevenueChart(monthlyData) {
                     ctx.font = Chart.helpers.toFontString(12, 'normal', Chart.defaults.font.family);
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
-
                     this.data.datasets.forEach(function (dataset, i) {
                         const meta = chartInstance.getDatasetMeta(i);
                         meta.data.forEach(function (bar, index) {
                             const data = dataset.data[index];
-                            if (data > 0) { 
-                                ctx.fillStyle = dataset.backgroundColor; 
-                                ctx.fillText('$' + data.toLocaleString(), bar.x, bar.y - 5);
-                            }
+                            if (data > 0) { ctx.fillStyle = dataset.backgroundColor; ctx.fillText('$' + data.toLocaleString(), bar.x, bar.y - 5); }
                         });
                     });
                 }
@@ -207,7 +168,6 @@ function renderRevenueChart(monthlyData) {
     });
 }
 
-// 2. 圓餅圖
 function updatePieChart(type) {
     if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('chart-pie-analysis').getContext('2d');
@@ -220,10 +180,7 @@ function updatePieChart(type) {
     if (rawData.length === 0) {
         charts.pie = new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                labels: ['無數據'],
-                datasets: [{ data: [1], backgroundColor: ['#e9ecef'] }]
-            },
+            data: { labels: ['無數據'], datasets: [{ data: [1], backgroundColor: ['#e9ecef'] }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
         });
         legendContainer.innerHTML = '<span style="color:#999;">無相關數據</span>';
@@ -234,26 +191,19 @@ function updatePieChart(type) {
     const values = rawData.map(d => d.value);
     const total = values.reduce((a, b) => a + b, 0);
     
-    const backgroundColors = [
-        '#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6610f2', '#fd7e14', '#20c997', '#e83e8c'
-    ];
+    const backgroundColors = ['#17a2b8', '#ffc107', '#28a745', '#dc3545', '#6610f2', '#fd7e14', '#20c997', '#e83e8c'];
 
     charts.pie = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: backgroundColors.slice(0, values.length)
-            }]
+            datasets: [{ data: values, backgroundColor: backgroundColors.slice(0, values.length) }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             devicePixelRatio: window.devicePixelRatio || 1,
-            plugins: {
-                legend: { display: false }
-            }
+            plugins: { legend: { display: false } }
         }
     });
 
@@ -261,16 +211,10 @@ function updatePieChart(type) {
         const value = values[index];
         const percent = total > 0 ? Math.round((value / total) * 100) : 0;
         const color = backgroundColors[index % backgroundColors.length];
-        return `
-            <div style="display: flex; align-items: center; font-size: 0.85rem;">
-                <span style="width: 12px; height: 12px; background-color: ${color}; display: inline-block; margin-right: 5px; border-radius: 2px;"></span>
-                <span>${label}: <strong>${value}</strong> (${percent}%)</span>
-            </div>
-        `;
+        return `<div style="display: flex; align-items: center; font-size: 0.85rem;"><span style="width: 12px; height: 12px; background-color: ${color}; display: inline-block; margin-right: 5px; border-radius: 2px;"></span><span>${label}: <strong>${value}</strong> (${percent}%)</span></div>`;
     }).join('');
 }
 
-// 3. 交易列表
 function renderTransactions(list) {
     const tbody = document.getElementById('report-transactions-tbody');
     
@@ -280,9 +224,7 @@ function renderTransactions(list) {
         return;
     }
 
-    const statusMap = {
-        'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'checked-in': '已報到', 'completed': '完成'
-    };
+    const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'checked-in': '已報到', 'completed': '完成' };
 
     tbody.innerHTML = list.map(item => {
         const isTopup = item.type === 'topup';
@@ -291,29 +233,27 @@ function renderTransactions(list) {
         const typeLabel = isTopup ? '<span class="status-tag" style="background:#28a745">儲值</span>' : '<span class="status-tag" style="background:#007bff">訂單</span>';
         const statusText = statusMap[item.status] || item.status;
 
-        // 決定對帳開關的初始狀態
+        // 核心修正：對帳開關預設邏輯
         let isPaid = false;
         if (isTopup) {
-            isPaid = true; // 儲值單永遠是已收
+            isPaid = true;
         } else {
             if (item.payment_status === 'paid') {
                 isPaid = true;
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
-                // DB 無紀錄，預設邏輯：
+                // DB 無紀錄 (NULL)，預設邏輯：
                 // 狀態為 'confirmed' 或 'checked-in' 預設為 TRUE
-                // 狀態為 'cancelled' 或 'no-show' 預設為 FALSE
+                // 狀態為 'cancelled' 或 'no-show' 預設為 FALSE (修正處)
                 isPaid = (item.status === 'confirmed' || item.status === 'checked-in');
             }
         }
 
-        // 將計算出的狀態寫回 list 物件，這是 CSV 匯出正確的關鍵
         item._tempIsPaid = isPaid; 
 
         let toggleHtml = '-';
         if (!isTopup) {
-            // 所有訂單狀態都顯示開關，但初始狀態依據上方邏輯決定
             toggleHtml = `
                 <label class="switch" style="transform: scale(0.8);">
                     <input type="checkbox" class="payment-status-toggle" data-id="${item.booking_id}" ${isPaid ? 'checked' : ''}>
@@ -340,20 +280,15 @@ function renderTransactions(list) {
     updateTransactionSummary(list);
 }
 
-// 計算並更新底部統計
 function updateTransactionSummary(list) {
     const tfoot = document.getElementById('report-transactions-tfoot');
     if (!tfoot) return;
 
-    let topupCount = 0;
-    let topupAmount = 0;
-    let cancelCount = 0;
-    let cancelAmount = 0;
-    let noshowCount = 0;
-    let noshowAmount = 0;
-    
-    let paidOrderCount = 0; 
-    let paidOrderAmount = 0; 
+    let topupCount = 0, topupAmount = 0;
+    let cancelCount = 0, cancelAmount = 0;
+    let noshowCount = 0, noshowAmount = 0;
+    let paidOrderCount = 0, paidOrderAmount = 0;
+    let hasPaidCancelOrNoShow = false; // 標記是否有已付款的取消/未到單
 
     list.forEach(item => {
         if (item.type === 'topup') {
@@ -363,12 +298,15 @@ function updateTransactionSummary(list) {
             if (item.status === 'cancelled') {
                 cancelCount++;
                 cancelAmount += item.total_amount;
+                // 檢查是否有已付款的取消單
+                if (item._tempIsPaid) hasPaidCancelOrNoShow = true;
             } else if (item.status === 'no-show') {
                 noshowCount++;
                 noshowAmount += item.total_amount;
+                // 檢查是否有已付款的未到單
+                if (item._tempIsPaid) hasPaidCancelOrNoShow = true;
             }
 
-            // 關鍵：只統計目前被視為「已收款」的訂單 (包含手動勾選的取消單)
             if (item._tempIsPaid) {
                 paidOrderCount++;
                 paidOrderAmount += item.total_amount;
@@ -376,12 +314,12 @@ function updateTransactionSummary(list) {
         }
     });
 
-    // 儲存統計數據供 CSV 使用
     currentSummary = {
         topupCount, topupAmount,
         cancelCount, cancelAmount,
         noshowCount, noshowAmount,
-        paidOrderCount, paidOrderAmount
+        paidOrderCount, paidOrderAmount,
+        hasPaidCancelOrNoShow // 存入 summary 供 CSV 使用
     };
 
     const summaryHtml = `
@@ -419,41 +357,83 @@ function exportToCSV() {
 
     const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'completed': '完成', 'checked-in': '已報到' };
 
-    const headers = ["日期", "類型", "單號", "顧客", "金額", "狀態", "付款標記"];
+    // --- 核心修正：CSV 排版 ---
+    // 第一部分：明細表 (左邊)
+    // 第二部分：統計摘要 (右邊，從 I 欄開始)
     
-    // 1. 交易明細列
-    const rows = currentTransactions.map(item => {
-        const isTopup = item.type === 'topup';
-        
-        // 關鍵修正：直接使用 _tempIsPaid (前端當前畫面狀態)，而非重新計算邏輯
-        // 這確保了 CSV 匯出結果與使用者在畫面上看到的完全一致
-        const isPaid = item._tempIsPaid;
+    // 準備表頭
+    const headers = [
+        "日期", "類型", "單號", "顧客", "金額", "狀態", "付款標記", // A-G
+        "", // H (空格)
+        "統計摘要", "", "數量", "金額" // I-L
+    ];
 
-        return [
-            item.booking_date,
-            isTopup ? '儲值' : '訂單',
-            item.booking_id,
-            item.contact_name || '',
-            item.total_amount,
-            statusMap[item.status] || item.status,
-            isPaid ? '已收款' : '未收款'
-        ];
-    });
+    // 準備資料列
+    const rows = [];
+    const maxRows = Math.max(currentTransactions.length, 6); // 至少預留 6 行給右側統計
+
+    for (let i = 0; i < maxRows; i++) {
+        const row = [];
+        
+        // --- 左側：交易明細 ---
+        if (i < currentTransactions.length) {
+            const item = currentTransactions[i];
+            const isTopup = item.type === 'topup';
+            const isPaid = item._tempIsPaid; // 直接使用畫面狀態
+
+            row.push(
+                item.booking_date,
+                isTopup ? '儲值' : '訂單',
+                item.booking_id,
+                item.contact_name || '',
+                item.total_amount,
+                statusMap[item.status] || item.status,
+                isPaid ? '已收款' : '未收款'
+            );
+        } else {
+            // 填充空值
+            row.push("", "", "", "", "", "", "");
+        }
+
+        // --- 中間分隔 ---
+        row.push(""); // H 欄
+
+        // --- 右側：統計摘要 (手動排版) ---
+        if (i === 0) {
+            row.push("已確認訂單", "", currentSummary.paidOrderCount + "筆", "$" + currentSummary.paidOrderAmount);
+        } else if (i === 1) {
+            row.push("儲值單", "", currentSummary.topupCount + "筆", "$" + currentSummary.topupAmount);
+        } else if (i === 2) {
+            row.push("取消", "", currentSummary.cancelCount + "筆", "$" + currentSummary.cancelAmount);
+        } else if (i === 3) {
+            row.push("未到", "", currentSummary.noshowCount + "筆", "$" + currentSummary.noshowAmount);
+        } else if (i === 4) {
+            row.push("當月金額統計", "", currentTransactions.length + "筆", "$" + (currentSummary.paidOrderAmount + currentSummary.topupAmount)); // 簡單加總所有訂單+儲值 (依需求可調整)
+            // 這裡的邏輯比較模糊，我先假設是「所有已收款」的總和 (訂單+儲值)
+            // 如果您指的是「原始訂單總額 (不管有沒有收)」，請告訴我，我可以改
+        } else if (i === 5) {
+            // 條件顯示：如果有已付款的取消/未到單
+            if (currentSummary.hasPaidCancelOrNoShow) {
+                row.push("當月金額統計(含取消/未到)", "", "", "$" + currentSummary.paidOrderAmount); // 這裡的 paidOrderAmount 已經包含所有勾選的單
+            } else {
+                row.push("", "", "", "");
+            }
+        } else {
+            row.push("", "", "", "");
+        }
+
+        rows.push(row);
+    }
 
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     csvContent += headers.join(",") + "\r\n";
     rows.forEach(rowArray => {
-        const row = rowArray.map(cell => `"${cell}"`).join(",");
+        const row = rowArray.map(cell => {
+            if (cell === null || cell === undefined) return "";
+            return `"${cell}"`;
+        }).join(",");
         csvContent += row + "\r\n";
     });
-
-    // 2. 加入底部統計列
-    csvContent += "\r\n"; // 空一行
-    csvContent += "統計摘要\r\n";
-    csvContent += `儲值單,${currentSummary.topupCount}筆,儲值總金額,$${currentSummary.topupAmount}\r\n`;
-    csvContent += `取消,${currentSummary.cancelCount}筆,取消金額,$${currentSummary.cancelAmount}\r\n`;
-    csvContent += `未到,${currentSummary.noshowCount}筆,未到金額,$${currentSummary.noshowAmount}\r\n`;
-    csvContent += `訂單數量(已確認收款),${currentSummary.paidOrderCount}筆,訂單金額(已確認收款),$${currentSummary.paidOrderAmount}\r\n`;
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");

@@ -755,6 +755,53 @@ async function handleCreateBookingSubmit(e) {
          return;
     }
 
+    // --- ▼▼▼ [v12.2 新增] 庫存不足防呆檢查 (插入在此) ▼▼▼ ---
+    if (isGuesthouse && bookingDate && checkOutDate && items.length > 0) {
+        try {
+            // 1. 呼叫 API 查詢該區間庫存
+            const params = new URLSearchParams({ startDate: bookingDate, endDate: checkOutDate });
+            // 注意: getRoomInventory 回傳結構 { productId: { date: { quantity_available: ... } } }
+            const inventoryData = await api.getRoomInventory(params);
+            
+            const warnings = [];
+
+            // 2. 遍歷預約項目與日期進行檢查
+            for (const item of items) {
+                if (!item.productId) continue; // 跳過無 ID 的手動項目
+                const productInv = inventoryData[item.productId];
+                
+                // 計算入住期間的所有日期 (不含退房日)
+                let curr = new Date(bookingDate);
+                const end = new Date(checkOutDate);
+                
+                while (curr < end) {
+                    const dateStr = curr.toISOString().split('T')[0];
+                    // 取得當日庫存資訊 (若無資料則預設 quantity 為 0)
+                    const dayInv = productInv ? productInv[dateStr] : null;
+                    const currentQty = (dayInv && dayInv.quantity_available !== null) ? dayInv.quantity_available : 0;
+                    
+                    // 檢查：若 (現有庫存 - 預訂量) < 0 則警告
+                    if (currentQty - item.qty < 0) {
+                        warnings.push(`${dateStr}: ${item.name} (庫存 ${currentQty} → ${currentQty - item.qty})`);
+                    }
+                    curr.setDate(curr.getDate() + 1);
+                }
+            }
+
+            // 3. 若有警告，彈出確認視窗
+            if (warnings.length > 0) {
+                const msg = `⚠️ 庫存不足警告！\n此操作將導致以下房型超賣 (變成負數)：\n\n${warnings.slice(0, 5).join('\n')}${warnings.length > 5 ? '\n...' : ''}\n\n確定要繼續嗎？`;
+                const confirmed = await ui.confirm(msg);
+                if (!confirmed) return; // 使用者按取消，中止送出
+            }
+
+        } catch (e) {
+            console.warn("[Inventory Check] 庫存檢查失敗，跳過防呆:", e);
+            // 檢查失敗不阻擋流程，以免 API 掛掉導致無法訂房
+        }
+    }
+
+
     const submitButton = e.target.querySelector('button[type="submit"]');
     
     const formData = {

@@ -12,13 +12,11 @@ export async function onRequest(context) {
             contactPhone, numOfPeople, items, totalAmount, notes, bookingType
         } = body;
 
-        // --- 1. 基礎驗證 ---
         const errors = [];
         if (!userId) errors.push('無效的使用者 ID。');
         if (!bookingDate) errors.push('日期為必填。');
         if (!contactName) errors.push('聯絡姓名為必填。');
-        // 【修改目標 1】電話不再是必填，後端允許 null
-        
+        // 電話已改為非必填，故不檢查 contactPhone
         if (!Array.isArray(items) || items.length === 0) errors.push('預約必須至少包含一個項目。');
         
         if (errors.length > 0) {
@@ -28,27 +26,27 @@ export async function onRequest(context) {
         const db = context.env.DB;
         const operations = []; 
 
-        // --- 2. 【目標 4】判斷預約類型並處理庫存 (民宿邏輯) ---
+        // --- 2. 判斷預約類型並處理庫存 (民宿邏輯) ---
         if (bookingType === 'guesthouse' && checkOutDate) {
             if (new Date(bookingDate) >= new Date(checkOutDate)) {
                  return new Response(JSON.stringify({ error: '退房日期必須晚於入住日期。' }), { status: 400 });
             }
 
-            // 取得日期範圍 (不含退房日)
             const bookingDates = getDateRange(bookingDate, checkOutDate);
             
             for (const item of items) {
-                // 我們需要 product_id 才能扣庫存。
-                // 嘗試從 Products 表中找出對應的 product_id
-                const product = await db.prepare("SELECT product_id FROM Products WHERE name = ?").bind(item.name).first();
+                // 【需求 5】優先使用前端傳來的 productId
+                let productId = item.productId;
+
+                // 如果前端沒傳 productId (可能是舊版前端或手動輸入)，嘗試用名稱找
+                if (!productId) {
+                    const product = await db.prepare("SELECT product_id FROM Products WHERE name = ?").bind(item.name).first();
+                    if (product) productId = product.product_id;
+                }
                 
-                if (product) {
-                    const productId = product.product_id;
-                    
-                    // 針對每一天扣除庫存 (Upsert/Update)
+                if (productId) {
+                    // 針對每一天扣除庫存 (允許扣到負數)
                     for (const dateStr of bookingDates) {
-                        // 手動預約視為「強制扣除」，允許扣到負數
-                        // 使用 COALESCE 處理：如果該日原本沒有紀錄(視為0/關閉)，扣除後變負數
                         operations.push(
                             db.prepare(`
                                 UPDATE RoomInventory 
@@ -58,14 +56,15 @@ export async function onRequest(context) {
                         );
                     }
                 } else {
-                    // 如果是手動輸入的項目名稱，無法對應到庫存，則跳過庫存扣除
-                    console.warn(`找不到產品 "${item.name}" 的 ID，將跳過庫存扣除。`);
+                    console.warn(`[CreateBooking] 無法為項目 "${item.name}" 扣除庫存 (找不到 ID)。`);
                 }
             }
         }
 
         // --- 3. 建立預約主檔 (Bookings) ---
-        // 必須先執行以獲取 booking_id
+        // 【需求 4】這裡確保 booking_date 只存 Start Date (前端已處理，這裡是雙重保險)
+        const cleanStartDate = bookingDate.split(' to ')[0];
+
         const bookingStmt = db.prepare(
             `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, time_slot, num_of_people, total_amount, notes, status) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed') 
@@ -73,8 +72,9 @@ export async function onRequest(context) {
         );
         
         const { booking_id } = await bookingStmt.bind(
-            userId, contactName.trim(), contactPhone ? contactPhone.trim() : null, bookingDate,
-            checkOutDate || null, // 民宿有，工作室無
+            userId, contactName.trim(), contactPhone ? contactPhone.trim() : null, 
+            cleanStartDate, // 存入乾淨的入住日
+            checkOutDate || null, 
             timeSlot ? timeSlot.trim() : '', 
             Number(numOfPeople), totalAmount || null, notes || null
         ).first();
@@ -87,13 +87,17 @@ export async function onRequest(context) {
         );
         
         for (const item of items) {
-            const product = await db.prepare("SELECT product_id FROM Products WHERE name = ?").bind(item.name).first();
-            const pid = product ? product.product_id : null;
+            // 這裡同樣優先使用傳入的 productId
+            let pid = item.productId || null;
+            if (!pid) {
+                 const product = await db.prepare("SELECT product_id FROM Products WHERE name = ?").bind(item.name).first();
+                 pid = product ? product.product_id : null;
+            }
             
             operations.push(itemStmt.bind(booking_id, item.name, item.qty, item.price, pid));
         }
 
-        // --- 5. 執行 Batch (項目插入 + 庫存扣除) ---
+        // --- 5. 執行 Batch ---
         if (operations.length > 0) {
             await db.batch(operations);
         }
@@ -101,7 +105,7 @@ export async function onRequest(context) {
         // --- 6. 記錄活動日誌 ---
         const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
         const activityLink = `#bookings-${booking_id}`;
-        context.waitUntil(activityStmt.bind('new_booking_admin', `管理者為 ${contactName.trim()} 建立了 ${bookingDate} 的預約`, activityLink).run());
+        context.waitUntil(activityStmt.bind('new_booking_admin', `管理者為 ${contactName.trim()} 建立了 ${cleanStartDate} 的預約`, activityLink).run());
       
         return new Response(JSON.stringify({ success: true, message: '預約已成功建立' }), {
             status: 201,

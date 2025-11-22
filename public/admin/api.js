@@ -128,7 +128,12 @@ export const api = {
     issueVoucher: (data) => request('/api/admin/issue-voucher', { method: 'POST', body: JSON.stringify(data) }), // <-- ▼▼▼ 新增這一行 ▼▼▼
     massIssueVoucher: (data) => request('/api/admin/mass-issue-voucher', { method: 'POST', body: JSON.stringify(data) }), // <-- ▼▼▼ 新增這一行 ▼▼▼
     
-    
+    // --- Admin Reports ---
+    getFinancialReport: (startDate, endDate) => request(`/api/admin/financial-report?startDate=${startDate}&endDate=${endDate}`),
+    updatePaymentStatus: (bookingId, paymentStatus) => request('/api/admin/update-payment-status', { 
+        method: 'POST', 
+        body: JSON.stringify({ bookingId, paymentStatus }) 
+    }),
     
     // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),

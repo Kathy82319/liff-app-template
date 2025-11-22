@@ -17,6 +17,7 @@ const App = {
         'points': './modules/pointsCenter.js',
         'settings': './modules/systemSettings.js',
         'vouchers': './modules/voucherManagement.js',
+        'reports': './modules/financialReports.js',
     },
     configPromise: null, 
 

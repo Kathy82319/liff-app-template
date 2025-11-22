@@ -913,6 +913,7 @@
             <a href="#drafts">訊息草稿</a>
             <a href="#store-info">店家資訊</a>
             <a href="#points">點數發放</a>
+            <a href="#reports">財務報表</a>
             <a href="#settings">系統設定</a>
         </nav>
 
@@ -1465,6 +1466,77 @@
                 
 </div>
 
+<div id="page-reports" class="page">
+    <div class="page-header">
+        <h2>財務與營運報表</h2>
+        <div class="filter-group">
+            <input type="text" id="report-date-range" placeholder="選擇日期範圍" style="width: 220px;">
+            <button id="refresh-report-btn" class="action-btn btn-save">更新報表</button>
+            <button id="export-report-btn" class="action-btn" style="background-color: var(--color-success);">匯出 CSV</button>
+        </div>
+    </div>
+
+    <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div class="stat-card">
+            <h3>本月總營收 (Revenue)</h3>
+            <p id="kpi-revenue" class="stat-value" style="color: var(--color-success);">$-</p>
+            <small id="kpi-revenue-sub" style="color: var(--color-text-light);">含預訂與入住</small>
+        </div>
+        <div class="stat-card">
+            <h3>訂單總數 (Orders)</h3>
+            <p id="kpi-orders" class="stat-value">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>平均客單價 (AOV)</h3>
+            <p id="kpi-aov" class="stat-value">$-</p>
+        </div>
+        <div class="stat-card">
+            <h3>負債水位 (Liability)</h3>
+            <p id="kpi-liability" class="stat-value" style="color: var(--color-warning);">$-</p>
+            <small>當前儲值金總餘額</small>
+        </div>
+        <div class="stat-card">
+            <h3>入住/預約率</h3>
+            <p id="kpi-occupancy" class="stat-value">- %</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border);">
+            <h4 style="margin-top: 0;">年度營收趨勢 (含取消損失)</h4>
+            <canvas id="chart-revenue-trend" height="200"></canvas>
+        </div>
+        <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid var(--color-border);">
+            <h4 style="margin-top: 0;">新舊客佔比</h4>
+            <div style="position: relative; height: 200px;">
+                <canvas id="chart-customer-seg"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--color-border);">
+        <h3 style="margin-top: 0; margin-bottom: 1rem;">交易明細與對帳</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>類型</th>
+                        <th>單號 / 內容</th>
+                        <th>顧客</th>
+                        <th>金額</th>
+                        <th>狀態</th>
+                        <th>對帳 (已收款)</th>
+                    </tr>
+                </thead>
+                <tbody id="report-transactions-tbody">
+                    <tr><td colspan="7" style="text-align: center;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div id="page-settings" class="page">
     <div class="page-header">
         <h2>超級系統設定</h2>
@@ -1943,6 +2015,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="/admin/app.js"></script>
 </body>
 </html>

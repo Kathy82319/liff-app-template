@@ -66,12 +66,10 @@ function setupEventListeners() {
             // 2. 呼叫 API 並顯示儲存狀態
             try {
                 e.target.disabled = true; // 鎖定防止連點
-                // 顯示一個 "儲存中" 的小提示 (可選)
                 
                 await api.updatePaymentStatus(Number(bookingId), newStatus);
                 
-                // --- 【新增】明確的成功提示 ---
-                ui.toast.success(`單號 #${bookingId} 對帳狀態已儲存！`); 
+                ui.toast.success(`單號 #${String(bookingId).padStart(5, '0')} 對帳狀態已儲存！`); 
                 console.log(`Booking #${bookingId} payment status saved as ${newStatus}`);
 
             } catch (error) {
@@ -249,15 +247,11 @@ function renderTransactions(list) {
         if (isTopup) {
             isPaid = true;
         } else {
-            // 如果資料庫有記錄 (paid/unpaid)，以資料庫為主 (這就是您要的"覆寫")
             if (item.payment_status === 'paid') {
                 isPaid = true;
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
-                // 如果資料庫是 NULL (預設)，則根據狀態判斷
-                // confirmed, checked-in -> 預設已付
-                // cancelled, no-show -> 預設未付
                 if (['confirmed', 'checked-in', 'completed'].includes(item.status)) {
                     isPaid = true;
                 } else {
@@ -280,9 +274,10 @@ function renderTransactions(list) {
              toggleHtml = '<span style="color:green;">✔</span>';
         }
 
-        // --- 2. 顯示項目內容 ---
+        // --- 2. 顯示項目內容 (【修改】單號補零) ---
+        const bookingIdDisplay = isTopup ? '後台加值' : `#${String(item.booking_id).padStart(5, '0')}`;
         const contentDisplay = `
-            <div>${isTopup ? '後台加值' : `#${item.booking_id}`}</div>
+            <div>${bookingIdDisplay}</div>
             <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${item.item_summary || ''}</div>
         `;
 
@@ -394,11 +389,14 @@ function exportToCSV() {
             const item = currentTransactions[i];
             const isTopup = item.type === 'topup';
             const isPaid = item._tempIsPaid; 
+            
+            // 【修改】CSV 匯出也補零，使用 #00000 格式
+            const bookingIdStr = isTopup ? '' : `#${String(item.booking_id).padStart(5, '0')}`;
 
             row.push(
                 item.booking_date,
                 isTopup ? '儲值' : '訂單',
-                item.booking_id,
+                bookingIdStr,
                 item.item_summary || '', // 加入內容欄位
                 item.contact_name || '',
                 item.total_amount,

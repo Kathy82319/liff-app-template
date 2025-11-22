@@ -1,3 +1,4 @@
+// public/admin/modules/bookingManagement.js (v12.3 - 單號顯示修正版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
@@ -146,6 +147,9 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             html += `<p>(臨時顧客)</p>`;
         }
         // --- 2. 預約資訊 ---
+        // 【修改】單號補零 #00000
+        const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
+        
         html += `<h4>預約資訊</h4>`;
         if (isGuesthouse) { // 民宿樣板
             const startDate = booking.booking_date || '';
@@ -160,6 +164,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             }
             html += `
                 <div class="details-grid-container">
+                    <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
                     <div><strong>入住日期:</strong> ${startDate}</div>
                     <div><strong>退房日期:</strong> ${endDate}</div>
                     <div><strong>住宿晚數:</strong> ${nights} 晚</div>
@@ -169,7 +174,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
         } else { // 工作室或其他樣板
             html += `
                 <div class="details-grid-container">
-                    <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                    <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
                     <div><strong>預約日期:</strong> ${booking.booking_date}</div>
                     <div><strong>預約時段:</strong> ${booking.time_slot}</div>
                     <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
@@ -218,6 +223,9 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
         contentEl.innerHTML = html;
 
     } else { // --- EDIT MODE ---
+        // 【修改】單號補零
+        const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
+        
         let itemsHtml = '';
         booking.items.forEach((item, index) => {
              itemsHtml += `
@@ -252,7 +260,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
         contentEl.innerHTML = `
             <h4>預約資訊 (編輯中)</h4>
             <div id="booking-edit-form" class="details-grid-container">
-                 <div><strong>預約單號:</strong> ${booking.booking_id}</div>
+                 <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
                  ${dateInputsHtml}
                  <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people || ''}" min="1" ${isGuesthouse ? 'readonly title="民宿人數由房型數量決定"' : ''}></div>
                  <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
@@ -721,17 +729,7 @@ async function handleCreateBookingSubmit(e) {
             return;
         }
         bookingDate = flatpickr.formatDate(dates[0], "Y-m-d");
-        // 在 createBooking 中，我們通常將 range 的結束日視為退房日
-        // 這裡直接傳送日期字串，後端 bookings-create (guesthouse logic) 會處理
-        // 注意：如果後端 create-booking 預期 endDate 是 "YYYY-MM-DD"，我們這裡可能需要傳 endDate 欄位
-        // 或者依賴後端的 bookingDate 欄位如果是 "guesthouse" 類型時的解析
-        // 假設後端 create-booking 對於 guesthouse 預期 startDate 和 endDate 參數 (根據 functions/api/bookings-create.js 邏輯)
-        // 但這裡是手動建立，共用 createBooking API 嗎？
-        // 檢查 admin/create-booking.js，它接收 bookingDate。
-        // **如果我們要支援民宿手動建立，我們需要修改 admin/create-booking.js 來接收 endDate**
-        // **或者在這裡將 bookingType 設為 'guesthouse' 並傳入 startDate/endDate**
-        
-        // 暫時解法：將 range 的第二個日期放入 checkOutDate，並在 payload 中加入
+        // 暫時解法：將 range 的第二個日期放入 checkOutDate
         checkOutDate = flatpickr.formatDate(dates[1], "Y-m-d");
     } else {
         bookingDate = document.getElementById('booking-date-input').value;
@@ -766,35 +764,32 @@ async function handleCreateBookingSubmit(e) {
          return;
     }
 
-    // --- ▼▼▼ [v12.2 新增] 庫存不足防呆檢查 (插入在此) ▼▼▼ ---
+    // --- [v12.2 新增] 庫存不足防呆檢查 ---
     if (isGuesthouse && bookingDate && checkOutDate && items.length > 0) {
         try {
             // 1. 呼叫 API 查詢該區間庫存
             const params = new URLSearchParams({ startDate: bookingDate, endDate: checkOutDate });
-            // 注意: getRoomInventory 回傳結構 { productId: { date: { quantity_available: ... } } }
             const inventoryData = await api.getRoomInventory(params);
             
             const warnings = [];
 
             // 2. 遍歷預約項目與日期進行檢查
             for (const item of items) {
-                if (!item.productId) continue; // 跳過無 ID 的手動項目
+                if (!item.productId) continue;
                 const productInv = inventoryData[item.productId];
-                const safeItemName = escapeHtml(item.name);
-                // 計算入住期間的所有日期 (不含退房日)
+                const safeItemName = escapeHtml(item.name); 
+                
                 let curr = new Date(bookingDate);
                 const end = new Date(checkOutDate);
                 
                 while (curr < end) {
                     const dateStr = curr.toISOString().split('T')[0];
-                    // 取得當日庫存資訊 (若無資料則預設 quantity 為 0)
                     const dayInv = productInv ? productInv[dateStr] : null;
                     const currentQty = (dayInv && dayInv.quantity_available !== null) ? dayInv.quantity_available : 0;
                     
                     // 檢查：若 (現有庫存 - 預訂量) < 0 則警告
                     if (currentQty - item.qty < 0) {
                         const newQty = currentQty - item.qty;
-                        // 使用 HTML span 將負數變為紅色粗體
                         const newQtyHtml = `<span style="color: var(--color-danger, red); font-weight: bold;">${newQty}</span>`;
                         warnings.push(`${dateStr}: ${safeItemName} (庫存 ${currentQty} → ${newQtyHtml})`);
                     }
@@ -804,7 +799,6 @@ async function handleCreateBookingSubmit(e) {
 
             // 3. 若有警告，彈出確認視窗
             if (warnings.length > 0) {
-                // 使用 <br> 標籤來換行，而不是 \n
                 const warningListHtml = warnings.slice(0, 5).join('<br>');
                 const moreHtml = warnings.length > 5 ? '<br>...' : '';
                 
@@ -815,25 +809,21 @@ async function handleCreateBookingSubmit(e) {
                     <br><br>確定要繼續嗎？
                 `;
                 
-                // 假設底層的 ui.confirm (如 SweetAlert2) 支援 HTML 字串
                 const confirmed = await ui.confirm(msgHtml);
-                if (!confirmed) return; // 使用者按取消，中止送出
+                if (!confirmed) return; 
             }
 
         } catch (e) {
             console.warn("[Inventory Check] 庫存檢查失敗，跳過防呆:", e);
-            // 檢查失敗不阻擋流程，以免 API 掛掉導致無法訂房
         }
     }
-
 
     const submitButton = e.target.querySelector('button[type="submit"]');
     
     const formData = {
         userId: finalUserId,
         bookingDate: bookingDate,
-        // 針對民宿傳入額外參數 (需後端支援，第二階段處理)
-        endDate: checkOutDate, // 這裡先傳，後端 admin/create-booking 之後會接
+        endDate: checkOutDate, 
         bookingType: isGuesthouse ? 'guesthouse' : 'studio',
         
         timeSlot: timeSlot,
@@ -1044,15 +1034,12 @@ function renderBookingList(bookings) {
             
             // --- 顯示修正：分開處理日期 ---
             if (col.key === 'booking_date' && isGuesthouse) {
-                 // 如果 key 是 booking_date 且是民宿，只顯示入住日
                  cellContent = booking.booking_date;
             } else if (col.key === 'check_out_date' && isGuesthouse) {
-                 // 顯示退房日
                  cellContent = booking.check_out_date || '-';
             } else if (col.key === 'item_summary') {
                 cellContent = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
             } else if (col.key === 'datetime_summary') {
-                 // 複合欄位保留原樣 (適用於工作室)
                  cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div>`;
             } else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';

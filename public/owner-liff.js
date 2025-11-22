@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
     const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
     let userId = null;
@@ -599,8 +598,9 @@ function debounce(func, delay) {
                 } else if (currentTemplate === 'ecommerce_template') {
                     type = 'order';
                     id = item.order_id;
+                    // 【修改】單號補零
                      cardHtml = `
-                         <p><strong>訂單 #${id} - ${item.customer_name}</strong></p>
+                         <p><strong>訂單 #${String(id).padStart(5, '0')} - ${item.customer_name}</strong></p>
                          <small>狀態: ${translateStatus(item.status)}, 金額: $${item.total_amount || 0}</small>
                      `;
                 }
@@ -648,8 +648,9 @@ function debounce(func, delay) {
                  } else if (currentTemplate === 'ecommerce_template') {
                      type = 'order';
                      id = item.order_id;
+                     // 【修改】單號補零
                      itemHtml = `
-                         <p><strong>訂單 #${id} - ${item.customer_name}</strong></p>
+                         <p><strong>訂單 #${String(id).padStart(5, '0')} - ${item.customer_name}</strong></p>
                          <small>狀態: ${translateStatus(item.status)}, 金額: $${item.total_amount || 0}, 日期: ${new Date(item.created_at).toLocaleDateString()}</small>
                      `;
                  }
@@ -723,7 +724,8 @@ function debounce(func, delay) {
                  }
                  
                  const bookingDetails = { booking: bookingData, items: bookingData.items, user: userProfile };
-                 title = `預約 #${id} (${bookingDetails.booking.contact_name})`;
+                 // 【修改】單號補零
+                 title = `預約 #${String(id).padStart(5, '0')} (${bookingDetails.booking.contact_name})`;
                  bodyHtml = renderBookingDetailsBody(bookingDetails);
                  actionsHtml = renderBookingActions(bookingDetails.booking, bookingDetails.user);
 

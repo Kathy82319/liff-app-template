@@ -88,11 +88,13 @@ export async function onRequest(context) {
 
         // B. 會員方案佔比
         const membershipSegStmt = db.prepare(`
-            SELECT u.class as label, COUNT(b.booking_id) as value
+            SELECT 
+                COALESCE(NULLIF(u.class, ''), '無方案') as label, 
+                COUNT(b.booking_id) as value
             FROM Bookings b
             JOIN Users u ON b.user_id = u.user_id
             WHERE b.booking_date BETWEEN ?1 AND ?2 AND b.status = 'confirmed'
-            GROUP BY u.class
+            GROUP BY label
         `);
         const { results: membershipSeg } = await membershipSegStmt.bind(startDate, endDate).all();
 

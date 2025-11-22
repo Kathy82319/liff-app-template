@@ -4,8 +4,9 @@ import { ui } from '../ui.js';
 
 let reportDateRangePicker = null;
 let currentTransactions = [];
-let currentPieDataRaw = {}; // 儲存圓餅圖原始數據
+let currentPieDataRaw = {};
 let charts = {}; 
+let currentSummary = {}; // 儲存底部統計數據供 CSV 使用
 
 // 初始化
 export const init = async () => {
@@ -40,7 +41,6 @@ function initDateRangePicker() {
     });
 }
 
-// 更新事件監聽：對帳開關變動時，即時更新統計
 function setupEventListeners() {
     document.getElementById('refresh-report-btn')?.addEventListener('click', loadReportData);
     document.getElementById('export-report-btn')?.addEventListener('click', exportToCSV);
@@ -54,11 +54,11 @@ function setupEventListeners() {
             const isChecked = e.target.checked;
             const newStatus = isChecked ? 'paid' : 'unpaid';
             
-            // 1. 立即更新本地數據模型 (提升反應速度)
+            // 1. 立即更新本地數據模型
             const tx = currentTransactions.find(t => t.booking_id == bookingId);
             if (tx) {
-                tx._tempIsPaid = isChecked; // 更新暫存狀態
-                tx.payment_status = newStatus; // 更新實際狀態
+                tx._tempIsPaid = isChecked; 
+                tx.payment_status = newStatus; 
             }
 
             // 2. 立即重新計算底部統計
@@ -66,12 +66,10 @@ function setupEventListeners() {
 
             // 3. 背景發送 API
             try {
-                e.target.disabled = true; // 暫時禁用防止連點
+                e.target.disabled = true; 
                 await api.updatePaymentStatus(Number(bookingId), newStatus);
-                // 成功不需特別提示，以免干擾操作
             } catch (error) {
                 ui.toast.error('狀態更新失敗，請重試');
-                // 失敗則回滾狀態
                 e.target.checked = !isChecked;
                 if(tx) tx._tempIsPaid = !isChecked;
                 updateTransactionSummary(currentTransactions);
@@ -100,11 +98,11 @@ async function loadReportData() {
     try {
         const data = await api.getFinancialReport(startDate, endDate);
         currentTransactions = data.transactions;
-        currentPieDataRaw = data.charts.pieData; // 存起來供切換使用
+        currentPieDataRaw = data.charts.pieData;
 
         renderKPIs(data.kpi);
         renderRevenueChart(data.charts.monthly);
-        updatePieChart('customer'); // 預設顯示新舊客
+        updatePieChart('membership'); // 預設顯示會員方案，測試修正效果
         renderTransactions(data.transactions);
 
     } catch (error) {
@@ -121,14 +119,17 @@ function renderKPIs(kpi) {
     document.getElementById('kpi-occupancy').textContent = `${kpi.occupancy}%`;
 }
 
-// 1. 年度營收 (直條圖) - 修正寬度與並排
+// 1. 年度營收 (直條圖) - 強制設定 Canvas 尺寸以解決模糊
 function renderRevenueChart(monthlyData) {
     if (typeof Chart === 'undefined') return;
+    const canvas = document.getElementById('chart-revenue-trend');
+    const parent = canvas.parentNode;
     
-    // 註冊 ChartDataLabels 插件 (如果有的話，沒有則手動繪製)
-    // 這裡我們先用 Chart.js 原生 animation.onComplete 來繪製數值，避免引入額外插件增加複雜度
-    
-    const ctx = document.getElementById('chart-revenue-trend').getContext('2d');
+    // 強制重設 Canvas 大小以匹配容器
+    canvas.width = parent.offsetWidth;
+    canvas.height = parent.offsetHeight;
+
+    const ctx = canvas.getContext('2d');
     if (charts.revenue) charts.revenue.destroy();
 
     const labels = monthlyData.map(d => d.month);
@@ -144,8 +145,8 @@ function renderRevenueChart(monthlyData) {
                     label: '實際營收', 
                     data: actualData, 
                     backgroundColor: '#28a745', 
-                    barPercentage: 0.6, // 控制單一柱體的寬度佔比 (0~1)
-                    categoryPercentage: 0.8 // 控制整組柱體在類別中的佔比 (0~1)
+                    barPercentage: 0.6, 
+                    categoryPercentage: 0.8 
                 },
                 { 
                     label: '取消/未入住損失', 
@@ -159,16 +160,12 @@ function renderRevenueChart(monthlyData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            devicePixelRatio: window.devicePixelRatio || 1, // 解決模糊問題
+            devicePixelRatio: window.devicePixelRatio || 1, 
             scales: {
-                x: { 
-                    stacked: false,
-                    grid: { display: false } // 隱藏 X 軸網格讓畫面更乾淨
-                }, 
+                x: { stacked: false, grid: { display: false } }, 
                 y: { 
                     beginAtZero: true,
                     ticks: {
-                        // 簡化 Y 軸數值 (例如 10k)
                         callback: function(value) {
                             if (value >= 1000) return '$' + value / 1000 + 'k';
                             return '$' + value;
@@ -186,12 +183,11 @@ function renderRevenueChart(monthlyData) {
                     }
                 }
             },
-            // 自定義動畫結束後的繪製 (顯示數值)
             animation: {
                 onComplete: function () {
                     const chartInstance = this;
                     const ctx = chartInstance.ctx;
-                    ctx.font = Chart.helpers.toFontString(Chart.defaults.font.size, Chart.defaults.font.style, Chart.defaults.font.family);
+                    ctx.font = Chart.helpers.toFontString(12, 'normal', Chart.defaults.font.family);
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
 
@@ -199,8 +195,8 @@ function renderRevenueChart(monthlyData) {
                         const meta = chartInstance.getDatasetMeta(i);
                         meta.data.forEach(function (bar, index) {
                             const data = dataset.data[index];
-                            if (data > 0) { // 只顯示大於 0 的數值
-                                ctx.fillStyle = dataset.backgroundColor; // 文字顏色同柱體顏色
+                            if (data > 0) { 
+                                ctx.fillStyle = dataset.backgroundColor; 
                                 ctx.fillText('$' + data.toLocaleString(), bar.x, bar.y - 5);
                             }
                         });
@@ -211,9 +207,9 @@ function renderRevenueChart(monthlyData) {
     });
 }
 
-// 2. 圓餅圖 - 動態切換與自定義圖例
+// 2. 圓餅圖
 function updatePieChart(type) {
-if (typeof Chart === 'undefined') return;
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('chart-pie-analysis').getContext('2d');
     const legendContainer = document.getElementById('chart-pie-legend');
     
@@ -254,7 +250,7 @@ if (typeof Chart === 'undefined') return;
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            devicePixelRatio: window.devicePixelRatio || 1, // 優化解析度
+            devicePixelRatio: window.devicePixelRatio || 1,
             plugins: {
                 legend: { display: false }
             }
@@ -274,13 +270,13 @@ if (typeof Chart === 'undefined') return;
     }).join('');
 }
 
-// 3. 交易列表與統計
+// 3. 交易列表
 function renderTransactions(list) {
     const tbody = document.getElementById('report-transactions-tbody');
     
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">此區間無交易紀錄。</td></tr>';
-        updateTransactionSummary(list); // 更新底部為 0
+        updateTransactionSummary(list); 
         return;
     }
 
@@ -296,33 +292,28 @@ function renderTransactions(list) {
         const statusText = statusMap[item.status] || item.status;
 
         // 決定對帳開關的初始狀態
-        // 規則：
-        // 1. 儲值單 (topup)：固定顯示綠色勾勾，視為已收。
-        // 2. 訂單 (booking)：
-        //    - 如果 DB 有 payment_status='paid' -> checked
-        //    - 如果 DB payment_status 為空/unpaid：
-        //      - status='confirmed' 或 'checked-in' -> 預設 checked (視為預設收入)
-        //      - status='cancelled' 或 'no-show' -> 預設 unchecked (視為預設不列入)
-        
         let isPaid = false;
         if (isTopup) {
-            isPaid = true;
+            isPaid = true; // 儲值單永遠是已收
         } else {
             if (item.payment_status === 'paid') {
                 isPaid = true;
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
-                // DB 無紀錄，使用預設邏輯
+                // DB 無紀錄，預設邏輯：
+                // 狀態為 'confirmed' 或 'checked-in' 預設為 TRUE
+                // 狀態為 'cancelled' 或 'no-show' 預設為 FALSE
                 isPaid = (item.status === 'confirmed' || item.status === 'checked-in');
             }
         }
 
-        // 將 isPaid 狀態暫存回 list 物件中，方便 calculateSummary 使用
+        // 將計算出的狀態寫回 list 物件，這是 CSV 匯出正確的關鍵
         item._tempIsPaid = isPaid; 
 
         let toggleHtml = '-';
         if (!isTopup) {
+            // 所有訂單狀態都顯示開關，但初始狀態依據上方邏輯決定
             toggleHtml = `
                 <label class="switch" style="transform: scale(0.8);">
                     <input type="checkbox" class="payment-status-toggle" data-id="${item.booking_id}" ${isPaid ? 'checked' : ''}>
@@ -346,33 +337,29 @@ function renderTransactions(list) {
         `;
     }).join('');
 
-    // 渲染完畢後，計算並顯示底部統計
     updateTransactionSummary(list);
 }
 
-// 新增：即時計算並更新底部統計列
+// 計算並更新底部統計
 function updateTransactionSummary(list) {
     const tfoot = document.getElementById('report-transactions-tfoot');
     if (!tfoot) return;
 
     let topupCount = 0;
     let topupAmount = 0;
-    
     let cancelCount = 0;
     let cancelAmount = 0;
-    
     let noshowCount = 0;
     let noshowAmount = 0;
     
-    let paidOrderCount = 0; // 已確認(且勾選對帳)的訂單數
-    let paidOrderAmount = 0; // 訂單金額 (動態變動)
+    let paidOrderCount = 0; 
+    let paidOrderAmount = 0; 
 
     list.forEach(item => {
         if (item.type === 'topup') {
             topupCount++;
             topupAmount += item.total_amount;
         } else {
-            // 統計取消與未到 (固定統計，不受對帳開關影響，僅作顯示)
             if (item.status === 'cancelled') {
                 cancelCount++;
                 cancelAmount += item.total_amount;
@@ -381,14 +368,21 @@ function updateTransactionSummary(list) {
                 noshowAmount += item.total_amount;
             }
 
-            // 統計訂單總額 (受對帳開關 _tempIsPaid 影響)
-            // 只要 _tempIsPaid 為 true，無論狀態為何，都算入「實收訂單金額」
+            // 關鍵：只統計目前被視為「已收款」的訂單 (包含手動勾選的取消單)
             if (item._tempIsPaid) {
                 paidOrderCount++;
                 paidOrderAmount += item.total_amount;
             }
         }
     });
+
+    // 儲存統計數據供 CSV 使用
+    currentSummary = {
+        topupCount, topupAmount,
+        cancelCount, cancelAmount,
+        noshowCount, noshowAmount,
+        paidOrderCount, paidOrderAmount
+    };
 
     const summaryHtml = `
         <tr>
@@ -423,16 +417,17 @@ function exportToCSV() {
         return;
     }
 
-    const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'completed': '完成' };
+    const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'completed': '完成', 'checked-in': '已報到' };
 
     const headers = ["日期", "類型", "單號", "顧客", "金額", "狀態", "付款標記"];
+    
+    // 1. 交易明細列
     const rows = currentTransactions.map(item => {
         const isTopup = item.type === 'topup';
-        // 重複一次預設付款邏輯以確保 CSV 一致
-        let isPaid = false;
-        if (isTopup) isPaid = true;
-        else if (item.payment_status) isPaid = item.payment_status === 'paid';
-        else isPaid = (item.status === 'confirmed');
+        
+        // 關鍵修正：直接使用 _tempIsPaid (前端當前畫面狀態)，而非重新計算邏輯
+        // 這確保了 CSV 匯出結果與使用者在畫面上看到的完全一致
+        const isPaid = item._tempIsPaid;
 
         return [
             item.booking_date,
@@ -451,6 +446,14 @@ function exportToCSV() {
         const row = rowArray.map(cell => `"${cell}"`).join(",");
         csvContent += row + "\r\n";
     });
+
+    // 2. 加入底部統計列
+    csvContent += "\r\n"; // 空一行
+    csvContent += "統計摘要\r\n";
+    csvContent += `儲值單,${currentSummary.topupCount}筆,儲值總金額,$${currentSummary.topupAmount}\r\n`;
+    csvContent += `取消,${currentSummary.cancelCount}筆,取消金額,$${currentSummary.cancelAmount}\r\n`;
+    csvContent += `未到,${currentSummary.noshowCount}筆,未到金額,$${currentSummary.noshowAmount}\r\n`;
+    csvContent += `訂單數量(已確認收款),${currentSummary.paidOrderCount}筆,訂單金額(已確認收款),$${currentSummary.paidOrderAmount}\r\n`;
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");

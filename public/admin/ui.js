@@ -25,7 +25,7 @@ export const ui = {
             const cancelBtn = document.getElementById('confirmation-cancel-btn');
             const closeBtn = modal.querySelector('.modal-close');
 
-            messageEl.textContent = message;
+            messageEl.innerHTML = message;
 
             const close = (result) => {
                 ui.hideModal('#confirmation-modal');

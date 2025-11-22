@@ -1,8 +1,17 @@
-// public/admin/modules/bookingManagement.js (v12.4 - 狀態中文化 & 項目編輯優化版)
+// public/admin/modules/bookingManagement.js (v12.6 - 房型顯示修正與即時搜尋版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
-// XSS 防護函式：將特殊符號轉義
+// 防抖動函式：避免輸入時頻繁呼叫 API
+function debounce(func, delay) {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+// XSS 防護函式
 function escapeHtml(text) {
     if (!text) return text;
     return String(text)
@@ -18,13 +27,12 @@ let allBookings = [];
 let allProducts = [];
 let currentCalendarDate = new Date();
 let createBookingDatepicker = null;
-let bookingDatepicker = null; // For settings modal
+let bookingDatepicker = null; 
 let enabledDates = [];
 let currentBookingInModal = null;
 let currentStatusMenu = null;
 let bookingListDateRangePicker = null; 
-let activeTemplate = null; 
-
+let activeTemplate = null;
 /**
  * 安全地獲取物件的巢狀屬性
  */

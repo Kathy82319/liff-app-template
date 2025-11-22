@@ -233,6 +233,9 @@ function renderTransactions(list) {
         const typeLabel = isTopup ? '<span class="status-tag" style="background:#28a745">儲值</span>' : '<span class="status-tag" style="background:#007bff">訂單</span>';
         const statusText = statusMap[item.status] || item.status;
 
+
+
+        
         // --- 【核心修正 1】對帳開關預設邏輯 ---
         let isPaid = false;
         if (isTopup) {

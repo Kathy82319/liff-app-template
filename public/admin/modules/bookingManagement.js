@@ -45,7 +45,6 @@ function translateStatus(status) {
 
     switch (status) {
         case 'confirmed': return '已確認';
-        case 'checked-in': return checkInText;
         case 'cancelled': return '已取消';
         case 'no-show': return '未到';
         default: return status || '未知';
@@ -1199,7 +1198,6 @@ function renderBookingList(bookings) {
             const cell = row.insertCell();
             let cellContent;
             
-            // --- 顯示修正：分開處理日期 ---
             if (col.key === 'booking_date' && isGuesthouse) {
                  cellContent = booking.booking_date;
             } else if (col.key === 'check_out_date' && isGuesthouse) {
@@ -1216,20 +1214,18 @@ function renderBookingList(bookings) {
             cell.innerHTML = cellContent;
         });
 
-        let statusText = '未知', statusClass = '';
-        // [v12.4] 使用 translateStatus
+        // [v12.5] 狀態顯示邏輯簡化
+        let statusClass = '';
         const translatedStatus = translateStatus(booking.status);
 
         if (booking.status === 'confirmed') { statusClass = 'status-confirmed'; }
-        if (booking.status === 'checked-in') { statusClass = 'status-checked-in'; }
         if (booking.status === 'cancelled') { statusClass = 'status-cancelled'; }
         if (booking.status === 'no-show') { statusClass = 'status-noshow'; }
         
-        const isMarkDisabled = ['cancelled', 'no-show'].includes(booking.status);
-
+        // [v12.5] 移除 isMarkDisabled，讓所有狀態都可以點擊「標記」進行修改
         row.insertCell().innerHTML = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
         row.insertCell().innerHTML = `<td class="actions-cell">
-            <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);" ${isMarkDisabled ? 'disabled' : ''}>標記</button>
+            <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);">標記</button>
         </td>`;
     });
 
@@ -1245,12 +1241,9 @@ function createStatusMenu(targetButton) {
     menu.className = 'status-menu'; 
     menu.style.cssText = `position: absolute; background-color: #FFF; border: 1px solid #CCC; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; min-width: 100px; padding: 5px 0;`;
 
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
-    const checkInText = isGuesthouse ? '已入住' : '已報到';
-
-    // [v12.4] 中文化選單
+    // [v12.5] 更新選單：移除入住，加入已確認
     const options = [
-        { text: checkInText, value: 'checked-in', style: 'color: var(--color-success);' },
+        { text: '已確認', value: 'confirmed', style: 'color: var(--color-success);' },
         { text: '未到', value: 'no-show', style: 'color: var(--color-warning);' },
         { text: '取消預約', value: 'cancelled', style: 'color: var(--color-danger);' }
     ];
@@ -1267,6 +1260,7 @@ function createStatusMenu(targetButton) {
         optionEl.addEventListener('click', async (e) => {
             e.stopPropagation(); 
             closeStatusMenu();
+            // [v12.5] 修改提示文字
             const confirmed = await ui.confirm(`確定要將此預約標記為「${opt.text}」嗎？`);
             if (confirmed) {
                 const feedbackTarget = { textContent: targetButton.textContent, disabled: false };

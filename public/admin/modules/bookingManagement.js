@@ -782,7 +782,10 @@ async function handleCreateBookingSubmit(e) {
                     
                     // 檢查：若 (現有庫存 - 預訂量) < 0 則警告
                     if (currentQty - item.qty < 0) {
-                        warnings.push(`${dateStr}: ${item.name} (庫存 ${currentQty} → ${currentQty - item.qty})`);
+                        const newQty = currentQty - item.qty;
+                        // 使用 HTML span 將負數變為紅色粗體
+                        const newQtyHtml = `<span style="color: var(--color-danger, red); font-weight: bold;">${newQty}</span>`;
+                        warnings.push(`${dateStr}: ${item.name} (庫存 ${currentQty} → ${newQtyHtml})`);
                     }
                     curr.setDate(curr.getDate() + 1);
                 }
@@ -790,8 +793,19 @@ async function handleCreateBookingSubmit(e) {
 
             // 3. 若有警告，彈出確認視窗
             if (warnings.length > 0) {
-                const msg = `⚠️ 庫存不足警告！\n此操作將導致以下房型超賣 (變成負數)：\n\n${warnings.slice(0, 5).join('\n')}${warnings.length > 5 ? '\n...' : ''}\n\n確定要繼續嗎？`;
-                const confirmed = await ui.confirm(msg);
+                // 使用 <br> 標籤來換行，而不是 \n
+                const warningListHtml = warnings.slice(0, 5).join('<br>');
+                const moreHtml = warnings.length > 5 ? '<br>...' : '';
+                
+                const msgHtml = `
+                    <strong style="color: var(--color-warning, orange); font-size: 1.1em;">⚠️ 庫存不足警告！</strong><br><br>
+                    此操作將導致以下房型超賣 (變成負數)：<br><br>
+                    <div style="text-align: left; display: inline-block;">${warningListHtml}${moreHtml}</div>
+                    <br><br>確定要繼續嗎？
+                `;
+                
+                // 假設底層的 ui.confirm (如 SweetAlert2) 支援 HTML 字串
+                const confirmed = await ui.confirm(msgHtml);
                 if (!confirmed) return; // 使用者按取消，中止送出
             }
 

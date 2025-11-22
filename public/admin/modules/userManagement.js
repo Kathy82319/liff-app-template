@@ -37,7 +37,7 @@ function renderUserList(users) {
     columns.forEach(col => {
         theadHTML += `<th>${col.label}</th>`;
     });
-    theadHTML += `<th>操作</th>`; // 標籤和操作固定顯示
+    theadHTML += `<th>標籤</th><th>操作</th>`; // 標籤和操作固定顯示
     userListTheadTr.innerHTML = theadHTML;
 
     userListTbody.innerHTML = '';

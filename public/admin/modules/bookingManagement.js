@@ -1,6 +1,17 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
+// XSS 防護函式：將特殊符號轉義
+function escapeHtml(text) {
+    if (!text) return text;
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // --- 變數宣告 ---
 let allBookings = [];
 let allProducts = [];
@@ -769,7 +780,7 @@ async function handleCreateBookingSubmit(e) {
             for (const item of items) {
                 if (!item.productId) continue; // 跳過無 ID 的手動項目
                 const productInv = inventoryData[item.productId];
-                
+                const safeItemName = escapeHtml(item.name);
                 // 計算入住期間的所有日期 (不含退房日)
                 let curr = new Date(bookingDate);
                 const end = new Date(checkOutDate);
@@ -785,7 +796,7 @@ async function handleCreateBookingSubmit(e) {
                         const newQty = currentQty - item.qty;
                         // 使用 HTML span 將負數變為紅色粗體
                         const newQtyHtml = `<span style="color: var(--color-danger, red); font-weight: bold;">${newQty}</span>`;
-                        warnings.push(`${dateStr}: ${item.name} (庫存 ${currentQty} → ${newQtyHtml})`);
+                        warnings.push(`${dateStr}: ${safeItemName} (庫存 ${currentQty} → ${newQtyHtml})`);
                     }
                     curr.setDate(curr.getDate() + 1);
                 }

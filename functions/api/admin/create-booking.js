@@ -1,6 +1,3 @@
-{
-type: existing file
-fileName: kathy82319/liff-app-template/liff-app-template-9010913f3bb95098710929f5b1cd6653aa18c0ae/functions/api/admin/create-booking.js
 import { getDateRange } from '../utils/date-helpers.js';
 
 export async function onRequest(context) {

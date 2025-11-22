@@ -396,7 +396,7 @@ function exportToCSV() {
         }
 
         // --- 中間分隔 ---
-        row.push(""); // H 欄
+        row.push(""); 
 
         // --- 右側：統計摘要 (手動排版) ---
         if (i === 0) {
@@ -408,13 +408,12 @@ function exportToCSV() {
         } else if (i === 3) {
             row.push("未到", "", currentSummary.noshowCount + "筆", "$" + currentSummary.noshowAmount);
         } else if (i === 4) {
-            row.push("當月金額統計", "", currentTransactions.length + "筆", "$" + (currentSummary.paidOrderAmount + currentSummary.topupAmount)); // 簡單加總所有訂單+儲值 (依需求可調整)
-            // 這裡的邏輯比較模糊，我先假設是「所有已收款」的總和 (訂單+儲值)
-            // 如果您指的是「原始訂單總額 (不管有沒有收)」，請告訴我，我可以改
+            row.push("當月金額統計", "", currentTransactions.length + "筆", "$" + (currentSummary.paidOrderAmount )); 
+           
         } else if (i === 5) {
             // 條件顯示：如果有已付款的取消/未到單
             if (currentSummary.hasPaidCancelOrNoShow) {
-                row.push("當月金額統計(含取消/未到)", "", "", "$" + currentSummary.paidOrderAmount); // 這裡的 paidOrderAmount 已經包含所有勾選的單
+                row.push("當月金額統計(含取消/未到)", "", "", "$" + currentSummary.paidOrderAmount); 
             } else {
                 row.push("", "", "", "");
             }

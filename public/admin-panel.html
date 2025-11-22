@@ -1746,39 +1746,34 @@
                 <h3>手動建立預約</h3>
                 <button class="modal-close">&times;</button>
             </div>
-            <form id="create-booking-form">
-                <div class="modal-body">
+<form id="create-booking-form">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="booking-user-search">顧客</label>
+                    <div id="user-selection-container">
+                        <input type="text" id="booking-user-search" placeholder="輸入文字搜尋，或直接輸入新顧客名稱...">
+                        <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
+                    </div>
+                    <div id="selected-user-view" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
+                        <p id="booking-selected-user-display" style="margin: 0; font-weight: bold; flex-grow: 1;"></p>
+                        <button type="button" id="change-user-btn" style="padding: 4px 8px; font-size: 0.8rem;">更換</button>
+                    </div>
+                    <input type="hidden" id="booking-selected-user-id">
+                </div>
+                <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+                <label>預約細節</label>
+                <div class="sub-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
                     <div class="form-group">
-                        <label for="booking-user-search">顧客</label>
-                        <div id="user-selection-container">
-                            <input type="text" id="booking-user-search" placeholder="輸入文字搜尋，或直接輸入新顧客名稱...">
-                            <select id="booking-user-select" style="margin-top: 10px; display: none;"></select>
-                        </div>
-                        <div id="selected-user-view" style="display: none; align-items: center; gap: 10px; margin-top: 5px;">
-                            <p id="booking-selected-user-display" style="margin: 0; font-weight: bold; flex-grow: 1;"></p>
-                            <button type="button" id="change-user-btn" style="padding: 4px 8px; font-size: 0.8rem;">更換</button>
-                        </div>
-                        <input type="hidden" id="booking-selected-user-id">
+                        <label id="booking-date-label" for="booking-date-input">日期</label>
+                        <input type="text" id="booking-date-input" required>
                     </div>
-                    <hr style="border-color: var(--border-color); margin: 20px 0;">
-
-                    <label>預約細節</label>
-                    <div class="sub-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
-                        <div class="form-group">
-                            <label id="booking-date-label" for="booking-date-input">日期</label>
-                            <input type="text" id="booking-date-input" required>
-                        </div>
-                        
-                        <div class="form-group" id="booking-checkout-date-group" style="display: none;">
-                            <label for="booking-checkout-date-input">退房日期</label>
-                            <input type="text" id="booking-checkout-date-input" placeholder="自動計算" readonly>
-                        </div>
-
-                        <div class="form-group" id="booking-slot-group">
-                            <label for="booking-slot-select">時段</label>
-                            <select id="booking-slot-select"></select>
-                        </div>
+                    
+                    <div class="form-group" id="booking-slot-group">
+                        <label for="booking-slot-select">時段</label>
+                        <select id="booking-slot-select"></select>
                     </div>
+                </div>
                     <div class="form-group">
                         <label>預約項目</label>
                         <div id="admin-booking-items-container"></div>

@@ -1,4 +1,4 @@
-// functions/api/get-bookings.js (v9 - 修正 specific_date 和 today 邏輯)
+// functions/api/get-bookings.js (v10 - 支援真實姓名與完整搜尋)
 
 export async function onRequest(context) {
   try {
@@ -13,68 +13,58 @@ export async function onRequest(context) {
     const searchTerm = url.searchParams.get('search');
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
-    const specificDate = url.searchParams.get('date'); // 【新增】讀取 specific_date 參數
+    const specificDate = url.searchParams.get('date');
 
-    console.log(`[API get-bookings] Request Params - Status: ${statusFilter}, Search: ${searchTerm}, Start: ${startDate}, End: ${endDate}, SpecificDate: ${specificDate}`);
-
-    let query = "SELECT b.* FROM Bookings b";
+    // 【修改 1】加入 LEFT JOIN Users 以獲取 real_name
+    let query = `
+        SELECT b.*, u.real_name 
+        FROM Bookings b
+        LEFT JOIN Users u ON b.user_id = u.user_id
+    `;
+    
     const conditions = [];
     const queryParams = [];
 
-    // --- 1. Status Filter (Using trim() for safety) ---
+    // --- 1. Status Filter ---
     const trimmedStatusFilter = statusFilter ? statusFilter.trim() : null;
 
-    // 【修改】優先處理 specific_date
     if (specificDate && /^\d{4}-\d{2}-\d{2}$/.test(specificDate)) {
-        conditions.push("b.booking_date = ?1");
+        conditions.push("b.booking_date = ?");
         queryParams.push(specificDate);
-        // 如果是查特定日期，我們通常想看所有「非取消」的單
         conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
     }
-    // 【修改】如果不是查 specific_date，才走常規的 statusFilter
     else if (trimmedStatusFilter && trimmedStatusFilter !== 'all') {
         if (trimmedStatusFilter === 'today') {
             conditions.push("b.booking_date = date('now', 'localtime')");
-            // 【修改】today 應該包含 'confirmed', 'checked-in', 'no-show'
             conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
         } else if (trimmedStatusFilter === 'all_upcoming') {
             conditions.push("b.booking_date >= date('now', 'localtime')");
             conditions.push("b.status IN ('confirmed', 'checked-in', 'no-show')");
         } else if (trimmedStatusFilter === 'confirmed') {
              conditions.push("b.booking_date >= date('now', 'localtime')");
-             conditions.push(`b.status = ?${queryParams.length + 1}`);
+             conditions.push(`b.status = ?`);
              queryParams.push('confirmed');
         } else if (['checked-in', 'no-show', 'cancelled'].includes(trimmedStatusFilter)) {
-             conditions.push(`b.status = ?${queryParams.length + 1}`);
+             conditions.push(`b.status = ?`);
              queryParams.push(trimmedStatusFilter);
-        } else {
-             console.warn(`[API get-bookings] Ignored invalid status filter: "${trimmedStatusFilter}"`);
         }
     }
 
     // --- 2. Date Range Filter ---
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const isValidStartDate = startDate && dateRegex.test(startDate);
-    const isValidEndDate = endDate && dateRegex.test(endDate);
-
-    if (isValidStartDate && isValidEndDate) {
-         conditions.push(`b.booking_date BETWEEN ?${queryParams.length + 1} AND ?${queryParams.length + 2}`);
+    if (startDate && dateRegex.test(startDate) && endDate && dateRegex.test(endDate)) {
+         conditions.push(`b.booking_date BETWEEN ? AND ?`);
          queryParams.push(startDate, endDate);
-    } else if (isValidStartDate) {
-         conditions.push(`b.booking_date >= ?${queryParams.length + 1}`);
-         queryParams.push(startDate);
-    } else if (isValidEndDate) {
-        conditions.push(`b.booking_date <= ?${queryParams.length + 1}`);
-        queryParams.push(endDate);
     }
 
-    // --- 3. Search Term Filter ---
+    // --- 3. Search Term Filter (增強版) ---
+    // 【修改 2】支援搜尋 real_name, booking_id (轉文字), contact_name, contact_phone
     if (searchTerm) {
         const searchQuery = `%${searchTerm}%`;
         conditions.push(
-            `(b.contact_name LIKE ?${queryParams.length + 1} OR b.contact_phone LIKE ?${queryParams.length + 2} OR CAST(b.booking_id AS TEXT) LIKE ?${queryParams.length + 3})`
+            `(b.contact_name LIKE ? OR b.contact_phone LIKE ? OR CAST(b.booking_id AS TEXT) LIKE ? OR u.real_name LIKE ?)`
         );
-        queryParams.push(searchQuery, searchQuery, searchQuery);
+        queryParams.push(searchQuery, searchQuery, searchQuery, searchQuery);
     }
 
     // --- Combine WHERE clause ---
@@ -85,23 +75,10 @@ export async function onRequest(context) {
     // --- Sorting ---
     query += " ORDER BY b.booking_date DESC, b.time_slot DESC";
 
-    console.log(`[API get-bookings] Final SQL: ${query}`);
-    console.log(`[API get-bookings] Final Params: ${JSON.stringify(queryParams)}`);
+    const bookingsStmt = db.prepare(query);
+    const { results: bookings } = await bookingsStmt.bind(...queryParams).all();
 
-    let bookingsStmt;
-    try {
-        bookingsStmt = db.prepare(query);
-        if (queryParams.length > 0) {
-             bookingsStmt = bookingsStmt.bind(...queryParams);
-        }
-    } catch (prepareError) {
-         console.error("[API get-bookings] Error preparing SQL statement:", prepareError);
-         throw new Error(`Failed to prepare SQL query: ${prepareError.message}`);
-    }
-
-    const { results: bookings } = await bookingsStmt.all();
-
-    // --- Fetch Items and Combine ---
+    // --- Fetch Items and Combine (保持不變) ---
     if (!bookings || bookings.length === 0) {
         return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
@@ -118,8 +95,7 @@ export async function onRequest(context) {
         });
 
         return new Response(JSON.stringify(bookingsWithItems), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          status: 200, headers: { 'Content-Type': 'application/json' },
         });
      } else {
          return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -128,8 +104,7 @@ export async function onRequest(context) {
   } catch (error) {
     console.error('[API get-bookings] Error:', error);
     return new Response(JSON.stringify({ error: '獲取預約列表失敗。', details: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
 }

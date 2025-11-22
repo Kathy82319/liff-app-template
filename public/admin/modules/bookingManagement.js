@@ -1177,16 +1177,12 @@ function renderBookingList(bookings) {
     const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
 
     let headerHTML = '';
-    columns.forEach(col => {
-        headerHTML += `<th>${col.label}</th>`;
-    });
-    // 【修正 1】移除原本硬寫的 '<th>狀態</th>'，只保留 '<th>操作</th>'
+    columns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
     headerHTML += '<th>操作</th>';
     bookingListTheadTr.innerHTML = headerHTML;
 
     bookingListTbody.innerHTML = '';
     if (!bookings || bookings.length === 0) {
-        // colspan = 動態欄位數 + 1 (操作欄)
         bookingListTbody.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
         return;
     }
@@ -1196,42 +1192,54 @@ function renderBookingList(bookings) {
         row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
-        // --- 遍歷「系統設定」中的欄位 ---
         columns.forEach(col => {
             const cell = row.insertCell();
             let cellContent;
             
-            if (col.key === 'booking_date' && isGuesthouse) {
+            // --- 【修正 N/A】增加對 'items' 和 'product_name' 的判斷 ---
+            if (col.key === 'item_summary' || col.key === 'items' || col.key === 'product_name') {
+                // 優先從 items 陣列組合字串
+                if (booking.items && booking.items.length > 0) {
+                    cellContent = booking.items.map(item => `${item.item_name} x${item.quantity}`).join(', ');
+                } else {
+                    cellContent = '<span style="color:#ccc">無項目</span>';
+                }
+            } 
+            // --- 【修正 名稱】顯示 LINE 名稱 + 真實姓名 + 電話 ---
+            else if (col.key === 'contact_name') {
+                 const realNamePart = booking.real_name ? ` <span style="color:#666">(${booking.real_name})</span>` : '';
+                 cellContent = `<div>${booking.contact_name}${realNamePart}</div>`;
+                 if (booking.contact_phone) {
+                     cellContent += `<div style="font-size:0.85em; color:#888;">${booking.contact_phone}</div>`;
+                 }
+            }
+            // --- 【修正 訂單號】補零 ---
+            else if (col.key === 'booking_id') {
+                 cellContent = `#${String(booking.booking_id).padStart(5, '0')}`;
+            }
+            // --- 日期與其他欄位 ---
+            else if (col.key === 'booking_date' && isGuesthouse) {
                  cellContent = booking.booking_date;
             } else if (col.key === 'check_out_date' && isGuesthouse) {
                  cellContent = booking.check_out_date || '-';
-            } else if (col.key === 'item_summary') {
-                cellContent = booking.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目';
             } else if (col.key === 'datetime_summary') {
                  cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div>`;
             } else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
-            } 
-            // 【修正 2】在這裡攔截 'status' 欄位，並填入漂亮的中文標籤
-            else if (col.key === 'status') {
+            } else if (col.key === 'status') {
                 const translatedStatus = translateStatus(booking.status);
                 let statusClass = '';
                 if (booking.status === 'confirmed') statusClass = 'status-confirmed';
                 if (booking.status === 'checked-in') statusClass = 'status-checked-in';
                 if (booking.status === 'cancelled') statusClass = 'status-cancelled';
                 if (booking.status === 'no-show') statusClass = 'status-noshow';
-                
                 cellContent = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
-            } 
-            else {
+            } else {
                 cellContent = getProperty(booking, col.key, 'N/A');
             }
             cell.innerHTML = cellContent;
         });
 
-        // 【修正 3】移除原本硬寫在迴圈外的狀態欄位生成程式碼
-        
-        // 只保留固定的「操作」欄位
         row.insertCell().innerHTML = `<td class="actions-cell">
             <button class="action-btn btn-mark-status" data-booking-id="${booking.booking_id}" style="background-color: var(--color-info);">標記</button>
         </td>`;
@@ -1396,7 +1404,7 @@ async function fetchDataAndRender(filter = null) {
     }
 
     try {
-        if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">載入中...</td></tr>';
+        if (bookingListTbody) bookingListTbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">載入中...</td></tr>';
 
         const isCalendarView = calendarView && getComputedStyle(calendarView).display !== 'none';
         let activeFilterValue = filter;
@@ -1408,6 +1416,7 @@ async function fetchDataAndRender(filter = null) {
 
         if (!isCalendarView) { 
             if (activeFilterValue && activeFilterValue !== 'all') params.append('status', activeFilterValue);
+             // 讀取搜尋框的值
              if (searchInput && searchInput.value.trim()) params.append('search', searchInput.value.trim());
              if (startDate && endDate) {
                  params.append('startDate', startDate);
@@ -1432,7 +1441,7 @@ async function fetchDataAndRender(filter = null) {
             updateCalendar();
         }
     } catch (error) {
-        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
+        if (bookingListTbody) bookingListTbody.innerHTML = `<tr><td colspan="8" style="color: red; text-align: center;">讀取失敗: ${error.message}</td></tr>`;
     }
 }
 
@@ -1536,7 +1545,18 @@ function setupEventListeners() {
              return;
          }
     });
+    // --- 【新增】即時搜尋監聽 ---
+    const searchInput = document.getElementById('booking-search-input');
+    if (searchInput && !searchInput.dataset.inputListener) {
+        searchInput.addEventListener('input', debounce(() => {
+            fetchDataAndRender(); // 防抖動後執行查詢
+        }, 500)); // 延遲 500ms
+        searchInput.dataset.inputListener = 'true';
+    }
+
     page.dataset.staticListenersAttached = 'true';
+
+
 
     const createBookingForm = document.getElementById('create-booking-form');
     if (createBookingForm && !createBookingForm.dataset.submitListenerAttached) {

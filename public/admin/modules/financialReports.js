@@ -6,7 +6,7 @@ let reportDateRangePicker = null;
 let currentTransactions = [];
 let currentPieDataRaw = {};
 let charts = {}; 
-let currentSummary = {}; // 儲存底部統計數據供 CSV 使用
+let currentSummary = {}; 
 
 // 初始化
 export const init = async () => {
@@ -233,7 +233,7 @@ function renderTransactions(list) {
         const typeLabel = isTopup ? '<span class="status-tag" style="background:#28a745">儲值</span>' : '<span class="status-tag" style="background:#007bff">訂單</span>';
         const statusText = statusMap[item.status] || item.status;
 
-        // 核心修正：對帳開關預設邏輯
+        // --- 【核心修正 1】對帳開關預設邏輯 ---
         let isPaid = false;
         if (isTopup) {
             isPaid = true;
@@ -243,9 +243,9 @@ function renderTransactions(list) {
             } else if (item.payment_status === 'unpaid') {
                 isPaid = false;
             } else {
-                // DB 無紀錄 (NULL)，預設邏輯：
-                // 狀態為 'confirmed' 或 'checked-in' 預設為 TRUE
-                // 狀態為 'cancelled' 或 'no-show' 預設為 FALSE (修正處)
+                // DB 無紀錄 (NULL) 時的預設邏輯：
+                // 只有 'confirmed' (預約成功) 或 'checked-in' (已入住/報到) 預設為 TRUE
+                // 'cancelled' (已取消) 或 'no-show' (未到) 則預設為 FALSE
                 isPaid = (item.status === 'confirmed' || item.status === 'checked-in');
             }
         }
@@ -264,11 +264,17 @@ function renderTransactions(list) {
              toggleHtml = '<span style="color:green;">✔</span>';
         }
 
+        // --- 【核心修正 2】顯示項目內容 ---
+        const contentDisplay = `
+            <div>${isTopup ? '後台加值' : `#${item.booking_id}`}</div>
+            <div style="font-size: 0.85em; color: #666;">${item.item_summary || ''}</div>
+        `;
+
         return `
             <tr>
                 <td>${date}</td>
                 <td>${typeLabel}</td>
-                <td>${isTopup ? '後台加值' : `#${item.booking_id}`}</td>
+                <td>${contentDisplay}</td>
                 <td>${item.contact_name || '未知'}</td>
                 <td style="${amountStyle}">$${item.total_amount}</td>
                 <td>${statusText}</td>
@@ -288,7 +294,7 @@ function updateTransactionSummary(list) {
     let cancelCount = 0, cancelAmount = 0;
     let noshowCount = 0, noshowAmount = 0;
     let paidOrderCount = 0, paidOrderAmount = 0;
-    let hasPaidCancelOrNoShow = false; // 標記是否有已付款的取消/未到單
+    let hasPaidCancelOrNoShow = false; 
 
     list.forEach(item => {
         if (item.type === 'topup') {
@@ -298,15 +304,14 @@ function updateTransactionSummary(list) {
             if (item.status === 'cancelled') {
                 cancelCount++;
                 cancelAmount += item.total_amount;
-                // 檢查是否有已付款的取消單
                 if (item._tempIsPaid) hasPaidCancelOrNoShow = true;
             } else if (item.status === 'no-show') {
                 noshowCount++;
                 noshowAmount += item.total_amount;
-                // 檢查是否有已付款的未到單
                 if (item._tempIsPaid) hasPaidCancelOrNoShow = true;
             }
 
+            // 只有被標記為「已收款」的訂單才計入營收統計
             if (item._tempIsPaid) {
                 paidOrderCount++;
                 paidOrderAmount += item.total_amount;
@@ -319,7 +324,7 @@ function updateTransactionSummary(list) {
         cancelCount, cancelAmount,
         noshowCount, noshowAmount,
         paidOrderCount, paidOrderAmount,
-        hasPaidCancelOrNoShow // 存入 summary 供 CSV 使用
+        hasPaidCancelOrNoShow 
     };
 
     const summaryHtml = `
@@ -334,13 +339,13 @@ function updateTransactionSummary(list) {
                         <strong>取消：</strong>${cancelCount} 筆 
                         <span style="margin-left: 5px;"><strong>取消金額：</strong>$${cancelAmount.toLocaleString()}</span>
                     </div>
-                    <div style="color: #ffc107; color: #856404;">
+                    <div style="color: #856404;">
                         <strong>未到：</strong>${noshowCount} 筆 
                         <span style="margin-left: 5px;"><strong>未到金額：</strong>$${noshowAmount.toLocaleString()}</span>
                     </div>
                     <div style="color: #007bff; border-left: 2px solid #dee2e6; padding-left: 15px;">
-                        <strong>訂單數量：</strong>${paidOrderCount} 筆 
-                        <span style="margin-left: 5px; font-size: 1.1em;"><strong>訂單金額：</strong>$${paidOrderAmount.toLocaleString()}</span>
+                        <strong>有效收款訂單：</strong>${paidOrderCount} 筆 
+                        <span style="margin-left: 5px; font-size: 1.1em;"><strong>實收金額：</strong>$${paidOrderAmount.toLocaleString()}</span>
                     </div>
                 </div>
             </td>
@@ -357,48 +362,39 @@ function exportToCSV() {
 
     const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'completed': '完成', 'checked-in': '已報到' };
 
-    // --- 核心修正：CSV 排版 ---
-    // 第一部分：明細表 (左邊)
-    // 第二部分：統計摘要 (右邊，從 I 欄開始)
-    
-    // 準備表頭
     const headers = [
-        "日期", "類型", "單號", "顧客", "金額", "狀態", "付款標記", // A-G
-        "", // H (空格)
-        "統計摘要", "", "數量", "金額" // I-L
+        "日期", "類型", "單號", "內容", "顧客", "金額", "狀態", "付款標記", 
+        "", 
+        "統計摘要", "", "數量", "金額" 
     ];
 
-    // 準備資料列
     const rows = [];
-    const maxRows = Math.max(currentTransactions.length, 6); // 至少預留 6 行給右側統計
+    const maxRows = Math.max(currentTransactions.length, 6); 
 
     for (let i = 0; i < maxRows; i++) {
         const row = [];
         
-        // --- 左側：交易明細 ---
         if (i < currentTransactions.length) {
             const item = currentTransactions[i];
             const isTopup = item.type === 'topup';
-            const isPaid = item._tempIsPaid; // 直接使用畫面狀態
+            const isPaid = item._tempIsPaid; 
 
             row.push(
                 item.booking_date,
                 isTopup ? '儲值' : '訂單',
                 item.booking_id,
+                item.item_summary || '', // 加入內容欄位
                 item.contact_name || '',
                 item.total_amount,
                 statusMap[item.status] || item.status,
                 isPaid ? '已收款' : '未收款'
             );
         } else {
-            // 填充空值
-            row.push("", "", "", "", "", "", "");
+            row.push("", "", "", "", "", "", "", "");
         }
 
-        // --- 中間分隔 ---
         row.push(""); 
 
-        // --- 右側：統計摘要 (手動排版) ---
         if (i === 0) {
             row.push("已確認訂單", "", currentSummary.paidOrderCount + "筆", "$" + currentSummary.paidOrderAmount);
         } else if (i === 1) {
@@ -408,12 +404,10 @@ function exportToCSV() {
         } else if (i === 3) {
             row.push("未到", "", currentSummary.noshowCount + "筆", "$" + currentSummary.noshowAmount);
         } else if (i === 4) {
-            row.push("當月金額統計", "", currentTransactions.length + "筆", "$" + (currentSummary.paidOrderAmount )); 
-           
+            row.push("當月實收總計", "", currentTransactions.length + "筆", "$" + currentSummary.paidOrderAmount); 
         } else if (i === 5) {
-            // 條件顯示：如果有已付款的取消/未到單
             if (currentSummary.hasPaidCancelOrNoShow) {
-                row.push("當月金額統計(含取消/未到)", "", "", "$" + currentSummary.paidOrderAmount); 
+                row.push("(含取消/未到收款)", "", "", ""); 
             } else {
                 row.push("", "", "", "");
             }
@@ -429,7 +423,9 @@ function exportToCSV() {
     rows.forEach(rowArray => {
         const row = rowArray.map(cell => {
             if (cell === null || cell === undefined) return "";
-            return `"${cell}"`;
+            // 處理換行符號，避免 CSV 格式跑掉
+            const cellStr = String(cell).replace(/"/g, '""'); 
+            return `"${cellStr}"`;
         }).join(",");
         csvContent += row + "\r\n";
     });

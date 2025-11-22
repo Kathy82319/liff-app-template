@@ -51,7 +51,6 @@ export async function onRequest(context) {
         }
 
         // --- 2. 圖表數據：年度營收 (直條圖) ---
-        // 這裡我們分開計算 actual 和 lost，前端會將其並排顯示
         const monthlyStatsStmt = db.prepare(`
             SELECT 
                 strftime('%Y-%m', booking_date) as month,
@@ -65,9 +64,6 @@ export async function onRequest(context) {
         const { results: monthlyStats } = await monthlyStatsStmt.all();
 
         // --- 3. 圓餅圖數據分析 ---
-        
-        // A. 新舊客佔比 (修正定義：1次=新客, 2-3次=回訪, 4+=熟客)
-        // 注意：這裡分析的是「在這段期間有消費」的人的屬性
         const customerSegStmt = db.prepare(`
             SELECT 
                 CASE 
@@ -86,7 +82,6 @@ export async function onRequest(context) {
         `);
         const { results: customerSeg } = await customerSegStmt.all();
 
-        // B. 會員方案佔比
         const membershipSegStmt = db.prepare(`
             SELECT 
                 COALESCE(NULLIF(u.class, ''), '無方案') as label, 
@@ -98,7 +93,6 @@ export async function onRequest(context) {
         `);
         const { results: membershipSeg } = await membershipSegStmt.bind(startDate, endDate).all();
 
-        // C. 訂單狀態佔比 (預約 vs 取消 vs 未到)
         const statusSegStmt = db.prepare(`
             SELECT 
                 CASE 
@@ -114,7 +108,6 @@ export async function onRequest(context) {
         `);
         const { results: statusSeg } = await statusSegStmt.bind(startDate, endDate).all();
 
-        // D. 預約項目佔比
         const itemSegStmt = db.prepare(`
             SELECT bi.item_name as label, SUM(bi.quantity) as value
             FROM BookingItems bi
@@ -125,7 +118,8 @@ export async function onRequest(context) {
         const { results: itemSeg } = await itemSegStmt.bind(startDate, endDate).all();
 
 
-        // --- 4. 交易明細 ---
+        // --- 4. 交易明細 (修正：加入 item_summary) ---
+        // 使用子查詢 GROUP_CONCAT 組合項目名稱
         const transactionsStmt = db.prepare(`
             SELECT 
                 b.booking_date, 
@@ -134,7 +128,8 @@ export async function onRequest(context) {
                 b.total_amount, 
                 b.status,
                 b.payment_status,
-                'booking' as type
+                'booking' as type,
+                (SELECT GROUP_CONCAT(item_name || ' x' || quantity, ', ') FROM BookingItems WHERE booking_id = b.booking_id) as item_summary
             FROM Bookings b
             WHERE b.booking_date BETWEEN ?1 AND ?2
             UNION ALL
@@ -145,7 +140,8 @@ export async function onRequest(context) {
                 amount_changed as total_amount, 
                 'completed' as status,
                 'paid' as payment_status,
-                'topup' as type
+                'topup' as type,
+                notes as item_summary
             FROM StoredValueHistory s
             WHERE type = 'admin_topup' AND date(created_at) BETWEEN ?1 AND ?2
             ORDER BY booking_date DESC

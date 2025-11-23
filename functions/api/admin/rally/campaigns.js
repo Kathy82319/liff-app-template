@@ -1,7 +1,5 @@
-// functions/api/admin/rally-campaigns.js
-// 整合所有邏輯的乾淨修正版 (取代原本的 rally-campaigns.js.js)
+// functions/api/admin/campaigns.js
 
-// Helper function to handle validation and cleanup
 async function validateCampaignData(body) {
     const {
         campaign_id, title, description, required_stamps, 

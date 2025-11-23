@@ -1971,7 +1971,7 @@ let rallyQrCodeScanner = null; // 確保全域變數存在
 
 async function fetchRallyData() {
     // 1. 獲取當前所有活動 (Admin API 可用，暫時作為公開 API 處理)
-    const campaignRes = await fetch('/api/admin/rally/campaigns');
+    const campaignRes = await fetch('/api/rally/campaigns');
     if (!campaignRes.ok) throw new Error('無法獲取活動列表');
     const campaigns = await campaignRes.json();
     

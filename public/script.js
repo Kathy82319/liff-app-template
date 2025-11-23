@@ -823,6 +823,14 @@ if (!showStoredValue) {
     
         async function initializeHomePage() {
         
+        const rallyBanner = document.getElementById('rally-banner-entry');
+        if(rallyBanner && !rallyBanner.dataset.listenerAttached) {
+             rallyBanner.addEventListener('click', () => {
+                 showPage('page-rally'); // 点击后才跳转到集点页面
+             });
+             rallyBanner.dataset.listenerAttached = 'true';
+        }
+
         const terms = activeTemplate?.terms || {};
         try {
             const pageTitle = appContent.querySelector('#page-home .page-main-title');
@@ -2078,7 +2086,7 @@ async function initializeRallyPage() {
 
     loadingEl.style.display = 'block';
     document.getElementById('rally-campaign-display').style.display = 'none';
-    rallyAnimationModal.style.display = 'none';
+    rallyAnimationModal.style.display = 'none'; // <-- 確保 Modal 初始隱藏
 
     try {
         await fetchRallyData();

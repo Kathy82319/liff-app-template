@@ -2113,54 +2113,51 @@ window.toggleRallyCard = function(campaignId) {
 
 async function initializeRallyPage() {
     const loadingEl = document.getElementById('rally-campaign-loading');
-    const startScanBtn = document.getElementById('start-rally-scan-btn');
-    const stopScanBtn = document.getElementById('stop-rally-scan-btn');
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     const rallyAnimationModal = document.getElementById('rally-animation-modal');
-    
-    // 【修正】改成抓取新的列表容器
     const listContainer = document.getElementById('rally-list-container');
 
+    // 1. 介面初始化
     if (loadingEl) loadingEl.style.display = 'block';
-    
-    // 【修正】隱藏列表容器 (避免報錯)
     if (listContainer) listContainer.style.display = 'none';
-    
-    // 確保掃碼器隱藏
     if (qrScannerContainer) qrScannerContainer.style.display = 'none';
-    
-    // 確保彈窗初始是隱藏的
     if (rallyAnimationModal) rallyAnimationModal.style.display = 'none';
 
     try {
-        // 1. 載入資料
+        // 2. 載入資料
         await fetchRallyData();
         
-        // 2. 繪製畫面
+        // 3. 繪製畫面 (列表與卡片)
         renderRallyPage();
         
-        // 3. 綁定事件
-        if (startScanBtn && !startScanBtn.dataset.listenerAttached) {
-            startScanBtn.addEventListener('click', startRallyScanner);
-            if (stopScanBtn) stopScanBtn.addEventListener('click', stopRallyScanner);
-            
-            const closeBtn = document.getElementById('rally-modal-close-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', async () => {
-                     rallyAnimationModal.style.display = 'none';
-                     // 關閉後重新整理，讓格子變色
-                     await initializeRallyPage(); 
-                });
-            }
+        // 4. 【關鍵修正】綁定全域彈窗的關閉按鈕
+        // 我們將這段邏輯獨立出來，不再依賴舊的掃描按鈕是否存在
+        const closeBtn = document.getElementById('rally-modal-close-btn');
+        const stopScanBtn = document.getElementById('stop-rally-scan-btn');
 
-            startScanBtn.dataset.listenerAttached = 'true';
+        if (closeBtn && !closeBtn.dataset.listenerAttached) {
+            closeBtn.addEventListener('click', async () => {
+                 rallyAnimationModal.style.display = 'none';
+                 // 關閉後重新執行初始化，以刷新進度顯示
+                 await initializeRallyPage(); 
+            });
+            closeBtn.dataset.listenerAttached = 'true'; // 標記已綁定，避免重複
         }
+
+        // 綁定取消掃碼按鈕 (如果有的話)
+        if (stopScanBtn && !stopScanBtn.dataset.listenerAttached) {
+            stopScanBtn.addEventListener('click', stopRallyScanner);
+            stopScanBtn.dataset.listenerAttached = 'true';
+        }
+
+        // (舊的 startScanBtn 綁定邏輯已移除，因為現在按鈕是在 renderRallyPage 裡動態生成的)
 
     } catch (error) {
         console.error("初始化集點地圖失敗:", error);
         if (loadingEl) loadingEl.innerHTML = `<p style="color:var(--color-danger);">載入集點活動失敗: ${error.message}</p>`;
     }
 }
+
 
 function stopRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');

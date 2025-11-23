@@ -787,9 +787,9 @@ function debounce(func, delay) {
          return html;
      }
 
-     // --- 渲染顧客詳情 Body (修正版：支援設定開關) ---
+// --- 渲染顧客詳情 Body (修正版：加入集點進度) ---
 function renderCustomerDetailsBody(data) {
-         const { profile, bookings, exp_history, vouchers } = data; 
+         const { profile, bookings, exp_history, vouchers, rally_progress_summary } = data; // <<< [修改] 結構新增 rally_progress_summary
          
          // 讀取設定
          const templateDefinition = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[currentTemplate];
@@ -798,7 +798,41 @@ function renderCustomerDetailsBody(data) {
          const showStoredValue = features.OWNER_CRM_SHOW_STORED_VALUE !== false;
          const showVouchers = features.OWNER_CRM_SHOW_VOUCHERS !== false;
 
-         // 整理優惠券 HTML
+         // --- 整理集點進度 HTML (新增) ---
+         let rallyHtml = '';
+         if (rally_progress_summary && rally_progress_summary.length > 0) {
+             rallyHtml = rally_progress_summary.map(r => {
+                 const isCompleted = r.collected >= r.required;
+                 const statusStyle = isCompleted ? 'color: var(--color-success); font-weight: bold;' : 'color: var(--color-primary);';
+                 
+                 let progressDetails = '';
+                 if (r.progress_details && r.progress_details.length > 0) {
+                     // 顯示最近 3 個站點
+                     progressDetails = r.progress_details.slice(0, 3).map(p => `
+                         <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 3px; border-top: 1px dotted #ccc;">
+                             ${p.station_name} (${new Date(p.stamped_at).toLocaleDateString()})
+                         </div>
+                     `).join('');
+                 }
+
+                 return `
+                    <div style="background: var(--color-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--color-secondary); margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: bold;">${r.title}</span>
+                            <span style="${statusStyle}">${r.collected} / ${r.required} 點</span>
+                        </div>
+                        ${progressDetails}
+                        ${r.progress_details.length > 3 ? '<div style="text-align: right; font-size: 0.75rem; color: #999;">... 還有更多</div>' : ''}
+                    </div>
+                 `;
+             }).join('');
+         } else {
+             rallyHtml = '<p style="color: var(--color-text-secondary);">無進行中的集點活動或進度</p>';
+         }
+         // --- 整理集點進度 HTML (結束) ---
+
+
+         // 整理優惠券 HTML (保持不變)
          let vouchersHtml = '';
          if (showVouchers) {
              if (vouchers && vouchers.length > 0) {
@@ -818,27 +852,24 @@ function renderCustomerDetailsBody(data) {
              }
          }
 
-         // --- 【重點修改】近期預約 HTML 生成 ---
+         // 近期預約 HTML (保持不變)
          let bookingsHtml = '';
          if (bookings && bookings.length > 0) {
-             bookingsHtml = bookings.slice(0, 5).map(b => { // 顯示最近 5 筆
-                 // 1. 處理時間顯示 (區間 或 時段)
+             bookingsHtml = bookings.slice(0, 5).map(b => { 
+                 // ... (booking rendering logic remains the same) ...
                  let timeDisplay = b.booking_date;
                  if (b.check_out_date && b.check_out_date !== b.booking_date) {
-                     timeDisplay += ` ~ ${b.check_out_date}`; // 民宿：日期範圍
+                     timeDisplay += ` ~ ${b.check_out_date}`; 
                  } else if (b.time_slot) {
-                     timeDisplay += ` ${b.time_slot}`; // 工作室：日期+時間
+                     timeDisplay += ` ${b.time_slot}`; 
                  }
 
-                 // 2. 處理項目顯示
                  const itemsDisplay = (b.items && b.items.length > 0)
                      ? b.items.map(i => `${i.item_name} x${i.quantity}`).join(', ')
                      : '無項目資料';
 
-                 // 3. 處理金額顯示
                  const amountDisplay = b.total_amount !== null ? `$${b.total_amount}` : '-';
 
-                 // 4. 狀態顏色
                  let statusColor = '#666';
                  if (b.status === 'confirmed') statusColor = 'var(--color-primary)';
                  if (b.status === 'checked-in') statusColor = 'var(--color-success)';
@@ -862,7 +893,6 @@ function renderCustomerDetailsBody(data) {
          } else {
              bookingsHtml = '<p style="color: var(--color-text-secondary);">尚無預約紀錄</p>';
          }
-         // --- 【修改結束】 ---
 
          let html = `
              <h4>基本資料</h4>
@@ -885,6 +915,9 @@ function renderCustomerDetailsBody(data) {
              <p><strong>標籤:</strong> ${profile.tag || '無'}</p>
              <p><strong>備註:</strong> ${profile.notes || '無'}</p>
          `;
+         
+         // <<< [新增] 集點活動區塊 >>>
+         html += `<h4>集點活動進度</h4><div style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;">${rallyHtml}</div>`;
 
          if (showVouchers) {
              html += `<h4>持有優惠券</h4><div style="max-height: 150px; overflow-y: auto;">${vouchersHtml}</div>`;

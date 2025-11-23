@@ -1,4 +1,5 @@
-// functions/api/admin/user-details.js
+// functions/api/admin/user-details.js (v2 - Add Rally Progress)
+
 export async function onRequest(context) {
     try {
         if (context.request.method !== 'GET') {
@@ -13,7 +14,7 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ error: '缺少 userId 參數' }), { status: 400 });
         }
 
-        // 1. 獲取使用者基本資料
+        // ... (1. 獲取使用者基本資料 - 保持不變) ...
         const profileStmt = db.prepare(
           `SELECT user_id, line_display_name, line_picture_url, 
                   real_name, phone, email, 
@@ -26,39 +27,35 @@ export async function onRequest(context) {
         if (!profile) {
              return new Response(JSON.stringify({ error: '找不到該使用者' }), { status: 404 });
         }
-
-        // 2. 獲取預約紀錄 (主檔)
+        
+        // --- 2. 獲取預約紀錄 (主檔) - 保持不變 ---
         const bookingsStmt = db.prepare("SELECT * FROM Bookings WHERE user_id = ? ORDER BY booking_date DESC");
         const bookingsResult = await bookingsStmt.bind(userId).all();
         const bookings = bookingsResult.results || [];
 
-        // --- 【新增】3. 獲取預約項目 (明細) 並組裝 ---
+        // ... (3. 獲取預約項目 (明細) 並組裝 - 保持不變) ...
         if (bookings.length > 0) {
             const bookingIds = bookings.map(b => b.booking_id);
-            // 為了避免 SQL 語法錯誤，確保 ID 列表不為空
             const placeholders = bookingIds.map(() => '?').join(',');
             
             const itemsStmt = db.prepare(`SELECT * FROM BookingItems WHERE booking_id IN (${placeholders})`);
-            // 使用 spread operator 傳入參數
             const itemsResult = await itemsStmt.bind(...bookingIds).all();
             const allItems = itemsResult.results || [];
 
-            // 將項目分配回對應的預約
             bookings.forEach(booking => {
                 booking.items = allItems.filter(item => item.booking_id === booking.booking_id);
             });
         }
-        // --- 【新增結束】 ---
-
-        // 4. 獲取消費紀錄
+        
+        // --- 4. 獲取消費紀錄 - 保持不變 ---
         const expHistoryStmt = db.prepare("SELECT * FROM Purchasehistory WHERE user_id = ? ORDER BY created_at DESC");
         const expHistoryResult = await expHistoryStmt.bind(userId).all();
         
-        // 5. 獲取儲值金紀錄
+        // --- 5. 獲取儲值金紀錄 - 保持不變 ---
         const storedValueStmt = db.prepare("SELECT * FROM StoredValueHistory WHERE user_id = ? ORDER BY created_at DESC");
         const storedValueResult = await storedValueStmt.bind(userId).all();
 
-        // 6. 獲取優惠券持有紀錄
+        // --- 6. 獲取優惠券持有紀錄 - 保持不變 ---
         const vouchersStmt = db.prepare(`
             SELECT uv.*, vt.title, vt.type, vt.value, vt.valid_to
             FROM UserVouchers uv
@@ -68,13 +65,45 @@ export async function onRequest(context) {
         `);
         const vouchersResult = await vouchersStmt.bind(userId).all();
 
-        // 7. 打包回傳
+        // --- 7. 【新增】獲取集點活動進度 ---
+        const rallyProgressStmt = db.prepare(`
+            SELECT 
+                p.stamped_at, 
+                s.name AS station_name, 
+                c.title AS campaign_title, 
+                c.required_stamps, 
+                c.campaign_id
+            FROM UserRallyProgress p
+            JOIN RallyStations s ON p.station_id = s.station_id
+            JOIN RallyCampaigns c ON p.campaign_id = c.campaign_id
+            WHERE p.user_id = ?
+            ORDER BY p.stamped_at DESC
+        `);
+        const rallyProgressResult = await rallyProgressStmt.bind(userId).all();
+        // --- 8. 【新增】獲取所有活動，以便計算進度 ---
+        const allCampaignsResult = await db.prepare("SELECT * FROM RallyCampaigns WHERE is_active = 1").all();
+        
+        // --- 9. 計算活動進度摘要 ---
+        const campaignSummaries = (allCampaignsResult.results || []).map(campaign => {
+             const userStamps = (rallyProgressResult.results || []).filter(p => p.campaign_id === campaign.campaign_id);
+             return {
+                 campaign_id: campaign.campaign_id,
+                 title: campaign.title,
+                 required: campaign.required_stamps,
+                 collected: userStamps.length,
+                 progress_details: userStamps
+             };
+        });
+
+
+        // --- 10. 打包回傳 ---
         const responseData = {
             profile: profile,
-            bookings: bookings, // 已包含 items
+            bookings: bookings,
             exp_history: expHistoryResult.results || [],
             stored_value_history: storedValueResult.results || [],
-            vouchers: vouchersResult.results || []
+            vouchers: vouchersResult.results || [],
+            rally_progress_summary: campaignSummaries // <<< 新增集點活動摘要
         };
 
         return new Response(JSON.stringify(responseData), {

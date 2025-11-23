@@ -124,3 +124,36 @@ export async function onRequestDelete({ request, env }) {
         return new Response(JSON.stringify({ error: '刪除集點活動失敗', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }
+
+// functions/api/admin/rally-campaigns.js.js (末尾追加)
+
+// --- 新增：通用 onRequest 處理，用於手動分派 (修復 405 錯誤) ---
+export const onRequest = async (context) => {
+    const { request } = context;
+    switch (request.method) {
+        case 'GET':
+            if (typeof onRequestGet === 'function') {
+                return onRequestGet(context);
+            }
+            break;
+        case 'POST':
+            if (typeof onRequestPost === 'function') {
+                return onRequestPost(context);
+            }
+            break;
+        case 'PUT':
+            if (typeof onRequestPut === 'function') {
+                return onRequestPut(context);
+            }
+            break;
+        case 'DELETE':
+            if (typeof onRequestDelete === 'function') {
+                return onRequestDelete(context);
+            }
+            break;
+        default:
+            return new Response('Method Not Allowed', { status: 405 });
+    }
+    // 如果找到了 method handler 但執行到這裡，表示該 handler 自身沒有返回 Response
+    return new Response('Internal Server Error: Handler did not return response', { status: 500 });
+};

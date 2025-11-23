@@ -55,6 +55,37 @@
             font-weight: bold;
         }
         /* --- ▲▲▲ 樣式結束 ▲▲▲ --- */
+
+        /* 強制修正集點彈窗的樣式，確保它一定會浮在最上層 */
+        #rally-animation-modal {
+            position: fixed !important;       /* 強制固定位置，脫離網頁流 */
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;          /* 佔滿螢幕寬度 */
+            height: 100vh !important;         /* 佔滿螢幕高度 */
+            background-color: rgba(0, 0, 0, 0.85) !important; /* 深色半透明背景 */
+            z-index: 99999 !important;        /* 層級設為最高，蓋過所有內容 */
+            
+            /* 彈性盒模型，用來置中內容 */
+            display: none;                    /* 預設隱藏，由 JS 控制顯示 */
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0 !important;
+        }
+
+        /* 確保彈窗內容盒子的樣式 */
+        #rally-animation-modal .modal-content {
+            background: #ffffff !important;
+            width: 85% !important;            /* 手機版寬度 */
+            max-width: 350px !important;
+            border-radius: 12px !important;
+            padding: 25px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+            position: relative !important;    /* 確保內部元素定位正確 */
+            margin: auto !important;          /* 確保在 flex 中置中 */
+        }
     </style>
     
     <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>

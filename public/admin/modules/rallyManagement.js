@@ -325,10 +325,7 @@ function setupEventListeners() {
             showQrcodeModal('RESET', link);
         }    
         } else if (target.matches('.btn-edit-campaign')) {
-            const campaign = allCampaigns.find(c => c.campaign_id == campaignId);
-            if (campaign) openCampaignModal(campaign);
-        } else if (target.matches('.btn-delete-campaign')) {
-            const confirmed = await ui.confirm('確定要刪除此集點活動嗎？此操作將同時刪除所有相關站點及用戶集點紀錄，**無法復原**。');
+                    const confirmed = await ui.confirm('確定要刪除此集點活動嗎？此操作將同時刪除所有相關站點及用戶集點紀錄，**無法復原**。');
             if (confirmed) {
                 try {
                     await api.deleteRallyCampaign(Number(campaignId));

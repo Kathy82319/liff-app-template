@@ -2117,55 +2117,67 @@ async function initializeRallyPage() {
     const stopScanBtn = document.getElementById('stop-rally-scan-btn');
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     const rallyAnimationModal = document.getElementById('rally-animation-modal');
+    
+    // 【修正】改成抓取新的列表容器
+    const listContainer = document.getElementById('rally-list-container');
 
-    loadingEl.style.display = 'block';
-    document.getElementById('rally-campaign-display').style.display = 'none';
+    if (loadingEl) loadingEl.style.display = 'block';
+    
+    // 【修正】隱藏列表容器 (避免報錯)
+    if (listContainer) listContainer.style.display = 'none';
+    
+    // 確保掃碼器隱藏
+    if (qrScannerContainer) qrScannerContainer.style.display = 'none';
     
     // 確保彈窗初始是隱藏的
     if (rallyAnimationModal) rallyAnimationModal.style.display = 'none';
 
     try {
-        // 1. 載入資料 (這是關鍵，每次呼叫這個函式都會抓新資料)
+        // 1. 載入資料
         await fetchRallyData();
         
         // 2. 繪製畫面
         renderRallyPage();
         
-        // 3. 綁定事件 (確保只綁定一次)
-        if (!startScanBtn.dataset.listenerAttached) {
+        // 3. 綁定事件
+        if (startScanBtn && !startScanBtn.dataset.listenerAttached) {
             startScanBtn.addEventListener('click', startRallyScanner);
-            stopScanBtn.addEventListener('click', stopRallyScanner);
+            if (stopScanBtn) stopScanBtn.addEventListener('click', stopRallyScanner);
             
-            // ▼▼▼ 修改重點在這裡 ▼▼▼
-            document.getElementById('rally-modal-close-btn').addEventListener('click', async () => {
-                 // 1. 先關閉彈窗
-                 rallyAnimationModal.style.display = 'none';
-                 
-                 // 2. 重新執行初始化 (這會觸發 fetchRallyData 抓取最新進度)
-                 // 這樣回到畫面時，格子就會變色了
-                 await initializeRallyPage(); 
-            });
-            // ▲▲▲ 修改結束 ▲▲▲
+            const closeBtn = document.getElementById('rally-modal-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', async () => {
+                     rallyAnimationModal.style.display = 'none';
+                     // 關閉後重新整理，讓格子變色
+                     await initializeRallyPage(); 
+                });
+            }
 
             startScanBtn.dataset.listenerAttached = 'true';
         }
 
     } catch (error) {
         console.error("初始化集點地圖失敗:", error);
-        loadingEl.innerHTML = `<p style="color:var(--color-danger);">載入集點活動失敗: ${error.message}</p>`;
+        if (loadingEl) loadingEl.innerHTML = `<p style="color:var(--color-danger);">載入集點活動失敗: ${error.message}</p>`;
     }
 }
 
 function stopRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
+    // 【修正】改成顯示列表容器
+    const listContainer = document.getElementById('rally-list-container');
     
     if (rallyQrCodeScanner && rallyQrCodeScanner.isScanning) {
         rallyQrCodeScanner.stop().catch(err => console.error("停止掃描器失敗", err));
     }
     
-    qrScannerContainer.style.display = 'none';
-    document.getElementById('rally-campaign-display').style.display = 'block';
-    document.getElementById('rally-status-message').textContent = '';
+    if (qrScannerContainer) qrScannerContainer.style.display = 'none';
+    
+    // 恢復顯示列表
+    if (listContainer) listContainer.style.display = 'block';
+    
+    const statusMsg = document.getElementById('rally-status-message');
+    if (statusMsg) statusMsg.textContent = '';
 }
 
 // 顯示集點結果彈窗 (包含 Loading 狀態)
@@ -2226,23 +2238,33 @@ async function startRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     const rallyStatusMessage = document.getElementById('rally-status-message');
     const rallyQrReader = document.getElementById('rally-qr-reader');
+    // 【修正】改成操作列表容器
+    const listContainer = document.getElementById('rally-list-container');
     
-    if (!rallyData.activeCampaign) {
-        rallyStatusMessage.textContent = '目前沒有進行中的活動。';
-        rallyStatusMessage.style.color = 'var(--color-danger)';
+    // 檢查是否有活動資料 (相容單一/多活動結構)
+    const hasActiveCampaign = rallyData.activeCampaign || (rallyData.campaigns && rallyData.campaigns.length > 0);
+
+    if (!hasActiveCampaign) {
+        if (rallyStatusMessage) {
+            rallyStatusMessage.textContent = '目前沒有進行中的活動。';
+            rallyStatusMessage.style.color = 'var(--color-danger)';
+        }
         return;
     }
 
-    // 顯示掃碼介面
-    document.getElementById('rally-campaign-display').style.display = 'none';
-    qrScannerContainer.style.display = 'block';
-    rallyStatusMessage.textContent = '請對準夥伴櫃台的 QR Code...';
-    rallyStatusMessage.style.color = 'var(--color-text-primary)'; 
-    rallyQrReader.innerHTML = '';
+    // 隱藏列表，顯示掃碼器
+    if (listContainer) listContainer.style.display = 'none';
+    if (qrScannerContainer) qrScannerContainer.style.display = 'block';
+    
+    if (rallyStatusMessage) {
+        rallyStatusMessage.textContent = '請對準夥伴櫃台的 QR Code...';
+        rallyStatusMessage.style.color = 'var(--color-text-primary)'; 
+    }
+    if (rallyQrReader) rallyQrReader.innerHTML = '';
 
     if (!rallyQrCodeScanner) {
         if (typeof Html5Qrcode === 'undefined') {
-            rallyStatusMessage.textContent = '掃碼庫載入失敗。';
+            if (rallyStatusMessage) rallyStatusMessage.textContent = '掃碼庫載入失敗。';
             qrScannerContainer.style.display = 'none';
             return;
         }
@@ -2252,18 +2274,13 @@ async function startRallyScanner() {
     if (rallyQrCodeScanner.isScanning) return;
 
     const onScanSuccess = async (decodedText, decodedResult) => {
-        // 1. 掃描成功，立刻停止掃描器
         stopRallyScanner();
-        
-        // 2. 立刻開啟 Loading 彈窗 (這樣用戶就知道在跑了，也不會卡在奇怪的畫面)
         showRallyResultModal('loading', '集點驗證中...', '正在與雲端連線，請稍候...');
         
         let partnerCode = decodedText;
-
         try {
              const url = new URL(decodedText);
              let code = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code');
-             
              if (!code && url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
                  if (hashParts.length > 1) {
@@ -2271,41 +2288,33 @@ async function startRallyScanner() {
                      code = hashParams.get('partner_code') || hashParams.get('rally_station_code');
                  }
              }
-             
              if (code) partnerCode = code;
-
         } catch(e) {
              partnerCode = decodedText;
         }
 
         try {
-            // 3. 發送請求
             const redeemRes = await fetch('/api/rally/redeem-station', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
             });
 
-            // 嘗試讀取 JSON，如果失敗 (例如 404 HTML)，會跳到 catch
             const result = await redeemRes.json();
             
-            // 4. 根據結果更新彈窗
             if (!redeemRes.ok) {
                 const errorMsg = result.error || result.message || '未知的錯誤';
                 showRallyResultModal('error', '集點失敗', errorMsg);
             } else if (result.status === 'already_stamped') {
-                showRallyResultModal('error', '重複掃描', result.message); // 重複也算是一種「非成功」狀態
+                showRallyResultModal('error', '重複掃描', result.message);
             } else {
-                // 成功！
                 const rewardIssued = result.status === 'reward_issued';
                 const title = rewardIssued ? '🎉 獲得獎勵！' : '集點成功！';
                 showRallyResultModal('success', title, result.message, rewardIssued);
             }
-
         } catch (error) {
              console.error("集點驗證失敗:", error);
-             // 捕捉網路錯誤或解析錯誤
-             showRallyResultModal('error', '連線錯誤', '無法連接伺服器，請檢查網路或 QR Code 是否正確。');
+             showRallyResultModal('error', '連線錯誤', '無法連接伺服器，請檢查網路。');
         }
     };
 
@@ -2313,13 +2322,15 @@ async function startRallyScanner() {
         { facingMode: "environment" }, 
         { fps: 10, qrbox: 250 }, 
         onScanSuccess,
-        (errorMessage) => { /* 忽略掃描過程中的錯誤 */ }
+        (errorMessage) => { }
     ).catch(err => {
         console.error("啟動相機失敗:", err);
-        rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限。`;
-        rallyStatusMessage.style.color = 'var(--color-danger)';
-        qrScannerContainer.style.display = 'none';
-        document.getElementById('rally-campaign-display').style.display = 'block';
+        if (rallyStatusMessage) {
+            rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限。`;
+            rallyStatusMessage.style.color = 'var(--color-danger)';
+        }
+        if (qrScannerContainer) qrScannerContainer.style.display = 'none';
+        if (listContainer) listContainer.style.display = 'block';
     });
 }
 

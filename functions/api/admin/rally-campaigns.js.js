@@ -1,4 +1,4 @@
-// functions/api/admin/rally-campaigns.js (使用方法導向的 Exports)
+// functions/api/admin/rally-campaigns.js.js (整合所有邏輯的修正版)
 
 // Helper function to handle validation and cleanup
 async function validateCampaignData(body) {
@@ -33,99 +33,98 @@ async function validateCampaignData(body) {
     return { valid: true, data: data };
 }
 
-// --- GET: 獲取所有活動 (取代原本的 onRequest 裡的 GET 邏輯) ---
-export async function onRequestGet({ env }) {
-    try {
-        const db = env.DB;
-        const { results } = await db.prepare("SELECT * FROM RallyCampaigns ORDER BY campaign_id DESC").all();
-        return new Response(JSON.stringify(results || []), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    } catch (error) {
-        return new Response(JSON.stringify({ error: '獲取集點活動列表失敗', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-}
-
-// --- POST: 建立新活動 (取代原本的 onRequest 裡的 POST 邏輯) ---
-export async function onRequestPost({ request, env }) {
+// --- 通用 onRequest 處理函式 ---
+export async function onRequest(context) {
+    const { request, env } = context;
     const db = env.DB;
-    try {
-        const body = await request.json();
-        const validation = await validateCampaignData(body);
-        if (!validation.valid) {
-            return new Response(JSON.stringify({ error: validation.errors.join(' ') }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-        }
-        const data = validation.data;
+    const method = request.method;
 
-        const stmt = db.prepare(`
-            INSERT INTO RallyCampaigns (title, description, required_stamps, reward_voucher_id, start_date, end_date, is_active) 
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *
-        `);
-        const result = await stmt.bind(
-            data.title, data.description, data.required_stamps, data.reward_voucher_id, 
-            data.start_date, data.end_date, data.is_active
-        ).first();
-        
-        return new Response(JSON.stringify({ success: true, campaign: result }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    console.log(`[RallyCampaigns API] Received ${method} request.`); // 偵錯點 1：確認是否進入
+
+    try {
+        // --- GET: 獲取所有活動 ---
+        if (method === 'GET') {
+            const { results } = await db.prepare("SELECT * FROM RallyCampaigns ORDER BY campaign_id DESC").all();
+            return new Response(JSON.stringify(results || []), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // --- POST: 建立新活動 ---
+        if (method === 'POST') {
+            const body = await request.json();
+            const validation = await validateCampaignData(body);
+            if (!validation.valid) {
+                return new Response(JSON.stringify({ error: validation.errors.join(' ') }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+            const data = validation.data;
+
+            const stmt = db.prepare(`
+                INSERT INTO RallyCampaigns (title, description, required_stamps, reward_voucher_id, start_date, end_date, is_active) 
+                VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *
+            `);
+            const result = await stmt.bind(
+                data.title, data.description, data.required_stamps, data.reward_voucher_id, 
+                data.start_date, data.end_date, data.is_active
+            ).first();
+            
+            return new Response(JSON.stringify({ success: true, campaign: result }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // --- PUT: 更新活動 ---
+        if (method === 'PUT') {
+            const body = await request.json();
+            const validation = await validateCampaignData(body);
+            if (!validation.valid) {
+                return new Response(JSON.stringify({ error: validation.errors.join(' ') }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+            const data = validation.data;
+            if (!data.campaign_id) {
+                return new Response(JSON.stringify({ error: '缺少 campaign_id。' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+
+            const stmt = db.prepare(`
+                UPDATE RallyCampaigns SET 
+                    title = ?, description = ?, required_stamps = ?, reward_voucher_id = ?, 
+                    start_date = ?, end_date = ?, is_active = ? 
+                WHERE campaign_id = ?
+            `);
+            await stmt.bind(
+                data.title, data.description, data.required_stamps, data.reward_voucher_id, 
+                data.start_date, data.end_date, data.is_active, data.campaign_id
+            ).run();
+            
+            return new Response(JSON.stringify({ success: true, message: '活動更新成功' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // --- DELETE: 刪除活動 ---
+        if (method === 'DELETE') {
+            const { campaign_id: delete_id } = await request.json();
+            if (!delete_id) {
+                return new Response(JSON.stringify({ error: '缺少 campaign_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+            }
+
+            const operations = [
+                db.prepare("DELETE FROM UserRallyProgress WHERE campaign_id = ?").bind(delete_id),
+                db.prepare("DELETE FROM RallyStations WHERE campaign_id = ?").bind(delete_id),
+                db.prepare("DELETE FROM RallyCampaigns WHERE campaign_id = ?").bind(delete_id)
+            ];
+            await db.batch(operations);
+            
+            return new Response(JSON.stringify({ success: true, message: '活動與所有相關資料已刪除' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        return new Response(JSON.stringify({ error: `無效的請求方法: ${method}` }), { status: 405 });
 
     } catch (error) {
-        return new Response(JSON.stringify({ error: '建立集點活動失敗', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        console.error('Error in rally-campaigns API:', error);
+        return new Response(JSON.stringify({ error: '處理集點活動失敗', details: error.message }), { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
-// --- PUT: 更新活動 ---
-export async function onRequestPut({ request, env }) {
-    const db = env.DB;
-    try {
-        const body = await request.json();
-        const validation = await validateCampaignData(body);
-        if (!validation.valid) {
-            return new Response(JSON.stringify({ error: validation.errors.join(' ') }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-        }
-        const data = validation.data;
-        if (!data.campaign_id) {
-            return new Response(JSON.stringify({ error: '缺少 campaign_id。' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-        }
-
-        const stmt = db.prepare(`
-            UPDATE RallyCampaigns SET 
-                title = ?, description = ?, required_stamps = ?, reward_voucher_id = ?, 
-                start_date = ?, end_date = ?, is_active = ? 
-            WHERE campaign_id = ?
-        `);
-        await stmt.bind(
-            data.title, data.description, data.required_stamps, data.reward_voucher_id, 
-            data.start_date, data.end_date, data.is_active, data.campaign_id
-        ).run();
-        
-        return new Response(JSON.stringify({ success: true, message: '活動更新成功' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    } catch (error) {
-        return new Response(JSON.stringify({ error: '更新集點活動失敗', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-}
-
-// --- DELETE: 刪除活動 ---
-export async function onRequestDelete({ request, env }) {
-    const db = env.DB;
-    try {
-        const body = await request.json();
-        const delete_id = body.campaign_id;
-        if (!delete_id) {
-            return new Response(JSON.stringify({ error: '缺少 campaign_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-        }
-
-        const operations = [
-            db.prepare("DELETE FROM UserRallyProgress WHERE campaign_id = ?").bind(delete_id),
-            db.prepare("DELETE FROM RallyStations WHERE campaign_id = ?").bind(delete_id),
-            db.prepare("DELETE FROM RallyCampaigns WHERE campaign_id = ?").bind(delete_id)
-        ];
-        await db.batch(operations);
-        
-        return new Response(JSON.stringify({ success: true, message: '活動與所有相關資料已刪除' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    } catch (error) {
-        return new Response(JSON.stringify({ error: '刪除集點活動失敗', details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-}
-
-// functions/api/admin/rally-campaigns.js.js (末尾追加)
+// 移除原本的具名匯出 (onRequestGet/Post/Put/Delete)，因為通用 onRequest 已經處理了。
+// 這樣可以避免任何潛在的路由衝突或偵測錯誤。
 
 // --- 新增：通用 onRequest 處理，用於手動分派 (修復 405 錯誤) ---
 export const onRequest = async (context) => {

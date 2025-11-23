@@ -1982,7 +1982,7 @@ async function fetchRallyData() {
     activeCampaign.stations = await stationsRes.json();
 
     // 4. 獲取用戶集點進度 (使用我們創建的 API)
-    const progressRes = await fetch(`/api/rally/progress?userId=${userProfile.userId}&campaignId=${activeCampaign.campaign_id}`);
+    const progressRes = await fetch(`/api/rally-progress?userId=${userProfile.userId}&campaignId=${activeCampaign.campaign_id}`);
     if (!progressRes.ok) {
         console.warn("無法獲取用戶集點進度，預設為空。");
         rallyData.userProgress = [];

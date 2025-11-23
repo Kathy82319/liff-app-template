@@ -30,8 +30,7 @@ export async function onRequest(context) {
         if (station.end_date && new Date(station.end_date + 'T23:59:59') < now) return new Response(JSON.stringify({ error: '此活動已結束。' }), { status: 403, headers: jsonHeaders });
         if (station.expiry_date && new Date(station.expiry_date + 'T23:59:59') < now) return new Response(JSON.stringify({ error: '此站點的集點效期已截止。' }), { status: 403, headers: jsonHeaders });
 
-
-        // 2. 【核心修正】檢查「當前集點卡」進度 (只看 is_archived = 0)
+        // 2. 獲取「當前集點卡」點數 (只看 is_archived = 0)
         const currentStats = await db.prepare(`
             SELECT COUNT(station_id) as stamp_count FROM UserRallyProgress 
             WHERE user_id = ?1 AND campaign_id = ?2 AND is_archived = 0
@@ -39,14 +38,22 @@ export async function onRequest(context) {
         
         const currentStamps = currentStats?.stamp_count || 0;
 
+        // 3. 檢查集點卡是否已滿
+        if (currentStamps >= station.required_stamps) {
+             return new Response(JSON.stringify({ 
+                success: false, 
+                message: `您的集點卡已集滿！\n請返回集點地圖頁面，掃描「重置碼」啟用新卡。`, 
+                status: 'card_full' 
+            }), { status: 200, headers: jsonHeaders });
+        }
 
-        // 3. 檢查是否重複集點 (只檢查 is_archived = 0)
-        const existingProgress = await db.prepare(`
+        // 4. 檢查是否重複集點 (只檢查 is_archived = 0)
+        const existingActiveProgress = await db.prepare(`
             SELECT progress_id FROM UserRallyProgress 
             WHERE user_id = ?1 AND campaign_id = ?2 AND station_id = ?3 AND is_archived = 0
         `).bind(userId, station.campaign_id, station.station_id).first();
 
-        if (existingProgress) {
+        if (existingActiveProgress) {
             return new Response(JSON.stringify({ 
                 success: false, 
                 message: `您這張卡已經集過 "${station.station_name}" 了喔！`, 
@@ -54,13 +61,22 @@ export async function onRequest(context) {
             }), { status: 200, headers: jsonHeaders });
         }
         
-        // 4. [新增] 檢查集點卡是否已滿 (放在這裡才能確保重複集點檢查優先)
-        // 如果已滿，且不是重複集點，則提示需要重置
-        if (currentStamps >= station.required_stamps) {
+        // 5. 執行集點 (使用 INSERT OR IGNORE 確保不崩潰)
+        // 注意：如果資料庫層級的 UNIQUE 約束還在，這裡會忽略插入，但不會拋出異常。
+        // 我們依賴步驟 6 檢查 changes。
+        const insertResult = await db.prepare(`
+            INSERT OR IGNORE INTO UserRallyProgress (user_id, campaign_id, station_id, is_archived) 
+            VALUES (?1, ?2, ?3, 0)
+        `).bind(userId, station.campaign_id, station.station_id).run();
+
+        // 6. 檢查 INSERT 結果 (確保真的有插入)
+        if (insertResult.meta.changes === 0) {
+             // 如果 changes=0，代表它忽略了插入，這只能是因為舊的 UNIQUE 約束還在。
+             console.error(`[Rally] INSERT OR IGNORE 失敗，被舊的歸檔紀錄阻擋: ${userId}-${station.station_id}`);
              return new Response(JSON.stringify({ 
                 success: false, 
-                message: `您的集點卡已集滿！\n請掃描店家的「重置 QR Code」啟用新卡，才能繼續集點。`, 
-                status: 'card_full' 
+                message: `集點失敗：此站點在您的紀錄中已存在。請聯繫店家掃描「重置碼」。`, 
+                status: 'archived_conflict' 
             }), { status: 200, headers: jsonHeaders });
         }
         
@@ -150,6 +166,6 @@ export async function onRequest(context) {
 
     } catch (error) {
         console.error('Error in rally/redeem-station API:', error);
-        return new Response(JSON.stringify({ error: '集點失敗', details: error.message }), { status: 500, headers: jsonHeaders });
+        return new Response(JSON.stringify({ error: '系統錯誤', details: error.message }), { status: 500, headers: jsonHeaders });
     }
 }

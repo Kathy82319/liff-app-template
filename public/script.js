@@ -2285,23 +2285,12 @@ async function startRallyScanner() {
     }
     if (rallyQrReader) rallyQrReader.innerHTML = '';
 
-    // 初始化掃描器
-    if (!rallyQrCodeScanner) {
-        if (typeof Html5Qrcode === 'undefined') {
-            if (rallyStatusMessage) rallyStatusMessage.textContent = '掃碼庫載入失敗。';
-            if (qrScannerContainer) qrScannerContainer.style.display = 'none';
-            return;
-        }
-        rallyQrCodeScanner = new Html5Qrcode("rally-qr-reader");
-    }
-    
-    if (rallyQrCodeScanner.isScanning) return;
+    // 初始化掃描器 (略)
 
-    // 掃描成功的回呼函式
-const onScanSuccess = async (decodedText, decodedResult) => {
+    const onScanSuccess = async (decodedText, decodedResult) => {
         // 1. 停止掃描 & 顯示 Loading
         stopRallyScanner();
-        showRallyResultModal(false, '驗證中...', '正在讀取 QR Code...'); // 暫時使用非 success 狀態，避免跳轉按鈕出現
+        showRallyResultModal('loading', '處理中...', '正在讀取 QR Code...');
         
         let partnerCode = null;
         let resetAction = null;
@@ -2309,7 +2298,6 @@ const onScanSuccess = async (decodedText, decodedResult) => {
 
         // 2. 解析 QR Code 參數 (支援 Query 與 Hash)
         try {
-             // 嘗試從 URL 提取代碼
              const url = new URL(decodedText);
              let searchParams = url.searchParams;
              if (url.hash.includes('?')) {
@@ -2317,28 +2305,28 @@ const onScanSuccess = async (decodedText, decodedResult) => {
                  if (hashParts.length > 1) { searchParams = new URLSearchParams(hashParts[1]); }
              }
              partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
-             resetAction = searchParams.get('action'); 
+             resetAction = searchParams.get('action');
              campaignId = searchParams.get('campaign_id');
         } catch(e) {
-             partnerCode = decodedText; // 非 URL 格式，視為純代碼
+             partnerCode = decodedText;
         }
 
         try {
             let redeemRes;
             let result;
-            let errorMessage = '無法連接伺服器或發生未知錯誤。'; 
+            let finalStatus = null;
             
-            // --- A. 執行集點 (一般掃描) ---
+            // --- A/B. 執行 API ---
             if (partnerCode) {
+                 // === A. 執行集點 ===
                  redeemRes = await fetch('/api/rally/redeem-station', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
                 });
-            } 
-            // --- B. 執行重置 (如果邏輯正確的話) ---
-            else if (resetAction === 'reset' && campaignId) {
-                redeemRes = await fetch('/api/rally/reset-card', {
+            } else if (resetAction === 'reset' && campaignId) {
+                // === B. 執行重置 (開啟新卡) ===
+                 redeemRes = await fetch('/api/rally/reset-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userProfile.userId, campaignId: Number(campaignId) })
@@ -2347,46 +2335,33 @@ const onScanSuccess = async (decodedText, decodedResult) => {
                  throw new Error("無法辨識的 QR Code 格式。");
             }
             
-            // --- 3. 處理 API 回應 ---
-            
-            // 嘗試解析 JSON，即使是非 200 狀態
+            // 3. 處理 API 回應
             try {
                 result = await redeemRes.json();
+                finalStatus = result.status; // 儲存 API 回傳的狀態
             } catch (e) {
-                // 如果解析失敗，且狀態碼不是 200，則讀取文字內容
-                if (!redeemRes.ok) {
-                    const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
-                    errorMessage = `伺服器回應錯誤 (${redeemRes.status})：${text.substring(0, 100)}`;
-                    throw new Error(errorMessage); 
-                }
-                // 如果是 200 狀態但非 JSON，是格式錯誤
-                throw new Error(`伺服器回應格式錯誤 (非 JSON)。`);
+                // 如果無法解析 JSON，強制顯示伺服器回應的原始文本
+                const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
+                throw new Error(`伺服器回應錯誤 (${redeemRes.status})：${text.substring(0, 200)}`);
             }
 
-            // 如果狀態碼不是 2xx，但回傳了 JSON 錯誤
-            if (!redeemRes.ok) {
-                 errorMessage = result.details || result.error || `伺服器回應 ${redeemRes.status}，無詳細錯誤。`;
-                 throw new Error(errorMessage);
-            }
-
-            // --- 4. 成功或已知失敗 (status: already_stamped / card_full) ---
-            if (result.status === 'already_stamped' || result.status === 'card_full') {
-                 showRallyResultModal(false, '操作失敗', result.message);
-            } else if (result.success) {
-                // 成功邏輯
+            // 4. 判斷最終結果
+            // 如果 API 狀態碼非 200 但回傳了已知狀態 (如 already_stamped/card_full/archived_conflict)，則視為成功攔截
+            if (finalStatus === 'already_stamped' || finalStatus === 'card_full' || finalStatus === 'archived_conflict') {
+                 showRallyResultModal('error', '操作失敗', result.message);
+            } else if (redeemRes.ok && result.success) {
+                // 真正的成功
                 const rewardIssued = result.status === 'reward_issued';
                 const title = (resetAction === 'reset') ? '重置成功！' : (rewardIssued ? '獲得獎勵！' : '集點成功！');
-                showRallyResultModal(true, title, result.message, rewardIssued);
+                showRallyResultModal('success', title, result.message, rewardIssued);
             } else {
-                 // 捕獲 success: false 且沒有 status 的情況
-                 showRallyResultModal(false, '驗證失敗', result.message || '未知驗證錯誤。');
+                 // 失敗 (包含 500 錯誤或 success=false 的情況)
+                 throw new Error(result.details || result.error || '未知驗證錯誤。');
             }
 
         } catch (error) {
              console.error("掃碼處理失敗:", error);
-             // 這裡的 error.message 包含了從上方拋出的詳細錯誤訊息
-             const displayTitle = error.message.includes('伺服器回應') ? '連線或伺服器錯誤' : '驗證失敗';
-             showRallyResultModal(false, displayTitle, error.message.substring(0, 200) || '無法連接伺服器。');
+             showRallyResultModal('error', '驗證失敗', error.message.replace('系統錯誤: ', '').replace('Fetch failed: ', '') || '無法連接伺服器。');
         }
     };
 

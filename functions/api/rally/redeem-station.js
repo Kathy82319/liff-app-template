@@ -1,4 +1,4 @@
-// functions/api/rally/redeem-station.js
+// functions/api/rally/redeem-station.js (修正版 - 針對 required_stamps 進行 CAST)
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -13,11 +13,13 @@ export async function onRequest(context) {
 
         if (!userId || !partnerCode) return new Response(JSON.stringify({ error: '缺少必要參數。' }), { status: 400, headers: jsonHeaders });
         
-        // 1. 驗證站點與活動
+        // 1. 驗證站點與活動 (關鍵修正：將 required_stamps 轉為 INTEGER)
         const station = await db.prepare(`
             SELECT 
                 s.station_id, s.campaign_id, s.name AS station_name, s.expiry_date,
-                c.title AS campaign_title, c.required_stamps, c.reward_voucher_id, c.end_date, c.is_active AS campaign_active
+                c.title AS campaign_title, 
+                CAST(c.required_stamps AS INTEGER) AS required_stamps, 
+                c.reward_voucher_id, c.end_date, c.is_active AS campaign_active
             FROM RallyStations s
             JOIN RallyCampaigns c ON s.campaign_id = c.campaign_id
             WHERE s.unique_partner_code = ?1 AND s.is_active = 1
@@ -42,7 +44,7 @@ export async function onRequest(context) {
         if (currentStamps >= station.required_stamps) {
              return new Response(JSON.stringify({ 
                 success: false, 
-                message: `您的集點卡已集滿！\n請返回集點地圖頁面，掃描「重置碼」啟用新卡。`, 
+                message: `您的集點卡已集滿！\n請返回集點地圖頁面，掃描「重置碼」啟用新卡，才能繼續集點。`, 
                 status: 'card_full' 
             }), { status: 200, headers: jsonHeaders });
         }
@@ -61,9 +63,7 @@ export async function onRequest(context) {
             }), { status: 200, headers: jsonHeaders });
         }
         
-        // 5. 執行集點 (使用 INSERT OR IGNORE 確保不崩潰)
-        // 注意：如果資料庫層級的 UNIQUE 約束還在，這裡會忽略插入，但不會拋出異常。
-        // 我們依賴步驟 6 檢查 changes。
+        // 5. 執行集點 (使用 INSERT OR IGNORE 應對 DB 層級的 UNIQUE 錯誤)
         const insertResult = await db.prepare(`
             INSERT OR IGNORE INTO UserRallyProgress (user_id, campaign_id, station_id, is_archived) 
             VALUES (?1, ?2, ?3, 0)
@@ -71,7 +71,6 @@ export async function onRequest(context) {
 
         // 6. 檢查 INSERT 結果 (確保真的有插入)
         if (insertResult.meta.changes === 0) {
-             // 如果 changes=0，代表它忽略了插入，這只能是因為舊的 UNIQUE 約束還在。
              console.error(`[Rally] INSERT OR IGNORE 失敗，被舊的歸檔紀錄阻擋: ${userId}-${station.station_id}`);
              return new Response(JSON.stringify({ 
                 success: false, 
@@ -80,28 +79,22 @@ export async function onRequest(context) {
             }), { status: 200, headers: jsonHeaders });
         }
         
-
-        // 5. 執行集點 (寫入進度，預設 is_archived = 0)
-        await db.prepare(`
-            INSERT OR IGNORE INTO UserRallyProgress (user_id, campaign_id, station_id, is_archived) 
-            VALUES (?1, ?2, ?3, 0)
-        `).bind(userId, station.campaign_id, station.station_id).run();
-
-        // 更新集點後的點數 (現在確定是 currentStamps + 1)
+        // 7. 成功後續處理
         const newStampCount = currentStamps + 1;
-        
         let rewardMessage = `集點成功！\n目前進度：${newStampCount} / ${station.required_stamps}`;
         let prizeIssued = false;
 
-        // 6. 檢查是否達標 (剛好集滿的那一刻)
         if (newStampCount === station.required_stamps) {
             
-            // 檢查是否已發放 (避免重複發放獎勵)
-            const rewardCheckStmt = db.prepare(`
-                SELECT voucher_id FROM UserVouchers 
-                WHERE user_id = ?1 AND template_id = ?2 AND source = 'rally_campaign' AND is_used = 0
-            `);
-            const existingReward = await rewardCheckStmt.bind(userId, station.reward_voucher_id).first();
+            // 獎勵邏輯 (假設這裡的邏輯是正確的)
+            const template = await db.prepare("SELECT limit_per_user, total_supply FROM VoucherTemplates WHERE template_id = ?")
+                                   .bind(station.reward_voucher_id).first();
+
+            if (template) {
+                const userVoucherCount = await db.prepare("SELECT COUNT(*) as count FROM UserVouchers WHERE user_id = ? AND template_id = ?")
+                                                 .bind(userId, station.reward_voucher_id).first();
+                const totalIssuedCount = await db.prepare("SELECT COUNT(*) as count FROM UserVouchers WHERE template_id = ?")
+                                                 .bind(station.reward_voucher_id).first();
 
             if (!existingReward) {
                 // --- 獎勵發放邏輯 ---

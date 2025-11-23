@@ -2203,16 +2203,24 @@ function stopRallyScanner() {
     const listContainer = document.getElementById('rally-list-container');
     
     if (rallyQrCodeScanner && rallyQrCodeScanner.isScanning) {
-        rallyQrCodeScanner.stop().catch(err => console.error("停止掃描器失敗", err));
-        rallyQrCodeScanner.clear(); // 清除 HTML
+        // 1. 執行停止 (返回 Promise)
+        const stopPromise = rallyQrCodeScanner.stop();
+        // 2. 清除實例
+        rallyQrCodeScanner.clear(); // 清除 HTML 內容
         rallyQrCodeScanner = null;   // 重置實例
+        
+        // 3. 立即切換 UI 顯示 (即使 Promise 還沒完成)
+        if (qrScannerContainer) qrScannerContainer.style.display = 'none';
+        if (listContainer) listContainer.style.display = 'block';
+        
+        return stopPromise; // 返回 Promise，讓呼叫者等待
     }
     
+    // 即使沒有在掃描，也要確保 UI 狀態正確
     if (qrScannerContainer) qrScannerContainer.style.display = 'none';
     if (listContainer) listContainer.style.display = 'block';
     
-    const statusMsg = document.getElementById('rally-status-message');
-    if (statusMsg) statusMsg.textContent = '';
+    return Promise.resolve(); // 返回一個已解決的 Promise
 }
 
 /**
@@ -2279,7 +2287,7 @@ async function startRallyScanner(resetLink, campaignId) {
     // 檢查是否有活動資料
     const hasActiveCampaign = rallyData.campaigns && rallyData.campaigns.length > 0;
 
-    if (!hasActiveCampaign) { return; } // 應該在 initializeRallyPage 就被攔截
+    if (!hasActiveCampaign) { return; } 
 
     // 每次開始掃描前，清空舊實例 (解決權限拒絕後無法再啟動的問題)
     if (rallyQrCodeScanner) { rallyQrCodeScanner.clear(); rallyQrCodeScanner = null; }
@@ -2300,9 +2308,10 @@ async function startRallyScanner(resetLink, campaignId) {
     rallyQrCodeScanner = new Html5Qrcode("rally-qr-reader");
 
     const onScanSuccess = async (decodedText, decodedResult) => {
-        // 1. 停止掃描
-        stopRallyScanner();
-
+        // 1. 【核心修正】停止掃描並等待 Promise 完成
+        await stopRallyScanner(); // <--- 確保在繼續之前相機已停止
+        showRallyResultModal('loading', '處理中...', '正在讀取 QR Code...');
+        
         let partnerCode = null;
         let resetAction = null;
         
@@ -2316,6 +2325,7 @@ async function startRallyScanner(resetLink, campaignId) {
              }
              partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
              resetAction = searchParams.get('action');
+             campaignId = searchParams.get('campaign_id'); // 確保 campaignId 被讀取
         } catch(e) {
              partnerCode = decodedText;
         }
@@ -2323,11 +2333,13 @@ async function startRallyScanner(resetLink, campaignId) {
         try {
             let redeemRes;
             let result;
-
+            let finalStatus = null;
+            
             // --- 執行 API ---
             if (resetAction === 'reset' && campaignId) {
                 // === A. 執行重置 ===
                 showRallyResultModal('loading', '重置集點卡...', '正在開啟新的一輪...');
+                
                 redeemRes = await fetch('/api/rally/reset-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2336,18 +2348,22 @@ async function startRallyScanner(resetLink, campaignId) {
             } else if (partnerCode) {
                 // === B. 執行集點 ===
                 showRallyResultModal('loading', '集點驗證中...', '正在驗證站點...');
+
                 redeemRes = await fetch('/api/rally/redeem-station', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
                 });
+
             } else {
-                 throw new Error("無法辨識的 QR Code 格式。");
+                // === C. 無效格式 ===
+                throw new Error("無法辨識的 QR Code 格式。");
             }
             
             // 3. 處理 API 回應
             try {
                 result = await redeemRes.json();
+                finalStatus = result.status; 
             } catch (e) {
                 if (!redeemRes.ok) {
                     const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
@@ -2357,11 +2373,10 @@ async function startRallyScanner(resetLink, campaignId) {
             }
 
             // 4. 判斷最終結果
-            if (result.status === 'already_stamped' || result.status === 'card_full' || result.status === 'archived_conflict') {
-                 // 已知邏輯錯誤 (重複掃描/卡滿/歸檔衝突)
+            if (finalStatus === 'already_stamped' || finalStatus === 'card_full' || finalStatus === 'archived_conflict') {
                  showRallyResultModal('error', '操作失敗', result.message);
             } else if (redeemRes.ok && result.success) {
-                // 真正的成功 (包含重置成功)
+                // 真正的成功
                 const rewardIssued = result.status === 'reward_issued';
                 const title = (resetAction === 'reset') ? '重置成功！' : (rewardIssued ? '🎉 獲得獎勵！' : '集點成功！');
                 showRallyResultModal('success', title, result.message, rewardIssued);
@@ -2385,12 +2400,13 @@ async function startRallyScanner(resetLink, campaignId) {
     ).catch(err => {
         console.error("啟動相機失敗:", err);
         if (rallyStatusMessage) {
-            rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限。`;
+            // 提示用戶權限被拒絕
+            rallyStatusMessage.textContent = `❌ 無法啟動相機。請檢查瀏覽器設定，確保該網址已獲得相機權限。`;
             rallyStatusMessage.style.color = 'var(--color-danger)';
         }
         if (qrScannerContainer) qrScannerContainer.style.display = 'none';
         if (listContainer) listContainer.style.display = 'block';
-        // 【關鍵修正】失敗後重置實例，允許下次點擊重新詢問權限
+        // 失敗後重置實例，允許下次點擊重新嘗試啟動
         rallyQrCodeScanner = null; 
     });
 }

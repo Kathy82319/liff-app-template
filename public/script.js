@@ -33,8 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let rallyData = { userProgress: [], activeCampaign: null };
     
     // ▼▼▼ 【核心修正】將掃描器設為可重置的全域變數 ▼▼▼
-    let rallyQrCodeScanner = null; 
-
+    let rallyQrCodeScanner = null;
     const pageInitializers = {
         'page-home': initializeHomePage,
         'page-products': initializeProductsPage,
@@ -1243,7 +1242,7 @@ async function initializeMyStoredValueHistoryPage() {
             }).join('');
         }
     } catch (error) {
-        container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
+        container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
     }
 }
 

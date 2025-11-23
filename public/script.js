@@ -2089,20 +2089,33 @@ async function initializeRallyPage() {
 
     loadingEl.style.display = 'block';
     document.getElementById('rally-campaign-display').style.display = 'none';
-    rallyAnimationModal.style.display = 'none'; // <-- 確保 Modal 初始隱藏
+    
+    // 確保彈窗初始是隱藏的
+    if (rallyAnimationModal) rallyAnimationModal.style.display = 'none';
 
     try {
+        // 1. 載入資料 (這是關鍵，每次呼叫這個函式都會抓新資料)
         await fetchRallyData();
+        
+        // 2. 繪製畫面
         renderRallyPage();
         
-        // 綁定事件 (只綁定一次)
+        // 3. 綁定事件 (確保只綁定一次)
         if (!startScanBtn.dataset.listenerAttached) {
             startScanBtn.addEventListener('click', startRallyScanner);
             stopScanBtn.addEventListener('click', stopRallyScanner);
-            document.getElementById('rally-modal-close-btn').addEventListener('click', () => {
+            
+            // ▼▼▼ 修改重點在這裡 ▼▼▼
+            document.getElementById('rally-modal-close-btn').addEventListener('click', async () => {
+                 // 1. 先關閉彈窗
                  rallyAnimationModal.style.display = 'none';
-                 renderRallyPage(); // 重新渲染主頁面以確保進度最新
+                 
+                 // 2. 重新執行初始化 (這會觸發 fetchRallyData 抓取最新進度)
+                 // 這樣回到畫面時，格子就會變色了
+                 await initializeRallyPage(); 
             });
+            // ▲▲▲ 修改結束 ▲▲▲
+
             startScanBtn.dataset.listenerAttached = 'true';
         }
 

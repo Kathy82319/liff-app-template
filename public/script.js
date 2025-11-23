@@ -2198,34 +2198,30 @@ async function initializeRallyPage() {
 /**
  * 5. 停止掃描
  */
-function stopRallyScanner() {
+async function stopRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     const listContainer = document.getElementById('rally-list-container');
     
     if (rallyQrCodeScanner && rallyQrCodeScanner.isScanning) {
-        // 1. 執行停止 (返回 Promise)
-        const stopPromise = rallyQrCodeScanner.stop();
-        // 2. 清除實例
-        rallyQrCodeScanner.clear(); // 清除 HTML 內容
+        // 1. AWAIT 停止，並捕獲錯誤以防止程式中斷
+        await rallyQrCodeScanner.stop().catch(err => console.error("Scanner stop failed during await (ignored):", err));
+        
+        // 2. 停止成功後，再安全地清理實例
+        rallyQrCodeScanner.clear(); // Safe to clear now
         rallyQrCodeScanner = null;   // 重置實例
-        
-        // 3. 立即切換 UI 顯示 (即使 Promise 還沒完成)
-        if (qrScannerContainer) qrScannerContainer.style.display = 'none';
-        if (listContainer) listContainer.style.display = 'block';
-        
-        return stopPromise; // 返回 Promise，讓呼叫者等待
+    } else if (rallyQrCodeScanner) {
+        // 如果沒有在掃描，但也存在實例，嘗試清理 (確保實例是 null)
+        rallyQrCodeScanner.clear();
+        rallyQrCodeScanner = null;
     }
     
-    // 即使沒有在掃描，也要確保 UI 狀態正確
+    // 3. 確保 UI 狀態正確
     if (qrScannerContainer) qrScannerContainer.style.display = 'none';
     if (listContainer) listContainer.style.display = 'block';
     
-    return Promise.resolve(); // 返回一個已解決的 Promise
+    const statusMsg = document.getElementById('rally-status-message');
+    if (statusMsg) statusMsg.textContent = '';
 }
-
-/**
- * 6. 顯示集點結果彈窗
- */
 function showRallyResultModal(state, title, message, rewardIssued = false) {
     const modal = document.getElementById('rally-animation-modal');
     const iconEl = document.getElementById('rally-modal-icon');
@@ -2233,6 +2229,9 @@ function showRallyResultModal(state, title, message, rewardIssued = false) {
     const messageEl = document.getElementById('rally-animation-message');
     const actionBtn = document.getElementById('rally-modal-action-btn');
     const closeBtn = document.getElementById('rally-modal-close-btn');
+
+    const statusMsg = document.getElementById('rally-status-message');
+    if (statusMsg) statusMsg.textContent = '';
 
     // 設定內容
     titleEl.textContent = title;
@@ -2284,9 +2283,7 @@ async function startRallyScanner(resetLink, campaignId) {
     const rallyQrReader = document.getElementById('rally-qr-reader');
     const listContainer = document.getElementById('rally-list-container');
     
-    // 檢查是否有活動資料
     const hasActiveCampaign = rallyData.campaigns && rallyData.campaigns.length > 0;
-
     if (!hasActiveCampaign) { return; } 
 
     // 每次開始掃描前，清空舊實例 (解決權限拒絕後無法再啟動的問題)
@@ -2319,13 +2316,15 @@ async function startRallyScanner(resetLink, campaignId) {
         try {
              const url = new URL(decodedText);
              let searchParams = url.searchParams;
+             
              if (url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
                  if (hashParts.length > 1) { searchParams = new URLSearchParams(hashParts[1]); }
              }
+             
              partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
              resetAction = searchParams.get('action');
-             campaignId = searchParams.get('campaign_id'); // 確保 campaignId 被讀取
+             campaignId = searchParams.get('campaign_id');
         } catch(e) {
              partnerCode = decodedText;
         }
@@ -2336,6 +2335,7 @@ async function startRallyScanner(resetLink, campaignId) {
             let finalStatus = null;
             
             // --- 執行 API ---
+            
             if (resetAction === 'reset' && campaignId) {
                 // === A. 執行重置 ===
                 showRallyResultModal('loading', '重置集點卡...', '正在開啟新的一輪...');
@@ -2400,7 +2400,6 @@ async function startRallyScanner(resetLink, campaignId) {
     ).catch(err => {
         console.error("啟動相機失敗:", err);
         if (rallyStatusMessage) {
-            // 提示用戶權限被拒絕
             rallyStatusMessage.textContent = `❌ 無法啟動相機。請檢查瀏覽器設定，確保該網址已獲得相機權限。`;
             rallyStatusMessage.style.color = 'var(--color-danger)';
         }

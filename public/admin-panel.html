@@ -1329,8 +1329,16 @@
                 <div class="form-group"><label for="campaign-title">活動標題 (必填)</label><input type="text" id="campaign-title" required></div>
                 <div class="form-group"><label for="campaign-description">活動說明 (選填)</label><textarea id="campaign-description" rows="3"></textarea></div>
                 <div class="form-group"><label for="campaign-required-stamps">所需集點數量 (必填)</label><input type="number" id="campaign-required-stamps" min="1" required></div>
-                <div class="form-group"><label for="campaign-reward-voucher">綁定獎勵優惠券 (Voucher ID)</label><input type="number" id="campaign-reward-voucher" placeholder="請輸入優惠券樣板ID (template_id)" required></div>
+                <div class="form-group"><label for="campaign-reward-voucher">綁定獎勵優惠券 (Template ID)</label><input type="number" id="campaign-reward-voucher" placeholder="請輸入優惠券樣板ID" required></div>
                 <div class="form-group"><label for="campaign-dates">活動期間 (選填)</label><input type="text" id="campaign-dates" placeholder="選擇日期範圍"></div>
+                
+                <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #eee;">
+                    <label class="switch-label" style="display:flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                        <label for="campaign-can-repeat" style="font-weight: bold;">允許重複集點</label>
+                        <label class="switch"><input type="checkbox" id="campaign-can-repeat"><span class="slider"></span></label>
+                    </label>
+                    <small style="color: #666; font-size: 0.85em;">開啟後，顧客集滿並領獎後，可掃描店家的「重置 QR Code」開啟新的一張集點卡。</small>
+                </div>
                 <div class="form-group">
                     <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
                         <label for="campaign-is-active">是否啟用</label>

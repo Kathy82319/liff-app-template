@@ -90,10 +90,8 @@ function openCampaignModal(campaign = null) {
     document.getElementById('edit-campaign-id').value = campaign?.campaign_id || '';
     modalTitle.textContent = campaign ? '編輯集點活動' : '新增集點活動';
     
-    // <<< [新增] 修正獎勵欄位標籤 >>>
     const rewardLabel = form.querySelector('label[for="campaign-reward-voucher"]');
     if(rewardLabel) rewardLabel.textContent = '綁定獎勵優惠券 (Template ID)';
-    // <<< [新增] 修正獎勵欄位標籤 >>>
 
     if (campaignDatepicker) campaignDatepicker.destroy();
     
@@ -102,6 +100,10 @@ function openCampaignModal(campaign = null) {
         document.getElementById('campaign-description').value = campaign.description || '';
         document.getElementById('campaign-required-stamps').value = campaign.required_stamps;
         document.getElementById('campaign-reward-voucher').value = campaign.reward_voucher_id;
+        
+        // [新增] 讀取 can_repeat 狀態
+        document.getElementById('campaign-can-repeat').checked = !!campaign.can_repeat;
+        
         document.getElementById('campaign-is-active').checked = !!campaign.is_active;
 
         let defaultDates = [];
@@ -115,6 +117,9 @@ function openCampaignModal(campaign = null) {
             defaultDate: defaultDates
         });
     } else {
+         // [新增] 新增時預設為關閉 (或開啟，視您需求而定)
+         document.getElementById('campaign-can-repeat').checked = false;
+         
          campaignDatepicker = flatpickr("#campaign-dates", { mode: "range", dateFormat: "Y-m-d", locale: "zh_tw" });
     }
 
@@ -169,15 +174,13 @@ async function handleCampaignSubmit(event) {
     const dates = campaignDatepicker.selectedDates;
     const campaign_id = document.getElementById('edit-campaign-id').value;
 
-    // <<< [修正] 日期邏輯：確保單選時 start_date 和 end_date 相同 >>>
     let startDate = dates.length > 0 ? flatpickr.formatDate(dates[0], "Y-m-d") : null;
     let endDate = null;
     if (dates.length === 2) {
          endDate = flatpickr.formatDate(dates[1], "Y-m-d");
     } else if (dates.length === 1) {
-         endDate = startDate; // 單選日期時，起迄日相同
+         endDate = startDate;
     }
-    // <<< [修正] 日期邏輯結束 >>>
 
     const payload = {
         campaign_id: campaign_id ? Number(campaign_id) : null,
@@ -187,6 +190,10 @@ async function handleCampaignSubmit(event) {
         reward_voucher_id: document.getElementById('campaign-reward-voucher').value,
         start_date: startDate,
         end_date: endDate,
+        
+        // [新增] 傳送 can_repeat 的值
+        can_repeat: document.getElementById('campaign-can-repeat').checked,
+        
         is_active: document.getElementById('campaign-is-active').checked,
     };
     

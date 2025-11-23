@@ -23,10 +23,20 @@ async function request(url, options = {}) {
 
         const response = await fetch(url, defaultOptions);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
-            console.error(`API Error Data for ${url}:`, errorData);
-            throw new Error(errorData.error || '未知的 API 錯誤');
+            if (!response.ok) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                // 收到 JSON 格式錯誤
+                const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
+                console.error(`API Error Data for ${url}:`, errorData);
+                throw new Error(errorData.error || '未知的 API 錯誤');
+            } else {
+                // 收到非 JSON 格式錯誤 (例如 text/html 錯誤頁面)
+                const errorText = await response.text().catch(() => '無法讀取錯誤內容');
+                console.error(`API Error: ${url} returned HTTP ${response.status} with non-JSON content. Content Type: ${contentType}`, errorText.substring(0, 500));
+                // 提供一個更通用的錯誤，但提示用戶可能需要重新登入
+                throw new Error(`API 錯誤 (HTTP ${response.status})：無法載入管理資料，請檢查登入狀態。`); 
+            }
         }
         if (response.status === 204) return { success: true };
         const contentType = response.headers.get("content-type");

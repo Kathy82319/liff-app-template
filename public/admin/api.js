@@ -144,19 +144,21 @@ export const api = {
         method: 'POST', 
         body: JSON.stringify({ bookingId, paymentStatus }) 
     }),
+
+
+// --- Admin Rally Campaigns Management (修改路徑) ---
+    getRallyCampaigns: () => request('/api/admin/rally-campaigns'),
+    createRallyCampaign: (data) => request('/api/admin/rally-campaigns', { method: 'POST', body: JSON.stringify(data) }),
+    updateRallyCampaign: (data) => request('/api/admin/rally-campaigns', { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRallyCampaign: (campaign_id) => request('/api/admin/rally-campaigns', { method: 'DELETE', body: JSON.stringify({ campaign_id }) }),
+
+    // --- Admin Rally Stations Management (修改路徑) ---
+    getRallyStations: (campaignId) => request(`/api/admin/rally-stations?campaignId=${campaignId}`),
+    createRallyStation: (data) => request('/api/admin/rally-stations', { method: 'POST', body: JSON.stringify(data) }),
+    updateRallyStation: (data) => request('/api/admin/rally-stations', { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRallyStation: (station_id) => request('/api/admin/rally-stations', { method: 'DELETE', body: JSON.stringify({ station_id }) }),
+
     
-    // --- Admin Rally Campaigns Management (新增) ---
-    getRallyCampaigns: () => request('/api/admin/rally/campaigns'),
-    createRallyCampaign: (data) => request('/api/admin/rally/campaigns', { method: 'POST', body: JSON.stringify(data) }),
-    updateRallyCampaign: (data) => request('/api/admin/rally/campaigns', { method: 'PUT', body: JSON.stringify(data) }),
-    deleteRallyCampaign: (campaign_id) => request('/api/admin/rally/campaigns', { method: 'DELETE', body: JSON.stringify({ campaign_id }) }),
-
-    // --- Admin Rally Stations Management (新增) ---
-    getRallyStations: (campaignId) => request(`/api/admin/rally/stations?campaignId=${campaignId}`),
-    createRallyStation: (data) => request('/api/admin/rally/stations', { method: 'POST', body: JSON.stringify(data) }),
-    updateRallyStation: (data) => request('/api/admin/rally/stations', { method: 'PUT', body: JSON.stringify(data) }),
-    deleteRallyStation: (station_id) => request('/api/admin/rally/stations', { method: 'DELETE', body: JSON.stringify({ station_id }) }),
-
     // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
 };

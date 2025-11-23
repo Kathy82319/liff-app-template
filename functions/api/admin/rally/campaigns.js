@@ -1,9 +1,10 @@
-// functions/api/admin/campaigns.js
+// functions/api/admin/rally/campaigns.js
 
 async function validateCampaignData(body) {
     const {
         campaign_id, title, description, required_stamps, 
-        reward_voucher_id, start_date, end_date, is_active
+        reward_voucher_id, start_date, end_date, is_active,
+        can_repeat // [新增]
     } = body;
 
     const errors = [];
@@ -26,13 +27,13 @@ async function validateCampaignData(body) {
         reward_voucher_id: Number(reward_voucher_id),
         start_date: start_date || null,
         end_date: end_date || null,
-        is_active: is_active ? 1 : 0
+        is_active: is_active ? 1 : 0,
+        can_repeat: can_repeat ? 1 : 0 // [新增] 處理布林值
     };
     
     return { valid: true, data: data };
 }
 
-// --- 通用 onRequest 處理函式 (已移除偵錯 Log) ---
 export async function onRequest(context) {
     const { request, env } = context;
     const db = env.DB;
@@ -54,13 +55,14 @@ export async function onRequest(context) {
             }
             const data = validation.data;
 
+            // [修改] SQL 加入 can_repeat
             const stmt = db.prepare(`
-                INSERT INTO RallyCampaigns (title, description, required_stamps, reward_voucher_id, start_date, end_date, is_active) 
-                VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *
+                INSERT INTO RallyCampaigns (title, description, required_stamps, reward_voucher_id, start_date, end_date, is_active, can_repeat) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *
             `);
             const result = await stmt.bind(
                 data.title, data.description, data.required_stamps, data.reward_voucher_id, 
-                data.start_date, data.end_date, data.is_active
+                data.start_date, data.end_date, data.is_active, data.can_repeat
             ).first();
             
             return new Response(JSON.stringify({ success: true, campaign: result }), { status: 201, headers: { 'Content-Type': 'application/json' } });
@@ -78,21 +80,22 @@ export async function onRequest(context) {
                 return new Response(JSON.stringify({ error: '缺少 campaign_id。' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
             }
 
+            // [修改] SQL 加入 can_repeat
             const stmt = db.prepare(`
                 UPDATE RallyCampaigns SET 
                     title = ?, description = ?, required_stamps = ?, reward_voucher_id = ?, 
-                    start_date = ?, end_date = ?, is_active = ? 
+                    start_date = ?, end_date = ?, is_active = ?, can_repeat = ?
                 WHERE campaign_id = ?
             `);
             await stmt.bind(
                 data.title, data.description, data.required_stamps, data.reward_voucher_id, 
-                data.start_date, data.end_date, data.is_active, data.campaign_id
+                data.start_date, data.end_date, data.is_active, data.can_repeat, data.campaign_id
             ).run();
             
             return new Response(JSON.stringify({ success: true, message: '活動更新成功' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
-        // --- DELETE: 刪除活動 ---
+        // --- DELETE: 刪除活動 (保持不變) ---
         if (method === 'DELETE') {
             const { campaign_id: delete_id } = await request.json();
             if (!delete_id) {

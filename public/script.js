@@ -2011,95 +2011,122 @@ function renderRallyPage() {
     const listContainer = document.getElementById('rally-list-container');
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     
-    loadingEl.style.display = 'none';
-    qrScannerContainer.style.display = 'none'; // 確保掃描器隱藏
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (qrScannerContainer) qrScannerContainer.style.display = 'none'; // 確保掃描器隱藏
     
+    // 檢查資料是否存在
     if (!rallyData.campaigns || rallyData.campaigns.length === 0) {
-        listContainer.style.display = 'block';
-        listContainer.innerHTML = '<p style="text-align:center; color:var(--color-text-secondary);">目前沒有進行中的集點活動。</p>';
+        if (listContainer) {
+            listContainer.style.display = 'block';
+            listContainer.innerHTML = '<p style="text-align:center; color:var(--color-text-secondary);">目前沒有進行中的集點活動。</p>';
+        }
         return;
     }
 
-    listContainer.style.display = 'block';
-    listContainer.innerHTML = rallyData.campaigns.map((campaign, index) => {
-        // 計算進度
-        const stampedIds = new Set(campaign.userProgress.map(p => p.station_id));
-        const currentStamps = stampedIds.size;
-        const totalStamps = campaign.required_stamps;
-        const progressPercent = Math.min(100, Math.round((currentStamps / totalStamps) * 100));
-        const isCompleted = currentStamps >= totalStamps;
-        
-        // 狀態顯示
-        let badgeClass = isCompleted ? 'badge-completed' : 'badge-active';
-        let badgeText = isCompleted ? '已完成' : '進行中';
-        let expiryText = campaign.end_date ? `截止: ${campaign.end_date}` : '永久有效';
+    if (listContainer) {
+        listContainer.style.display = 'block';
+        listContainer.innerHTML = rallyData.campaigns.map((campaign, index) => {
+            // 1. 計算進度
+            // 確保 userProgress 是陣列
+            const progressList = Array.isArray(campaign.userProgress) ? campaign.userProgress : [];
+            // 過濾出未歸檔 (is_archived=0) 的點數
+            const activeStamps = progressList.filter(p => p.is_archived !== 1);
+            const stampedIds = new Set(activeStamps.map(p => p.station_id));
+            
+            const currentStamps = stampedIds.size;
+            const totalStamps = campaign.required_stamps;
+            const progressPercent = Math.min(100, Math.round((currentStamps / totalStamps) * 100));
+            const isCompleted = currentStamps >= totalStamps;
+            
+            // 2. 狀態顯示邏輯
+            let badgeClass = 'badge-active';
+            let badgeText = '進行中';
+            let expiryText = campaign.end_date ? `截止: ${campaign.end_date}` : '永久有效';
+            let btnHtml = '';
+            let instructionHtml = ''; // 額外的操作提示
 
-        // 渲染站點九宮格 (小版)
-        const stationsHtml = campaign.stations.map(s => {
-            const isCollected = stampedIds.has(s.station_id);
+            if (isCompleted) {
+                badgeClass = 'badge-completed';
+                badgeText = '已集滿';
+                
+                // 判斷是否允許重複 (can_repeat = 1)
+                if (campaign.can_repeat === 1) {
+                    // 可重複：顯示重置按鈕與提示
+                    btnHtml = `<button class="cta-button btn-start-scan" style="background-color: var(--color-info);">🔄 掃描重置碼 (開啟新卡)</button>`;
+                    instructionHtml = `<div style="margin-top: 10px; padding: 10px; background: rgba(23, 162, 184, 0.1); border-radius: 8px; font-size: 0.9rem; color: var(--color-text-primary);">
+                        <strong>🎉 恭喜完成！</strong><br>此活動允許重複參加。請掃描店家的「重置 QR Code」將卡片歸檔，即可開始新的一輪。
+                    </div>`;
+                } else {
+                    // 不可重複：顯示已完成
+                    btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
+                    instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-success);">您已完成此活動並獲得獎勵。</div>`;
+                }
+            } else {
+                // 進行中
+                btnHtml = `<button class="cta-button btn-start-scan" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
+            }
+
+            // 3. 渲染站點九宮格 (小版)
+            const stationsHtml = (campaign.stations || []).map(s => {
+                const isCollected = stampedIds.has(s.station_id);
+                return `
+                    <div class="mini-station-card ${isCollected ? 'collected' : ''}">
+                        <div style="font-weight:bold;">${s.name}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // 4. 預設展開第一個活動
+            const isExpanded = index === 0 ? 'expanded' : '';
+
+            // 5. 組合卡片 HTML
             return `
-                <div class="mini-station-card ${isCollected ? 'collected' : ''}">
-                    <div style="font-weight:bold;">${s.name}</div>
+                <div class="rally-card ${isExpanded}" id="rally-card-${campaign.campaign_id}">
+                    <div class="rally-card-header" onclick="toggleRallyCard(${campaign.campaign_id})">
+                        <div class="rally-info">
+                            <div style="display:flex; align-items:center;">
+                                <div class="rally-title">${campaign.title}</div>
+                                <div class="rally-badge ${badgeClass}">${badgeText}</div>
+                            </div>
+                            <div class="rally-meta">
+                                <span>${expiryText}</span>
+                                <span>${currentStamps} / ${totalStamps} 點</span>
+                            </div>
+                            <div class="rally-progress-track">
+                                <div class="rally-progress-fill" style="width: ${progressPercent}%"></div>
+                            </div>
+                        </div>
+                        <div class="rally-arrow">▼</div>
+                    </div>
+
+                    <div class="rally-card-body">
+                        <div class="rally-body-content">
+                            <div class="rally-desc">${campaign.description || '無活動說明'}</div>
+                            
+                            <h4 style="margin: 10px 0; color: var(--color-text-secondary);">集點關卡</h4>
+                            <div class="rally-stations-grid">
+                                ${stationsHtml}
+                            </div>
+                            
+                            ${instructionHtml}
+
+                            <div style="margin-top: 20px;">
+                                ${btnHtml}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }).join('');
 
-        // 按鈕狀態
-        let btnHtml = '';
-        if (isCompleted) {
-            btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
-        } else {
-            // 點擊呼叫全域掃描器
-            btnHtml = `<button class="cta-button btn-start-scan" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
-        }
-
-        // 預設展開第一個活動
-        const isExpanded = index === 0 ? 'expanded' : '';
-
-        return `
-            <div class="rally-card ${isExpanded}" id="rally-card-${campaign.campaign_id}">
-                <div class="rally-card-header" onclick="toggleRallyCard(${campaign.campaign_id})">
-                    <div class="rally-info">
-                        <div style="display:flex; align-items:center;">
-                            <div class="rally-title">${campaign.title}</div>
-                            <div class="rally-badge ${badgeClass}">${badgeText}</div>
-                        </div>
-                        <div class="rally-meta">
-                            <span>${expiryText}</span>
-                            <span>${currentStamps} / ${totalStamps} 點</span>
-                        </div>
-                        <div class="rally-progress-track">
-                            <div class="rally-progress-fill" style="width: ${progressPercent}%"></div>
-                        </div>
-                    </div>
-                    <div class="rally-arrow">▼</div>
-                </div>
-
-                <div class="rally-card-body">
-                    <div class="rally-body-content">
-                        <div class="rally-desc">${campaign.description || '無活動說明'}</div>
-                        
-                        <h4 style="margin: 10px 0; color: var(--color-text-secondary);">集點關卡</h4>
-                        <div class="rally-stations-grid">
-                            ${stationsHtml}
-                        </div>
-                        
-                        <div style="margin-top: 20px;">
-                            ${btnHtml}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // 綁定掃描按鈕事件 (因為是動態生成的 HTML，需重新綁定)
-    listContainer.querySelectorAll('.btn-start-scan').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 防止觸發卡片收合
-            startRallyScanner(); // 呼叫原本的掃描函式
+        // 6. 重新綁定按鈕事件
+        listContainer.querySelectorAll('.btn-start-scan').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 防止觸發卡片收合
+                startRallyScanner(); // 呼叫掃描器
+            });
         });
-    });
+    }
 }
 
 // --- 新增：切換卡片展開/收合的函式 ---
@@ -2235,10 +2262,9 @@ async function startRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
     const rallyStatusMessage = document.getElementById('rally-status-message');
     const rallyQrReader = document.getElementById('rally-qr-reader');
-    // 【修正】改成操作列表容器
     const listContainer = document.getElementById('rally-list-container');
     
-    // 檢查是否有活動資料 (相容單一/多活動結構)
+    // 檢查是否有活動資料
     const hasActiveCampaign = rallyData.activeCampaign || (rallyData.campaigns && rallyData.campaigns.length > 0);
 
     if (!hasActiveCampaign) {
@@ -2249,20 +2275,21 @@ async function startRallyScanner() {
         return;
     }
 
-    // 隱藏列表，顯示掃碼器
+    // 切換 UI：隱藏列表，顯示掃描器
     if (listContainer) listContainer.style.display = 'none';
     if (qrScannerContainer) qrScannerContainer.style.display = 'block';
     
     if (rallyStatusMessage) {
-        rallyStatusMessage.textContent = '請對準夥伴櫃台的 QR Code...';
+        rallyStatusMessage.textContent = '請對準 QR Code (集點或重置)...';
         rallyStatusMessage.style.color = 'var(--color-text-primary)'; 
     }
     if (rallyQrReader) rallyQrReader.innerHTML = '';
 
+    // 初始化掃描器
     if (!rallyQrCodeScanner) {
         if (typeof Html5Qrcode === 'undefined') {
             if (rallyStatusMessage) rallyStatusMessage.textContent = '掃碼庫載入失敗。';
-            qrScannerContainer.style.display = 'none';
+            if (qrScannerContainer) qrScannerContainer.style.display = 'none';
             return;
         }
         rallyQrCodeScanner = new Html5Qrcode("rally-qr-reader");
@@ -2270,56 +2297,101 @@ async function startRallyScanner() {
     
     if (rallyQrCodeScanner.isScanning) return;
 
+    // 掃描成功的回呼函式
     const onScanSuccess = async (decodedText, decodedResult) => {
+        // 1. 停止掃描 & 顯示 Loading
         stopRallyScanner();
-        showRallyResultModal('loading', '集點驗證中...', '正在與雲端連線，請稍候...');
+        showRallyResultModal('loading', '處理中...', '正在讀取 QR Code...');
         
-        let partnerCode = decodedText;
+        let partnerCode = null;
+        let resetAction = null;
+        let campaignId = null;
+
+        // 2. 解析 QR Code 參數 (支援 Query 與 Hash)
         try {
              const url = new URL(decodedText);
-             let code = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code');
-             if (!code && url.hash.includes('?')) {
+             let searchParams = url.searchParams;
+             
+             // 如果參數在 Hash 裡 (LIFF 常見情況: #page?a=1)
+             if (url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
                  if (hashParts.length > 1) {
-                     const hashParams = new URLSearchParams(hashParts[1]);
-                     code = hashParams.get('partner_code') || hashParams.get('rally_station_code');
+                     searchParams = new URLSearchParams(hashParts[1]);
                  }
              }
-             if (code) partnerCode = code;
+             
+             partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
+             resetAction = searchParams.get('action'); // 檢查是否有 action=reset
+             campaignId = searchParams.get('campaign_id');
+
         } catch(e) {
+             // 非 URL 格式，視為純代碼 (舊版相容)
              partnerCode = decodedText;
         }
 
         try {
-            const redeemRes = await fetch('/api/rally/redeem-station', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
-            });
-
-            const result = await redeemRes.json();
+            // --- 分流邏輯 ---
             
-            if (!redeemRes.ok) {
-                const errorMsg = result.error || result.message || '未知的錯誤';
-                showRallyResultModal('error', '集點失敗', errorMsg);
-            } else if (result.status === 'already_stamped') {
-                showRallyResultModal('error', '重複掃描', result.message);
+            if (resetAction === 'reset' && campaignId) {
+                // === A. 執行重置 (開啟新卡) ===
+                showRallyResultModal('loading', '重置集點卡...', '正在開啟新的一輪...');
+                
+                const resetRes = await fetch('/api/rally/reset-card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userProfile.userId, campaignId: Number(campaignId) })
+                });
+                
+                const result = await resetRes.json();
+                
+                if (!resetRes.ok) {
+                    showRallyResultModal('error', '重置失敗', result.error || result.message);
+                } else {
+                    showRallyResultModal('success', '新卡已啟用！', result.message);
+                }
+
+            } else if (partnerCode) {
+                // === B. 執行集點 (一般掃描) ===
+                showRallyResultModal('loading', '集點驗證中...', '正在驗證站點...');
+
+                const redeemRes = await fetch('/api/rally/redeem-station', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
+                });
+
+                const result = await redeemRes.json();
+                
+                if (!redeemRes.ok) {
+                    // 顯示錯誤 (包含 "卡片已滿" 的錯誤)
+                    const errorMsg = result.error || result.message || '未知的錯誤';
+                    showRallyResultModal('error', '操作失敗', errorMsg);
+                } else if (result.status === 'already_stamped') {
+                    showRallyResultModal('error', '重複掃描', result.message);
+                } else {
+                    // 成功
+                    const rewardIssued = result.status === 'reward_issued';
+                    const title = rewardIssued ? '🎉 獲得獎勵！' : '集點成功！';
+                    showRallyResultModal('success', title, result.message, rewardIssued);
+                }
+
             } else {
-                const rewardIssued = result.status === 'reward_issued';
-                const title = rewardIssued ? '🎉 獲得獎勵！' : '集點成功！';
-                showRallyResultModal('success', title, result.message, rewardIssued);
+                // === C. 無效格式 ===
+                throw new Error("無法辨識的 QR Code 格式。");
             }
+
         } catch (error) {
-             console.error("集點驗證失敗:", error);
-             showRallyResultModal('error', '連線錯誤', '無法連接伺服器，請檢查網路。');
+             console.error("掃碼處理失敗:", error);
+             showRallyResultModal('error', '掃描錯誤', error.message || '無法連接伺服器。');
         }
     };
 
+    // 啟動相機
     rallyQrCodeScanner.start(
         { facingMode: "environment" }, 
         { fps: 10, qrbox: 250 }, 
         onScanSuccess,
-        (errorMessage) => { }
+        (errorMessage) => { /* 忽略過程錯誤 */ }
     ).catch(err => {
         console.error("啟動相機失敗:", err);
         if (rallyStatusMessage) {

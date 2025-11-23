@@ -8,9 +8,11 @@ let campaignDatepicker = null;
 let stationDatepicker = null;
 let currentCampaignId = null; // 當前正在檢視的活動 ID
 
-const LIFF_BASE_URL = "https://liff.line.me/2008032417-3yJQGaO6"; 
+const LIFF_BASE_URL = "https://liff.line.me/2008032417-3yJQGaO6"; // 替換為您的 LIFF App ID
 
 // --- Helper: 渲染活動列表 ---
+// public/admin/modules/rallyManagement.js
+
 function renderCampaignList(campaigns) {
     const tbody = document.getElementById('campaign-list-tbody');
     if (!tbody) return;
@@ -317,15 +319,16 @@ function setupEventListeners() {
 
         if (target.id === 'add-campaign-btn') {
             openCampaignModal();
+        } 
         else if (target.matches('.btn-show-reset-qrcode')) {
             const link = target.dataset.link;
             // 使用現有的 QR Code Modal，但修改標題
             document.getElementById('qrcode-modal-title').textContent = '活動重置 QR Code';
             document.getElementById('qrcode-station-code').textContent = '用途：掃描此碼可清空集點卡，開始新的一輪。';
             showQrcodeModal('RESET', link);
-        }    
-        } else if (target.matches('.btn-edit-campaign')) {
-                    const confirmed = await ui.confirm('確定要刪除此集點活動嗎？此操作將同時刪除所有相關站點及用戶集點紀錄，**無法復原**。');
+        }
+        else if (target.matches('.btn-delete-campaign')) {
+            const confirmed = await ui.confirm('確定要刪除此集點活動嗎？此操作將同時刪除所有相關站點及用戶集點紀錄，**無法復原**。');
             if (confirmed) {
                 try {
                     await api.deleteRallyCampaign(Number(campaignId));

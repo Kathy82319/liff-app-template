@@ -66,62 +66,74 @@ export async function onRequest(context) {
         let rewardMessage = `集點成功！\n目前進度：${stamp_count} / ${station.required_stamps}`;
         let prizeIssued = false;
 
-        // 5. 檢查是否達標 (>= 要求點數)
-        if (stamp_count >= station.required_stamps) {
+        // 5. 檢查是否達標 (修正邏輯)
+        // 【修正 A】改用 === (等於)，確保只有在「剛好集滿」的那一刻觸發獎勵。
+        // 這樣即使活動有 5 個站點，而在第 3 點就達標，掃描第 4 點時也不會重複發獎勵。
+        if (stamp_count === station.required_stamps) {
             
-            // 檢查是否已經發過這個獎勵 (使用 template_id 和 user_id 檢查)
-            // 注意：這裡移除了 source = 'rally_campaign' 的檢查，以確保相容性
-            const existingReward = await db.prepare(`
-                SELECT voucher_id FROM UserVouchers 
-                WHERE user_id = ?1 AND template_id = ?2
-            `).bind(userId, station.reward_voucher_id).first();
+            // 查詢該優惠券樣板的設定 (主要查 limit_per_user)
+            const template = await db.prepare("SELECT limit_per_user FROM VoucherTemplates WHERE template_id = ?")
+                                   .bind(station.reward_voucher_id)
+                                   .first();
 
-            if (!existingReward) {
-                // --- 發放獎勵 (移除 source 欄位) ---
-                await db.prepare("INSERT INTO UserVouchers (template_id, user_id) VALUES (?, ?)")
-                      .bind(station.reward_voucher_id, userId)
-                      .run();
+            if (template) {
+                // 【修正 B】查詢使用者目前擁有幾張這類型的券
+                const userVoucherCount = await db.prepare("SELECT COUNT(*) as count FROM UserVouchers WHERE user_id = ? AND template_id = ?")
+                                                 .bind(userId, station.reward_voucher_id)
+                                                 .first();
                 
-                rewardMessage = `🎉 恭喜集滿 ${station.required_stamps} 點！\n獎勵優惠券已發送至您的帳戶。`;
-                prizeIssued = true;
+                const currentCount = userVoucherCount?.count || 0;
+                const limit = template.limit_per_user || 1; // 預設限領 1 張
 
-                // --- 新增：發送 LINE 推播通知 ---
-                if (env.LINE_CHANNEL_ACCESS_TOKEN) {
-                    const pushMessage = {
-                        to: userId,
-                        messages: [{
-                            type: "flex",
-                            altText: "🎉 恭喜獲得集點獎勵！",
-                            contents: {
-                                type: "bubble",
-                                body: {
-                                    type: "box",
-                                    layout: "vertical",
-                                    contents: [
-                                        { type: "text", text: "🎉 集點任務完成！", weight: "bold", color: "#1DB446", size: "sm" },
-                                        { type: "text", text: "恭喜獲得獎勵優惠券", weight: "bold", size: "xl", margin: "md", wrap: true },
-                                        { type: "text", text: `您已完成「${station.campaign_title}」活動，優惠券已存入您的帳戶。`, size: "sm", color: "#666666", margin: "md", wrap: true }
-                                    ]
-                                }
-                            }
-                        }]
-                    };
+                // 【修正 C】如果還沒超過上限，就發放
+                if (currentCount < limit) {
+                    await db.prepare("INSERT INTO UserVouchers (template_id, user_id) VALUES (?, ?)")
+                          .bind(station.reward_voucher_id, userId)
+                          .run();
                     
-                    context.waitUntil(
-                        fetch('https://api.line.me/v2/bot/message/push', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`,
-                            },
-                            body: JSON.stringify(pushMessage),
-                        }).catch(err => console.error("LINE Push Failed:", err))
-                    );
-                }
+                    rewardMessage = `🎉 恭喜集滿 ${station.required_stamps} 點！\n獎勵優惠券已發送至您的帳戶。`;
+                    prizeIssued = true;
 
-            } else {
-                rewardMessage = `集點成功！\n(您之前已領取過此活動獎勵)`;
+                    // 發送 LINE 推播
+                    if (env.LINE_CHANNEL_ACCESS_TOKEN) {
+                        const pushMessage = {
+                            to: userId,
+                            messages: [{
+                                type: "flex",
+                                altText: "🎉 恭喜獲得集點獎勵！",
+                                contents: {
+                                    type: "bubble",
+                                    body: {
+                                        type: "box",
+                                        layout: "vertical",
+                                        contents: [
+                                            { type: "text", text: "🎉 集點任務完成！", weight: "bold", color: "#1DB446", size: "sm" },
+                                            { type: "text", text: "恭喜獲得獎勵優惠券", weight: "bold", size: "xl", margin: "md", wrap: true },
+                                            { type: "text", text: `您已完成「${station.campaign_title}」活動，優惠券已存入您的帳戶。`, size: "sm", color: "#666666", margin: "md", wrap: true }
+                                        ]
+                                    }
+                                }
+                            }]
+                        };
+                        context.waitUntil(
+                            fetch('https://api.line.me/v2/bot/message/push', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`,
+                                },
+                                body: JSON.stringify(pushMessage),
+                            }).catch(err => console.error("LINE Push Failed:", err))
+                        );
+                    }
+                } else {
+                    // 超過上限
+                    rewardMessage = `集點成功！\n(您已達此優惠券的領取上限 ${limit} 張)`;
+                }
             }
+        } else if (stamp_count > station.required_stamps) {
+             // 如果點數超過需求 (例如需求 3 點，這是第 4 點)，顯示普通成功訊息
+             rewardMessage = `集點成功！\n目前進度：${stamp_count} / ${station.required_stamps}\n(您已完成此活動)`;
         }
         
         // 6. 寫入後台活動日誌

@@ -125,34 +125,3 @@ export async function onRequest(context) {
 
 // 移除原本的具名匯出 (onRequestGet/Post/Put/Delete)，因為通用 onRequest 已經處理了。
 // 這樣可以避免任何潛在的路由衝突或偵測錯誤。
-
-// --- 新增：通用 onRequest 處理，用於手動分派 (修復 405 錯誤) ---
-export const onRequest = async (context) => {
-    const { request } = context;
-    switch (request.method) {
-        case 'GET':
-            if (typeof onRequestGet === 'function') {
-                return onRequestGet(context);
-            }
-            break;
-        case 'POST':
-            if (typeof onRequestPost === 'function') {
-                return onRequestPost(context);
-            }
-            break;
-        case 'PUT':
-            if (typeof onRequestPut === 'function') {
-                return onRequestPut(context);
-            }
-            break;
-        case 'DELETE':
-            if (typeof onRequestDelete === 'function') {
-                return onRequestDelete(context);
-            }
-            break;
-        default:
-            return new Response('Method Not Allowed', { status: 405 });
-    }
-    // 如果找到了 method handler 但執行到這裡，表示該 handler 自身沒有返回 Response
-    return new Response('Internal Server Error: Handler did not return response', { status: 500 });
-};

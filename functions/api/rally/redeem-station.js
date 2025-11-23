@@ -67,7 +67,7 @@ export async function onRequest(context) {
 
         // 5. 執行集點 (寫入進度，預設 is_archived = 0)
         await db.prepare(`
-            INSERT INTO UserRallyProgress (user_id, campaign_id, station_id, is_archived) 
+            INSERT OR IGNORE INTO UserRallyProgress (user_id, campaign_id, station_id, is_archived) 
             VALUES (?1, ?2, ?3, 0)
         `).bind(userId, station.campaign_id, station.station_id).run();
 

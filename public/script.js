@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageTemplates = document.getElementById('page-templates');
     let activeTemplate = null; 
     let CONFIG; 
-
+    
     let productView = { 
         layout: 'grid', 
         sort: 'default' 
@@ -31,8 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let flatpickrRangeInstance = null;
     let rallyData = { userProgress: [], activeCampaign: null };
-    
-    // ▼▼▼ 【核心修正】將掃描器設為可重置的全域變數 ▼▼▼
     let rallyQrCodeScanner = null;
     const pageInitializers = {
         'page-home': initializeHomePage,
@@ -1968,8 +1966,6 @@ async function initializeProductsPage() {
 // =================================================================
 // 數位集點地圖相關函式
 // =================================================================
-
-let rallyQrCodeScanner = null; // 確保全域變數存在
 
 async function fetchRallyData() {
     // 1. 獲取所有進行中的活動

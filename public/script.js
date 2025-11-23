@@ -2190,45 +2190,35 @@ async function startRallyScanner() {
     if (rallyQrCodeScanner.isScanning) return;
 
 
-    const onScanSuccess = async (decodedText, decodedResult) => {
+const onScanSuccess = async (decodedText, decodedResult) => {
         stopRallyScanner();
         rallyStatusMessage.textContent = '掃描成功，正在集點驗證中...';
         rallyStatusMessage.style.color = 'var(--color-primary)';
         
-        let partnerCode = decodedText;
+        let partnerCode = decodedText; // 預設為掃到的原始文字
+
         try {
-             // 嘗試從 URL 提取，格式應為 .../LIFF_ID/?rally_station_code=CODE
+             // 嘗試解析是否為 URL
              const url = new URL(decodedText);
-             partnerCode = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code') || decodedText;
-        } catch(e) {
-             partnerCode = decodedText;
-        }
-
-        try {
-            const redeemRes = await fetch('/api/rally/redeem-station', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
-            });
-
-            const result = await redeemRes.json();
-            
-            if (!redeemRes.ok || result.status === 'already_stamped') {
-    // 【修正】優先讀取 error，沒有才讀取 message，最後才是預設文字
-    // 這樣就能在畫面上看到「無效的 QR Code」或「活動已過期」等具體原因
-    const errorReason = result.error || result.message || '集點失敗 (未知原因)。';
-    
-    // 把狀態碼也顯示出來方便除錯 (例如: 404, 400)
-    const debugTitle = !redeemRes.ok ? `集點失敗 (${redeemRes.status})` : '集點失敗';
-    
-    showRallyResultModal(false, debugTitle, errorReason, false);
-    throw new Error("Handled redemption fail in modal.");
-}
-            
-            // 成功邏輯
-            const rewardIssued = result.status === 'reward_issued';
-            const title = rewardIssued ? '集點成功，獲得獎勵！' : '集點成功！';
-            showRallyResultModal(true, title, result.message, rewardIssued);
+             
+             // 1. 先嘗試從標準 URL Query 抓取 (e.g., ?partner_code=123)
+             let code = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code');
+             
+             // 2. 如果沒抓到，嘗試從 Hash 抓取 (e.g., #page?partner_code=123)
+             // LIFF 的參數常常跟在 # 後面
+             if (!code && url.hash.includes('?')) {
+                 const hashParts = url.hash.split('?');
+                 if (hashParts.length > 1) {
+                     const hashParams = new URLSearchParams(hashParts[1]);
+                     code = hashParams.get('partner_code') || hashParams.get('rally_station_code');
+                 }
+             }
+             
+             // 如果有成功抓到代碼，就更新 partnerCode，否則維持原始文字
+             if (code) {
+                 partnerCode = code;
+                 console.log("成功解析代碼:", partnerCode); // 除錯用
+             }
 
         } catch (error) {
              if (error.message !== "Handled redemption fail in modal.") {

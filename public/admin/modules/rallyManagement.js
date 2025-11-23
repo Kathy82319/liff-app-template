@@ -8,7 +8,7 @@ let campaignDatepicker = null;
 let stationDatepicker = null;
 let currentCampaignId = null; // 當前正在檢視的活動 ID
 
-const LIFF_BASE_URL = "https://liff.line.me/2008032417-3yJQGaO6"; // 替換為您的 LIFF App ID
+const LIFF_BASE_URL = "https://liff.line.me/2008032417-3yJQGaO6"; 
 
 // --- Helper: 渲染活動列表 ---
 function renderCampaignList(campaigns) {
@@ -24,16 +24,27 @@ function renderCampaignList(campaigns) {
         const statusText = c.is_active ? '<span style="color: var(--color-success);">啟用中</span>' : '<span style="color: var(--color-secondary);">已停用</span>';
         const dateRange = (c.start_date && c.end_date) ? `${c.start_date} ~ ${c.end_date}` : '永久有效';
         const reward = allVoucherTemplates.find(v => v.template_id == c.reward_voucher_id)?.title || `ID: ${c.reward_voucher_id}`;
+        
+        // [新增] 判斷是否顯示「重置碼」按鈕
+        let resetBtnHtml = '';
+        if (c.can_repeat) {
+            // 產生重置連結 (注意：這裡請換成您的 LIFF ID)
+            const resetLink = `${LIFF_BASE_URL}/#page-rally?action=reset&campaign_id=${c.campaign_id}`;
+            resetBtnHtml = `<button class="action-btn btn-show-reset-qrcode" data-link="${resetLink}" style="background-color: #6f42c1; margin-right: 5px;">重置碼</button>`;
+        }
 
         return `
             <tr data-campaign-id="${c.campaign_id}">
-                <td>${c.title}</td>
+                <td>
+                    ${c.title}
+                    ${c.can_repeat ? '<span style="font-size:0.8em; background:#eee; padding:2px 5px; border-radius:4px; margin-left:5px;">可循環</span>' : ''}
+                </td>
                 <td>集滿 ${c.required_stamps} 點</td>
                 <td>${reward}</td>
                 <td>${dateRange}</td>
                 <td>${statusText}</td>
                 <td class="actions-cell">
-                    <button class="action-btn btn-view-stations" data-campaign-id="${c.campaign_id}" data-title="${c.title}" style="background-color: var(--color-info);">站點管理</button>
+                    ${resetBtnHtml} <button class="action-btn btn-view-stations" data-campaign-id="${c.campaign_id}" data-title="${c.title}" style="background-color: var(--color-info);">站點管理</button>
                     <button class="action-btn btn-edit-campaign" data-campaign-id="${c.campaign_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
                     <button class="action-btn btn-delete-campaign" data-campaign-id="${c.campaign_id}" style="background-color: var(--color-danger);">刪除</button>
                 </td>
@@ -306,6 +317,13 @@ function setupEventListeners() {
 
         if (target.id === 'add-campaign-btn') {
             openCampaignModal();
+        else if (target.matches('.btn-show-reset-qrcode')) {
+            const link = target.dataset.link;
+            // 使用現有的 QR Code Modal，但修改標題
+            document.getElementById('qrcode-modal-title').textContent = '活動重置 QR Code';
+            document.getElementById('qrcode-station-code').textContent = '用途：掃描此碼可清空集點卡，開始新的一輪。';
+            showQrcodeModal('RESET', link);
+        }    
         } else if (target.matches('.btn-edit-campaign')) {
             const campaign = allCampaigns.find(c => c.campaign_id == campaignId);
             if (campaign) openCampaignModal(campaign);

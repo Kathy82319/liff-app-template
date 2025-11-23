@@ -2298,10 +2298,10 @@ async function startRallyScanner() {
     if (rallyQrCodeScanner.isScanning) return;
 
     // 掃描成功的回呼函式
-    const onScanSuccess = async (decodedText, decodedResult) => {
+const onScanSuccess = async (decodedText, decodedResult) => {
         // 1. 停止掃描 & 顯示 Loading
         stopRallyScanner();
-        showRallyResultModal('loading', '處理中...', '正在讀取 QR Code...');
+        showRallyResultModal(false, '驗證中...', '正在讀取 QR Code...'); // 暫時使用非 success 狀態，避免跳轉按鈕出現
         
         let partnerCode = null;
         let resetAction = null;
@@ -2309,80 +2309,84 @@ async function startRallyScanner() {
 
         // 2. 解析 QR Code 參數 (支援 Query 與 Hash)
         try {
+             // 嘗試從 URL 提取代碼
              const url = new URL(decodedText);
              let searchParams = url.searchParams;
-             
-             // 如果參數在 Hash 裡 (LIFF 常見情況: #page?a=1)
              if (url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
-                 if (hashParts.length > 1) {
-                     searchParams = new URLSearchParams(hashParts[1]);
-                 }
+                 if (hashParts.length > 1) { searchParams = new URLSearchParams(hashParts[1]); }
              }
-             
              partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
-             resetAction = searchParams.get('action'); // 檢查是否有 action=reset
+             resetAction = searchParams.get('action'); 
              campaignId = searchParams.get('campaign_id');
-
         } catch(e) {
-             // 非 URL 格式，視為純代碼 (舊版相容)
-             partnerCode = decodedText;
+             partnerCode = decodedText; // 非 URL 格式，視為純代碼
         }
 
         try {
-            // --- 分流邏輯 ---
+            let redeemRes;
+            let result;
+            let errorMessage = '無法連接伺服器或發生未知錯誤。'; 
             
-            if (resetAction === 'reset' && campaignId) {
-                // === A. 執行重置 (開啟新卡) ===
-                showRallyResultModal('loading', '重置集點卡...', '正在開啟新的一輪...');
-                
-                const resetRes = await fetch('/api/rally/reset-card', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userProfile.userId, campaignId: Number(campaignId) })
-                });
-                
-                const result = await resetRes.json();
-                
-                if (!resetRes.ok) {
-                    showRallyResultModal('error', '重置失敗', result.error || result.message);
-                } else {
-                    showRallyResultModal('success', '新卡已啟用！', result.message);
-                }
-
-            } else if (partnerCode) {
-                // === B. 執行集點 (一般掃描) ===
-                showRallyResultModal('loading', '集點驗證中...', '正在驗證站點...');
-
-                const redeemRes = await fetch('/api/rally/redeem-station', {
+            // --- A. 執行集點 (一般掃描) ---
+            if (partnerCode) {
+                 redeemRes = await fetch('/api/rally/redeem-station', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
                 });
-
-                const result = await redeemRes.json();
-                
-                if (!redeemRes.ok) {
-                    // 顯示錯誤 (包含 "卡片已滿" 的錯誤)
-                    const errorMsg = result.error || result.message || '未知的錯誤';
-                    showRallyResultModal('error', '操作失敗', errorMsg);
-                } else if (result.status === 'already_stamped') {
-                    showRallyResultModal('error', '重複掃描', result.message);
-                } else {
-                    // 成功
-                    const rewardIssued = result.status === 'reward_issued';
-                    const title = rewardIssued ? '🎉 獲得獎勵！' : '集點成功！';
-                    showRallyResultModal('success', title, result.message, rewardIssued);
-                }
-
+            } 
+            // --- B. 執行重置 (如果邏輯正確的話) ---
+            else if (resetAction === 'reset' && campaignId) {
+                redeemRes = await fetch('/api/rally/reset-card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userProfile.userId, campaignId: Number(campaignId) })
+                });
             } else {
-                // === C. 無效格式 ===
-                throw new Error("無法辨識的 QR Code 格式。");
+                 throw new Error("無法辨識的 QR Code 格式。");
+            }
+            
+            // --- 3. 處理 API 回應 ---
+            
+            // 嘗試解析 JSON，即使是非 200 狀態
+            try {
+                result = await redeemRes.json();
+            } catch (e) {
+                // 如果解析失敗，且狀態碼不是 200，則讀取文字內容
+                if (!redeemRes.ok) {
+                    const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
+                    errorMessage = `伺服器回應錯誤 (${redeemRes.status})：${text.substring(0, 100)}`;
+                    throw new Error(errorMessage); 
+                }
+                // 如果是 200 狀態但非 JSON，是格式錯誤
+                throw new Error(`伺服器回應格式錯誤 (非 JSON)。`);
+            }
+
+            // 如果狀態碼不是 2xx，但回傳了 JSON 錯誤
+            if (!redeemRes.ok) {
+                 errorMessage = result.details || result.error || `伺服器回應 ${redeemRes.status}，無詳細錯誤。`;
+                 throw new Error(errorMessage);
+            }
+
+            // --- 4. 成功或已知失敗 (status: already_stamped / card_full) ---
+            if (result.status === 'already_stamped' || result.status === 'card_full') {
+                 showRallyResultModal(false, '操作失敗', result.message);
+            } else if (result.success) {
+                // 成功邏輯
+                const rewardIssued = result.status === 'reward_issued';
+                const title = (resetAction === 'reset') ? '重置成功！' : (rewardIssued ? '獲得獎勵！' : '集點成功！');
+                showRallyResultModal(true, title, result.message, rewardIssued);
+            } else {
+                 // 捕獲 success: false 且沒有 status 的情況
+                 showRallyResultModal(false, '驗證失敗', result.message || '未知驗證錯誤。');
             }
 
         } catch (error) {
              console.error("掃碼處理失敗:", error);
-             showRallyResultModal('error', '掃描錯誤', error.message || '無法連接伺服器。');
+             // 這裡的 error.message 包含了從上方拋出的詳細錯誤訊息
+             const displayTitle = error.message.includes('伺服器回應') ? '連線或伺服器錯誤' : '驗證失敗';
+             showRallyResultModal(false, displayTitle, error.message.substring(0, 200) || '無法連接伺服器。');
         }
     };
 

@@ -1,4 +1,5 @@
-// functions/api/admin/rally-campaigns.js.js (整合所有邏輯的修正版)
+// functions/api/admin/rally-campaigns.js
+// 整合所有邏輯的乾淨修正版 (取代原本的 rally-campaigns.js.js)
 
 // Helper function to handle validation and cleanup
 async function validateCampaignData(body) {
@@ -33,13 +34,11 @@ async function validateCampaignData(body) {
     return { valid: true, data: data };
 }
 
-// --- 通用 onRequest 處理函式 ---
+// --- 通用 onRequest 處理函式 (已移除偵錯 Log) ---
 export async function onRequest(context) {
     const { request, env } = context;
     const db = env.DB;
     const method = request.method;
-
-    console.log(`[RallyCampaigns API] Received ${method} request.`); // 偵錯點 1：確認是否進入
 
     try {
         // --- GET: 獲取所有活動 ---
@@ -122,6 +121,3 @@ export async function onRequest(context) {
         });
     }
 }
-
-// 移除原本的具名匯出 (onRequestGet/Post/Put/Delete)，因為通用 onRequest 已經處理了。
-// 這樣可以避免任何潛在的路由衝突或偵測錯誤。

@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedRooms: {} 
     };
     let flatpickrRangeInstance = null;
-
+    let rallyData = { userProgress: [], activeCampaign: null };
     const pageInitializers = {
         'page-home': initializeHomePage,
         'page-products': initializeProductsPage,

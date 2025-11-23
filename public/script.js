@@ -1961,7 +1961,6 @@ async function initializeProductsPage() {
         return false;
     }
 
-    // public/script.js (partially, add this section)
 
 // =================================================================
 // 數位集點地圖相關函式

@@ -706,7 +706,6 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--color-secondary); /* 給它一個次要顏色 */
 }
 
-/* --- VVVVV [新增] 數位集點地圖樣式 VVVVV --- */
 #rally-stations-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -726,6 +725,8 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    transition: all 0.3s ease; /* 新增過渡效果 */
+    cursor: pointer;
 }
 
 .rally-station-card h4 {
@@ -733,7 +734,7 @@ input:focus, select:focus, textarea:focus {
     font-size: 1rem;
     font-weight: bold;
     color: var(--color-text-primary);
-    z-index: 2; /* 確保文字在蓋章圖層之上 */
+    z-index: 2;
 }
 
 .rally-station-card p {
@@ -747,17 +748,31 @@ input:focus, select:focus, textarea:focus {
 .rally-station-card.uncollected {
     opacity: 0.6;
     border-style: dashed;
+    background-color: #0a192f; 
+}
+
+/* 九宮格鎖頭/問號效果 */
+.rally-station-card.uncollected::before {
+    content: "🔒"; 
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    opacity: 0.1;
+    z-index: 1;
 }
 
 /* 已集點狀態 - 蓋章效果 */
 .rally-station-card.collected {
     opacity: 1;
     border-color: var(--color-accent);
-    box-shadow: 0 0 10px rgba(96, 118, 212, 0.5); /* 輕微光暈 */
+    box-shadow: 0 0 10px rgba(96, 118, 212, 0.5);
+    background-color: var(--color-card-bg);
 }
 
 .rally-station-card.collected::after {
-    content: "✅"; /* 模擬蓋章圖示 */
+    content: "✅"; 
     position: absolute;
     top: 50%;
     left: 50%;
@@ -768,9 +783,8 @@ input:focus, select:focus, textarea:focus {
     z-index: 1;
     pointer-events: none;
 }
-
 /* 掃碼器容器樣式 */
 #rally-qr-reader {
-    overflow: hidden; /* 確保影片在容器內 */
+    overflow: hidden;
 }
 /* --- ^^^^^ [新增] 數位集點地圖樣式 ^^^^^ --- */

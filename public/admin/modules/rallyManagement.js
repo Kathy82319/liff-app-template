@@ -340,7 +340,6 @@ function setupEventListeners() {
 }
 
 
-// --- 模組初始化 ---
 export const init = async () => {
     console.log("[RallyManagement Init] Starting...");
     const tbody = document.getElementById('campaign-list-tbody');
@@ -359,8 +358,10 @@ export const init = async () => {
             api.getVoucherTemplates()
         ]);
         
-        allCampaigns = campaigns;
+        // --- 修正：確保 campaigns 是陣列 ---
+        allCampaigns = Array.isArray(campaigns) ? campaigns : []; 
         allVoucherTemplates = vouchers;
+        
         renderCampaignList(allCampaigns);
 
         setupEventListeners();

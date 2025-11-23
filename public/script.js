@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-booking-details': initializeBookingDetailsPage, 
         'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
         'page-my-vouchers': initializeMyVouchersPage,
+        'page-rally': initializeRallyPage,
     };
 
  // 計算所選房間及入住天數的預估總金額
@@ -1961,13 +1962,13 @@ async function initializeProductsPage() {
 let rallyQrCodeScanner = null; // 確保全域變數存在
 
 async function fetchRallyData() {
-    // 1. 獲取當前所有活動
+    // 1. 獲取當前所有活動 (Admin API 可用，暫時作為公開 API 處理)
     const campaignRes = await fetch('/api/admin/rally/campaigns');
     if (!campaignRes.ok) throw new Error('無法獲取活動列表');
     const campaigns = await campaignRes.json();
     
     // 2. 篩選出第一個啟用的活動
-    const activeCampaign = campaigns.find(c => c.is_active === 1);
+    const activeCampaign = (campaigns || []).find(c => c.is_active === 1);
     if (!activeCampaign) {
          rallyData.activeCampaign = null;
          rallyData.userProgress = [];
@@ -1980,15 +1981,13 @@ async function fetchRallyData() {
     if (!stationsRes.ok) throw new Error('無法獲取站點列表');
     activeCampaign.stations = await stationsRes.json();
 
-    // 4. 獲取用戶集點進度 (需要新的 API: /api/rally/progress?userId=...)
-    // 由於我們還沒建立 /api/rally/progress，先模擬一個 API 結構，或在後端任務中補齊
-    // 暫時假定我們有一個 API 可以獲取用戶針對此活動的進度
+    // 4. 獲取用戶集點進度 (使用我們創建的 API)
     const progressRes = await fetch(`/api/rally/progress?userId=${userProfile.userId}&campaignId=${activeCampaign.campaign_id}`);
     if (!progressRes.ok) {
         console.warn("無法獲取用戶集點進度，預設為空。");
         rallyData.userProgress = [];
     } else {
-        rallyData.userProgress = await progressRes.json(); // 預期 [{station_id: 1, ...}, ...]
+        rallyData.userProgress = await progressRes.json();
     }
 }
 
@@ -2012,6 +2011,7 @@ function renderRallyPage() {
     
     const stampedIds = new Set(rallyData.userProgress.map(p => p.station_id));
     const currentStamps = stampedIds.size;
+    const isCompleted = currentStamps >= campaign.required_stamps;
     
     document.getElementById('rally-campaign-title').textContent = campaign.title;
     document.getElementById('rally-campaign-progress').textContent = `進度：${currentStamps} / ${campaign.required_stamps} 點`;
@@ -2028,29 +2028,45 @@ function renderRallyPage() {
     const gridContainer = document.getElementById('rally-stations-grid');
     gridContainer.innerHTML = campaign.stations.map(s => {
         const isCollected = stampedIds.has(s.station_id);
+        const collectedProgress = rallyData.userProgress.find(p => p.station_id === s.station_id);
+        const collectedTime = collectedProgress ? collectedProgress.stamped_at : null;
+        
         let stationExpiry = '';
         if (s.expiry_date) {
             stationExpiry = ` (截止: ${s.expiry_date})`;
         }
-        
+
+        const collectedHtml = isCollected 
+            ? `<p style="margin-top: 5px; color: var(--color-accent);">已集點</p><p style="font-size:0.75em;">${new Date(collectedTime).toLocaleDateString()}</p>`
+            : `<p style="margin-top: 5px;">待集點</p><p style="font-size:0.75em;">${s.partner_name || '夥伴商家'}${stationExpiry}</p>`;
+
+        // 點擊卡片可查看提示 (九宮格/路線圖的提示功能)
         return `
-            <div class="rally-station-card ${isCollected ? 'collected' : 'uncollected'}">
+            <div class="rally-station-card ${isCollected ? 'collected' : 'uncollected'}" data-station-id="${s.station_id}" data-station-name="${s.name}" data-description="${s.description || '無提示'}">
                 <h4>${s.name}</h4>
-                <p>${s.partner_name || '夥伴商家'}</p>
-                <p style="margin-top: 5px;">${isCollected ? '✅ 已集點' : '待集點'}${stationExpiry}</p>
+                ${collectedHtml}
             </div>
         `;
     }).join('');
     
-    // 如果集點完成，更改按鈕為已完成狀態
+    // 根據完成狀態更新按鈕
     const startScanBtn = document.getElementById('start-rally-scan-btn');
-    if(currentStamps >= campaign.required_stamps) {
-        startScanBtn.textContent = '🎉 活動已完成，領取獎勵！';
+    if(isCompleted) {
+        startScanBtn.textContent = '✅ 活動已完成，獎勵已發放！';
         startScanBtn.disabled = true;
+        startScanBtn.style.backgroundColor = 'var(--color-success)';
     } else {
          startScanBtn.textContent = '📸 掃描夥伴 QR Code 集點';
          startScanBtn.disabled = false;
+         startScanBtn.style.backgroundColor = ''; // 恢復預設
     }
+    
+    // 綁定卡片點擊事件 (用於顯示提示)
+    gridContainer.querySelectorAll('.rally-station-card').forEach(card => {
+        card.addEventListener('click', () => {
+             alert(`${card.dataset.stationName} 提示：\n\n${card.dataset.description}`);
+        });
+    });
 }
 
 async function initializeRallyPage() {
@@ -2058,9 +2074,11 @@ async function initializeRallyPage() {
     const startScanBtn = document.getElementById('start-rally-scan-btn');
     const stopScanBtn = document.getElementById('stop-rally-scan-btn');
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
+    const rallyAnimationModal = document.getElementById('rally-animation-modal');
 
     loadingEl.style.display = 'block';
     document.getElementById('rally-campaign-display').style.display = 'none';
+    rallyAnimationModal.style.display = 'none';
 
     try {
         await fetchRallyData();
@@ -2070,6 +2088,10 @@ async function initializeRallyPage() {
         if (!startScanBtn.dataset.listenerAttached) {
             startScanBtn.addEventListener('click', startRallyScanner);
             stopScanBtn.addEventListener('click', stopRallyScanner);
+            document.getElementById('rally-modal-close-btn').addEventListener('click', () => {
+                 rallyAnimationModal.style.display = 'none';
+                 renderRallyPage(); // 重新渲染主頁面以確保進度最新
+            });
             startScanBtn.dataset.listenerAttached = 'true';
         }
 
@@ -2081,7 +2103,6 @@ async function initializeRallyPage() {
 
 function stopRallyScanner() {
     const qrScannerContainer = document.getElementById('rally-qr-scanner-container');
-    const rallyStatusMessage = document.getElementById('rally-status-message');
     
     if (rallyQrCodeScanner && rallyQrCodeScanner.isScanning) {
         rallyQrCodeScanner.stop().catch(err => console.error("停止掃描器失敗", err));
@@ -2089,7 +2110,43 @@ function stopRallyScanner() {
     
     qrScannerContainer.style.display = 'none';
     document.getElementById('rally-campaign-display').style.display = 'block';
-    rallyStatusMessage.textContent = '';
+    document.getElementById('rally-status-message').textContent = '';
+}
+
+function showRallyResultModal(isSuccess, title, message, rewardIssued = false) {
+    const modal = document.getElementById('rally-animation-modal');
+    const iconEl = document.getElementById('rally-modal-icon');
+    const titleEl = document.getElementById('rally-animation-title');
+    const messageEl = document.getElementById('rally-animation-message');
+    const actionBtn = document.getElementById('rally-modal-action-btn');
+    const closeBtn = document.getElementById('rally-modal-close-btn');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    
+    if (isSuccess) {
+        iconEl.innerHTML = '✨'; // 成功動畫開始
+        titleEl.style.color = 'var(--color-success)';
+        actionBtn.style.display = rewardIssued ? 'block' : 'none';
+        actionBtn.textContent = '查看我的獎勵';
+        actionBtn.style.backgroundColor = 'var(--color-primary)';
+        actionBtn.onclick = () => {
+            modal.style.display = 'none';
+            showPage('page-my-vouchers'); // 跳轉到優惠券頁面
+        };
+    } else {
+        iconEl.innerHTML = '❌';
+        titleEl.style.color = 'var(--color-danger)';
+        actionBtn.style.display = 'none';
+        closeBtn.textContent = '關閉';
+    }
+    
+    modal.style.display = 'flex';
+
+    // 模擬動畫 (成功時)
+    if(isSuccess) {
+        setTimeout(() => { iconEl.innerHTML = '✅'; }, 500);
+    }
 }
 
 async function startRallyScanner() {
@@ -2112,9 +2169,7 @@ async function startRallyScanner() {
 
     if (!rallyQrCodeScanner) {
         if (typeof Html5Qrcode === 'undefined') {
-            console.error('Html5Qrcode library not loaded');
             rallyStatusMessage.textContent = '掃碼庫載入失敗。';
-            rallyStatusMessage.style.color = 'var(--color-danger)';
             qrScannerContainer.style.display = 'none';
             return;
         }
@@ -2129,14 +2184,12 @@ async function startRallyScanner() {
         rallyStatusMessage.textContent = '掃描成功，正在集點驗證中...';
         rallyStatusMessage.style.color = 'var(--color-primary)';
         
-        // 提取 partner_code
         let partnerCode = decodedText;
         try {
              // 嘗試從 URL 提取，格式應為 .../LIFF_ID/?rally_station_code=CODE
              const url = new URL(decodedText);
              partnerCode = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code') || decodedText;
         } catch(e) {
-             // 非 URL 格式，直接使用 decodedText
              partnerCode = decodedText;
         }
 
@@ -2150,21 +2203,20 @@ async function startRallyScanner() {
             const result = await redeemRes.json();
             
             if (!redeemRes.ok || result.status === 'already_stamped') {
-                throw new Error(result.message || '集點失敗。');
+                showRallyResultModal(false, '集點失敗', result.message || '集點失敗。', false);
+                throw new Error("Handled redemption fail in modal.");
             }
             
             // 成功邏輯
-            rallyStatusMessage.textContent = `🎉 ${result.message}`;
-            rallyStatusMessage.style.color = 'var(--color-success)';
-
-            // 重新載入數據並渲染介面
-            await fetchRallyData(); 
-            renderRallyPage(); 
+            const rewardIssued = result.status === 'reward_issued';
+            const title = rewardIssued ? '集點成功，獲得獎勵！' : '集點成功！';
+            showRallyResultModal(true, title, result.message, rewardIssued);
 
         } catch (error) {
-            console.error("集點驗證失敗:", error);
-            rallyStatusMessage.textContent = `❌ 集點失敗：${error.message}`;
-            rallyStatusMessage.style.color = 'var(--color-danger)';
+             if (error.message !== "Handled redemption fail in modal.") {
+                 console.error("集點驗證失敗:", error);
+                 showRallyResultModal(false, '驗證失敗', error.message.replace('集點失敗：', '') || '發生未知錯誤，請聯繫客服。', false);
+             }
         }
     };
 
@@ -2173,11 +2225,11 @@ async function startRallyScanner() {
         { fps: 10, qrbox: 250 }, 
         onScanSuccess,
         (errorMessage) => { 
-            // 靜默處理錯誤，避免畫面閃爍
+            // 靜默處理錯誤
         }
     ).catch(err => {
         console.error("啟動相機失敗:", err);
-        rallyStatusMessage.textContent = `無法啟動相機，請檢查權限設定。`;
+        rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限設定。`;
         rallyStatusMessage.style.color = 'var(--color-danger)';
         qrScannerContainer.style.display = 'none';
         document.getElementById('rally-campaign-display').style.display = 'block';

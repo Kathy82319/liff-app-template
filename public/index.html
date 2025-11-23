@@ -326,7 +326,7 @@
                 
                 <h3 style="margin-top: 20px;">集點關卡</h3>
                 <div id="rally-stations-grid">
-                    </div>
+                </div>
                 
                 <button id="start-rally-scan-btn" class="cta-button" style="margin-top: 20px;">
                     📸 掃描夥伴 QR Code 集點
@@ -342,22 +342,6 @@
             <div id="rally-status-message" style="margin-top: 20px; text-align: center;"></div>
 
             <button class="details-back-button" style="margin-top: 20px;">返回</button>
-        </div>
-        
-
-<div id="rally-animation-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div class="modal-header" style="justify-content: center; border-bottom: none;">
-                <h3 id="rally-animation-title" style="color: var(--color-accent);">集點驗證中...</h3>
-            </div>
-            <div id="rally-animation-stamp" style="font-size: 80px; margin: 30px 0; color: var(--color-accent);">
-                <span id="rally-modal-icon">⏳</span>
-            </div>
-            <p id="rally-animation-message" style="font-size: 1.1rem; white-space: pre-wrap;"></p>
-            <div class="form-actions" style="justify-content: center;">
-                <button id="rally-modal-action-btn" class="cta-button" style="display: none;"></button>
-                <button id="rally-modal-close-btn" class="cta-button" style="background-color: var(--color-secondary); margin-top: 10px;">關閉</button>
-            </div>
         </div>
     </div> 
 
@@ -375,5 +359,22 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script>
     
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script> <script src="/script.js"></script>
+
+    <div id="rally-animation-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header" style="justify-content: center; border-bottom: none;">
+                <h3 id="rally-animation-title" style="color: var(--color-accent);">集點驗證中...</h3>
+            </div>
+            <div id="rally-animation-stamp" style="font-size: 80px; margin: 30px 0; color: var(--color-accent);">
+                <span id="rally-modal-icon">⏳</span>
+            </div>
+            <p id="rally-animation-message" style="font-size: 1.1rem; white-space: pre-wrap;"></p>
+            <div class="form-actions" style="justify-content: center;">
+                <button id="rally-modal-action-btn" class="cta-button" style="display: none;"></button>
+                <button id="rally-modal-close-btn" class="cta-button" style="background-color: var(--color-secondary); margin-top: 10px;">關閉</button>
+            </div>
+        </div>
+    </div> 
+
 </body>
 </html>

@@ -2124,7 +2124,8 @@ function stopRallyScanner() {
     document.getElementById('rally-status-message').textContent = '';
 }
 
-function showRallyResultModal(isSuccess, title, message, rewardIssued = false) {
+// 顯示集點結果彈窗 (包含 Loading 狀態)
+function showRallyResultModal(state, title, message, rewardIssued = false) {
     const modal = document.getElementById('rally-animation-modal');
     const iconEl = document.getElementById('rally-modal-icon');
     const titleEl = document.getElementById('rally-animation-title');
@@ -2132,32 +2133,49 @@ function showRallyResultModal(isSuccess, title, message, rewardIssued = false) {
     const actionBtn = document.getElementById('rally-modal-action-btn');
     const closeBtn = document.getElementById('rally-modal-close-btn');
 
+    // 確保先隱藏頁面上的狀態文字
+    const statusMsg = document.getElementById('rally-status-message');
+    if (statusMsg) statusMsg.textContent = '';
+
+    // 設定內容
     titleEl.textContent = title;
     messageEl.textContent = message;
     
-    if (isSuccess) {
-        iconEl.innerHTML = '✨'; // 成功動畫開始
+    // 根據狀態設定樣式
+    if (state === 'loading') {
+        iconEl.innerHTML = '⏳'; 
+        iconEl.style.animation = 'spin 1s infinite linear'; // 如果您有定義 spin動畫，沒有也沒關係
+        titleEl.style.color = 'var(--color-primary)';
+        actionBtn.style.display = 'none';
+        closeBtn.style.display = 'none'; // Loading 時不給關閉，避免重複送出
+    } else if (state === 'success') {
+        iconEl.innerHTML = '✅';
+        iconEl.style.animation = '';
         titleEl.style.color = 'var(--color-success)';
-        actionBtn.style.display = rewardIssued ? 'block' : 'none';
-        actionBtn.textContent = '查看我的獎勵';
-        actionBtn.style.backgroundColor = 'var(--color-primary)';
-        actionBtn.onclick = () => {
-            modal.style.display = 'none';
-            showPage('page-my-vouchers'); // 跳轉到優惠券頁面
-        };
-    } else {
+        
+        if (rewardIssued) {
+            actionBtn.style.display = 'block';
+            actionBtn.textContent = '查看我的獎勵';
+            actionBtn.style.backgroundColor = 'var(--color-primary)';
+            actionBtn.onclick = () => {
+                modal.style.display = 'none';
+                showPage('page-my-vouchers');
+            };
+        } else {
+            actionBtn.style.display = 'none';
+        }
+        closeBtn.style.display = 'block';
+        closeBtn.textContent = '關閉';
+    } else { // error
         iconEl.innerHTML = '❌';
+        iconEl.style.animation = '';
         titleEl.style.color = 'var(--color-danger)';
         actionBtn.style.display = 'none';
+        closeBtn.style.display = 'block';
         closeBtn.textContent = '關閉';
     }
     
-    modal.style.display = 'flex';
-
-    // 模擬動畫 (成功時)
-    if(isSuccess) {
-        setTimeout(() => { iconEl.innerHTML = '✅'; }, 500);
-    }
+    modal.style.display = 'flex'; // 顯示彈窗
 }
 
 async function startRallyScanner() {
@@ -2171,12 +2189,12 @@ async function startRallyScanner() {
         return;
     }
 
+    // 顯示掃碼介面
     document.getElementById('rally-campaign-display').style.display = 'none';
     qrScannerContainer.style.display = 'block';
     rallyStatusMessage.textContent = '請對準夥伴櫃台的 QR Code...';
     rallyStatusMessage.style.color = 'var(--color-text-primary)'; 
     rallyQrReader.innerHTML = '';
-
 
     if (!rallyQrCodeScanner) {
         if (typeof Html5Qrcode === 'undefined') {
@@ -2189,23 +2207,19 @@ async function startRallyScanner() {
     
     if (rallyQrCodeScanner.isScanning) return;
 
-
-const onScanSuccess = async (decodedText, decodedResult) => {
+    const onScanSuccess = async (decodedText, decodedResult) => {
+        // 1. 掃描成功，立刻停止掃描器
         stopRallyScanner();
-        rallyStatusMessage.textContent = '掃描成功，正在集點驗證中...';
-        rallyStatusMessage.style.color = 'var(--color-primary)';
         
-        let partnerCode = decodedText; // 預設為掃到的原始文字
+        // 2. 立刻開啟 Loading 彈窗 (這樣用戶就知道在跑了，也不會卡在奇怪的畫面)
+        showRallyResultModal('loading', '集點驗證中...', '正在與雲端連線，請稍候...');
+        
+        let partnerCode = decodedText;
 
         try {
-             // 嘗試解析是否為 URL
              const url = new URL(decodedText);
-             
-             // 1. 先嘗試從標準 URL Query 抓取 (e.g., ?partner_code=123)
              let code = url.searchParams.get('partner_code') || url.searchParams.get('rally_station_code');
              
-             // 2. 如果沒抓到，嘗試從 Hash 抓取 (e.g., #page?partner_code=123)
-             // LIFF 的參數常常跟在 # 後面
              if (!code && url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
                  if (hashParts.length > 1) {
@@ -2214,17 +2228,40 @@ const onScanSuccess = async (decodedText, decodedResult) => {
                  }
              }
              
-             // 如果有成功抓到代碼，就更新 partnerCode，否則維持原始文字
-             if (code) {
-                 partnerCode = code;
-                 console.log("成功解析代碼:", partnerCode); // 除錯用
-             }
+             if (code) partnerCode = code;
+
+        } catch(e) {
+             partnerCode = decodedText;
+        }
+
+        try {
+            // 3. 發送請求
+            const redeemRes = await fetch('/api/rally/redeem-station', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
+            });
+
+            // 嘗試讀取 JSON，如果失敗 (例如 404 HTML)，會跳到 catch
+            const result = await redeemRes.json();
+            
+            // 4. 根據結果更新彈窗
+            if (!redeemRes.ok) {
+                const errorMsg = result.error || result.message || '未知的錯誤';
+                showRallyResultModal('error', '集點失敗', errorMsg);
+            } else if (result.status === 'already_stamped') {
+                showRallyResultModal('error', '重複掃描', result.message); // 重複也算是一種「非成功」狀態
+            } else {
+                // 成功！
+                const rewardIssued = result.status === 'reward_issued';
+                const title = rewardIssued ? '🎉 獲得獎勵！' : '集點成功！';
+                showRallyResultModal('success', title, result.message, rewardIssued);
+            }
 
         } catch (error) {
-             if (error.message !== "Handled redemption fail in modal.") {
-                 console.error("集點驗證失敗:", error);
-                 showRallyResultModal(false, '驗證失敗', error.message.replace('集點失敗：', '') || '發生未知錯誤，請聯繫客服。', false);
-             }
+             console.error("集點驗證失敗:", error);
+             // 捕捉網路錯誤或解析錯誤
+             showRallyResultModal('error', '連線錯誤', '無法連接伺服器，請檢查網路或 QR Code 是否正確。');
         }
     };
 
@@ -2232,18 +2269,15 @@ const onScanSuccess = async (decodedText, decodedResult) => {
         { facingMode: "environment" }, 
         { fps: 10, qrbox: 250 }, 
         onScanSuccess,
-        (errorMessage) => { 
-            // 靜默處理錯誤
-        }
+        (errorMessage) => { /* 忽略掃描過程中的錯誤 */ }
     ).catch(err => {
         console.error("啟動相機失敗:", err);
-        rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限設定。`;
+        rallyStatusMessage.textContent = `❌ 無法啟動相機，請檢查權限。`;
         rallyStatusMessage.style.color = 'var(--color-danger)';
         qrScannerContainer.style.display = 'none';
         document.getElementById('rally-campaign-display').style.display = 'block';
     });
 }
-
 
     // =================================================================
     // 預約頁面相關函式

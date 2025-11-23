@@ -936,6 +936,7 @@
             <a href="#room-availability">房量控管</a>
             <a href="#bookings">訂位管理</a>.
             <a href="#vouchers">優惠券管理</a>
+            <a href="#rally">集點活動管理</a>
             <a href="#news">資訊管理</a>
             <a href="#drafts">訊息草稿</a>
             <a href="#store-info">店家資訊</a>
@@ -1261,6 +1262,136 @@
                     </div>
                 </div>
             </div>
+
+
+<div id="page-rally" class="page">
+    <div class="page-header">
+        <h2>集點活動管理</h2>
+        <button id="add-campaign-btn" class="action-btn btn-save">＋ 新增集點活動</button>
+    </div>
+
+    <div id="campaign-list-section">
+        <h3 style="margin-top: 0;">活動總覽</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>活動名稱</th>
+                    <th>進度要求</th>
+                    <th>獎勵</th>
+                    <th>期間</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="campaign-list-tbody">
+                <tr><td colspan="6" style="text-align: center;">載入中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="station-management-section" style="margin-top: 2rem; display: none;">
+        <div class="page-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1rem;">
+             <h3 id="current-campaign-title"></h3>
+             <button id="add-station-btn" class="action-btn" style="background-color: var(--color-info);">＋ 新增站點</button>
+             <button id="back-to-campaigns-btn" class="action-btn btn-cancel" style="background-color: var(--color-secondary);">← 返回活動列表</button>
+        </div>
+        
+        <div id="station-list-container">
+            <h4>站點列表</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>站點名稱 / 夥伴代碼</th>
+                        <th>夥伴名稱</th>
+                        <th>獨立效期</th>
+                        <th>狀態</th>
+                        <th>QR Code</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="station-list-tbody">
+                    <tr><td colspan="6" style="text-align: center;">請選擇一個活動。</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="edit-campaign-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="modal-campaign-title">新增集點活動</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="edit-campaign-form">
+            <input type="hidden" id="edit-campaign-id">
+            <div class="modal-body">
+                <div class="form-group"><label for="campaign-title">活動標題 (必填)</label><input type="text" id="campaign-title" required></div>
+                <div class="form-group"><label for="campaign-description">活動說明 (選填)</label><textarea id="campaign-description" rows="3"></textarea></div>
+                <div class="form-group"><label for="campaign-required-stamps">所需集點數量 (必填)</label><input type="number" id="campaign-required-stamps" min="1" required></div>
+                <div class="form-group"><label for="campaign-reward-voucher">綁定獎勵優惠券 (Voucher ID)</label><input type="number" id="campaign-reward-voucher" placeholder="請輸入優惠券樣板ID (template_id)" required></div>
+                <div class="form-group"><label for="campaign-dates">活動期間 (選填)</label><input type="text" id="campaign-dates" placeholder="選擇日期範圍"></div>
+                <div class="form-group">
+                    <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
+                        <label for="campaign-is-active">是否啟用</label>
+                        <label class="switch"><input type="checkbox" id="campaign-is-active" checked><span class="slider"></span></label>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                <button type="submit" class="action-btn btn-save">儲存活動</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="edit-station-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 id="modal-station-title">新增站點</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="edit-station-form">
+            <input type="hidden" id="edit-station-id">
+            <input type="hidden" id="station-campaign-id">
+            <div class="modal-body">
+                <div class="form-group"><label for="station-name">站點名稱 (必填)</label><input type="text" id="station-name" required></div>
+                <div class="form-group"><label for="station-partner-name">合作夥伴名稱 (選填)</label><input type="text" id="station-partner-name"></div>
+                <div class="form-group"><label for="station-description">站點簡介 (選填)</label><textarea id="station-description" rows="2"></textarea></div>
+                <div class="form-group"><label for="station-validation-info">夥伴驗證說明 (選填)</label><textarea id="station-validation-info" rows="2"></textarea></div>
+                <div class="form-group"><label for="station-expiry-date">獨立失效日期 (選填)</label><input type="text" id="station-expiry-date" placeholder="選擇日期"></div>
+                <div class="form-group"><label for="station-partner-code">唯一夥伴代碼 (留空=自動產生)</label><input type="text" id="station-partner-code" placeholder="請輸入 10 位英數字"></div>
+                <div class="form-group">
+                    <label class="switch-label" style="display:flex; align-items: center; gap: 10px;">
+                        <label for="station-is-active">是否啟用</label>
+                        <label class="switch"><input type="checkbox" id="station-is-active" checked><span class="slider"></span></label>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="action-btn btn-cancel modal-close">取消</button>
+                <button type="submit" class="action-btn btn-save">儲存站點</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="qrcode-display-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <div class="modal-header">
+            <h3 id="qrcode-modal-title">站點集點 QR Code</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div id="qrcode-container-rally" style="margin: 20px auto; padding: 10px; background: white; width: 300px; height: 300px;"></div>
+        <p id="qrcode-station-code" style="font-family: monospace; font-weight: bold; color: var(--color-text-dark); margin-top: 10px;"></p>
+        <p style="font-size: 0.9em; color: var(--color-text-light);">請顧客掃描此碼集點。</p>
+        <div class="form-actions" style="justify-content: center;">
+            <button id="copy-claim-link-btn" class="action-btn" style="background-color: var(--color-info);">複製連結</button>
+        </div>
+    </div>
+</div>
+
+
             <div id="edit-voucher-modal" class="modal-overlay">
                 <div class="modal-content" style="max-width: 700px;">
                     <div class="modal-header">

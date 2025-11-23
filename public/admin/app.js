@@ -18,6 +18,7 @@ const App = {
         'settings': './modules/systemSettings.js',
         'vouchers': './modules/voucherManagement.js',
         'reports': './modules/financialReports.js',
+        'rally': './modules/rallyManagement.js',
     },
     configPromise: null, 
 

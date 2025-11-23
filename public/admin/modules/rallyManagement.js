@@ -307,26 +307,32 @@ function showQrcodeModal(code, link) {
 }
 
 
-// --- 事件委派設定 ---
 function setupEventListeners() {
     const page = document.getElementById('page-rally');
     if (!page || page.dataset.initialized === 'true') return;
 
-    // 1. 活動列表區塊事件
+    // 1. 活動列表區塊事件 (包含所有按鈕的操作)
     page.addEventListener('click', async (e) => {
         const target = e.target;
         const campaignId = target.dataset.campaignId;
 
+        // (1) 新增活動
         if (target.id === 'add-campaign-btn') {
             openCampaignModal();
         } 
+        // (2) 顯示重置碼 (Reset QR Code)
         else if (target.matches('.btn-show-reset-qrcode')) {
             const link = target.dataset.link;
-            // 使用現有的 QR Code Modal，但修改標題
             document.getElementById('qrcode-modal-title').textContent = '活動重置 QR Code';
             document.getElementById('qrcode-station-code').textContent = '用途：掃描此碼可清空集點卡，開始新的一輪。';
             showQrcodeModal('RESET', link);
         }
+        // (3) 編輯活動 (就是這裡之前被省略了)
+        else if (target.matches('.btn-edit-campaign')) {
+            const campaign = allCampaigns.find(c => c.campaign_id == campaignId);
+            if (campaign) openCampaignModal(campaign);
+        } 
+        // (4) 刪除活動
         else if (target.matches('.btn-delete-campaign')) {
             const confirmed = await ui.confirm('確定要刪除此集點活動嗎？此操作將同時刪除所有相關站點及用戶集點紀錄，**無法復原**。');
             if (confirmed) {
@@ -336,49 +342,66 @@ function setupEventListeners() {
                     await init();
                 } catch (error) { ui.toast.error(`刪除失敗: ${error.message}`); }
             }
-        } else if (target.matches('.btn-view-stations')) {
+        } 
+        // (5) 站點管理
+        else if (target.matches('.btn-view-stations')) {
             const title = target.dataset.title;
             await loadStationsForCampaign(Number(campaignId), title);
         }
     });
 
-    // 2. 站點管理區塊事件
-    page.addEventListener('click', async (e) => {
-        const target = e.target;
-        const stationId = target.dataset.stationId;
+    // 2. 站點管理區塊事件 (保持不變)
+    const stationSection = document.getElementById('station-management-section');
+    if (stationSection) {
+        stationSection.addEventListener('click', async (e) => {
+            const target = e.target;
+            const stationId = target.dataset.stationId;
 
-        if (target.id === 'back-to-campaigns-btn') {
-            document.getElementById('campaign-list-section').style.display = 'block';
-            document.getElementById('station-management-section').style.display = 'none';
-            currentCampaignId = null;
-        } else if (target.id === 'add-station-btn') {
-            openStationModal();
-        } else if (target.matches('.btn-edit-station')) {
-            const stationList = await api.getRallyStations(currentCampaignId); // 重新載入以確保資料最新
-            const station = stationList.find(s => s.station_id == stationId);
-            if (station) openStationModal(station);
-        } else if (target.matches('.btn-delete-station')) {
-            const confirmed = await ui.confirm('確定要刪除此站點嗎？此操作將同時刪除所有相關用戶集點進度，**無法復原**。');
-            if (confirmed) {
-                 try {
-                    await api.deleteRallyStation(Number(stationId));
-                    ui.toast.success('站點已刪除！');
-                    await loadStationsForCampaign(currentCampaignId, document.getElementById('current-campaign-title').textContent.replace('活動：', '').replace(' 的站點管理', ''));
-                } catch (error) { ui.toast.error(`刪除失敗: ${error.message}`); }
+            if (target.id === 'back-to-campaigns-btn') {
+                document.getElementById('campaign-list-section').style.display = 'block';
+                document.getElementById('station-management-section').style.display = 'none';
+                currentCampaignId = null;
+            } else if (target.id === 'add-station-btn') {
+                openStationModal();
+            } else if (target.matches('.btn-edit-station')) {
+                // 重新載入以確保資料最新
+                const stationList = await api.getRallyStations(currentCampaignId); 
+                const station = stationList.find(s => s.station_id == stationId);
+                if (station) openStationModal(station);
+            } else if (target.matches('.btn-delete-station')) {
+                const confirmed = await ui.confirm('確定要刪除此站點嗎？此操作將同時刪除所有相關用戶集點進度，**無法復原**。');
+                if (confirmed) {
+                     try {
+                        await api.deleteRallyStation(Number(stationId));
+                        ui.toast.success('站點已刪除！');
+                        await loadStationsForCampaign(currentCampaignId, document.getElementById('current-campaign-title').textContent.replace('活動：', '').replace(' 的站點管理', ''));
+                    } catch (error) { ui.toast.error(`刪除失敗: ${error.message}`); }
+                }
+            } else if (target.matches('.btn-show-qrcode')) {
+                // 顯示站點集點 QR Code
+                document.getElementById('qrcode-modal-title').textContent = '站點集點 QR Code';
+                document.getElementById('qrcode-station-code').textContent = `代碼: ${target.dataset.code}`;
+                showQrcodeModal(target.dataset.code, target.dataset.link);
             }
-        } else if (target.matches('.btn-show-qrcode')) {
-            showQrcodeModal(target.dataset.code, target.dataset.link);
-        }
-    });
-
+        });
+    }
 
     // 3. Modal 表單提交
-    document.getElementById('edit-campaign-form')?.addEventListener('submit', handleCampaignSubmit);
-    document.getElementById('edit-station-form')?.addEventListener('submit', handleStationSubmit);
+    const editCampaignForm = document.getElementById('edit-campaign-form');
+    if (editCampaignForm) {
+        // 移除舊的 listener (如果有的話) 避免重複綁定，或是依靠 page.dataset.initialized 控制
+        editCampaignForm.removeEventListener('submit', handleCampaignSubmit); 
+        editCampaignForm.addEventListener('submit', handleCampaignSubmit);
+    }
+    
+    const editStationForm = document.getElementById('edit-station-form');
+    if (editStationForm) {
+        editStationForm.removeEventListener('submit', handleStationSubmit);
+        editStationForm.addEventListener('submit', handleStationSubmit);
+    }
 
     page.dataset.initialized = 'true';
 }
-
 
 export const init = async () => {
     console.log("[RallyManagement Init] Starting...");

@@ -56,6 +56,12 @@
         }
         /* --- ▲▲▲ 樣式結束 ▲▲▲ --- */
     </style>
+    
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <script>
+      // 初始化 vConsole
+      var vConsole = new VConsole();
+    </script>
 </head>
 <body>
     <main id="app-content" class="page"></main>
@@ -326,7 +332,7 @@
                 
                 <h3 style="margin-top: 20px;">集點關卡</h3>
                 <div id="rally-stations-grid">
-                </div>
+                    </div>
                 
                 <button id="start-rally-scan-btn" class="cta-button" style="margin-top: 20px;">
                     📸 掃描夥伴 QR Code 集點
@@ -345,21 +351,6 @@
         </div>
     </div> 
 
-    <nav id="tab-bar">
-        <button class="tab-button active" data-target="page-home">最新<br>情報</button>
-        <button class="tab-button" data-target="page-products">產品<br>型錄</button>
-        <button class="tab-button" data-target="page-profile">會員<br>中心</button>
-        <button class="tab-button" data-target="page-booking">線上<br>預約</button>
-        <button class="tab-button" data-target="page-info">店家<br>資訊</button>
-    </nav>
-
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script>
-    
-    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script> <script src="/script.js"></script>
-
     <div id="rally-animation-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <div class="modal-header" style="justify-content: center; border-bottom: none;">
@@ -374,7 +365,21 @@
                 <button id="rally-modal-close-btn" class="cta-button" style="background-color: var(--color-secondary); margin-top: 10px;">關閉</button>
             </div>
         </div>
-    </div> 
+    </div>        
 
+    <nav id="tab-bar">
+        <button class="tab-button active" data-target="page-home">最新<br>情報</button>
+        <button class="tab-button" data-target="page-products">產品<br>型錄</button>
+        <button class="tab-button" data-target="page-profile">會員<br>中心</button>
+        <button class="tab-button" data-target="page-booking">線上<br>預約</button>
+        <button class="tab-button" data-target="page-info">店家<br>資訊</button>
+    </nav>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh-tw.js"></script>
+    
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script> <script src="/script.js"></script>
 </body>
 </html>

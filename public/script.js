@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let flatpickrRangeInstance = null;
     let rallyData = { userProgress: [], activeCampaign: null };
+    
+    // ▼▼▼ 【核心修正】將掃描器設為可重置的全域變數 ▼▼▼
+    let rallyQrCodeScanner = null; 
+
     const pageInitializers = {
         'page-home': initializeHomePage,
         'page-products': initializeProductsPage,
@@ -1239,7 +1243,7 @@ async function initializeMyStoredValueHistoryPage() {
             }).join('');
         }
     } catch (error) {
-        container.innerHTML = `<p style="color: var(--color-danger);">${error.message}</p>`;
+        container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
     }
 }
 
@@ -2285,7 +2289,18 @@ async function startRallyScanner() {
     }
     if (rallyQrReader) rallyQrReader.innerHTML = '';
 
-    // 初始化掃描器 (略)
+    // 初始化掃描器
+    if (!rallyQrCodeScanner) {
+        if (typeof Html5Qrcode === 'undefined') {
+            if (rallyStatusMessage) rallyStatusMessage.textContent = '掃碼庫載入失敗。';
+            if (qrScannerContainer) qrScannerContainer.style.display = 'none';
+            return;
+        }
+        rallyQrCodeScanner = new Html5Qrcode("rally-qr-reader");
+    }
+    
+    if (rallyQrCodeScanner.isScanning) return;
+
 
     const onScanSuccess = async (decodedText, decodedResult) => {
         // 1. 停止掃描 & 顯示 Loading
@@ -2300,14 +2315,19 @@ async function startRallyScanner() {
         try {
              const url = new URL(decodedText);
              let searchParams = url.searchParams;
+             
+             // 如果參數在 Hash 裡 (LIFF 常見情況: #page?a=1)
              if (url.hash.includes('?')) {
                  const hashParts = url.hash.split('?');
                  if (hashParts.length > 1) { searchParams = new URLSearchParams(hashParts[1]); }
              }
+             
              partnerCode = searchParams.get('partner_code') || searchParams.get('rally_station_code');
-             resetAction = searchParams.get('action');
+             resetAction = searchParams.get('action'); // 檢查是否有 action=reset
              campaignId = searchParams.get('campaign_id');
+
         } catch(e) {
+             // 非 URL 格式，視為純代碼 (舊版相容)
              partnerCode = decodedText;
         }
 
@@ -2317,42 +2337,53 @@ async function startRallyScanner() {
             let finalStatus = null;
             
             // --- A/B. 執行 API ---
-            if (partnerCode) {
-                 // === A. 執行集點 ===
-                 redeemRes = await fetch('/api/rally/redeem-station', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
-                });
-            } else if (resetAction === 'reset' && campaignId) {
-                // === B. 執行重置 (開啟新卡) ===
-                 redeemRes = await fetch('/api/rally/reset-card', {
+            
+            if (resetAction === 'reset' && campaignId) {
+                // === A. 執行重置 (開啟新卡) ===
+                showRallyResultModal('loading', '重置集點卡...', '正在開啟新的一輪...');
+                
+                redeemRes = await fetch('/api/rally/reset-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userProfile.userId, campaignId: Number(campaignId) })
                 });
+                
+            } else if (partnerCode) {
+                // === B. 執行集點 (一般掃描) ===
+                showRallyResultModal('loading', '集點驗證中...', '正在驗證站點...');
+
+                redeemRes = await fetch('/api/rally/redeem-station', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userProfile.userId, partnerCode: partnerCode })
+                });
+
             } else {
-                 throw new Error("無法辨識的 QR Code 格式。");
+                // === C. 無效格式 ===
+                throw new Error("無法辨識的 QR Code 格式。");
             }
-            
+
             // 3. 處理 API 回應
             try {
                 result = await redeemRes.json();
                 finalStatus = result.status; // 儲存 API 回傳的狀態
             } catch (e) {
                 // 如果無法解析 JSON，強制顯示伺服器回應的原始文本
-                const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
-                throw new Error(`伺服器回應錯誤 (${redeemRes.status})：${text.substring(0, 200)}`);
+                if (!redeemRes.ok) {
+                    const text = await redeemRes.text().catch(() => '伺服器回應無法讀取。');
+                    throw new Error(`伺服器回應錯誤 (${redeemRes.status})：${text.substring(0, 200)}`);
+                }
+                // 如果是 200 狀態但非 JSON，是格式錯誤
+                throw new Error(`伺服器回應格式錯誤 (非 JSON)。`);
             }
 
             // 4. 判斷最終結果
-            // 如果 API 狀態碼非 200 但回傳了已知狀態 (如 already_stamped/card_full/archived_conflict)，則視為成功攔截
             if (finalStatus === 'already_stamped' || finalStatus === 'card_full' || finalStatus === 'archived_conflict') {
                  showRallyResultModal('error', '操作失敗', result.message);
             } else if (redeemRes.ok && result.success) {
                 // 真正的成功
                 const rewardIssued = result.status === 'reward_issued';
-                const title = (resetAction === 'reset') ? '重置成功！' : (rewardIssued ? '獲得獎勵！' : '集點成功！');
+                const title = (resetAction === 'reset') ? '重置成功！' : (rewardIssued ? '🎉 獲得獎勵！' : '集點成功！');
                 showRallyResultModal('success', title, result.message, rewardIssued);
             } else {
                  // 失敗 (包含 500 錯誤或 success=false 的情況)

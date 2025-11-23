@@ -1969,7 +1969,7 @@ async function initializeProductsPage() {
 let rallyQrCodeScanner = null; // 確保全域變數存在
 
 async function fetchRallyData() {
-    // 1. 獲取當前所有活動 (Admin API 可用，暫時作為公開 API 處理)
+    // 1. 獲取當前所有活動 
     const campaignRes = await fetch('/api/rally/campaigns');
     if (!campaignRes.ok) throw new Error('無法獲取活動列表');
     const campaigns = await campaignRes.json();
@@ -1984,12 +1984,16 @@ async function fetchRallyData() {
     rallyData.activeCampaign = activeCampaign;
 
     // 3. 獲取活動站點
-    const stationsRes = await fetch(`/api/admin/rally/stations?campaignId=${activeCampaign.campaign_id}`);
-    if (!stationsRes.ok) throw new Error('無法獲取站點列表');
+    const stationsRes = await fetch(`/api/rally/stations?campaignId=${activeCampaign.campaign_id}`);
+    if (!stationsRes.ok) {
+        const errText = await stationsRes.text();
+        console.error("Station API Error:", errText);
+        throw new Error('無法獲取站點列表');
+    }
     activeCampaign.stations = await stationsRes.json();
 
-    // 4. 獲取用戶集點進度 (使用我們創建的 API)
-    const progressRes = await fetch(`/api/rally-progress?userId=${userProfile.userId}&campaignId=${activeCampaign.campaign_id}`);
+    // 4. 獲取用戶集點進度
+    const progressRes = await fetch(`/api/rally/progress?userId=${userProfile.userId}&campaignId=${activeCampaign.campaign_id}`);
     if (!progressRes.ok) {
         console.warn("無法獲取用戶集點進度，預設為空。");
         rallyData.userProgress = [];

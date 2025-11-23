@@ -2214,9 +2214,16 @@ async function startRallyScanner() {
             const result = await redeemRes.json();
             
             if (!redeemRes.ok || result.status === 'already_stamped') {
-                showRallyResultModal(false, '集點失敗', result.message || '集點失敗。', false);
-                throw new Error("Handled redemption fail in modal.");
-            }
+    // 【修正】優先讀取 error，沒有才讀取 message，最後才是預設文字
+    // 這樣就能在畫面上看到「無效的 QR Code」或「活動已過期」等具體原因
+    const errorReason = result.error || result.message || '集點失敗 (未知原因)。';
+    
+    // 把狀態碼也顯示出來方便除錯 (例如: 404, 400)
+    const debugTitle = !redeemRes.ok ? `集點失敗 (${redeemRes.status})` : '集點失敗';
+    
+    showRallyResultModal(false, debugTitle, errorReason, false);
+    throw new Error("Handled redemption fail in modal.");
+}
             
             // 成功邏輯
             const rewardIssued = result.status === 'reward_issued';

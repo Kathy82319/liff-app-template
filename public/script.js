@@ -831,13 +831,13 @@ if (!showStoredValue) {
     
         async function initializeHomePage() {
         
-        const rallyBanner = document.getElementById('rally-banner-entry');
-        if(rallyBanner && !rallyBanner.dataset.listenerAttached) {
-             rallyBanner.addEventListener('click', () => {
-                 showPage('page-rally'); // 点击后才跳转到集点页面
-             });
-             rallyBanner.dataset.listenerAttached = 'true';
-        }
+    const rallyFab = document.getElementById('rally-fab-btn');
+    if (rallyFab && !rallyFab.dataset.listenerAttached) {
+            rallyFab.addEventListener('click', () => {
+                showPage('page-rally'); // 跳轉到集點頁面
+            });
+            rallyFab.dataset.listenerAttached = 'true';
+    }
 
         const terms = activeTemplate?.terms || {};
         try {

@@ -849,3 +849,81 @@ input:focus, select:focus, textarea:focus {
     padding: 0 5px;
     line-height: 1;
 }
+
+/* =========================================
+   [新增] 首頁集點趣懸浮按鈕 (塗鴉印章風)
+   ========================================= */
+.rally-fab-container {
+    position: fixed;
+    bottom: 90px; /* 位於 Tab Bar (70px) 之上 */
+    right: 20px;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    /* 懸浮動畫 */
+    animation: rallyFloat 3s ease-in-out infinite;
+    transition: transform 0.2s;
+}
+
+.rally-fab-container:active {
+    transform: scale(0.95);
+}
+
+/* 上方文字標籤 */
+.rally-fab-text {
+    background-color: #fff;
+    color: var(--color-accent);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    position: relative;
+    border: 1px solid var(--color-accent);
+}
+
+/* 對話框小三角形 */
+.rally-fab-text::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--color-accent);
+}
+
+/* 印章本體 (不規則圓形) */
+.rally-fab-stamp {
+    width: 65px;
+    height: 65px;
+    background-color: #fff; /* 印章底色 */
+    color: var(--color-danger); /* 印泥顏色 (紅色系) */
+    
+    /* 關鍵：製作不規則塗鴉感 */
+    border: 3px solid var(--color-danger);
+    border-radius: 55% 45% 60% 40% / 50% 60% 40% 50%;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: rotate(-10deg); /* 稍微歪斜，像蓋章 */
+}
+
+/* 印章圖案 */
+.rally-fab-icon {
+    font-size: 2rem;
+    opacity: 0.9;
+}
+
+/* 懸浮動畫關鍵影格 */
+@keyframes rallyFloat {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-6px) rotate(2deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}

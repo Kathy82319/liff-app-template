@@ -859,24 +859,18 @@ async function initializeHomePage() {
 async function initializeProfilePage() {
     if (!userProfile) return;
 
-    // 1. 獲取最新資料
     try {
+        // 1. 獲取最新資料
         const userData = await fetchproductData(true); 
         
-        // 更新顯示
-        const displayNameEl = document.getElementById('display-name');
-        const classEl = document.getElementById('user-class');
-        const levelEl = document.getElementById('user-level');
-        
-        if(displayNameEl) displayNameEl.textContent = userData.real_name || userProfile.displayName;
-        if(classEl) classEl.textContent = userData.class || '一般會員';
-        if(levelEl) levelEl.textContent = `Lv.${userData.level} (點數: ${userData.current_exp})`;
-        
-        // 更新頭像
+        // 【修正】直接呼叫 updateProfileDisplay 來更新所有欄位 (包含儲值金與區塊顯示邏輯)
+        updateProfileDisplay(userData);
+
+        // 更新頭像 (保持不變)
         const picEl = document.getElementById('profile-picture');
         if (picEl && userProfile.pictureUrl) picEl.src = userProfile.pictureUrl;
 
-        // QR Code 生成 (現在位於右上角 profile-qr-box 內)
+        // QR Code 生成 (保持不變)
         const qrcodeContainer = document.getElementById('qrcode');
         if (qrcodeContainer) {
              qrcodeContainer.innerHTML = ''; 
@@ -894,9 +888,9 @@ async function initializeProfilePage() {
         console.error("會員資料載入失敗:", error);
     }
 
-    // 2. 綁定 2x2 功能按鈕
+    // 2. 綁定功能按鈕 (保持不變)
     const btnMap = {
-        'btn-my-records': 'page-my-records', // 跳轉到新頁面
+        'btn-my-records': 'page-my-records',
         'btn-my-vouchers': 'page-my-vouchers',
         'btn-edit-profile': 'page-edit-profile',
         'btn-go-rally': 'page-rally'
@@ -905,14 +899,38 @@ async function initializeProfilePage() {
     for (const [btnId, pageId] of Object.entries(btnMap)) {
         const btn = document.getElementById(btnId);
         if (btn) {
-            // 移除舊的監聽器 (防止重複)
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
-            
             newBtn.addEventListener('click', () => {
                 showPage(pageId);
             });
         }
+    }
+}
+
+async function loadMyBookingsList(filter, container) {
+    // 如果沒有傳入 container，嘗試抓取預設的 (防呆)
+    if (!container) {
+        console.error("loadMyBookingsList 錯誤：未指定容器");
+        return;
+    }
+
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        // 【修正】正確使用傳入的 filter 參數
+        const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=${filter}`);
+        
+        if (!response.ok) throw new Error('查詢預約失敗');
+        
+        const bookings = await response.json();
+        
+        // 【修正】傳入正確的參數給 renderBookings (isPast = (filter === 'past'))
+        renderBookings(bookings, container, filter === 'past');
+
+    } catch (error) {
+        console.error("載入預約列表失敗:", error);
+        container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${error.message}</p>`;
     }
 }
 

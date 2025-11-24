@@ -792,6 +792,12 @@ input:focus, select:focus, textarea:focus {
     cursor: pointer; 
 }
 
+
+.badge-active { background-color: var(--color-primary); }
+.badge-completed { background-color: var(--color-success); }
+.badge-expired { background-color: var(--color-secondary); }
+.badge-exhausted { background-color: var(--color-danger); }
+
 /* =========================================
    [新增] 通用 Modal 彈窗樣式
    ========================================= */

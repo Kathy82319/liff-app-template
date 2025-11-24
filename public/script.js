@@ -2083,7 +2083,7 @@ function renderRallyPage() {
                     // [狀態 B] 已集滿 但 未領獎
                     if (isGlobalExhausted) {
                         // 狀況 B-1: 庫存已空 -> 顯示遺憾訊息
-                        badgeClass = 'badge-expired';
+                        badgeClass = 'badge-exhausted';
                         badgeText = '獎勵已發完';
                         btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">來晚了一步</button>`;
                         instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">⚠️ 您已集滿點數，但很抱歉，限量獎勵已全數兌換完畢。</div>`;
@@ -2097,7 +2097,7 @@ function renderRallyPage() {
                 // 未集滿
                 if (isGlobalExhausted) {
                     // [狀態 C] 進行中但已額滿
-                    badgeClass = 'badge-expired';
+                    badgeClass = 'badge-exhausted';
                     badgeText = '已額滿';
                     btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">獎勵已兌換完畢</button>`;
                     instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: #999;">雖然活動獎勵已發完，您仍可繼續集點紀念。</div>`;

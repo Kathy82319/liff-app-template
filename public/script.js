@@ -979,46 +979,6 @@ async function initializeMyRecordsPage() {
     loadMyWalletList();
 }
 
-// 輔助：載入預約列表
-async function loadMyBookingsList() {
-    const container = document.getElementById('my-bookings-list');
-    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
-    try {
-        const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=${filter}`);
-        if (!response.ok) throw new Error('查詢預約失敗');
-        const bookings = await response.json();
-        renderBookings(bookings, container, filter === 'past');
-    } catch (error) {
-        container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${error.message}</p>`;
-    }
-    try {
-        // 呼叫原有 API (假設支援 filter=all)
-        const res = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=all`);
-        const bookings = await res.json();
-        
-        if (bookings.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無預約紀錄</p>';
-            return;
-        }
-
-        container.innerHTML = bookings.map(b => {
-            const statusColor = b.status === 'confirmed' ? 'var(--color-success)' : (b.status === 'cancelled' ? 'var(--color-danger)' : '#888');
-            return `
-                <div class="record-item" onclick="showPage('page-booking-details', {bookingId: ${b.booking_id}})" style="cursor:pointer;">
-                    <div>
-                        <div class="record-main">${b.booking_date}</div>
-                        <div class="record-sub">${b.status_text}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div class="record-value" style="color:${statusColor};">$${b.total_amount}</div>
-                        <div class="record-sub">查看 ></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
-}
-
 // 輔助：載入點數列表
 async function loadMyPointsList() {
     const container = document.getElementById('my-points-list');

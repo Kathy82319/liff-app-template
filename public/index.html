@@ -533,6 +533,35 @@
         </div>
     </div>        
 
+<div id="station-mission-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 id="mission-modal-title" style="color: var(--color-primary);">站點名稱</h3>
+                <button class="modal-close" onclick="document.getElementById('station-mission-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body" style="padding-top: 10px;">
+                <div id="mission-status-badge" style="display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; color: white; background: #ccc; margin-bottom: 10px;">未完成</div>
+                
+                <div style="background: rgba(88, 166, 255, 0.1); border-left: 4px solid var(--color-accent); padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.9rem; color: var(--color-text-secondary);">🎯 任務條件</h4>
+                    <p id="mission-validation-info" style="margin: 0; font-weight: bold; font-size: 1.1rem; color: var(--color-text-primary);">消費滿額...</p>
+                </div>
+
+                <p style="margin: 5px 0;"><strong>📍 地點/夥伴：</strong><br><span id="mission-partner-name" style="color: var(--color-text-primary);"></span></p>
+                
+                <div style="margin-top: 15px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                    <strong>📝 簡介：</strong>
+                    <p id="mission-description" style="margin-top: 5px; white-space: pre-wrap;"></p>
+                </div>
+                
+                <p style="margin-top: 15px; font-size: 0.8rem; color: #666; text-align: right;">效期：<span id="mission-expiry"></span></p>
+            </div>
+            <div class="form-actions">
+                <button class="cta-button" onclick="document.getElementById('station-mission-modal').style.display='none'" style="background-color: var(--color-secondary);">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <nav id="tab-bar">
         <button class="tab-button active" data-target="page-home">最新<br>情報</button>
         <button class="tab-button" data-target="page-products">產品<br>型錄</button>

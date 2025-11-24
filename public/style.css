@@ -788,3 +788,8 @@ input:focus, select:focus, textarea:focus {
     overflow: hidden;
 }
 /* --- ^^^^^ [新增] 數位集點地圖樣式 ^^^^^ --- */
+.mini-station-card {
+    /* ... */
+    cursor: pointer; /* 確保這行存在，讓使用者知道可以點 */
+    /* ... */
+}

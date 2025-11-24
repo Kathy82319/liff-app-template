@@ -2090,11 +2090,14 @@ if (listContainer) {
                 btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
             }
 
-            // 3. 渲染站點九宮格
+            // 3. 渲染站點九宮格 [修改：加入點擊事件]
             const stationsHtml = (campaign.stations || []).map(s => {
                 const isCollected = stampedIds.has(s.station_id);
+                // 將物件轉為 JSON 字串，需處理單引號以避免 HTML 屬性錯誤
+                const stationData = JSON.stringify(s).replace(/"/g, '&quot;');
+                
                 return `
-                    <div class="mini-station-card ${isCollected ? 'collected' : ''}">
+                    <div class="mini-station-card ${isCollected ? 'collected' : ''}" onclick="openStationMissionModal(${stationData}, ${isCollected})">
                         <div style="font-weight:bold;">${s.name}</div>
                     </div>
                 `;
@@ -2155,6 +2158,40 @@ if (listContainer) {
         });
     }
 }
+
+// [新增] 開啟站點任務詳情 Modal
+window.openStationMissionModal = function(station, isCollected) {
+    const modal = document.getElementById('station-mission-modal');
+    if (!modal) return;
+
+    // 填入資料
+    document.getElementById('mission-modal-title').textContent = station.name || '站點詳情';
+    
+    // 任務條件 (這是最重要的)
+    const validationInfo = station.partner_validation_info || '親臨現場掃描 QR Code 即可集點。';
+    document.getElementById('mission-validation-info').textContent = validationInfo;
+
+    // 合作夥伴 (建議商家在此欄位填寫店名+地址)
+    document.getElementById('mission-partner-name').textContent = station.partner_name || '未提供位置資訊';
+
+    // 簡介
+    document.getElementById('mission-description').textContent = station.description || '無';
+
+    // 效期
+    document.getElementById('mission-expiry').textContent = station.expiry_date || '永久有效';
+
+    // 狀態樣式
+    const badge = document.getElementById('mission-status-badge');
+    if (isCollected) {
+        badge.textContent = '✅ 任務已達成';
+        badge.style.backgroundColor = 'var(--color-success)';
+    } else {
+        badge.textContent = '🔒 任務未完成';
+        badge.style.backgroundColor = '#6c757d';
+    }
+
+    modal.style.display = 'flex';
+};
 
 /**
  * 3. 切換卡片展開/收合

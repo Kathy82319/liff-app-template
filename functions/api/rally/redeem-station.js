@@ -35,7 +35,7 @@ export async function onRequest(context) {
 
         // 2. 獲取「當前集點卡」點數 (只看 is_archived = 0)
         const currentStats = await db.prepare(`
-            SELECT COUNT(station_id) as stamp_count FROM UserRallyProgress 
+            SELECT COUNT(DISTINCT station_id) as stamp_count FROM UserRallyProgress 
             WHERE user_id = ?1 AND campaign_id = ?2 AND is_archived = 0
         `).bind(userId, station.campaign_id).first();
         

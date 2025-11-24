@@ -30,7 +30,7 @@ export async function onRequest(context) {
             status: 200,
             headers: { 
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=60' // 注意：如果有庫存變動，這個快取可能會導致 60 秒延遲，可視需求設為 no-store
+                'Cache-Control': 'no-store, max-age=0'
             }
         });
 

@@ -56,31 +56,55 @@ function renderVoucherList(templates) {
     if (!tbody) return;
 
     if (templates.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">尚未建立任何優惠券樣板。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">尚未建立任何優惠券樣板。</td></tr>';
         return;
     }
 
     tbody.innerHTML = templates.map(t => {
-        let typeText = '', valueText = '';
+        // 1. 處理「規則」顯示文字
+        let ruleText = '';
         switch (t.type) {
-            case 'discount_fixed': typeText = '金額折扣'; valueText = `$${t.value}`; break;
-            case 'discount_percentage': typeText = '百分比折扣'; valueText = `${t.value}% OFF`; break;
-            case 'redeem_item': typeText = '物品兌換'; valueText = t.redeem_item_name; break;
-            default: typeText = t.type;
+            case 'discount_fixed': ruleText = `折抵 $${t.value}`; break;
+            case 'discount_percentage': ruleText = `打 ${100 - t.value} 折 (${t.value}% OFF)`; break;
+            case 'redeem_item': ruleText = `兌換：${t.redeem_item_name}`; break;
+            default: ruleText = t.type;
         }
-        const dateRange = (t.valid_from && t.valid_to) ? `${t.valid_from} ~ ${t.valid_to}` : '永久有效';
+
+        // 2. 處理「適用項目」 (轉為名稱 + 樣式處理)
+        let applicableNames = '全部適用';
+        // 檢查是否有指定 ID 且 allProducts 已載入
+        if (Array.isArray(t.applicable_product_ids) && t.applicable_product_ids.length > 0) {
+            const names = t.applicable_product_ids.map(id => {
+                const p = allProducts.find(prod => prod.product_id === id);
+                return p ? p.name : '未知項目';
+            });
+            applicableNames = names.join('、');
+        }
+        // 樣式：小字體 + 最多兩行 + 省略號
+        const applicableHtml = `
+            <div style="font-size: 0.85em; color: #666; line-height: 1.4; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" 
+                 title="${applicableNames}">
+                ${applicableNames}
+            </div>`;
+
+        // 3. 其他欄位處理
+        const supplyText = (t.total_supply === null) ? '∞' : t.total_supply;
         const statusText = t.is_active ? '<span style="color: var(--color-success);">啟用</span>' : '<span style="color: var(--color-secondary);">停用</span>';
 
         return `
             <tr>
-                <td><div class="main-info">${t.title}</div><div class="sub-info">${t.internal_name}</div></td>
-                <td>${typeText}</td>
-                <td>${valueText}</td>
-                <td>${dateRange}</td>
+                <td>
+                    <div class="main-info" style="font-weight: 500;">${t.title}</div>
+                    <div class="sub-info" style="font-size: 0.8rem; color: #999;">${t.internal_name}</div>
+                </td>
+                <td>${ruleText}</td>
+                <td>${applicableHtml}</td>
+                <td>${supplyText}</td>
+                <td>${t.limit_per_user}</td>
                 <td>${statusText}</td>
                 <td class="actions-cell">
-                    <button class="action-btn btn-mass-issue" data-template-id="${t.template_id}" style="background-color: var(--color-info);">群發</button>
-                    <button class="action-btn btn-edit-voucher" data-template-id="${t.template_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
+                    <button class="action-btn btn-mass-issue" data-template-id="${t.template_id}" style="background-color: var(--color-info); margin-right: 3px;">發送</button>
+                    <button class="action-btn btn-edit-voucher" data-template-id="${t.template_id}" style="background-color: var(--color-warning); color: #000; margin-right: 3px;">編輯</button>
                     <button class="action-btn btn-delete-voucher" data-template-id="${t.template_id}" style="background-color: var(--color-danger);">刪除</button>
                 </td>
             </tr>

@@ -1111,14 +1111,11 @@ async function initializeBookingDetailsPage(data) {
     const contentContainer = document.getElementById('booking-details-content-container');
     const cancelBtn = document.getElementById('details-cancel-booking-btn');
 
-    if (!data || !data.bookingId || !loadingEl || !contentContainer || !cancelBtn) {
-        appContent.innerHTML = `<p style="color:red;">頁面載入錯誤：缺少預約 ID 或頁面元素。</p>`;
-        return;
-    }
+    if (!data || !data.bookingId) { return; }
 
-loadingEl.style.display = 'block';
+    loadingEl.style.display = 'block';
     contentContainer.style.display = 'none';
-    cancelBtn.style.display = 'none';
+    cancelBtn.style.display = 'none'; // 預設隱藏
 
     try {
         const [bookingRes, policyRes] = await Promise.all([
@@ -1128,81 +1125,59 @@ loadingEl.style.display = 'block';
 
         let booking = null;
         if (bookingRes.ok) {
-            const contentType = bookingRes.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                const bookingResult = await bookingRes.json(); //
-                booking = Array.isArray(bookingResult) ? bookingResult[0] : bookingResult;
-                if (!booking) throw new Error('找不到指定的預約紀錄 (API 回傳空)'); //
-            } else {
-                const text = await bookingRes.text();
-                throw new Error(`無法獲取預約詳情：伺服器回應非預期格式 (${contentType}). 回應內容: ${text.substring(0, 100)}...`);
-            }
-        } else {
-             const errorText = await bookingRes.text(); 
-             throw new Error(`無法獲取預約詳情 (HTTP ${bookingRes.status}): ${errorText.substring(0, 100)}...`); //
+            const bookingResult = await bookingRes.json();
+            booking = Array.isArray(bookingResult) ? bookingResult[0] : bookingResult;
         }
+        if (!booking) throw new Error('找不到預約資料');
 
-        let policy = { cancellationPolicy: '未設定', checkInInstructions: '未設定' };
-        if (policyRes.ok) {
-            const contentType = policyRes.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                policy = await policyRes.json(); //
-            } else {
-                 const text = await policyRes.text();
-                 console.warn(`無法獲取預約政策：伺服器回應非預期格式 (${contentType}). 使用預設值. 回應內容: ${text.substring(0, 100)}...`); //
-            }
-        } else {
-             const errorText = await policyRes.text();
-             console.warn(`無法獲取預約政策 (HTTP ${policyRes.status}): ${errorText.substring(0, 100)}... 使用預設值.`); //
+        let policy = await policyRes.json().catch(() => ({ cancellationPolicy: '-', checkInInstructions: '-' }));
+
+        // 填入資料
+        document.getElementById('details-check-in-date').textContent = booking.booking_date || '-';
+        document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-';
+        
+        // 計算晚數
+        let nights = '-';
+        if(booking.booking_date && booking.check_out_date) {
+             const start = new Date(booking.booking_date);
+             const end = new Date(booking.check_out_date);
+             nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
         }
+        document.getElementById('details-nights').textContent = nights;
 
-        const startDate = booking.booking_date || ''; //
-        const endDate = booking.check_out_date || ''; //
-        let nights = '-'; 
-        if (startDate && endDate) { //
-            try { //
-                const start = new Date(startDate + 'T00:00:00'); //
-                const end = new Date(endDate + 'T00:00:00'); //
-                nights = Math.round((end - start) / (1000 * 60 * 60 * 24)); //
-            } catch(e) { console.error("計算晚數失敗:", e); } //
-        }
-
-        document.getElementById('details-check-in-date').textContent = booking.booking_date || '-'; //
-        document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-'; //
-
-        document.getElementById('details-nights').textContent = nights; //
-
+        // 填入項目
         const itemsListEl = document.getElementById('details-items-list');
-        if (booking.items && booking.items.length > 0) {
-            itemsListEl.innerHTML = booking.items.map(item =>
-                `<p>- ${item.item_name} x ${item.quantity} (小計: $${item.price !== null ? item.price * item.quantity : 'N/A'})</p>`
-            ).join(''); //
-        } else {
-            itemsListEl.innerHTML = '<p>無項目資訊</p>'; //
-        }
+        itemsListEl.innerHTML = (booking.items || []).map(item => 
+            `<div class="room-item-row"><span>${item.item_name} x ${item.quantity}</span> <span>$${item.price * item.quantity}</span></div>`
+        ).join('');
 
-        document.getElementById('details-total-amount').textContent = booking.total_amount !== null ? `$${booking.total_amount}` : '-'; //
-        document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy; //
-        document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions; //
+        document.getElementById('details-total-amount').textContent = booking.total_amount || '-';
+        document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy || '未設定';
+        document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions || '未設定';
 
-
-        if (booking.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) { //
-            cancelBtn.style.display = 'block'; //
-            cancelBtn.replaceWith(cancelBtn.cloneNode(true)); //
-            document.getElementById('details-cancel-booking-btn').addEventListener('click', () => { //
-                 if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) { //
-                     handleCancelBooking(booking.booking_id); //
-                 }
+        // [關鍵] 恢復取消按鈕邏輯
+        // 只有狀態是 'confirmed' 且後台設定允許取消 (或預設允許) 時才顯示
+        const enableCancellation = CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION !== false; 
+        
+        if (booking.status === 'confirmed' && enableCancellation) {
+            cancelBtn.style.display = 'block'; // 顯示按鈕
+            
+            // 移除舊監聽器並綁定新的 (防止重複綁定)
+            const newBtn = cancelBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newBtn, cancelBtn);
+            
+            newBtn.addEventListener('click', async () => {
+                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
+                    await handleCancelBooking(booking.booking_id); // 呼叫 script.js 既有的取消函式
+                }
             });
         }
 
-        loadingEl.style.display = 'none'; //
-        contentContainer.style.display = 'block'; //
+        loadingEl.style.display = 'none';
+        contentContainer.style.display = 'block';
 
     } catch (error) {
-        console.error("載入預約詳情失敗:", error);
-        loadingEl.innerHTML = `<p style="color: red;">載入失敗：${error.message}</p>`; // 顯示更詳細的錯誤 //
-        contentContainer.style.display = 'none'; //
+        loadingEl.innerHTML = `<p style="color:red;">載入失敗: ${error.message}</p>`;
     }
 }
 
@@ -1445,67 +1420,53 @@ function showRedeemModal(voucherId, voucherTitle) {
 // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
 
 async function initializeInfoPage() {
-
-        try {
-            const logic = activeTemplate?.logic || {};
-            const navBarConfig = logic.navBar || [];
-            
-            const pageTitle = appContent.querySelector('#page-info .page-main-title');
-            if (pageTitle) {
-                const infoNav = navBarConfig.find(item => item.target === 'page-info');
-                pageTitle.textContent = infoNav?.label || '店家資訊';
-            }
-        } catch(e) {
-            console.error("設定 Info 標題失敗:", e);
+    try {
+        // 設定標題邏輯 (保持不變)
+        const logic = activeTemplate?.logic || {};
+        const navBarConfig = logic.navBar || [];
+        const pageTitle = document.querySelector('#page-info .page-main-title');
+        if (pageTitle) {
+            const infoNav = navBarConfig.find(item => item.target === 'page-info');
+            pageTitle.textContent = infoNav?.label || '店家資訊';
         }
+    } catch(e) { console.error(e); }
 
-        const container = document.getElementById('store-info-container');
-        if (!container) return;
+    const container = document.getElementById('store-info-container');
+    if (!container) return;
+
+    // 預先顯示載入狀態
+    container.innerHTML = '<p style="text-align:center; padding:20px;">載入中...</p>';
+
+    try {
+        const response = await fetch('/api/get-store-info');
+        if (!response.ok) throw new Error('無法獲取店家資訊');
+        const info = await response.json();
         
+        // 重新生成 HTML，使用符合 CSS Grid 的結構 (移除多餘的 div 包裝)
+        // 每個 .info-section 包含一個 h2 (左) 和一個 p (右)
+        container.innerHTML = `
+            <div class="info-section">
+                <h2>地址</h2>
+                <p id="store-address">${info.address || '未提供'}</p>
+            </div>
+            <div class="info-section">
+                <h2>電話</h2>
+                <p id="store-phone">${info.phone || '未提供'}</p>
+            </div>
+            <div class="info-section">
+                <h2>營業時間</h2>
+                <p id="store-hours" style="white-space: pre-wrap;">${info.opening_hours || '未提供'}</p>
+            </div>
+            <div class="info-section">
+                <h2>店家介紹</h2>
+                <p id="store-description" style="white-space: pre-wrap;">${info.description || '未提供'}</p>
+            </div>
+        `;
 
-        const addressEl = container.querySelector('#store-address');
-        const phoneEl = container.querySelector('#store-phone');
-        const hoursEl = container.querySelector('#store-hours');
-        const descEl = container.querySelector('#store-description');
-
-        if (!addressEl || !phoneEl || !hoursEl || !descEl) {
-             console.warn("店家資訊頁面缺少部分元素 (address, phone, hours, or description)");
-             container.innerHTML = `<p>載入中...</p>`; 
-        } else {
-             addressEl.textContent = '讀取中...';
-             phoneEl.textContent = '讀取中...';
-             hoursEl.textContent = '讀取中...';
-             descEl.textContent = '讀取中...';
-        }
-
-        try {
-            const response = await fetch('/api/get-store-info');
-            if (!response.ok) throw new Error('無法獲取店家資訊');
-            const info = await response.json();
-            
-            const addressEl_post = container.querySelector('#store-address');
-            const phoneEl_post = container.querySelector('#store-phone');
-            const hoursEl_post = container.querySelector('#store-hours');
-            const descEl_post = container.querySelector('#store-description');
-
-            if (addressEl_post && phoneEl_post && hoursEl_post && descEl_post) {
-                addressEl_post.textContent = info.address || '未提供';
-                phoneEl_post.textContent = info.phone || '未提供';
-                hoursEl_post.textContent = info.opening_hours || '未提供';
-                descEl_post.textContent = info.description || '未提供';
-            } else {
-                 container.innerHTML = `
-                    <div class="info-section"><h2>地址</h2><p>${info.address || '未提供'}</p></div>
-                    <div class="info-section"><h2>電話</h2><p>${info.phone || '未提供'}</p></div>
-                    <div class="info-section"><h2>營業時間</h2><p style="white-space: pre-wrap;">${info.opening_hours || '未提供'}</p></div>
-                    <div class="info-section"><h2>店家介紹</h2><p style="white-space: pre-wrap;">${info.description || '未提供'}</p></div>
-                 `;
-            }
-
-        } catch (error) {
-            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
-        }
+    } catch (error) {
+        container.innerHTML = `<p style="color:var(--color-danger); text-align:center;">${error.message}</p>`;
     }
+}
 
 async function initializeEditProfilePage() {
 

@@ -34,18 +34,6 @@
     --box-shadow: 0 4px 12px rgba(164, 141, 120, 0.15); /* 帶有主色調的陰影 */
 }
 
-body {
-    background-color: var(--color-bg);
-    color: var(--color-text-primary);
-    font-family: var(--font-primary);
-    margin: 0;
-    padding-bottom: 80px;
-    /* 關鍵：隱藏水平捲軸，防止動畫導致頁面抖動 */
-    overflow-x: hidden; 
-    width: 100%;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-}
 
 img {
     max-width: 100%;
@@ -338,16 +326,6 @@ img {
     margin-top: 5px;
 }
 
-/* --- 7. 通用標題修正 --- */
-.page-main-title {
-    font-size: 1.4rem;
-    color: var(--color-primary);
-    font-weight: bold;
-    border-bottom: none; /* 移除下底線 */
-    text-align: left; /* 靠左 */
-    margin-bottom: 15px;
-    padding-left: 5px;
-}
 
 /* 修正首頁橫向捲動 */
 .horizontal-scroll-container {
@@ -378,7 +356,7 @@ body {
     font-family: var(--font-primary);
     background-color: var(--color-bg);
     color: var(--color-text-primary);
-    padding-top: 10px;  /* 為固定頂部 Header 預留空間 */
+    padding-top: 5px;
     padding-bottom: 70px; /* 為固定底部 TabBar 預留空間 */
 }
 
@@ -540,12 +518,17 @@ body {
 
 /* --- 3. 通用元件 (標題, 按鈕, 卡片, 表單) --- */
 .page-main-title {
-    font-size: 1.8rem;
+    /* 原本 1.8rem -> 改小一點 1.5rem */
+    font-size: 1.5rem; 
     color: var(--color-primary);
-    border-bottom: 2px solid var(--color-primary);
-    padding-bottom: 10px;
-    margin-bottom: 25px;
-    text-align: center;
+    font-weight: bold;
+    border-bottom: none;
+    text-align: left;
+    /* 減少下方邊距 */
+    margin-bottom: 10px; 
+    /* 減少上方邊距 */
+    margin-top: 0;       
+    padding-left: 5px;
 }
 
 .cta-button {
@@ -1343,3 +1326,63 @@ input:focus, select:focus, textarea:focus {
 .record-value { font-weight: bold; font-size: 1.1rem; }
 .val-plus { color: var(--color-success); }
 .val-minus { color: var(--color-danger); }
+
+#page-info {
+    height: 90vh; /* 限制高度 */
+    overflow: hidden; /* 隱藏滾動條 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 移除原本 .info-section 的卡片樣式 (背景、圓角、邊框) */
+#page-info .info-section {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px 0; /* 上下留白 */
+    margin-bottom: 0;
+    /* 使用單一細線分隔 */
+    border-bottom: 1px solid var(--color-secondary); 
+    
+    /* 使用 Grid 讓 標題(左) 與 內容(右) 並排 */
+    display: grid;
+    grid-template-columns: 80px 1fr; /* 左邊固定寬度，右邊填滿 */
+    align-items: flex-start;
+    gap: 15px;
+}
+
+/* 最後一個項目不要底線 */
+#page-info .info-section:last-child {
+    border-bottom: none;
+}
+
+#page-info .info-section h2 {
+    font-size: 1rem;
+    color: var(--color-primary);
+    margin: 0;
+    font-weight: bold;
+    /* 垂直置中微調 */
+    line-height: 1.5; 
+}
+
+#page-info .info-section p {
+    margin: 0;
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    
+    /* 限制顯示行數 (約兩行寬度/高度)，超過顯示 ... */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* 限制 2 行 */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- 3. 預約詳細頁面的取消按鈕樣式 (確保顯眼) --- */
+#details-cancel-booking-btn {
+    margin-top: 30px;
+    background-color: var(--color-danger);
+    color: white;
+    border: none;
+}

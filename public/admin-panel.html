@@ -1329,7 +1329,10 @@
                 <div class="form-group"><label for="campaign-title">活動標題 (必填)</label><input type="text" id="campaign-title" required></div>
                 <div class="form-group"><label for="campaign-description">活動說明 (選填)</label><textarea id="campaign-description" rows="3"></textarea></div>
                 <div class="form-group"><label for="campaign-required-stamps">所需集點數量 (必填)</label><input type="number" id="campaign-required-stamps" min="1" required></div>
-                <div class="form-group"><label for="campaign-reward-voucher">綁定獎勵優惠券 (Template ID)</label><input type="number" id="campaign-reward-voucher" placeholder="請輸入優惠券樣板ID" required></div>
+                <label for="campaign-reward-voucher">綁定獎勵優惠券 (必選)</label>
+                    <select id="campaign-reward-voucher" required style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; background-color: var(--color-sidebar-bg);">
+                    <option value="">-- 載入中 --</option>
+                    </select>                
                 <div class="form-group"><label for="campaign-dates">活動期間 (選填)</label><input type="text" id="campaign-dates" placeholder="選擇日期範圍"></div>
                 
                 <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #eee;">

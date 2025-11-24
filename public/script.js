@@ -2028,10 +2028,10 @@ function renderRallyPage() {
         return;
     }
 
-    if (listContainer) {
+if (listContainer) {
         listContainer.style.display = 'block';
         listContainer.innerHTML = rallyData.campaigns.map((campaign, index) => {
-            // 1. 計算進度 (【修正】只計算 is_archived = 0 的點數)
+            // 1. 計算進度 (保持不變)
             const progressList = Array.isArray(campaign.userProgress) ? campaign.userProgress : [];
             const activeStamps = progressList.filter(p => p.is_archived !== 1);
             const stampedIds = new Set(activeStamps.map(p => p.station_id));
@@ -2041,6 +2041,16 @@ function renderRallyPage() {
             const progressPercent = Math.min(100, Math.round((currentStamps / totalStamps) * 100));
             const isCompleted = currentStamps >= totalStamps;
             
+            // [新增] 判斷獎勵是否已兌換完畢
+            // 如果 total_supply 不是 null (有限量)，且已發數量 >= 總量 -> 視為額滿
+            // 注意：如果使用者自己已經領到了 (isCompleted)，則不顯示額滿，而是顯示已完成
+            let isRewardExhausted = false;
+            if (campaign.voucher_total_supply !== null) {
+                if (campaign.voucher_issued_count >= campaign.voucher_total_supply) {
+                    isRewardExhausted = true;
+                }
+            }
+
             // 2. 狀態顯示邏輯
             let badgeClass = 'badge-active';
             let badgeText = '進行中';
@@ -2048,25 +2058,35 @@ function renderRallyPage() {
             let btnHtml = '';
             let instructionHtml = '';
 
+            // 優先級判斷：
             if (isCompleted) {
+                // 狀況 A：已集滿 (使用者已經拿到獎勵了，或是等待重置)
                 badgeClass = 'badge-completed';
                 badgeText = '已集滿';
                 
                 if (campaign.can_repeat === 1) {
-                    // 可重複：顯示重置按鈕
-                    // 這裡的 QR Code 連結格式應符合 startRallyScanner 的解析邏輯
                     const resetLink = `https://liff.line.me/2008032417-3yJQGaO6/#page-rally?action=reset&campaign_id=${campaign.campaign_id}`;
                     btnHtml = `<button class="cta-button btn-start-scan" data-reset-link="${resetLink}" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-info);">🔄 掃描重置碼 (開啟新卡)</button>`;
                     instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-text-primary);">
                         <strong>🎉 恭喜完成！</strong><br>請掃描「重置 QR Code」將卡片歸檔並開始新的一輪。
                     </div>`;
                 } else {
-                    // 不可重複：顯示已完成
                     btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
                     instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-success);">您已完成此活動並獲得獎勵。</div>`;
                 }
+
+            } else if (isRewardExhausted) {
+                // 狀況 B：還沒集滿，但獎勵已經沒了 (且使用者尚未完成)
+                badgeClass = 'badge-expired'; // 灰色樣式
+                badgeText = '已兌換完畢'; // [需求 3]
+                
+                btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">活動已額滿</button>`;
+                instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">很抱歉，本活動獎勵已全數兌換完畢。</div>`;
+
             } else {
-                // 進行中
+                // 狀況 C：進行中，且還有獎勵
+                badgeClass = 'badge-active';
+                badgeText = '進行中';
                 btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
             }
 

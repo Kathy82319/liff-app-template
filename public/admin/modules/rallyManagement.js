@@ -93,18 +93,68 @@ function renderStationList(stations, campaignTitle) {
     }).join('');
 }
 
+// [新增] 輔助函式：產生下拉選單選項文字
+function getVoucherLabel(v) {
+    let typeStr = '';
+    let valueStr = '';
+    switch (v.type) {
+        case 'discount_fixed': typeStr = '折抵'; valueStr = `$${v.value}`; break;
+        case 'discount_percentage': typeStr = '折扣'; valueStr = `${v.value}%`; break;
+        case 'redeem_item': typeStr = '兌換'; valueStr = v.redeem_item_name; break;
+    }
+    const limitStr = (v.total_supply !== null) ? `[限量 ${v.total_supply}]` : '[無限量]';
+    return `${limitStr} ${v.title} - ${typeStr} ${valueStr}`;
+}
+
 // --- Helper: 開啟活動編輯 Modal ---
 function openCampaignModal(campaign = null) {
     const form = document.getElementById('edit-campaign-form');
     const modalTitle = document.getElementById('modal-campaign-title');
-    if (!form || !modalTitle) return;
+    const rewardSelect = document.getElementById('campaign-reward-voucher'); // 抓取 Select 元素
+
+    if (!form || !modalTitle || !rewardSelect) return;
 
     form.reset();
     document.getElementById('edit-campaign-id').value = campaign?.campaign_id || '';
     modalTitle.textContent = campaign ? '編輯集點活動' : '新增集點活動';
+
+    // --- 1. 填充優惠券下拉選單 ---
+    rewardSelect.innerHTML = '<option value="">-- 請選擇獎勵優惠券 --</option>';
     
-    const rewardLabel = form.querySelector('label[for="campaign-reward-voucher"]');
-    if(rewardLabel) rewardLabel.textContent = '綁定獎勵優惠券 (Template ID)';
+    // 過濾出「啟用中」的優惠券 (也可以不過濾，看需求，這裡建議只列出 active 的)
+    const availableVouchers = allVoucherTemplates.filter(v => v.is_active);
+    
+    availableVouchers.forEach(v => {
+        const option = document.createElement('option');
+        option.value = v.template_id;
+        option.textContent = getVoucherLabel(v);
+        // 將限量資訊存在 dataset 中，方便監聽事件讀取
+        if (v.total_supply !== null) {
+            option.dataset.totalSupply = v.total_supply;
+        }
+        rewardSelect.appendChild(option);
+    });
+
+    // --- 2. 綁定變更事件 (限量防呆警告) ---
+    // 移除舊的監聽器避免重複綁定 (雖然 openCampaignModal 每次都會重置 innerHTML option，但 element 本身還在)
+    const newRewardSelect = rewardSelect.cloneNode(true);
+    rewardSelect.parentNode.replaceChild(newRewardSelect, rewardSelect);
+    
+    newRewardSelect.addEventListener('change', async (e) => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const totalSupply = selectedOption.dataset.totalSupply;
+
+        if (totalSupply) {
+            // 觸發防呆警告
+            const confirmed = await ui.confirm(
+                `⚠️ 警告：您選擇的優惠券設有『發行限量』(上限 ${totalSupply} 張)！\n\n建議改用『無限量』的優惠券或者活動說明中標註『數量有限，換完為止』。\n\n是否繼續？`
+            );
+            
+            if (!confirmed) {
+                e.target.value = ""; // 使用者取消，重置選擇
+            }
+        }
+    });
 
     if (campaignDatepicker) campaignDatepicker.destroy();
     
@@ -112,11 +162,11 @@ function openCampaignModal(campaign = null) {
         document.getElementById('campaign-title').value = campaign.title;
         document.getElementById('campaign-description').value = campaign.description || '';
         document.getElementById('campaign-required-stamps').value = campaign.required_stamps;
-        document.getElementById('campaign-reward-voucher').value = campaign.reward_voucher_id;
         
-        // [新增] 讀取 can_repeat 狀態
+        // 設定選單的值
+        newRewardSelect.value = campaign.reward_voucher_id;
+        
         document.getElementById('campaign-can-repeat').checked = !!campaign.can_repeat;
-        
         document.getElementById('campaign-is-active').checked = !!campaign.is_active;
 
         let defaultDates = [];
@@ -130,9 +180,7 @@ function openCampaignModal(campaign = null) {
             defaultDate: defaultDates
         });
     } else {
-         // [新增] 新增時預設為關閉 (或開啟，視您需求而定)
          document.getElementById('campaign-can-repeat').checked = false;
-         
          campaignDatepicker = flatpickr("#campaign-dates", { mode: "range", dateFormat: "Y-m-d", locale: "zh_tw" });
     }
 

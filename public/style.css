@@ -168,54 +168,6 @@ img {
     transform: none; /* 移除縮放動畫 */
 }
 
-/* --- 3. 首頁懸浮按鈕 (集點趣) --- */
-.rally-fab-container {
-    position: fixed;
-    bottom: 90px; 
-    right: 20px;
-    z-index: 900;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    /* 限制動畫變形原點，避免位移過大 */
-    transform-origin: center bottom; 
-    /* 使用優化過的動畫 */
-    animation: rallyFloat 3s ease-in-out infinite;
-    /* 確保不會因為圖層重繪導致周圍元素閃爍 */
-    backface-visibility: hidden;
-    -webkit-font-smoothing: subpixel-antialiased;
-}
-.rally-fab-container:active { transform: scale(0.95); }
-
-.rally-fab-text {
-    background-color: #fff;
-    color: var(--color-primary);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    margin-bottom: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    border: 1px solid var(--color-primary);
-}
-
-.rally-fab-stamp {
-    width: 60px;
-    height: 60px;
-    background-color: #fff;
-    color: var(--color-primary); /* 使用主色 */
-    border: 2px solid var(--color-primary);
-    border-radius: 50%; /* 正圓形，不要不規則 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-.rally-fab-svg {
-    width: 30px; height: 30px; fill: currentColor;
-}
-
 /* --- 4. 會員中心 (新版排版) --- */
 /* 個人資料卡片 */
 .profile-card-container {
@@ -1244,19 +1196,23 @@ input:focus, select:focus, textarea:focus {
 /* =========================================
    [新增] 首頁集點趣懸浮按鈕 (塗鴉印章風)
    ========================================= */
+/* --- 3. 首頁懸浮按鈕 (集點趣) --- */
 .rally-fab-container {
     position: fixed;
-    bottom: 90px; /* 位於 Tab Bar (70px) 之上 */
+    bottom: 90px; 
     right: 20px;
     z-index: 900;
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    /* 懸浮動畫 */
+    /* 限制動畫變形原點，避免位移過大 */
+    transform-origin: center bottom; 
+    /* 使用優化過的動畫 */
     animation: rallyFloat 3s ease-in-out infinite;
     transition: transform 0.2s;
 }
+.rally-fab-container:active { transform: scale(0.95); }
 
 .rally-fab-container:active {
     transform: scale(0.95);
@@ -1312,6 +1268,7 @@ input:focus, select:focus, textarea:focus {
     opacity: 0.9;
 }
 
+
 /* 懸浮動畫關鍵影格 */
 @keyframes rallyFloat {
     0% { transform: translateY(0px) rotate(0deg); }
@@ -1326,3 +1283,4 @@ input:focus, select:focus, textarea:focus {
     /* 稍微旋轉一點，增加手蓋印章的隨性感 */
     transform: rotate(5deg); 
 }
+

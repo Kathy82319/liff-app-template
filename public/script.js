@@ -74,12 +74,6 @@ function calculateTotalPrice() {
     estimatedTotalPriceEl.textContent = `$${Math.round(total)}`; 
 }
 
-/**
- * 根據 API 回應渲染房型列表 (v3 - 修正 ReferenceError)
- * @param {object} availabilityData - 從 /api/room-availability 獲取的資料
- * @param {string} startDate - 入住日期 YYYY-MM-DD
- * @param {string} endDate - 退房日期 YYYY-MM-DD
- */
 function renderRoomList(availabilityData, startDate, endDate) {
     const container = document.getElementById('room-selection-container');
     const detailsForm = document.getElementById('booking-details-form');
@@ -88,10 +82,10 @@ function renderRoomList(availabilityData, startDate, endDate) {
     guesthouseBookingData.roomAvailability = availabilityData; 
     guesthouseBookingData.selectedRooms = {}; 
 
-    const productsToRender = allProducts.filter(p => p.is_visible); //
+    const productsToRender = allProducts.filter(p => p.is_visible);
 
     if (productsToRender.length === 0) {
-        container.innerHTML = '<p>目前沒有可顯示的房型。</p>';
+        container.innerHTML = '<p style="text-align:center;">目前沒有可預訂的房型。</p>';
         detailsForm.style.display = 'none';
         return;
     }
@@ -102,48 +96,22 @@ function renderRoomList(availabilityData, startDate, endDate) {
         const roomInfo = availabilityData[product.product_id];
         let isOverallAvailable = false;
         let maxQuantity = 0;
-        let priceText = '價格洽詢';
-        let unavailabilityMessage = '';
+        let priceText = '洽詢';
         let disableQuantitySelector = true; 
 
         if (roomInfo) { 
              isOverallAvailable = roomInfo.isAvailable;
              maxQuantity = roomInfo.minAvailableQuantity || 0;
-             priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight} / 晚` : '價格洽詢';
-
-            if (!isOverallAvailable && roomInfo.dailyDetails && roomInfo.dailyDetails.length > 0) {
-                const unavailableDatesInfo = []; 
-                for (const daily of roomInfo.dailyDetails) {
-                    if (!daily.isBookable) { 
-                        let reason = '';
-                        if(daily.status === 'Closed'){ //
-                            reason = '未開放';
-                        } else if (daily.available <= 0) { //
-                            reason = '已售完';
-                        } else if (daily.price === null || daily.price <= 0) { //
-                            reason = '價格未定';
-                        } else {
-                            reason = '暫不可訂'; 
-                        }
-                        const dateParts = daily.date.split('-');
-                        unavailableDatesInfo.push(`${dateParts[1]}/${dateParts[2]} ${reason}`);
-                    }
-                }
-                if (unavailableDatesInfo.length > 0) {
-                    unavailabilityMessage = `(${unavailableDatesInfo.slice(0, 3).join(', ')}${unavailableDatesInfo.length > 3 ? '...' : ''})`;
-                }
-            }
+             priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight}` : '價格洽詢';
 
             if (isOverallAvailable) {
                  disableQuantitySelector = false;
                  hasAnyBookableRoom = true; 
             }
-        } else {
-             unavailabilityMessage = '(此期間不可預訂)';
         }
 
-        const images = JSON.parse(product.images || '[]'); //
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x80/112240/ccd6f6?text=Room'; //
+        const images = JSON.parse(product.images || '[]');
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x100/E6DAC8/A48D78?text=Room';
 
         let quantityOptions = '<option value="0">0</option>';
         if (!disableQuantitySelector) {
@@ -152,29 +120,29 @@ function renderRoomList(availabilityData, startDate, endDate) {
             }
         }
 
+        // [修改] 使用新版 CSS 類別 .room-item
         return `
-            <div class="room-selection-item ${!isOverallAvailable ? 'unavailable-room' : ''}" data-product-id="${product.product_id}" style="display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 15px; ${!isOverallAvailable ? 'opacity: 0.6;' : ''}">
-                <img src="${imageUrl}" alt="${product.name}" style="width: 100px; height: 80px; object-fit: cover; border-radius: var(--border-radius);">
-                <div style="flex-grow: 1;">
-                    <h4 style="margin: 0 0 5px 0;">
-                        ${product.name}
-                        ${unavailabilityMessage ? `<span style="font-size: 0.8em; color: var(--color-danger); font-weight: normal; margin-left: 5px;">${unavailabilityMessage}</span>` : ''}
-                    </h4>
-                    <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--color-text-secondary);">${product.description ? product.description.substring(0, 50) + '...' : ''}</p>
-                    <p style="margin: 0; font-weight: bold; color: var(--color-primary);">${priceText}</p>
+            <div class="room-item ${!isOverallAvailable ? 'unavailable' : ''}" style="${!isOverallAvailable ? 'opacity: 0.5;' : ''}">
+                <img src="${imageUrl}" class="room-thumb" alt="${product.name}">
+                
+                <div class="room-content">
+                    <div class="room-name">${product.name}</div>
+                    <div class="room-price">${priceText} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
                 </div>
-                <div style="width: 80px;">
-                    <label for="room-qty-${product.product_id}" style="font-size: 0.8em; display: block; margin-bottom: 5px;">數量:</label>
-                    <select id="room-qty-${product.product_id}" class="room-quantity-select" data-product-id="${product.product_id}" style="width: 100%;" ${disableQuantitySelector ? 'disabled' : ''}>
+
+                <div class="room-controls">
+                    <label style="font-size: 0.75rem; color: var(--color-text-secondary);">數量</label>
+                    <select id="room-qty-${product.product_id}" class="room-qty-select" data-product-id="${product.product_id}" ${disableQuantitySelector ? 'disabled' : ''}>
                         ${quantityOptions}
                     </select>
-                    ${!disableQuantitySelector ? `<p style="font-size: 0.8em; color: var(--color-text-secondary); margin-top: 5px;">剩 ${maxQuantity} 間</p>` : ''}
+                    ${!disableQuantitySelector ? `<span class="room-stock-badge">剩 ${maxQuantity}</span>` : ''}
                 </div>
             </div>
         `;
     }).join('');
 
-    container.querySelectorAll('.room-quantity-select:not([disabled])').forEach(select => {
+    // 綁定數量變更事件
+    container.querySelectorAll('.room-qty-select:not([disabled])').forEach(select => {
         select.addEventListener('change', (e) => {
             const productId = e.target.dataset.productId;
             const quantity = parseInt(e.target.value, 10);
@@ -188,18 +156,13 @@ function renderRoomList(availabilityData, startDate, endDate) {
     });
 
     detailsForm.style.display = hasAnyBookableRoom ? 'block' : 'none';
-
-    if (!hasAnyBookableRoom && productsToRender.length > 0) { 
-         container.innerHTML += '<p style="text-align: center; color: var(--color-danger);">您選擇的日期範圍內所有房型暫時無法預訂。</p>'; 
-    }
-    const returnedProductIds = Object.keys(availabilityData);
-    if (returnedProductIds.length === 0 && productsToRender.length > 0) { 
-         container.innerHTML = '<p style="text-align: center; color: var(--color-danger);">無法獲取您選擇日期範圍的房況資訊。</p>';
+    
+    if (!hasAnyBookableRoom) {
+         container.innerHTML += '<p style="text-align: center; color: var(--color-danger); margin-top: 10px;">所選日期已無空房。</p>';
     }
 
     calculateTotalPrice();
 }
-
 
 function getPriceForDate(dateString, product) {
     if (!dateString || !product) return product?.price_weekday || null; 
@@ -829,44 +792,49 @@ if (!showStoredValue) {
     // 各頁面初始化函式
     // =================================================================
     
-        async function initializeHomePage() {
-        
+async function initializeHomePage() {
+    // 綁定懸浮按鈕 (FAB)
     const rallyFab = document.getElementById('rally-fab-btn');
     if (rallyFab && !rallyFab.dataset.listenerAttached) {
-            rallyFab.addEventListener('click', () => {
-                showPage('page-rally'); // 跳轉到集點頁面
-            });
-            rallyFab.dataset.listenerAttached = 'true';
+        rallyFab.addEventListener('click', () => {
+            showPage('page-rally');
+        });
+        rallyFab.dataset.listenerAttached = 'true';
     }
 
-        const terms = activeTemplate?.terms || {};
-        try {
-            const pageTitle = appContent.querySelector('#page-home .page-main-title');
-            if (pageTitle) {
-                pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
-            }
-        } catch(e) {
-            console.error("設定 Home 標題失敗:", e);
+    // 設定標題
+    const terms = activeTemplate?.terms || {};
+    try {
+        const pageTitle = appContent.querySelector('#page-home .page-main-title');
+        if (pageTitle) {
+            pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
         }
-
-        const container = document.getElementById('news-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
-        try {
-            const response = await fetch('api/get-news');
-            if (!response.ok) {
-                const newsTitle = terms.NEWS_PAGE_TITLE || '情報';
-                throw new Error(`無法獲取${newsTitle}`);
-            }
-            allNews = await response.json();
-            
-            setupNewsFilters(); 
-            renderNews(); 
-        } catch (error) {
-            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
-        }
+    } catch(e) {
+        console.error("設定 Home 標題失敗:", e);
     }
 
+    // 載入最新情報
+    const container = document.getElementById('news-list-container');
+    if (!container) return;
+    
+    // 標示載入中
+    container.innerHTML = `<p style="padding: 10px; color: var(--color-text-secondary);">載入中...</p>`;
+    
+    try {
+        const response = await fetch('api/get-news');
+        if (!response.ok) throw new Error('無法獲取情報');
+        
+        allNews = await response.json();
+        
+        // 使用橫向捲動樣式渲染 (CSS 已配合調整)
+        // renderNews 函式本身不需要大改，只要容器 class 正確即可
+        setupNewsFilters(); 
+        renderNews(); 
+        
+    } catch (error) {
+        container.innerHTML = `<p style="padding: 10px; color:var(--color-danger);">載入失敗: ${error.message}</p>`;
+    }
+}
 
     function renderNews(filterCategory = 'ALL') {
         const container = document.getElementById('news-list-container');

@@ -725,36 +725,40 @@ function renderBookings(bookings, container, isPast = false) {
 
 
 
-// --- 修正 1：會員中心顯示邏輯 ---
 function updateProfileDisplay(data) {
     if (!data) return;
 
     const terms = activeTemplate?.terms || {};
     const features = activeTemplate?.features || {};
+    // 讀取設定：是否顯示儲值金 (預設為顯示)
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
 
-    // 顯示真實姓名或 LINE 暱稱
+    // 1. 顯示真實姓名或 LINE 暱稱
     const displayNameEl = document.getElementById('display-name');
     if (displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
 
-    // 顯示等級/方案
+    // 2. 顯示等級/方案
     const classEl = document.getElementById('user-class');
     const levelEl = document.getElementById('user-level');
     if (classEl) classEl.textContent = data.class || '一般會員';
     if (levelEl) levelEl.textContent = `Lv.${data.level} (點數: ${data.current_exp})`;
 
-    // 顯示/隱藏 儲值金 (關鍵修正：正確選取 balance-container)
+    // 3. 【修正】顯示/隱藏 儲值金
+    // 直接選取您的 HTML 中的 container ID
     const storedValueEl = document.getElementById('user-stored-value');
     const balanceContainer = document.getElementById('balance-container');
 
     if (showStoredValue) {
+        // 更新金額
         if (storedValueEl) storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
-        if (balanceContainer) balanceContainer.style.display = 'flex'; // 使用 flex 以配合 CSS
+        // 顯示容器 (使用 flex 以維持 style.css 中的排版)
+        if (balanceContainer) balanceContainer.style.display = 'flex';
     } else {
+        // 隱藏容器
         if (balanceContainer) balanceContainer.style.display = 'none';
     }
 
-    // 顯示/隱藏 特殊優惠行
+    // 4. 顯示/隱藏 特殊優惠行
     const perkP = document.getElementById('user-perk-line');
     if (perkP) {
         if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
@@ -763,6 +767,13 @@ function updateProfileDisplay(data) {
         } else {
             perkP.style.display = 'none';
         }
+    }
+    
+    // 5. QR Code 顯示控制
+    const qrcodeContainer = document.getElementById('qrcode-container');
+    // 如果 features 中有設定 PROFILE_SHOW_QR_CODE 且為 false，則隱藏
+    if (features.PROFILE_SHOW_QR_CODE === false && qrcodeContainer) {
+         qrcodeContainer.style.display = 'none';
     }
 }
 

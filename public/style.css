@@ -40,12 +40,13 @@ body {
     font-family: var(--font-primary);
     margin: 0;
     padding-bottom: 80px;
-    /* 關鍵：強制移除可能導致晃動的全域動畫，並隱藏水平捲軸 */
-    animation: none !important; 
+    /* 關鍵：隱藏水平捲軸，防止動畫導致頁面抖動 */
     overflow-x: hidden; 
     width: 100%;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
+
 img {
     max-width: 100%;
     height: auto;
@@ -68,17 +69,16 @@ img {
     padding: 10px;
     margin-bottom: 10px;
     width: 100%;
-    box-sizing: border-box; /* 確保 padding 不會撐大寬度 */
-    overflow: hidden; /* 防止內容溢出 */
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
-/* 圖片固定大小限制 */
 .room-thumb {
-    width: 80px;  /* 固定寬度 */
-    height: 80px; /* 固定高度 */
-    object-fit: cover; /* 裁切不變形 */
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
     border-radius: 6px;
-    flex-shrink: 0; /* 防止被壓縮 */
+    flex-shrink: 0;
     margin-right: 15px;
     background-color: #eee;
 }
@@ -178,8 +178,13 @@ img {
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    /* 限制動畫範圍，避免影響佈局 */
+    /* 限制動畫變形原點，避免位移過大 */
     transform-origin: center bottom; 
+    /* 使用優化過的動畫 */
+    animation: rallyFloat 3s ease-in-out infinite;
+    /* 確保不會因為圖層重繪導致周圍元素閃爍 */
+    backface-visibility: hidden;
+    -webkit-font-smoothing: subpixel-antialiased;
 }
 .rally-fab-container:active { transform: scale(0.95); }
 
@@ -1310,7 +1315,7 @@ input:focus, select:focus, textarea:focus {
 /* 懸浮動畫關鍵影格 */
 @keyframes rallyFloat {
     0% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-6px) rotate(2deg); }
+    50% { transform: translateY(-5px) rotate(2deg); } /* 位移減小為 -5px，旋轉減為 2deg */
     100% { transform: translateY(0px) rotate(0deg); }
 }
 /* [新增] SVG 圖示的樣式 */

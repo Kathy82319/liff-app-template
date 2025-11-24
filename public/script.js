@@ -112,7 +112,7 @@ function renderRoomList(availabilityData, startDate, endDate) {
         }
 
         const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x100/E6DAC8/A48D78?text=Room';
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x100/E6DAC8/A48D78?text=No+Image';
 
         let quantityOptions = '<option value="0">0</option>';
         if (!disableQuantitySelector) {
@@ -121,18 +121,18 @@ function renderRoomList(availabilityData, startDate, endDate) {
             }
         }
 
-        // [修改] 使用新版 CSS 類別 .room-item
+        // 【關鍵】使用符合 CSS 的結構：room-item, room-thumb, room-content
         return `
-            <div class="room-item ${!isOverallAvailable ? 'unavailable' : ''}" style="${!isOverallAvailable ? 'opacity: 0.5;' : ''}">
+            <div class="room-item" style="${!isOverallAvailable ? 'opacity: 0.6; background-color: #f9f9f9;' : ''}">
                 <img src="${imageUrl}" class="room-thumb" alt="${product.name}">
                 
                 <div class="room-content">
                     <div class="room-name">${product.name}</div>
                     <div class="room-price">${priceText} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
+                    ${!isOverallAvailable ? '<span style="color:red; font-size:0.8rem;">已售完</span>' : ''}
                 </div>
 
                 <div class="room-controls">
-                    <label style="font-size: 0.75rem; color: var(--color-text-secondary);">數量</label>
                     <select id="room-qty-${product.product_id}" class="room-qty-select" data-product-id="${product.product_id}" ${disableQuantitySelector ? 'disabled' : ''}>
                         ${quantityOptions}
                     </select>
@@ -142,7 +142,7 @@ function renderRoomList(availabilityData, startDate, endDate) {
         `;
     }).join('');
 
-    // 綁定數量變更事件
+    // 綁定事件 (保持原樣)
     container.querySelectorAll('.room-qty-select:not([disabled])').forEach(select => {
         select.addEventListener('change', (e) => {
             const productId = e.target.dataset.productId;
@@ -725,70 +725,48 @@ function renderBookings(bookings, container, isPast = false) {
 
 
 
+// --- 修正 1：會員中心顯示邏輯 ---
 function updateProfileDisplay(data) {
-        if (!data) return;
+    if (!data) return;
 
-        const terms = activeTemplate?.terms || {};
-        const features = activeTemplate?.features || {};
-        const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
-        // 優先顯示真實姓名，若無則顯示 LINE 暱稱
-        const displayNameEl = document.getElementById('display-name');
-        if(displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
+    const terms = activeTemplate?.terms || {};
+    const features = activeTemplate?.features || {};
+    const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
 
-        const classP = document.querySelector('.profile-stats p:nth-of-type(1)');
-        const levelP = document.querySelector('.profile-stats p:nth-of-type(2)');
-        const expP = document.querySelector('.profile-stats p:nth-of-type(3)');
-        const perkP = document.getElementById('user-perk-line');
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        
-        // 【修正】補上這一行變數定義！
-        const storedValueEl = document.getElementById('user-stored-value');
-if (!showStoredValue) {
-        if (storedValueEl) {
-            const parentP = storedValueEl.closest('p'); 
-            if (parentP) parentP.style.display = 'none';
-        }
+    // 顯示真實姓名或 LINE 暱稱
+    const displayNameEl = document.getElementById('display-name');
+    if (displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
+
+    // 顯示等級/方案
+    const classEl = document.getElementById('user-class');
+    const levelEl = document.getElementById('user-level');
+    if (classEl) classEl.textContent = data.class || '一般會員';
+    if (levelEl) levelEl.textContent = `Lv.${data.level} (點數: ${data.current_exp})`;
+
+    // 顯示/隱藏 儲值金 (關鍵修正：正確選取 balance-container)
+    const storedValueEl = document.getElementById('user-stored-value');
+    const balanceContainer = document.getElementById('balance-container');
+
+    if (showStoredValue) {
+        if (storedValueEl) storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+        if (balanceContainer) balanceContainer.style.display = 'flex'; // 使用 flex 以配合 CSS
     } else {
-        if (storedValueEl) {
-            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
-            const parentP = storedValueEl.closest('p');
-            if (parentP) parentP.style.display = 'block';
-        }
+        if (balanceContainer) balanceContainer.style.display = 'none';
     }
-        if (features.ENABLE_MEMBERSHIP_SYSTEM) {
-            if (classP) {
-                 classP.style.display = 'block';
-                 classP.innerHTML = `<strong>${terms.PROFILE_CLASS_LABEL || '會員方案'}：</strong><span>${data.class || "無"}</span>`;
-            }
-            if (levelP) {
-                 levelP.style.display = 'block';
-                 levelP.innerHTML = `<strong>${terms.PROFILE_LEVEL_LABEL || '等級'}：</strong><span>${data.level}</span>`;
-            }
-            if (expP) {
-                 expP.style.display = 'block';
-                 expP.innerHTML = `<strong>${terms.PROFILE_POINTS_LABEL || '點數'}：</strong><span>${data.current_exp} / 10</span>`;
-            }
-            if (perkP) {
-                if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
-                    perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
-                    perkP.style.display = 'block';
-                } else {
-                    perkP.style.display = 'none';
-                }
-            }
+
+    // 顯示/隱藏 特殊優惠行
+    const perkP = document.getElementById('user-perk-line');
+    if (perkP) {
+        if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
+            perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
+            perkP.style.display = 'block';
         } else {
-            if (qrcodeContainer) qrcodeContainer.style.display = 'none'; 
-            if (classP) classP.style.display = 'none';
-            if (levelP) levelP.style.display = 'none';
-            if (expP) expP.style.display = 'none';
-            if (perkP) perkP.style.display = 'none';
-        }
-        
-        // 【修正】現在這段程式碼可以安全執行了
-        if (storedValueEl) {
-            storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
+            perkP.style.display = 'none';
         }
     }
+}
+
+
     // =================================================================
     // 各頁面初始化函式
     // =================================================================

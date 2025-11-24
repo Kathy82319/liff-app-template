@@ -39,12 +39,96 @@ body {
     color: var(--color-text-primary);
     font-family: var(--font-primary);
     margin: 0;
-    /* 確保底部 Tab Bar 不會擋住內容 */
-    padding-bottom: 80px; 
-    /* 移除可能會導致晃動的 body 動畫 */
+    padding-bottom: 80px;
+    /* 關鍵：強制移除可能導致晃動的全域動畫，並隱藏水平捲軸 */
     animation: none !important; 
+    overflow-x: hidden; 
+    width: 100%;
+    box-sizing: border-box;
+}
+img {
+    max-width: 100%;
+    height: auto;
 }
 
+/* --- 修正 2：訂位頁面 (民宿/工作室) 樣式優化 --- */
+/* 訂位項目的容器 */
+#room-selection-container {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 單個房間/項目卡片 */
+.room-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-secondary);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box; /* 確保 padding 不會撐大寬度 */
+    overflow: hidden; /* 防止內容溢出 */
+}
+
+/* 圖片固定大小限制 */
+.room-thumb {
+    width: 80px;  /* 固定寬度 */
+    height: 80px; /* 固定高度 */
+    object-fit: cover; /* 裁切不變形 */
+    border-radius: 6px;
+    flex-shrink: 0; /* 防止被壓縮 */
+    margin-right: 15px;
+    background-color: #eee;
+}
+
+/* 中間文字內容 */
+.room-content {
+    flex-grow: 1;
+    min-width: 0; /* 允許文字截斷 */
+    margin-right: 10px;
+}
+
+.room-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    margin-bottom: 5px;
+    /* 文字過長省略 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.room-price {
+    color: var(--color-primary);
+    font-weight: bold;
+}
+
+/* 右側控制項 (數量選擇) */
+.room-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.room-qty-select {
+    padding: 5px;
+    border: 1px solid var(--color-secondary);
+    border-radius: 4px;
+    background-color: #fff;
+    width: 60px; /* 固定選單寬度 */
+    text-align: center;
+}
+
+.room-stock-badge {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 4px;
+}
 /* --- 2. 貼齊底部的 Tab Bar (修正版) --- */
 #tab-bar {
     position: fixed;
@@ -87,15 +171,15 @@ body {
 /* --- 3. 首頁懸浮按鈕 (集點趣) --- */
 .rally-fab-container {
     position: fixed;
-    bottom: 80px; /* Tab Bar 上方 */
+    bottom: 90px; 
     right: 20px;
     z-index: 900;
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    /* 這裡保留輕微的懸浮感，但不影響整個頁面 */
-    transition: transform 0.2s;
+    /* 限制動畫範圍，避免影響佈局 */
+    transform-origin: center bottom; 
 }
 .rally-fab-container:active { transform: scale(0.95); }
 

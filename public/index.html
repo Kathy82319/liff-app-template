@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店務管理系統</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -277,37 +278,28 @@
         </div>
 
         <div id="page-home">
-<div id="rally-fab-btn" class="rally-fab-container">
-    <div class="rally-fab-text">集點趣</div>
-    <div class="rally-fab-stamp">
-        <svg class="rally-fab-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </svg>
-        </div>
-<div style="padding: 10px 5px 5px 5px;">
-        <h2 style="margin:0; font-size:1.3rem; color:var(--color-primary);">探索最新</h2>
-    </div>
-    
-    <div id="news-list-container" style="min-height: 200px;">
-        <p>正在載入...</p>
-    </div>
-
-    <div style="padding: 10px 5px 5px 5px; margin-top: 10px; display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="margin:0; font-size:1.3rem; color:var(--color-primary);">熱門項目</h2>
-        <button onclick="showPage('page-products')" style="background:none; border:none; color:var(--color-text-secondary); font-size:0.9rem;">查看全部 &rarr;</button>
-    </div>
-    <div id="home-featured-products" class="view-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        </div>
-
-</div>
+            <div id="rally-fab-btn" class="rally-fab-container">
+                <div class="rally-fab-text">集點趣</div>
+                <div class="rally-fab-stamp">
+                    <svg class="rally-fab-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                        <path d="M0 0h24v24H0z" fill="none"/>
+                    </svg>
+                </div>
+            </div>
 
             <div class="news-header">
                 <div class="news-header-decoration"></div>
                 <h1 class="page-main-title">最新情報</h1>
             </div>
-            <div id="news-filter-container"><p>讀取中...</p></div>
-            <div id="news-list-container"><p>正在載入最新情報...</p></div>
+            
+            <div id="news-filter-container" style="margin-bottom: 15px;">
+                <p>讀取中...</p>
+            </div>
+            
+            <div id="news-list-container">
+                <p>正在載入最新情報...</p>
+            </div>
         </div>
 
         <div id="page-products">
@@ -395,7 +387,7 @@
                     <h2 id="display-name">讀取中...</h2>
                     <p id="user-class">一般會員</p>
                     <p id="user-level">Level 1</p>
-                    <p id="user-stored-value">$0</strong></p>
+                    <p id="user-stored-value">$0</p>
                 </div>
             </div>
             <div class="profile-qrcode-box">

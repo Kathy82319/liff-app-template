@@ -1268,13 +1268,6 @@ input:focus, select:focus, textarea:focus {
     opacity: 0.9;
 }
 
-
-/* 懸浮動畫關鍵影格 */
-@keyframes rallyFloat {
-    0% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-5px) rotate(2deg); } /* 位移減小為 -5px，旋轉減為 2deg */
-    100% { transform: translateY(0px) rotate(0deg); }
-}
 /* [新增] SVG 圖示的樣式 */
 .rally-fab-svg {
     width: 32px; /* 設定合適的大小 */

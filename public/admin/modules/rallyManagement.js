@@ -412,21 +412,29 @@ function setupEventListeners() {
                 const station = stationList.find(s => s.station_id == stationId);
                 if (station) openStationModal(station);
             } else if (target.matches('.btn-delete-station')) {
-                // [修改] 定義遞迴刪除函式以處理防呆邏輯
+                // 定義刪除函式
                 const executeStationDelete = async (force = false) => {
+                    console.log(`[Delete Station] Executing delete for ID: ${stationId}, Force: ${force}`);
                     try {
-                        // 呼叫 API，支援 force 參數
+                        // 呼叫 API
                         await api.deleteRallyStation(Number(stationId), force);
                         ui.toast.success('站點已刪除！');
+                        
+                        // 刪除成功後重新載入列表
                         const titleEl = document.getElementById('current-campaign-title');
                         const title = titleEl ? titleEl.textContent.replace(/^活動：| 的站點管理$/g, '') : '';
-                        await loadStationsForCampaign(currentCampaignId, title);
+                        if (currentCampaignId) await loadStationsForCampaign(currentCampaignId, title);
+
                     } catch (error) {
-                        // 檢查是否為「影響人數」的錯誤 (error.data 由 api.js 提供)
+                        console.error("[Delete Station] Error:", error);
+                        // 檢查是否為「影響人數」的錯誤 (409)
                         if (error.data && error.data.error === 'affected_users') {
                             const confirmForce = await ui.confirm(`⚠️ 警告：${error.data.message}\n\n這些使用者的進度將會倒退或消失。\n確定要強制刪除嗎？`);
                             if (confirmForce) {
-                                await executeStationDelete(true); // 強制刪除
+                                console.log("[Delete Station] User confirmed force delete.");
+                                await executeStationDelete(true); // 遞迴呼叫，強制刪除
+                            } else {
+                                console.log("[Delete Station] User cancelled force delete.");
                             }
                         } else {
                             ui.toast.error(`刪除失敗: ${error.message}`);
@@ -434,6 +442,7 @@ function setupEventListeners() {
                     }
                 };
 
+                // 初次呼叫 (非強制)
                 const confirmed = await ui.confirm('確定要刪除此站點嗎？');
                 if (confirmed) {
                     executeStationDelete(false); // 第一次嘗試 (非強制)

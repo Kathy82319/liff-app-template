@@ -164,4 +164,9 @@ export const api = {
     deleteRallyStation: (station_id) => request('/api/admin/rally/stations', { method: 'DELETE', body: JSON.stringify({ station_id }) }),
     // --- Admin Misc ---
     resetDemoData: () => request('/api/admin/reset-demo-data', { method: 'POST' }),
+
+    deleteRallyStation: (station_id, force = false) => request('/api/admin/rally/stations', { 
+        method: 'DELETE', 
+        body: JSON.stringify({ station_id, force }) 
+    }),
 };

@@ -791,3 +791,55 @@ input:focus, select:focus, textarea:focus {
 .mini-station-card {
     cursor: pointer; 
 }
+
+/* =========================================
+   [新增] 通用 Modal 彈窗樣式
+   ========================================= */
+.modal-overlay {
+    position: fixed;       /* 關鍵：固定定位，讓它浮在視窗上 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* 深色半透明背景 */
+    display: none;         /* 預設隱藏 */
+    justify-content: center; /* 水平置中 */
+    align-items: center;     /* 垂直置中 */
+    z-index: 2000;         /* 層級設高一點，蓋過其他內容 */
+    padding: 15px;
+    box-sizing: border-box;
+    backdrop-filter: blur(2px); /* 增加一點背景模糊質感 */
+}
+
+.modal-content {
+    background-color: var(--color-card-bg); /* 跟隨主題卡片背景色 */
+    padding: 20px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;      /* 限制最大寬度 */
+    max-height: 85vh;      /* 防止太高超出螢幕 */
+    overflow-y: auto;      /* 內容太多時可捲動 */
+    border: 1px solid var(--color-secondary);
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); /* 增加陰影立體感 */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--color-secondary);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.modal-close {
+    font-size: 1.8rem;
+    font-weight: bold;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    padding: 0 5px;
+    line-height: 1;
+}

@@ -868,39 +868,29 @@ if (!showStoredValue) {
     }
 
 
-function renderNews(filterCategory = 'ALL') {
-    const container = document.getElementById('news-list-container');
-    if (!container) return;
-    
-    // [修改] 改用 horizontal-scroll-container 樣式
-    container.className = 'horizontal-scroll-container';
-
-    const filteredNews = (filterCategory === 'ALL') ? allNews : allNews.filter(news => news.category === filterCategory);
-    
-    if (filteredNews.length === 0) {
-        // 如果沒資料，恢復一般樣式顯示提示
-        container.className = ''; 
-        container.innerHTML = `<p style="padding:10px; color:#999;">目前沒有最新情報。</p>`;
-        return;
+    function renderNews(filterCategory = 'ALL') {
+        const container = document.getElementById('news-list-container');
+        if (!container) return;
+        const filteredNews = (filterCategory === 'ALL') ? allNews : allNews.filter(news => news.category === filterCategory);
+        if (filteredNews.length === 0) {
+            container.innerHTML = `<p>這個分類目前沒有${CONFIG.TERMS.NEWS_PAGE_TITLE}。</p>`;
+            return;
+        }
+        container.innerHTML = filteredNews.map(news => {
+            const snippet = news.content ? news.content.substring(0, 50) + '...' : '';
+            const imageHTML = news.image_url ? `<img src="${news.image_url}" alt="${news.title}" class="news-card-image">` : '';
+            return `
+            <div class="news-card" data-news-id="${news.id}">
+                <div class="news-card-header">
+                    <span class="news-card-category">${news.category}</span>
+                    <span class="news-card-date">${news.published_date}</span>
+                </div>
+                ${imageHTML}
+                <h3 class="news-card-title">${news.title}</h3>
+                <p class="news-card-snippet">${snippet}</p>
+            </div>`;
+        }).join('');
     }
-
-    // [修改] 生成橫向卡片 (Horizontal Card)
-    container.innerHTML = filteredNews.map(news => {
-        const imageHTML = news.image_url 
-            ? `<img src="${news.image_url}" alt="${news.title}">` 
-            : `<div style="height:140px; background:#eee; display:flex; align-items:center; justify-content:center; color:#ccc;">無圖片</div>`;
-            
-        // 移除日期，只保留標題和類別，讓畫面更乾淨
-        return `
-        <div class="horizontal-card news-card" data-news-id="${news.id}" onclick="showPage('page-news-details', { news: allNews.find(n=>n.id==${news.id}) })">
-            ${imageHTML}
-            <div class="horizontal-card-content">
-                <span style="font-size:0.75rem; color:var(--color-accent); font-weight:bold;">${news.category}</span>
-                <h3 style="margin: 5px 0 0 0; font-size:1rem; line-height:1.3; color:var(--color-text-primary);">${news.title}</h3>
-            </div>
-        </div>`;
-    }).join('');
-}
 
     function setupNewsFilters() {
         const container = document.getElementById('news-filter-container');
@@ -1784,7 +1774,7 @@ function renderProducts() {
         return;
     }
 
-    container.innerHTML = filteredProducts.map(product => {
+ container.innerHTML = filteredProducts.map(product => {
         let priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
         // 如果是列表模式，顯示更多資訊；如果是網格，顯示精簡資訊
         const isList = productView.layout === 'list';
@@ -1806,6 +1796,7 @@ function renderProducts() {
             </div>
         `;
     }).join('');
+}
 
 function populateFilters() {
     const container = document.getElementById('dynamic-filter-container');

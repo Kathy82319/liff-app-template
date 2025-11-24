@@ -636,7 +636,7 @@ function renderBookings(bookings, container, isPast = false) {
             dateDisplay = `${b.booking_date} ${b.time_slot || ''}`;
         }
 
-        // 2. 房型/項目顯示 (項目名稱 x 數量)
+        // 2. 房型/項目顯示
         itemSummary = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊';
         
         // 3. 總金額
@@ -647,9 +647,9 @@ function renderBookings(bookings, container, isPast = false) {
         if (b.status === 'confirmed') statusColor = 'var(--color-success)';
         if (b.status === 'cancelled') statusColor = 'var(--color-danger)';
 
-        // 4. 點擊跳轉詳細頁
+        // 4. 【修正】移除 onclick，改用 data-booking-id
         return `
-            <div class="booking-info-card" onclick="showPage('page-booking-details', {bookingId: ${bookingId}})" style="cursor: pointer; background-color: var(--color-card-bg); border: 1px solid var(--color-secondary); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <div class="booking-info-card" data-booking-id="${bookingId}" style="cursor: pointer; background-color: var(--color-card-bg); border: 1px solid var(--color-secondary); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                     <strong style="font-size: 1.1rem; color: var(--color-text-primary);">${dateDisplay}</strong>
                     <span style="font-size: 0.9rem; color: ${statusColor}; font-weight: bold;">${b.status_text}</span>
@@ -955,26 +955,38 @@ async function initializeMyRecordsPage() {
         header.dataset.listenerAttached = 'true';
     }
 
-    // 2. 處理「預約紀錄」Tab 內的邏輯
+    // 2. 處理「預約紀錄」Tab
     const bookingContainer = document.getElementById('my-bookings-container');
-    const pastBookingContainer = document.getElementById('past-bookings-list'); // 注意這裡 ID 微調
+    const pastBookingContainer = document.getElementById('past-bookings-list'); 
     const toggleBtn = document.getElementById('toggle-past-bookings-btn');    
 
     if (bookingContainer && toggleBtn) {
         bookingContainer.innerHTML = '<p style="text-align:center; color:#888;">查詢中...</p>';
-        if (pastBookingContainer) pastBookingContainer.parentElement.style.display = 'none'; // 隱藏過往容器
+        if(document.getElementById('past-bookings-container')) {
+             document.getElementById('past-bookings-container').style.display = 'none';
+        }
         toggleBtn.textContent = '查看過往/已取消紀錄';
         
-        // 綁定切換按鈕
+        // 重置並綁定切換按鈕
         const newBtn = toggleBtn.cloneNode(true);
         toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
         newBtn.addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', newBtn));
 
-        // 載入進行中預約
+        // --- 【新增】綁定點擊事件 (委派模式) ---
+        // 這會捕捉 .booking-info-card 的點擊並執行跳轉
+        bookingContainer.removeEventListener('click', handleBookingCardClick);
+        bookingContainer.addEventListener('click', handleBookingCardClick);
+        
+        if (pastBookingContainer) {
+            pastBookingContainer.removeEventListener('click', handleBookingCardClick);
+            pastBookingContainer.addEventListener('click', handleBookingCardClick);
+        }
+
+        // 載入資料
         loadMyBookingsList('current', bookingContainer);
     }
 
-    // 3. 載入點數與儲值紀錄 (平行執行)
+    // 3. 載入其他紀錄
     loadMyPointsList();
     loadMyWalletList();
 }

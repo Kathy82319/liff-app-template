@@ -592,88 +592,70 @@ function setupGlobalEventListeners() {
     // =================================================================
     // 輔助函式
     // =================================================================
-    async function togglePastView(type, containerId, button) {
-        const pastContainer = document.getElementById(containerId);
-        if (!pastContainer || !button) return;
-        const isHidden = pastContainer.style.display === 'none';
-        if (isHidden) {
-            pastContainer.innerHTML = '<p>查詢中...</p>';
-            pastContainer.style.display = 'block';
-            button.textContent = '隱藏過往紀錄';
-            try {
-                const apiPath = type === 'bookings' ? '/api/my-bookings' : '/api/my-rental-history';
-                const response = await fetch(`${apiPath}?userId=${userProfile.userId}&filter=past`);
-                if (!response.ok) throw new Error(`查詢過往${type}失敗`);
-                const data = await response.json();
-                if (type === 'bookings') {
-                    renderBookings(data, pastContainer, true);
-                } else {
-                    renderRentals(data, pastContainer, true);
-                }
-            } catch (error) {
-                pastContainer.innerHTML = `<p style="color: red;">${error.message}</p>`;
-            }
-        } else {
-            pastContainer.style.display = 'none';
-            button.textContent = type === 'bookings' ? '查看過往紀錄' : '查看已歸還紀錄';
-        }
+async function togglePastView(type, containerId, button) {
+    const pastContainerWrapper = document.getElementById(containerId); // 這是外層 div
+    const listContainer = document.getElementById('past-bookings-list'); // 這是內層列表 div
+
+    if (!pastContainerWrapper || !listContainer || !button) return;
+    
+    const isHidden = pastContainerWrapper.style.display === 'none';
+    
+    if (isHidden) {
+        pastContainerWrapper.style.display = 'block';
+        button.textContent = '隱藏過往紀錄';
+        listContainer.innerHTML = '<p style="text-align:center; color:#888;">查詢中...</p>';
+        
+        // 呼叫共用的載入函式
+        loadMyBookingsList('past', listContainer);
+    } else {
+        pastContainerWrapper.style.display = 'none';
+        button.textContent = '查看過往/已取消紀錄';
     }
+}
 
 
 function renderBookings(bookings, container, isPast = false) {
     if (!container) return;
     if (!bookings || bookings.length === 0) { 
-        container.innerHTML = `<p>${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
+        container.innerHTML = `<p style="text-align:center; padding:20px; color:#888;">${isPast ? '沒有過往的預約紀錄。' : '您目前沒有即將到來的預約。'}</p>`;
         return;
     }
 
+    const isGuesthouse = (activeTemplate && activeTemplate.logic.adminEntityNamePlural === '民宿') || 
+                         (CONFIG && CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template');
+
     container.innerHTML = bookings.map(b => {
-        let cardContentHTML = '';
         const bookingId = b.booking_id; 
-
-        // --- 民宿樣板 ---
-        if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
-            const startDate = b.booking_date || '未知日期';
-            const endDate = b.check_out_date || '未知日期';
-            let nights = '-';
-            if (b.booking_date && b.check_out_date) {
-                try {
-                    const start = new Date(b.booking_date + 'T00:00:00');
-                    const end = new Date(b.check_out_date + 'T00:00:00');
-                    nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                } catch(e) { console.error("計算晚數失敗:", e); }
-            }
-            const itemSummary = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊';
-            const totalAmountText = b.total_amount !== null ? `$${b.total_amount}` : '待確認';
-
-            cardContentHTML = `
-                <p><strong>入住:</strong> ${startDate}</p>
-                <p><strong>退房:</strong> ${endDate} (${nights} 晚)</p>
-                <p><strong>房型:</strong> ${itemSummary}</p>
-                <p><strong>總金額:</strong> ${totalAmountText}</p>
-                <p><strong>狀態:</strong> ${b.status_text}</p>
-            `;
-        }
-        // --- 工作室或其他樣板---
-        else {
-            const itemHTML = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊'; // 顯示所有項目
-            cardContentHTML = `
-                <p><strong>日期:</strong> ${b.booking_date}</p>
-                <p><strong>時段:</strong> ${b.time_slot}</p>
-                <p><strong>項目:</strong> ${itemHTML}</p>
-                <p><strong>人數:</strong> ${b.num_of_people} ${CONFIG.TERMS.PRODUCT_PLAYER_COUNT_UNIT || '人'}</p>
-                <p><strong>狀態:</strong> ${b.status_text}</p>
-            `;
+        let dateDisplay = '';
+        let itemSummary = '';
+        
+        // 1. 日期區間顯示
+        if (isGuesthouse && b.booking_date && b.check_out_date) {
+            dateDisplay = `${b.booking_date} ~ ${b.check_out_date}`;
+        } else {
+            dateDisplay = `${b.booking_date} ${b.time_slot || ''}`;
         }
 
-        const cancelButtonHTML = (!isPast && b.status === 'confirmed' && CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION) // 只有 confirmed 狀態才能取消
-            ? `<button class="cta-button cancel-booking-btn" data-booking-id="${bookingId}" style="background-color: var(--color-danger); margin-top: 10px; padding: 8px;">取消預約</button>`
-            : '';
+        // 2. 房型/項目顯示 (項目名稱 x 數量)
+        itemSummary = b.items?.map(item => `${item.item_name} x${item.quantity}`).join(', ') || '無項目資訊';
+        
+        // 3. 總金額
+        const totalAmountText = b.total_amount !== null ? `$${b.total_amount}` : '待確認';
 
+        // 狀態顏色
+        let statusColor = '#666';
+        if (b.status === 'confirmed') statusColor = 'var(--color-success)';
+        if (b.status === 'cancelled') statusColor = 'var(--color-danger)';
+
+        // 4. 點擊跳轉詳細頁
         return `
-            <div class="booking-info-card" id="booking-card-${bookingId}" data-booking-id="${bookingId}" style="cursor: pointer;">
-                ${cardContentHTML}
-                ${cancelButtonHTML}
+            <div class="booking-info-card" onclick="showPage('page-booking-details', {bookingId: ${bookingId}})" style="cursor: pointer; background-color: var(--color-card-bg); border: 1px solid var(--color-secondary); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <strong style="font-size: 1.1rem; color: var(--color-text-primary);">${dateDisplay}</strong>
+                    <span style="font-size: 0.9rem; color: ${statusColor}; font-weight: bold;">${b.status_text}</span>
+                </div>
+                <p style="margin: 5px 0; color: var(--color-text-secondary);">${itemSummary}</p>
+                <p style="margin: 5px 0; text-align: right; font-weight: bold; color: var(--color-primary);">總金額：${totalAmountText}</p>
             </div>
         `;
     }).join('');
@@ -732,30 +714,26 @@ function updateProfileDisplay(data) {
     const features = activeTemplate?.features || {};
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
 
-    // 1. 顯示真實姓名或 LINE 暱稱
     const displayNameEl = document.getElementById('display-name');
     if (displayNameEl) displayNameEl.textContent = data.real_name || (userProfile ? userProfile.displayName : '訪客');
 
-    // 2. 顯示等級/方案
     const classEl = document.getElementById('user-class');
     const levelEl = document.getElementById('user-level');
     if (classEl) classEl.textContent = data.class || '一般會員';
     if (levelEl) levelEl.textContent = `Lv.${data.level} (點數: ${data.current_exp})`;
 
-    // 3. 【修正】顯示/隱藏 儲值金 (新邏輯)
-    // user-stored-value 是裡面的 span (放數字)
-    // user-balance-line 是外層的 p (放整行文字)
+    // ★★★ 修正：正確抓取容器與數值元素 ★★★
     const storedValueEl = document.getElementById('user-stored-value');
-    const balanceLineEl = document.getElementById('user-balance-line');
+    const balanceContainer = document.getElementById('user-balance-container');
 
     if (showStoredValue) {
-        if (storedValueEl) storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
-        if (balanceLineEl) balanceLineEl.style.display = 'block'; // 顯示整行
+        const balance = (data.stored_value_balance !== undefined && data.stored_value_balance !== null) ? data.stored_value_balance : 0;
+        if (storedValueEl) storedValueEl.textContent = `$${balance}`;
+        if (balanceContainer) balanceContainer.style.display = 'block';
     } else {
-        if (balanceLineEl) balanceLineEl.style.display = 'none';
+        if (balanceContainer) balanceContainer.style.display = 'none';
     }
 
-    // 4. 顯示/隱藏 特殊優惠行 (保持不變)
     const perkP = document.getElementById('user-perk-line');
     if (perkP) {
         if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
@@ -766,7 +744,6 @@ function updateProfileDisplay(data) {
         }
     }
     
-    // 5. QR Code 顯示控制 (保持不變)
     const qrcodeContainer = document.getElementById('qrcode-container');
     if (features.PROFILE_SHOW_QR_CODE === false && qrcodeContainer) {
          qrcodeContainer.style.display = 'none';
@@ -949,11 +926,9 @@ async function initializeMyRecordsPage() {
         header.addEventListener('click', (e) => {
             const targetTab = e.target.closest('.record-tab');
             if (targetTab) {
-                // 切換 Tab 樣式
                 header.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
                 targetTab.classList.add('active');
                 
-                // 切換內容顯示
                 const targetId = targetTab.dataset.target;
                 document.querySelectorAll('.records-content-pane').forEach(p => p.classList.remove('active'));
                 document.getElementById(targetId).classList.add('active');
@@ -962,8 +937,26 @@ async function initializeMyRecordsPage() {
         header.dataset.listenerAttached = 'true';
     }
 
-    // 2. 載入資料 (平行執行)
-    loadMyBookingsList();
+    // 2. 處理「預約紀錄」Tab 內的邏輯
+    const bookingContainer = document.getElementById('my-bookings-container');
+    const pastBookingContainer = document.getElementById('past-bookings-list'); // 注意這裡 ID 微調
+    const toggleBtn = document.getElementById('toggle-past-bookings-btn');    
+
+    if (bookingContainer && toggleBtn) {
+        bookingContainer.innerHTML = '<p style="text-align:center; color:#888;">查詢中...</p>';
+        if (pastBookingContainer) pastBookingContainer.parentElement.style.display = 'none'; // 隱藏過往容器
+        toggleBtn.textContent = '查看過往/已取消紀錄';
+        
+        // 綁定切換按鈕
+        const newBtn = toggleBtn.cloneNode(true);
+        toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
+        newBtn.addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', newBtn));
+
+        // 載入進行中預約
+        loadMyBookingsList('current', bookingContainer);
+    }
+
+    // 3. 載入點數與儲值紀錄 (平行執行)
     loadMyPointsList();
     loadMyWalletList();
 }
@@ -972,7 +965,14 @@ async function initializeMyRecordsPage() {
 async function loadMyBookingsList() {
     const container = document.getElementById('my-bookings-list');
     container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
-    
+    try {
+        const response = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=${filter}`);
+        if (!response.ok) throw new Error('查詢預約失敗');
+        const bookings = await response.json();
+        renderBookings(bookings, container, filter === 'past');
+    } catch (error) {
+        container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${error.message}</p>`;
+    }
     try {
         // 呼叫原有 API (假設支援 filter=all)
         const res = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=all`);

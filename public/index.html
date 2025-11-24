@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 新增 page-booking-details 的樣式 */
+        /* 樣式微調 */
         #page-booking-details .details-section { margin-bottom: 15px; }
         #page-booking-details h2, #page-booking-details h3 { color: var(--color-primary); margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px; }
         #page-booking-details h2:first-of-type, #page-booking-details h3:first-of-type { margin-top: 0; }
@@ -20,7 +20,7 @@
         #page-booking-details strong { color: var(--color-text-secondary); margin-right: 5px; }
         #page-booking-details .room-item-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--color-secondary); }
         #page-booking-details .policy-section { white-space: pre-wrap; background-color: var(--color-card-bg); padding: 10px; border-radius: var(--border-radius); border: 1px solid var(--color-secondary); margin-top: 10px; font-size: 0.9rem; }
-        #page-booking-details .cancel-booking-btn { background-color: var(--color-danger); margin-top: 20px; } /* 確保取消按鈕樣式 */
+        #page-booking-details .cancel-booking-btn { background-color: var(--color-danger); margin-top: 20px; } 
     
         /* --- ▼▼▼ 新增：優惠券頁面樣式 ▼▼▼ --- */
         #page-my-vouchers .voucher-card {
@@ -236,7 +236,6 @@
     opacity: 0.3;
 }
     </style>
-    
 </head>
 <body>
     <main id="app-content" class="page"></main>
@@ -249,6 +248,7 @@
             <button id="voucher-redeem-close-btn" class="cta-button" style="margin-top: 20px; background-color: var(--color-secondary);">關閉</button>
         </div>
     </div>
+
     <div id="page-templates" style="display: none;">
 
         <div id="page-product-details">
@@ -292,22 +292,15 @@
                 <div class="news-header-decoration"></div>
                 <h1 class="page-main-title">最新情報</h1>
             </div>
-            
-            <div id="news-filter-container" style="margin-bottom: 15px;">
-                <p>讀取中...</p>
-            </div>
-            
-            <div id="news-list-container">
-                <p>正在載入最新情報...</p>
-            </div>
+            <div id="news-filter-container" style="margin-bottom: 15px;"><p>讀取中...</p></div>
+            <div id="news-list-container"><p>正在載入最新情報...</p></div>
         </div>
 
         <div id="page-products">
             <h1 class="page-main-title">產品型錄</h1>
             <div id="filter-controls">
                 <input type="search" id="keyword-search" placeholder="搜尋關鍵字...">
-                <div id="dynamic-filter-container" class="filter-group">
-                </div>
+                <div id="dynamic-filter-container" class="filter-group"></div>
                 <button id="clear-filters" class="filter-action-btn">清除所有篩選</button>
             </div>
             <div id="product-view-controls">
@@ -328,46 +321,67 @@
             <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
         </div>
 
-        <div id="page-my-bookings">
-            <h1 class="page-main-title">我的預約紀錄</h1>
-            <div class="filter-group" style="margin-bottom: 20px;">
-                <button id="toggle-past-bookings-btn" class="cta-button" style="width: auto; padding: 10px 20px;">查看過往/已取消紀錄</button>
+        <div id="page-my-records">
+            <button class="details-back-button">← 返回會員中心</button>
+            <h1 class="page-main-title" style="margin-top: 10px;">我的紀錄</h1>
+            
+            <div class="records-tabs records-tabs-header">
+                <button class="records-tab-btn record-tab active" data-target="tab-bookings">預約紀錄</button>
+                <button class="records-tab-btn record-tab" data-target="tab-points">點數紀錄</button>
+                <button class="records-tab-btn record-tab" data-target="tab-wallet">儲值紀錄</button>
             </div>
-            <h2>進行中的預約</h2>
-            <div id="my-bookings-container"><p>查詢中...</p></div>
-            <div id="past-bookings-container" style="display: none;">
-                <h2 style="margin-top: 30px;">過往/已取消的預約</h2>
+
+            <div id="tab-bookings" class="records-content-pane active">
+                <div class="filter-group" style="margin-bottom: 20px;">
+                    <button id="toggle-past-bookings-btn" class="cta-button" style="width: auto; padding: 8px 16px; font-size: 0.9rem;">查看過往/已取消紀錄</button>
+                </div>
+                
+                <h3 style="font-size: 1.1rem; color: var(--color-primary); border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">進行中的預約</h3>
+                <div id="my-bookings-container">
+                    <p style="text-align:center; color:#888;">查詢中...</p>
+                </div>
+
+                <div id="past-bookings-container" style="display: none; margin-top: 30px;">
+                    <h3 style="font-size: 1.1rem; color: var(--color-text-secondary); border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">過往/已取消的預約</h3>
+                    <div id="past-bookings-list"></div>
+                </div>
             </div>
-            <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
+            
+            <div id="tab-points" class="records-content-pane">
+                <div id="my-points-list"></div>
+            </div>
+            
+            <div id="tab-wallet" class="records-content-pane">
+                <div id="my-wallet-list"></div>
+            </div>
         </div>
 
         <div id="page-booking-details">
-                <button class="details-back-button">← 返回我的預約</button>
-                <h1 class="page-main-title">預約詳細資訊</h1>
-                <div class="details-section">
-                    <div id="booking-details-loading"><p>載入中...</p></div>
-                    <div id="booking-details-content-container" style="display: none;">
-                        <h4>住宿資訊</h4>
-                        <p><strong>入住日期:</strong> <span id="details-check-in-date">-</span></p>
-                        <p><strong>退房日期:</strong> <span id="details-check-out-date">-</span></p>
-                        <p><strong>入住晚數:</strong> <span id="details-nights">-</span> 晚</p>
+            <button class="details-back-button">← 返回</button> <h1 class="page-main-title">預約詳細資訊</h1>
+            <div class="details-section">
+                <div id="booking-details-loading"><p>載入中...</p></div>
+                <div id="booking-details-content-container" style="display: none;">
+                    <h4>住宿資訊</h4>
+                    <p><strong>入住日期:</strong> <span id="details-check-in-date">-</span></p>
+                    <p><strong>退房日期:</strong> <span id="details-check-out-date">-</span></p>
+                    <p><strong>入住晚數:</strong> <span id="details-nights">-</span> 晚</p>
 
-                        <h4>房型資訊</h4>
-                        <div id="details-items-list"></div>
-                        <p style="text-align: right; font-weight: bold; margin-top: 10px;"><strong>訂單總金額:</strong> <span id="details-total-amount">$-</span></p>
+                    <h4>房型資訊</h4>
+                    <div id="details-items-list"></div>
+                    <p style="text-align: right; font-weight: bold; margin-top: 10px;"><strong>訂單總金額:</strong> <span id="details-total-amount">$-</span></p>
 
-                        <hr style="border-color: var(--color-secondary); margin: 20px 0;">
+                    <hr style="border-color: var(--color-secondary); margin: 20px 0;">
 
-                        <h4>取消政策</h4>
-                        <p id="details-cancellation-policy" style="white-space: pre-wrap;">-</p>
+                    <h4>取消政策</h4>
+                    <p id="details-cancellation-policy" style="white-space: pre-wrap;">-</p>
 
-                        <h4>入住須知</h4>
-                        <p id="details-check-in-instructions" style="white-space: pre-wrap;">-</p>
+                    <h4>入住須知</h4>
+                    <p id="details-check-in-instructions" style="white-space: pre-wrap;">-</p>
 
-                        <button id="details-cancel-booking-btn" class="cta-button" style="background-color: var(--color-danger); margin-top: 20px; display: none;">取消預約</button>
-                    </div>
+                    <button id="details-cancel-booking-btn" class="cta-button" style="background-color: var(--color-danger); margin-top: 20px; display: none;">取消預約</button>
                 </div>
             </div>
+        </div>
         
         <div id="page-my-vouchers">
             <button class="details-back-button">← 返回會員中心</button>
@@ -377,9 +391,9 @@
             <h2 style="margin-top: 30px;">已使用 / 已過期</h2>
             <div id="my-vouchers-container-used"><p>查詢中...</p></div>
         </div>
-<div id="page-profile">
+
+        <div id="page-profile">
             <h1 class="page-main-title">會員中心</h1>
-            
             <div class="profile-card-container">
                 <div class="profile-left">
                     <img id="profile-picture" class="profile-avatar-img" src="https://placehold.co/80x80?text=Avatar" alt="Avatar">
@@ -387,7 +401,7 @@
                         <h2 id="display-name">讀取中...</h2>
                         <p id="user-class">一般會員</p>
                         <p id="user-level">Level 1</p>
-                        <p id="user-balance-line" style="display:none;">儲值金餘額：<span id="user-stored-value" style="color:var(--color-primary); font-weight:bold;">$0</span></p>
+                        <p id="user-balance-container" style="display:none;">儲值金餘額：<span id="user-stored-value" style="color:var(--color-primary); font-weight:bold;">$0</span></p>
                     </div>
                 </div>
                 <div class="profile-qrcode-box">
@@ -417,29 +431,6 @@
             <div id="user-perk-line" style="display: none;"></div>
         </div>
 
-        <div id="page-my-records">
-            <button class="details-back-button">← 返回會員中心</button>
-            <h1 class="page-main-title" style="margin-top: 10px;">我的紀錄</h1>
-            
-            <div class="records-tabs records-tabs-header">
-                <button class="records-tab-btn record-tab active" data-target="tab-bookings">預約紀錄</button>
-                <button class="records-tab-btn record-tab" data-target="tab-points">點數紀錄</button>
-                <button class="records-tab-btn record-tab" data-target="tab-wallet">儲值紀錄</button>
-            </div>
-
-            <div id="tab-bookings" class="records-content-pane active">
-                <div id="my-bookings-list"></div>
-            </div>
-            
-            <div id="tab-points" class="records-content-pane">
-                <div id="my-points-list"></div>
-            </div>
-            
-            <div id="tab-wallet" class="records-content-pane">
-                <div id="my-wallet-list"></div>
-            </div>
-        </div>
-
         <div id="page-edit-profile">
             <h1 class="page-main-title">編輯個人資料</h1>
             <div class="details-section">
@@ -467,7 +458,6 @@
             <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
         </div>
 
-
         <div id="page-booking">
             <h1 class="page-main-title">線上預約</h1>
             <div class="details-section">
@@ -476,7 +466,7 @@
                      <label for="booking-date-range-picker">入住 / 退房日期:</label>
                     <input type="text" id="booking-date-range-picker" placeholder="請點擊選擇日期範圍">
                 </div>
-                </div>
+            </div>
             <div id="booking-details-form" class="details-section" style="display: none;">
                 <h3>2. 選擇房型與數量</h3>
                 <div id="room-selection-container" style="margin-bottom: 20px;">
@@ -539,23 +529,18 @@
             <button class="details-back-button" style="margin-top: 20px;">返回會員中心</button>
         </div>
 
-    <div id="page-rally">
+        <div id="page-rally">
             <h1 class="page-main-title">數位集點地圖</h1>
-            
             <div id="rally-campaign-loading" class="details-section" style="text-align: center;">
                 <p>正在載入活動資訊...</p>
             </div>
-            
-            <div id="rally-list-container" style="display: none;">
-                </div>
+            <div id="rally-list-container" style="display: none;"></div>
             <div id="rally-qr-scanner-container" style="display: none; text-align: center; margin-top: 20px;">
                 <h3 style="color: var(--color-primary);">請對準夥伴櫃台的 QR Code</h3>
                 <div id="rally-qr-reader" style="width: 100%; max-width: 400px; margin: 10px auto; border: 1px solid var(--color-secondary); border-radius: 5px;"></div>
                 <button id="stop-rally-scan-btn" class="cta-button" style="background-color: var(--color-danger); width: 80%; margin-top: 10px;">取消掃碼</button>
             </div>
-            
             <div id="rally-status-message" style="margin-top: 20px; text-align: center;"></div>
-
             <button class="details-back-button" style="margin-top: 20px;">返回首頁</button>
         </div>
     </div> 
@@ -576,7 +561,7 @@
         </div>
     </div>        
 
-<div id="station-mission-modal" class="modal-overlay" style="display: none;">
+    <div id="station-mission-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
                 <h3 id="mission-modal-title" style="color: var(--color-primary);">站點名稱</h3>

@@ -1282,3 +1282,64 @@ input:focus, select:focus, textarea:focus {
     50% { transform: translateY(-5px) rotate(2deg); }
     100% { transform: translateY(0px) rotate(0deg); }
 }
+
+
+.records-tabs-header {
+    display: flex;
+    background-color: var(--color-header-bg);
+    border-radius: var(--border-radius);
+    padding: 5px;
+    margin-bottom: 20px;
+}
+
+.records-tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 8px;
+    color: var(--color-text-secondary);
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.records-tab-btn.active {
+    background-color: var(--color-primary);
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* 預設隱藏所有內容區塊 */
+.records-content-pane {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+/* 只有 active 的區塊顯示 */
+.records-content-pane.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 紀錄列表項目樣式 (如果還沒加的話) */
+.record-item {
+    background-color: var(--color-card-bg);
+    border-bottom: 1px solid var(--color-secondary);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between; /* 左右對齊 */
+    align-items: center;
+}
+.record-item:first-child { border-top-left-radius: var(--border-radius); border-top-right-radius: var(--border-radius); }
+.record-item:last-child { border-bottom: none; border-bottom-left-radius: var(--border-radius); border-bottom-right-radius: var(--border-radius); }
+
+.record-main { font-weight: bold; font-size: 1rem; color: var(--color-text-primary); }
+.record-sub { font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; }
+.record-value { font-weight: bold; font-size: 1.1rem; }
+.val-plus { color: var(--color-success); }
+.val-minus { color: var(--color-danger); }

@@ -730,7 +730,6 @@ function updateProfileDisplay(data) {
 
     const terms = activeTemplate?.terms || {};
     const features = activeTemplate?.features || {};
-    // 讀取設定：是否顯示儲值金 (預設為顯示)
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
 
     // 1. 顯示真實姓名或 LINE 暱稱
@@ -743,22 +742,20 @@ function updateProfileDisplay(data) {
     if (classEl) classEl.textContent = data.class || '一般會員';
     if (levelEl) levelEl.textContent = `Lv.${data.level} (點數: ${data.current_exp})`;
 
-    // 3. 【修正】顯示/隱藏 儲值金
-    // 直接選取您的 HTML 中的 container ID
+    // 3. 【修正】顯示/隱藏 儲值金 (新邏輯)
+    // user-stored-value 是裡面的 span (放數字)
+    // user-balance-line 是外層的 p (放整行文字)
     const storedValueEl = document.getElementById('user-stored-value');
-    const balanceContainer = document.getElementById('balance-container');
+    const balanceLineEl = document.getElementById('user-balance-line');
 
     if (showStoredValue) {
-        // 更新金額
         if (storedValueEl) storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
-        // 顯示容器 (使用 flex 以維持 style.css 中的排版)
-        if (balanceContainer) balanceContainer.style.display = 'flex';
+        if (balanceLineEl) balanceLineEl.style.display = 'block'; // 顯示整行
     } else {
-        // 隱藏容器
-        if (balanceContainer) balanceContainer.style.display = 'none';
+        if (balanceLineEl) balanceLineEl.style.display = 'none';
     }
 
-    // 4. 顯示/隱藏 特殊優惠行
+    // 4. 顯示/隱藏 特殊優惠行 (保持不變)
     const perkP = document.getElementById('user-perk-line');
     if (perkP) {
         if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
@@ -769,9 +766,8 @@ function updateProfileDisplay(data) {
         }
     }
     
-    // 5. QR Code 顯示控制
+    // 5. QR Code 顯示控制 (保持不變)
     const qrcodeContainer = document.getElementById('qrcode-container');
-    // 如果 features 中有設定 PROFILE_SHOW_QR_CODE 且為 false，則隱藏
     if (features.PROFILE_SHOW_QR_CODE === false && qrcodeContainer) {
          qrcodeContainer.style.display = 'none';
     }

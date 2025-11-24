@@ -3,23 +3,178 @@
    ================================================================= */
 
 /* --- 1. 全域變數與基礎設定 --- */
+/* --- 1. 全域變數：溫暖大地色系 --- */
 :root {
-    /* 色彩配置 */
-    --color-bg: #0a192f;               /* 背景 - 深邃海軍藍 */
-    --color-card-bg: #112240;          /* 卡片背景 - 略亮的藍 */
-    --color-header-bg: rgba(17, 34, 64, 0.85); /* 頁首/導覽列背景 - 半透明 */
-    --color-primary: #58a6ff;          /* 主要顏色 - 亮藍色 (用於標題、邊框) */
-    --color-accent: #6076d4;           /* 強調色 - 青色 (用於按鈕、活動狀態) */
-    --color-text-primary: #ccd6f6;     /* 主要文字 - 淡藍灰色 */
-    --color-text-secondary: #8892b0;   /* 次要文字 - 石板灰色 */
-    --color-danger: #ff5858;           /* 警告色 */
+    /* 背景：暖白/米色，像高級卡紙的質感 */
+    --color-bg: #F9F8F4;
+    /* 卡片：純白 */
+    --color-card-bg: #FFFFFF;
+    /* 頁首/導覽列：使用毛玻璃效果的白色 */
+    --color-header-bg: rgba(255, 255, 255, 0.9);
+    
+    /* 主色：森綠色 (穩重、自然) */
+    --color-primary: #4A5D23; 
+    /* 強調色：磚紅色 (用於按鈕、印章、重要提示) */
+    --color-accent: #C05555;
+    /* 次要強調：奶茶色/卡其色 (用於標籤、背景裝飾) */
+    --color-secondary-accent: #DCCEB8;
 
-    /* 字體設定 */
-    --font-primary: 'Helvetica Neue', 'Arial', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    /* 文字：深灰 (比純黑柔和) */
+    --color-text-primary: #3D3D3D;
+    --color-text-secondary: #858585;
+    --color-danger: #D32F2F;
 
-    /* 圓角與陰影 */
-    --border-radius: 6px;
-    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    /* 現代化設定 */
+    --font-primary: 'Cwtex Fangsong', 'Noto Sans TC', sans-serif; /* 這裡保留您的仿宋體，或建議改用 Noto Sans */
+    --border-radius: 16px; /* 加大圓角 */
+    --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); /* 更柔和、擴散的陰影 */
+    --box-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    /* 增加底部空間給懸浮 Tab Bar */
+    padding-bottom: 100px; 
+}
+
+/* --- 2. 移除舊的顯眼標題，改為低調風格 --- */
+.page-main-title {
+    font-size: 1.2rem;
+    color: var(--color-text-primary);
+    border: none; /* 移除底線 */
+    padding-bottom: 0;
+    margin-bottom: 15px;
+    text-align: left; /* 靠左比較現代 */
+    font-weight: 700;
+    opacity: 0.9;
+    padding-left: 5px; /* 稍微縮排 */
+}
+
+/* --- 3. 卡片優化：去框線、沈浸式 --- */
+.news-card, .product-card, .booking-info-card, .rally-card {
+    background-color: var(--color-card-bg);
+    border: none; /* 移除邊框 */
+    border-radius: var(--border-radius);
+    padding: 0; /* 內容貼齊邊緣 (這是沈浸式關鍵) */
+    margin-bottom: 20px;
+    box-shadow: var(--box-shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden; /* 讓圖片圓角不被切掉 */
+}
+
+.news-card:active, .product-card:active {
+    transform: scale(0.98);
+}
+
+/* 圖片滿版設計 */
+.news-card-image, .product-card .product-image {
+    width: 100%;
+    height: 200px; /* 稍微加高 */
+    object-fit: cover;
+    border-radius: 0; /* 移除圖片本身圓角，由卡片容器控制 */
+    display: block;
+}
+
+/* 卡片內容區塊 (文字要有內距) */
+.news-card-content, .product-info, .rally-body-content {
+    padding: 15px;
+}
+
+.news-card-title, .product-title {
+    margin-top: 0;
+    font-size: 1.1rem;
+    color: var(--color-text-primary);
+    font-weight: bold;
+}
+
+/* --- 4. 懸浮島嶼 Tab Bar (Floating Island) --- */
+#tab-bar {
+    position: fixed;
+    bottom: 20px; /* 離底部的距離 */
+    left: 20px;
+    right: 20px;
+    width: auto; /* 自動寬度 */
+    height: 65px;
+    background-color: #FFFFFF; /* 純白背景 */
+    border: none; /* 移除上邊框 */
+    border-radius: 35px; /* 極大圓角，變成膠囊狀 */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* 強烈的浮起感陰影 */
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    padding: 0 10px;
+}
+
+.tab-button {
+    color: #AAA; /* 未選中顏色更淡 */
+    font-size: 0.75rem; /* 字體縮小 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.tab-button.active {
+    color: var(--color-primary);
+    transform: none; /* 移除原本的放大效果，改用顏色區分 */
+}
+
+/* 選中時加一個小綠點或圖示變化 (可選) */
+.tab-button.active::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    background-color: var(--color-primary);
+    border-radius: 50%;
+    margin-top: 2px;
+}
+
+/* --- 5. 橫向捲動容器 (用於首頁最新情報) --- */
+.horizontal-scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding-bottom: 10px; /* 預留捲軸空間或陰影 */
+    margin: 0 -15px 20px -15px; /* 讓捲動區塊超出父層 padding */
+    padding-left: 15px; /* 補回左邊距 */
+    padding-right: 15px;
+    -webkit-overflow-scrolling: touch; /* iOS 平滑捲動 */
+    scrollbar-width: none; /* Firefox 隱藏捲軸 */
+}
+.horizontal-scroll-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari 隱藏捲軸 */
+}
+
+/* 橫向卡片樣式 */
+.horizontal-card {
+    min-width: 260px; /* 固定寬度 */
+    flex-shrink: 0;
+    background: var(--color-card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+.horizontal-card img {
+    height: 140px;
+    width: 100%;
+    object-fit: cover;
+}
+.horizontal-card-content {
+    padding: 12px;
+}
+
+/* --- 6. 集點趣 FAB 按鈕位置微調 --- */
+.rally-fab-container {
+    bottom: 100px; /* 配合懸浮 Tab Bar 調整高度 */
+    right: 25px;
+}
+/* 讓印章顏色配合主題 */
+.rally-fab-stamp {
+    color: var(--color-accent); 
+    border-color: var(--color-accent);
 }
 
 html {

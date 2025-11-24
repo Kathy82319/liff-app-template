@@ -868,29 +868,39 @@ if (!showStoredValue) {
     }
 
 
-    function renderNews(filterCategory = 'ALL') {
-        const container = document.getElementById('news-list-container');
-        if (!container) return;
-        const filteredNews = (filterCategory === 'ALL') ? allNews : allNews.filter(news => news.category === filterCategory);
-        if (filteredNews.length === 0) {
-            container.innerHTML = `<p>這個分類目前沒有${CONFIG.TERMS.NEWS_PAGE_TITLE}。</p>`;
-            return;
-        }
-        container.innerHTML = filteredNews.map(news => {
-            const snippet = news.content ? news.content.substring(0, 50) + '...' : '';
-            const imageHTML = news.image_url ? `<img src="${news.image_url}" alt="${news.title}" class="news-card-image">` : '';
-            return `
-            <div class="news-card" data-news-id="${news.id}">
-                <div class="news-card-header">
-                    <span class="news-card-category">${news.category}</span>
-                    <span class="news-card-date">${news.published_date}</span>
-                </div>
-                ${imageHTML}
-                <h3 class="news-card-title">${news.title}</h3>
-                <p class="news-card-snippet">${snippet}</p>
-            </div>`;
-        }).join('');
+function renderNews(filterCategory = 'ALL') {
+    const container = document.getElementById('news-list-container');
+    if (!container) return;
+    
+    // [修改] 改用 horizontal-scroll-container 樣式
+    container.className = 'horizontal-scroll-container';
+
+    const filteredNews = (filterCategory === 'ALL') ? allNews : allNews.filter(news => news.category === filterCategory);
+    
+    if (filteredNews.length === 0) {
+        // 如果沒資料，恢復一般樣式顯示提示
+        container.className = ''; 
+        container.innerHTML = `<p style="padding:10px; color:#999;">目前沒有最新情報。</p>`;
+        return;
     }
+
+    // [修改] 生成橫向卡片 (Horizontal Card)
+    container.innerHTML = filteredNews.map(news => {
+        const imageHTML = news.image_url 
+            ? `<img src="${news.image_url}" alt="${news.title}">` 
+            : `<div style="height:140px; background:#eee; display:flex; align-items:center; justify-content:center; color:#ccc;">無圖片</div>`;
+            
+        // 移除日期，只保留標題和類別，讓畫面更乾淨
+        return `
+        <div class="horizontal-card news-card" data-news-id="${news.id}" onclick="showPage('page-news-details', { news: allNews.find(n=>n.id==${news.id}) })">
+            ${imageHTML}
+            <div class="horizontal-card-content">
+                <span style="font-size:0.75rem; color:var(--color-accent); font-weight:bold;">${news.category}</span>
+                <h3 style="margin: 5px 0 0 0; font-size:1rem; line-height:1.3; color:var(--color-text-primary);">${news.title}</h3>
+            </div>
+        </div>`;
+    }).join('');
+}
 
     function setupNewsFilters() {
         const container = document.getElementById('news-filter-container');
@@ -1775,21 +1785,27 @@ function renderProducts() {
     }
 
     container.innerHTML = filteredProducts.map(product => {
-        let priceDisplay = product.price_weekday != null ? `$${product.price_weekday} 起` : '價格洽詢';
+        let priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
+        // 如果是列表模式，顯示更多資訊；如果是網格，顯示精簡資訊
+        const isList = productView.layout === 'list';
+        
         const images = JSON.parse(product.images || '[]');
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/150x150/112240/ccd6f6?text=Image';
+        // 使用假圖佔位，如果沒有圖片
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/400x300/F5F5F5/CCCCCC?text=No+Image';
 
         return `
             <div class="product-card" data-product-id="${product.product_id}">
                 <img src="${imageUrl}" alt="${product.name}" class="product-image">
                 <div class="product-info">
-                    <h3 class="product-title">${product.name}</h3>
-                    <p class="product-price">${priceDisplay}</p>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <h3 class="product-title" style="margin:0;">${product.name}</h3>
+                        <span style="color:var(--color-primary); font-weight:bold; font-size:1rem;">${priceDisplay}</span>
+                    </div>
+                    ${isList ? `<p style="font-size:0.85rem; color:#888; margin:5px 0 0 0;">${product.description ? product.description.substring(0, 40) + '...' : ''}</p>` : ''}
                 </div>
             </div>
         `;
     }).join('');
-}
 
 function populateFilters() {
     const container = document.getElementById('dynamic-filter-container');

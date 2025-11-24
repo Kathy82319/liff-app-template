@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
         'page-my-vouchers': initializeMyVouchersPage,
         'page-rally': initializeRallyPage,
+        'page-my-records': initializeMyRecordsPage, 
     };
 
  // 計算所選房間及入住天數的預估總金額
@@ -74,12 +75,6 @@ function calculateTotalPrice() {
     estimatedTotalPriceEl.textContent = `$${Math.round(total)}`; 
 }
 
-/**
- * 根據 API 回應渲染房型列表 (v3 - 修正 ReferenceError)
- * @param {object} availabilityData - 從 /api/room-availability 獲取的資料
- * @param {string} startDate - 入住日期 YYYY-MM-DD
- * @param {string} endDate - 退房日期 YYYY-MM-DD
- */
 function renderRoomList(availabilityData, startDate, endDate) {
     const container = document.getElementById('room-selection-container');
     const detailsForm = document.getElementById('booking-details-form');
@@ -88,10 +83,10 @@ function renderRoomList(availabilityData, startDate, endDate) {
     guesthouseBookingData.roomAvailability = availabilityData; 
     guesthouseBookingData.selectedRooms = {}; 
 
-    const productsToRender = allProducts.filter(p => p.is_visible); //
+    const productsToRender = allProducts.filter(p => p.is_visible);
 
     if (productsToRender.length === 0) {
-        container.innerHTML = '<p>目前沒有可顯示的房型。</p>';
+        container.innerHTML = '<p style="text-align:center;">目前沒有可預訂的房型。</p>';
         detailsForm.style.display = 'none';
         return;
     }
@@ -102,48 +97,22 @@ function renderRoomList(availabilityData, startDate, endDate) {
         const roomInfo = availabilityData[product.product_id];
         let isOverallAvailable = false;
         let maxQuantity = 0;
-        let priceText = '價格洽詢';
-        let unavailabilityMessage = '';
+        let priceText = '洽詢';
         let disableQuantitySelector = true; 
 
         if (roomInfo) { 
              isOverallAvailable = roomInfo.isAvailable;
              maxQuantity = roomInfo.minAvailableQuantity || 0;
-             priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight} / 晚` : '價格洽詢';
-
-            if (!isOverallAvailable && roomInfo.dailyDetails && roomInfo.dailyDetails.length > 0) {
-                const unavailableDatesInfo = []; 
-                for (const daily of roomInfo.dailyDetails) {
-                    if (!daily.isBookable) { 
-                        let reason = '';
-                        if(daily.status === 'Closed'){ //
-                            reason = '未開放';
-                        } else if (daily.available <= 0) { //
-                            reason = '已售完';
-                        } else if (daily.price === null || daily.price <= 0) { //
-                            reason = '價格未定';
-                        } else {
-                            reason = '暫不可訂'; 
-                        }
-                        const dateParts = daily.date.split('-');
-                        unavailableDatesInfo.push(`${dateParts[1]}/${dateParts[2]} ${reason}`);
-                    }
-                }
-                if (unavailableDatesInfo.length > 0) {
-                    unavailabilityMessage = `(${unavailableDatesInfo.slice(0, 3).join(', ')}${unavailableDatesInfo.length > 3 ? '...' : ''})`;
-                }
-            }
+             priceText = roomInfo.pricePerNight !== null ? `$${roomInfo.pricePerNight}` : '價格洽詢';
 
             if (isOverallAvailable) {
                  disableQuantitySelector = false;
                  hasAnyBookableRoom = true; 
             }
-        } else {
-             unavailabilityMessage = '(此期間不可預訂)';
         }
 
-        const images = JSON.parse(product.images || '[]'); //
-        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x80/112240/ccd6f6?text=Room'; //
+        const images = JSON.parse(product.images || '[]');
+        const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x100/E6DAC8/A48D78?text=Room';
 
         let quantityOptions = '<option value="0">0</option>';
         if (!disableQuantitySelector) {
@@ -152,29 +121,29 @@ function renderRoomList(availabilityData, startDate, endDate) {
             }
         }
 
+        // [修改] 使用新版 CSS 類別 .room-item
         return `
-            <div class="room-selection-item ${!isOverallAvailable ? 'unavailable-room' : ''}" data-product-id="${product.product_id}" style="display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--color-secondary); padding-bottom: 15px; ${!isOverallAvailable ? 'opacity: 0.6;' : ''}">
-                <img src="${imageUrl}" alt="${product.name}" style="width: 100px; height: 80px; object-fit: cover; border-radius: var(--border-radius);">
-                <div style="flex-grow: 1;">
-                    <h4 style="margin: 0 0 5px 0;">
-                        ${product.name}
-                        ${unavailabilityMessage ? `<span style="font-size: 0.8em; color: var(--color-danger); font-weight: normal; margin-left: 5px;">${unavailabilityMessage}</span>` : ''}
-                    </h4>
-                    <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--color-text-secondary);">${product.description ? product.description.substring(0, 50) + '...' : ''}</p>
-                    <p style="margin: 0; font-weight: bold; color: var(--color-primary);">${priceText}</p>
+            <div class="room-item ${!isOverallAvailable ? 'unavailable' : ''}" style="${!isOverallAvailable ? 'opacity: 0.5;' : ''}">
+                <img src="${imageUrl}" class="room-thumb" alt="${product.name}">
+                
+                <div class="room-content">
+                    <div class="room-name">${product.name}</div>
+                    <div class="room-price">${priceText} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
                 </div>
-                <div style="width: 80px;">
-                    <label for="room-qty-${product.product_id}" style="font-size: 0.8em; display: block; margin-bottom: 5px;">數量:</label>
-                    <select id="room-qty-${product.product_id}" class="room-quantity-select" data-product-id="${product.product_id}" style="width: 100%;" ${disableQuantitySelector ? 'disabled' : ''}>
+
+                <div class="room-controls">
+                    <label style="font-size: 0.75rem; color: var(--color-text-secondary);">數量</label>
+                    <select id="room-qty-${product.product_id}" class="room-qty-select" data-product-id="${product.product_id}" ${disableQuantitySelector ? 'disabled' : ''}>
                         ${quantityOptions}
                     </select>
-                    ${!disableQuantitySelector ? `<p style="font-size: 0.8em; color: var(--color-text-secondary); margin-top: 5px;">剩 ${maxQuantity} 間</p>` : ''}
+                    ${!disableQuantitySelector ? `<span class="room-stock-badge">剩 ${maxQuantity}</span>` : ''}
                 </div>
             </div>
         `;
     }).join('');
 
-    container.querySelectorAll('.room-quantity-select:not([disabled])').forEach(select => {
+    // 綁定數量變更事件
+    container.querySelectorAll('.room-qty-select:not([disabled])').forEach(select => {
         select.addEventListener('change', (e) => {
             const productId = e.target.dataset.productId;
             const quantity = parseInt(e.target.value, 10);
@@ -188,18 +157,13 @@ function renderRoomList(availabilityData, startDate, endDate) {
     });
 
     detailsForm.style.display = hasAnyBookableRoom ? 'block' : 'none';
-
-    if (!hasAnyBookableRoom && productsToRender.length > 0) { 
-         container.innerHTML += '<p style="text-align: center; color: var(--color-danger);">您選擇的日期範圍內所有房型暫時無法預訂。</p>'; 
-    }
-    const returnedProductIds = Object.keys(availabilityData);
-    if (returnedProductIds.length === 0 && productsToRender.length > 0) { 
-         container.innerHTML = '<p style="text-align: center; color: var(--color-danger);">無法獲取您選擇日期範圍的房況資訊。</p>';
+    
+    if (!hasAnyBookableRoom) {
+         container.innerHTML += '<p style="text-align: center; color: var(--color-danger); margin-top: 10px;">所選日期已無空房。</p>';
     }
 
     calculateTotalPrice();
 }
-
 
 function getPriceForDate(dateString, product) {
     if (!dateString || !product) return product?.price_weekday || null; 
@@ -829,43 +793,51 @@ if (!showStoredValue) {
     // 各頁面初始化函式
     // =================================================================
     
-        async function initializeHomePage() {
-        
+async function initializeHomePage() {
+    // 綁定懸浮按鈕 (FAB)
     const rallyFab = document.getElementById('rally-fab-btn');
     if (rallyFab && !rallyFab.dataset.listenerAttached) {
-            rallyFab.addEventListener('click', () => {
-                showPage('page-rally'); // 跳轉到集點頁面
-            });
-            rallyFab.dataset.listenerAttached = 'true';
+        rallyFab.addEventListener('click', () => {
+            showPage('page-rally');
+        });
+        rallyFab.dataset.listenerAttached = 'true';
     }
 
-        const terms = activeTemplate?.terms || {};
-        try {
-            const pageTitle = appContent.querySelector('#page-home .page-main-title');
-            if (pageTitle) {
-                pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
-            }
-        } catch(e) {
-            console.error("設定 Home 標題失敗:", e);
+    // 設定標題
+    const terms = activeTemplate?.terms || {};
+    try {
+        const pageTitle = appContent.querySelector('#page-home .page-main-title');
+        if (pageTitle) {
+            pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
         }
-
-        const container = document.getElementById('news-list-container');
-        if (!container) return;
-        container.innerHTML = `<p>載入中...</p>`;
-        try {
-            const response = await fetch('api/get-news');
-            if (!response.ok) {
-                const newsTitle = terms.NEWS_PAGE_TITLE || '情報';
-                throw new Error(`無法獲取${newsTitle}`);
-            }
-            allNews = await response.json();
-            
-            setupNewsFilters(); 
-            renderNews(); 
-        } catch (error) {
-            container.innerHTML = `<p style="color:var(--color-danger);">${error.message}</p>`;
-        }
+    } catch(e) {
+        console.error("設定 Home 標題失敗:", e);
     }
+
+    // 載入最新情報
+    const container = document.getElementById('news-list-container');
+    if (!container) return;
+    
+    // 標示載入中
+    container.innerHTML = `<p style="padding: 10px; color: var(--color-text-secondary);">載入中...</p>`;
+    
+    try {
+        const response = await fetch('api/get-news');
+        if (!response.ok) throw new Error('無法獲取情報');
+        
+        allNews = await response.json();
+        
+        // 使用橫向捲動樣式渲染 (CSS 已配合調整)
+        // renderNews 函式本身不需要大改，只要容器 class 正確即可
+        setupNewsFilters(); 
+        renderNews(); 
+        
+    } catch (error) {
+        container.innerHTML = `<p style="padding: 10px; color:var(--color-danger);">載入失敗: ${error.message}</p>`;
+    }
+    
+    // [已移除] 熱門產品載入邏輯
+}
 
 
     function renderNews(filterCategory = 'ALL') {
@@ -926,93 +898,190 @@ if (!showStoredValue) {
     }
 
 async function initializeProfilePage() {
-        if (!userProfile) return;
+    if (!userProfile) return;
 
-        // 1. 獲取設定
-        const terms = activeTemplate?.terms || {};
-        const features = activeTemplate?.features || {};
+    // 1. 獲取最新資料
+    try {
+        const userData = await fetchproductData(true); 
         
-        console.log("[LIFF script.js] initializeProfilePage 讀取到的 Features:", JSON.stringify(features));
-
-        // 2. 宣告所有 DOM 元素 (確保在使用前宣告)
-        const bookingsBtn = document.querySelector('#my-bookings-btn');
-        const expHistoryBtn = document.querySelector('#my-exp-history-btn');
-        const myVouchersBtn = document.querySelector('#my-vouchers-btn');
-        const myStoredValueBtn = document.querySelector('#my-stored-value-btn'); // 新增的儲值金按鈕
-        const editProfileBtn = document.querySelector('#edit-profile-btn');
-        const profilePicture = document.getElementById('profile-picture');
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        const qrcodeElement = document.getElementById('qrcode');
-
-        // 3. 設定按鈕文字 (依據 Terms)
-        if (bookingsBtn) {
-            bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
-        }
-        if (expHistoryBtn) {
-            expHistoryBtn.innerHTML = terms.PROFILE_EXP_HISTORY_BTN_LABEL || '點數紀錄';
-        }
-        if (editProfileBtn) {
-            editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
-        }
-
-        // 4. 設定按鈕顯示狀態 (依據 Features 分流設定)
+        // 更新顯示
+        const displayNameEl = document.getElementById('display-name');
+        const classEl = document.getElementById('user-class');
+        const levelEl = document.getElementById('user-level');
         
-        // 點數紀錄按鈕：需啟用會員系統 且 未被隱藏
-        if (expHistoryBtn) {
-            const showExp = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false;
-            expHistoryBtn.style.display = showExp ? 'block' : 'none';
+        if(displayNameEl) displayNameEl.textContent = userData.real_name || userProfile.displayName;
+        if(classEl) classEl.textContent = userData.class || '一般會員';
+        if(levelEl) levelEl.textContent = `Lv.${userData.level} (點數: ${userData.current_exp})`;
+        
+        // 更新頭像
+        const picEl = document.getElementById('profile-picture');
+        if (picEl && userProfile.pictureUrl) picEl.src = userProfile.pictureUrl;
+
+        // QR Code 生成 (現在位於右上角 profile-qr-box 內)
+        const qrcodeContainer = document.getElementById('qrcode');
+        if (qrcodeContainer) {
+             qrcodeContainer.innerHTML = ''; 
+             try {
+                 new QRCode(qrcodeContainer, { 
+                     text: userProfile.userId, 
+                     width: 65, height: 65, 
+                     colorDark : "#4A403A", colorLight : "#ffffff",
+                     correctLevel : QRCode.CorrectLevel.L
+                 });
+             } catch (e) { console.error("QR Code Error", e); }
         }
 
-        // 預約紀錄按鈕：需啟用預約系統
-        if (bookingsBtn) {
-            bookingsBtn.style.display = features.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        }
+    } catch (error) {
+        console.error("會員資料載入失敗:", error);
+    }
 
-        // 優惠券按鈕：依據 CLIENT_SHOW_VOUCHERS 設定 (預設開啟)
-        if (myVouchersBtn) {
-            const showVouchers = features.CLIENT_SHOW_VOUCHERS !== false;
-            myVouchersBtn.style.display = showVouchers ? 'block' : 'none';
-        }
+    // 2. 綁定 2x2 功能按鈕
+    const btnMap = {
+        'btn-my-records': 'page-my-records', // 跳轉到新頁面
+        'btn-my-vouchers': 'page-my-vouchers',
+        'btn-edit-profile': 'page-edit-profile',
+        'btn-go-rally': 'page-rally'
+    };
 
-        // 儲值金按鈕：依據 CLIENT_SHOW_STORED_VALUE 設定 (預設開啟)
-        if (myStoredValueBtn) {
-            const showStored = features.CLIENT_SHOW_STORED_VALUE !== false;
-            myStoredValueBtn.style.display = showStored ? 'block' : 'none';
-        }
-
-        // 5. 設定頭像
-        if (profilePicture && userProfile.pictureUrl) {
-            profilePicture.src = userProfile.pictureUrl;
-        }
-
-        // 6. QR Code 顯示邏輯
-        if (qrcodeContainer && qrcodeElement) {
-             const showQr = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false;
-             
-             if (showQr) {
-                 qrcodeContainer.style.display = 'flex';
-                 qrcodeElement.innerHTML = ''; 
-                 try {
-                     new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
-                 } catch (e) {
-                     console.error("QRCode library failed to initialize:", e);
-                     qrcodeElement.innerHTML = '<p style="color:red; font-size: 0.8em;">QR Code 載入失敗</p>';
-                 }
-             } else {
-                 qrcodeContainer.style.display = 'none';
-             }
-        }
-
-        // 7. 載入會員資料並更新顯示
-        try {
-            const userData = await fetchproductData(true); 
-            updateProfileDisplay(userData); 
-        } catch (error) {
-            console.error("獲取會員資料失敗:", error);
-            const displayNameEl = document.getElementById('display-name');
-            if(displayNameEl) displayNameEl.textContent = '資料載入失敗';
+    for (const [btnId, pageId] of Object.entries(btnMap)) {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            // 移除舊的監聽器 (防止重複)
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', () => {
+                showPage(pageId);
+            });
         }
     }
+}
+
+// [新增] 初始化綜合紀錄頁面
+async function initializeMyRecordsPage() {
+    if (!userProfile) return;
+
+    // 1. 綁定分頁切換
+    const header = document.querySelector('.records-tabs-header');
+    if (header && !header.dataset.listenerAttached) {
+        header.addEventListener('click', (e) => {
+            const targetTab = e.target.closest('.record-tab');
+            if (targetTab) {
+                // 切換 Tab 樣式
+                header.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
+                targetTab.classList.add('active');
+                
+                // 切換內容顯示
+                const targetId = targetTab.dataset.target;
+                document.querySelectorAll('.records-content-pane').forEach(p => p.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+            }
+        });
+        header.dataset.listenerAttached = 'true';
+    }
+
+    // 2. 載入資料 (平行執行)
+    loadMyBookingsList();
+    loadMyPointsList();
+    loadMyWalletList();
+}
+
+// 輔助：載入預約列表
+async function loadMyBookingsList() {
+    const container = document.getElementById('my-bookings-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        // 呼叫原有 API (假設支援 filter=all)
+        const res = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=all`);
+        const bookings = await res.json();
+        
+        if (bookings.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無預約紀錄</p>';
+            return;
+        }
+
+        container.innerHTML = bookings.map(b => {
+            const statusColor = b.status === 'confirmed' ? 'var(--color-success)' : (b.status === 'cancelled' ? 'var(--color-danger)' : '#888');
+            return `
+                <div class="record-item" onclick="showPage('page-booking-details', {bookingId: ${b.booking_id}})" style="cursor:pointer;">
+                    <div>
+                        <div class="record-main">${b.booking_date}</div>
+                        <div class="record-sub">${b.status_text}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="record-value" style="color:${statusColor};">$${b.total_amount}</div>
+                        <div class="record-sub">查看 ></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
+
+// 輔助：載入點數列表
+async function loadMyPointsList() {
+    const container = document.getElementById('my-points-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        const res = await fetch(`api/my-purchase-history?userId=${userProfile.userId}`);
+        const points = await res.json();
+        
+        if (points.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無點數紀錄</p>';
+            return;
+        }
+
+        container.innerHTML = points.map(p => {
+            const isPlus = p.exp_added > 0;
+            return `
+                <div class="record-item">
+                    <div>
+                        <div class="record-main">${p.reason}</div>
+                        <div class="record-sub">${new Date(p.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div class="record-value ${isPlus ? 'val-plus' : 'val-minus'}">
+                        ${isPlus ? '+' : ''}${p.exp_added}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
+
+// 輔助：載入儲值列表
+async function loadMyWalletList() {
+    const container = document.getElementById('my-wallet-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        const res = await fetch(`api/my-stored-value-history?userId=${userProfile.userId}`);
+        const records = await res.json();
+        
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無儲值變動紀錄</p>';
+            return;
+        }
+
+        const typeMap = { 'admin_topup': '儲值', 'admin_deduct': '扣款', 'booking_payment': '消費扣抵' };
+
+        container.innerHTML = records.map(r => {
+            const isPlus = r.amount_changed > 0;
+            return `
+                <div class="record-item">
+                    <div>
+                        <div class="record-main">${typeMap[r.type] || '變動'}</div>
+                        <div class="record-sub">${new Date(r.created_at).toLocaleDateString()} ${r.notes ? '('+r.notes+')' : ''}</div>
+                    </div>
+                    <div class="record-value ${isPlus ? 'val-plus' : 'val-minus'}">
+                        ${isPlus ? '+' : ''}$${Math.abs(r.amount_changed)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
 
 async function initializeMyBookingsPage() {
         if (!userProfile) return;

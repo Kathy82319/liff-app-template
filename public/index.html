@@ -387,30 +387,57 @@
             <div id="my-vouchers-container-used"><p>查詢中...</p></div>
         </div>
         <div id="page-profile">
-            <h1 class="page-main-title">會員中心</h1>
-            <div id="qrcode-container">
-                <div id="qrcode"></div>
-            </div>
-            <div class="profile-details-grid">
-                <div class="profile-avatar">
-                    <img id="profile-picture" src="https://placehold.co/80x80/112240/ccd6f6?text=頭像" alt="Profile Picture">
-                </div>
-                <div class="profile-stats">
+<h1 class="page-main-title">會員中心</h1>
+        
+        <div class="profile-card-container">
+            <div class="profile-left">
+                <img id="profile-picture" class="profile-avatar-img" src="https://placehold.co/80x80?text=Avatar" alt="Avatar">
+                <div class="profile-text">
                     <h2 id="display-name">讀取中...</h2>
-                    <p><strong></strong><span id="user-class"></span></p>
-                    <p><strong></strong><span id="user-level"></span></p>
-                    <p><strong></strong><span id="user-exp"></span></p>
-                    <p><strong>儲值金餘額:</strong> <strong id="user-stored-value" style="color: var(--color-accent); font-size: 1.1em;">$0</strong></p>
+                    <p id="user-class">一般會員</p>
+                    <p id="user-level">Level 1</p>
                 </div>
             </div>
-            <div id="user-perk-line" class="perk-display" style="display: none;"></div>
-            <div class="profile-actions">
-                <button class="cta-button" id="my-bookings-btn">預約紀錄</button>
-                <button class="cta-button" id="my-exp-history-btn">消費紀錄</button>
-                <button class="cta-button" id="my-vouchers-btn">我的優惠券</button>
-                <button class="cta-button" id="my-stored-value-btn" style="background-color: var(--color-secondary);">儲值金紀錄</button>
-                <button class="cta-button" id="edit-profile-btn">編輯個人資料</button>
+            <div class="profile-qrcode-box">
+                <div id="qrcode"></div> </div>
+        </div>
+
+        <div id="balance-container" class="balance-strip" style="display: none;">
+            <span class="balance-label">錢包餘額</span>
+            <span class="balance-amount" id="user-stored-value">$0</span>
+        </div>
+
+        <div class="member-menu-grid">
+            <div class="member-menu-btn" id="btn-my-records">
+                <span class="member-menu-icon">📋</span>
+                我的紀錄
             </div>
+            <div class="member-menu-btn" id="btn-my-vouchers">
+                <span class="member-menu-icon">🎟️</span>
+                我的優惠券
+            </div>
+            <div class="member-menu-btn" id="btn-edit-profile">
+                <span class="member-menu-icon">✏️</span>
+                編輯資料
+            </div>
+            <div class="member-menu-btn" id="btn-go-rally">
+                <span class="member-menu-icon">🎯</span>
+                集點趣
+            </div>
+        </div>
+        
+        <div id="user-perk-line" style="display: none;"></div>
+    </div>
+
+    <div id="page-my-records">
+        <button class="details-back-button">← 返回會員中心</button>
+        <h1 class="page-main-title" style="margin-top: 10px;">我的紀錄</h1>
+        
+        <div class="records-tabs">
+            <button class="records-tab-btn active" data-target="tab-bookings">預約紀錄</button>
+            <button class="records-tab-btn" data-target="tab-points">點數紀錄</button>
+            <button class="records-tab-btn" data-target="tab-wallet">儲值紀錄</button>
+        </div>
         </div>
 
         <div id="page-edit-profile">

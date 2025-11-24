@@ -927,3 +927,11 @@ input:focus, select:focus, textarea:focus {
     50% { transform: translateY(-6px) rotate(2deg); }
     100% { transform: translateY(0px) rotate(0deg); }
 }
+/* [新增] SVG 圖示的樣式 */
+.rally-fab-svg {
+    width: 32px; /* 設定合適的大小 */
+    height: 32px;
+    opacity: 0.9;
+    /* 稍微旋轉一點，增加手蓋印章的隨性感 */
+    transform: rotate(5deg); 
+}

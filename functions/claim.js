@@ -4,6 +4,7 @@ export async function onRequest(context) {
     const { request, env } = context;
     const db = env.DB;
     const url = new URL(request.url);
+    const myLiffId = "${env.LIFF_ID}";
     
     // 【修正】優先讀取 voucher_code，如果沒有才讀取 code (為了相容舊連結，雖然我們建議用新的)
     const claimCode = url.searchParams.get('voucher_code') || url.searchParams.get('code');
@@ -75,7 +76,7 @@ export async function onRequest(context) {
             // 【修正】前端也改為讀取 voucher_code
             const claimCode = urlParams.get('voucher_code') || urlParams.get('code');
             
-            const myLiffId = "2008032417-3yJQGaO6"; 
+            
 
             if (!claimCode) {
                 statusEl.textContent = '錯誤：缺少優惠券代碼 (voucher_code)。';

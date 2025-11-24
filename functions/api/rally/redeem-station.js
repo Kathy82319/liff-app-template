@@ -114,7 +114,7 @@ export async function onRequest(context) {
                     
                     // [LINE 通知]
                     if (env.LINE_CHANNEL_ACCESS_TOKEN) {
-                        const LIFF_BASE_ID = "2008032417-3yJQGaO6";
+                        const LIFF_BASE_ID = env.LIFF_ID;
                         const flexMessage = {
                             to: userId,
                             messages: [{

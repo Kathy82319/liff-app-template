@@ -15,7 +15,12 @@ export async function onRequest(context) {
         const config = {
             FEATURES: {},
             TERMS: {},
-            LOGIC: {} // 確保 LOGIC 物件已初始化
+            LOGIC: {},
+            // 【新增】ENV 區塊，將環境變數傳給前端
+            ENV: {
+                LIFF_ID: context.env.LIFF_ID,
+                OWNER_LIFF_ID: context.env.OWNER_LIFF_ID
+            }
         };
 
         results.forEach(item => {

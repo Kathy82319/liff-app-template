@@ -72,7 +72,7 @@ async function runMassIssueTask(context, templateId, userIds, sendNotification) 
     const db = context.env.DB;
     const lineToken = sendNotification ? context.env.LINE_CHANNEL_ACCESS_TOKEN : null; 
     // 您的客戶端 LIFF ID (用於產生連結)
-    const CLIENT_LIFF_ID = "2008032417-3yJQGaO6"; 
+    const CLIENT_LIFF_ID = context.env.LIFF_ID;
     
     console.log(`[Mass Issue Task] 開始為 ${userIds.length} 位使用者發送樣板 ID: ${templateId} (發送通知: ${sendNotification})`);
 

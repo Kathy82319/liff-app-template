@@ -8,8 +8,14 @@ let campaignDatepicker = null;
 let stationDatepicker = null;
 let currentCampaignId = null; // 當前正在檢視的活動 ID
 
-const LIFF_BASE_URL = "https://liff.line.me/2008032417-3yJQGaO6"; // 替換為您的 LIFF App ID
-
+// 2. 新增一個動態獲取 URL 的函式 (或是直接在 render 時組裝)
+function getLiffBaseUrl() {
+    if (window.CONFIG && window.CONFIG.ENV && window.CONFIG.ENV.LIFF_ID) {
+        return `https://liff.line.me/${window.CONFIG.ENV.LIFF_ID}`;
+    }
+    console.error("LIFF_ID not found in window.CONFIG");
+    return "https://liff.line.me/UNKNOWN_ID";
+}
 // --- Helper: 渲染活動列表 ---
 // public/admin/modules/rallyManagement.js
 
@@ -30,8 +36,7 @@ function renderCampaignList(campaigns) {
         // [新增] 判斷是否顯示「重置碼」按鈕
         let resetBtnHtml = '';
         if (c.can_repeat) {
-            // 產生重置連結 (注意：這裡請換成您的 LIFF ID)
-            const resetLink = `${LIFF_BASE_URL}/#page-rally?action=reset&campaign_id=${c.campaign_id}`;
+            const resetLink = `${getLiffBaseUrl()}/#page-rally?action=reset&campaign_id=${c.campaign_id}`;
             resetBtnHtml = `<button class="action-btn btn-show-reset-qrcode" data-link="${resetLink}" style="background-color: #6f42c1; margin-right: 5px;">重置碼</button>`;
         }
 
@@ -73,7 +78,7 @@ function renderStationList(stations, campaignTitle) {
         const expiryDate = s.expiry_date || '永久有效';
         
         // QR Code 連結格式 (LIFF App URL + 站點代碼)
-        const claimLink = `${LIFF_BASE_URL}/#page-rally?partner_code=${s.unique_partner_code}`;
+        const claimLink = `${getLiffBaseUrl()}/#page-rally?partner_code=${s.unique_partner_code}`;
 
         return `
             <tr>

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const myLiffId = "2008296713-vPAkV7xr"; // 您的 Owner LIFF ID
+    let myLiffId = "";
     let userId = null;
     let currentTemplate = null;
     let flatpickrInstance = null; // 日曆 Tab 的 Flatpickr
@@ -303,7 +303,17 @@ function debounce(func, delay) {
 // --- 主程式 ---
     async function main() {
         try {
-            await liff.init({ liffId: myLiffId });
+            // --- 【新增】優先載入設定檔以取得 LIFF ID ---
+        const configResponse = await fetchData('/api/get-app-config', { skipGlobalError: true });
+        if (configResponse && configResponse.ENV && configResponse.ENV.OWNER_LIFF_ID) {
+            myLiffId = configResponse.ENV.OWNER_LIFF_ID;
+            window.CONFIG = configResponse; // 順便存入全域
+        } else {
+            throw new Error("系統未設定 OWNER_LIFF_ID (環境變數)");
+        }
+
+        // --- 【修改】使用讀取到的 ID 初始化 ---
+        await liff.init({ liffId: myLiffId });
             
             if (!liff.isLoggedIn()) {
                 liff.login({ redirectUri: window.location.href });
@@ -313,15 +323,14 @@ function debounce(func, delay) {
             userId = profile.userId;
 
             // 平行執行驗證與資料載入
-            const [verifyResult, productsResponse, configResponse] = await Promise.all([
-                fetchData('/api/admin/verify-liff-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId })
-                }),
-                fetchData('/api/get-products', { skipGlobalError: true }), // 產品失敗不擋路
-                fetchData('/api/get-app-config', { skipGlobalError: true }) // 設定失敗不擋路
-            ]);
+            const [verifyResult, productsResponse] = await Promise.all([
+            fetchData('/api/admin/verify-liff-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId })
+            }),
+            fetchData('/api/get-products', { skipGlobalError: true })
+        ]);
             
             allProducts = productsResponse || [];
             console.log(`[Main] 載入了 ${allProducts.length} 個產品項目。`);

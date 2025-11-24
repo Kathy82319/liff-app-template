@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const myLiffId = "2008032417-3yJQGaO6"; 
+    let myLiffId = ""; 
     let userProfile = null;
     let productData = {};
     const appContent = document.getElementById('app-content');
@@ -256,14 +256,21 @@ function getPriceForDate(dateString, product) {
     // =================================================================
     async function main() {
         try {
-            // 1. 獲取設定檔
-            const response = await fetch('/api/get-app-config');
-            if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
-            const configData = await response.json();
-            
-            if(!configData || !configData.LOGIC){
-                 throw new Error('獲取到的設定檔格式不正確。');
-            }
+            // --- 【修改】先獲取設定檔 ---
+        const response = await fetch('/api/get-app-config');
+        if (!response.ok) throw new Error(`伺服器錯誤 ${response.status}`);
+        const configData = await response.json();
+        
+        // --- 【新增】從設定檔讀取 LIFF ID ---
+        if (configData.ENV && configData.ENV.LIFF_ID) {
+            myLiffId = configData.ENV.LIFF_ID;
+        } else {
+            throw new Error("系統未設定 LIFF_ID (環境變數)");
+        }
+
+        if(!configData || !configData.LOGIC){
+             throw new Error('獲取到的設定檔格式不正確。');
+        }
             
             CONFIG = configData;
             const activeTemplateKey = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;

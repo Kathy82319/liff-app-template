@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'page-my-stored-value-history': initializeMyStoredValueHistoryPage,
         'page-my-vouchers': initializeMyVouchersPage,
         'page-rally': initializeRallyPage,
+        'page-my-records': initializeMyRecordsPage,
     };
 
  // 計算所選房間及入住天數的預估總金額
@@ -894,93 +895,190 @@ async function initializeHomePage() {
     }
 
 async function initializeProfilePage() {
-        if (!userProfile) return;
+    if (!userProfile) return;
 
-        // 1. 獲取設定
-        const terms = activeTemplate?.terms || {};
-        const features = activeTemplate?.features || {};
+    // 1. 獲取最新資料
+    try {
+        const userData = await fetchproductData(true); 
         
-        console.log("[LIFF script.js] initializeProfilePage 讀取到的 Features:", JSON.stringify(features));
-
-        // 2. 宣告所有 DOM 元素 (確保在使用前宣告)
-        const bookingsBtn = document.querySelector('#my-bookings-btn');
-        const expHistoryBtn = document.querySelector('#my-exp-history-btn');
-        const myVouchersBtn = document.querySelector('#my-vouchers-btn');
-        const myStoredValueBtn = document.querySelector('#my-stored-value-btn'); // 新增的儲值金按鈕
-        const editProfileBtn = document.querySelector('#edit-profile-btn');
-        const profilePicture = document.getElementById('profile-picture');
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        const qrcodeElement = document.getElementById('qrcode');
-
-        // 3. 設定按鈕文字 (依據 Terms)
-        if (bookingsBtn) {
-            bookingsBtn.innerHTML = terms.PROFILE_BOOKINGS_BTN_LABEL || '預約紀錄';
-        }
-        if (expHistoryBtn) {
-            expHistoryBtn.innerHTML = terms.PROFILE_EXP_HISTORY_BTN_LABEL || '點數紀錄';
-        }
-        if (editProfileBtn) {
-            editProfileBtn.innerHTML = terms.PROFILE_EDIT_BTN_LABEL || '編輯資料';
-        }
-
-        // 4. 設定按鈕顯示狀態 (依據 Features 分流設定)
+        // 更新顯示
+        const displayNameEl = document.getElementById('display-name');
+        const classEl = document.getElementById('user-class');
+        const levelEl = document.getElementById('user-level');
         
-        // 點數紀錄按鈕：需啟用會員系統 且 未被隱藏
-        if (expHistoryBtn) {
-            const showExp = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_EXP_HISTORY_BTN !== false;
-            expHistoryBtn.style.display = showExp ? 'block' : 'none';
+        if(displayNameEl) displayNameEl.textContent = userData.real_name || userProfile.displayName;
+        if(classEl) classEl.textContent = userData.class || '一般會員';
+        if(levelEl) levelEl.textContent = `Lv.${userData.level} (點數: ${userData.current_exp})`;
+        
+        // 更新頭像
+        const picEl = document.getElementById('profile-picture');
+        if (picEl && userProfile.pictureUrl) picEl.src = userProfile.pictureUrl;
+
+        // QR Code 生成 (現在位於右上角 profile-qr-box 內)
+        const qrcodeContainer = document.getElementById('qrcode');
+        if (qrcodeContainer) {
+             qrcodeContainer.innerHTML = ''; 
+             try {
+                 new QRCode(qrcodeContainer, { 
+                     text: userProfile.userId, 
+                     width: 65, height: 65, 
+                     colorDark : "#4A403A", colorLight : "#ffffff",
+                     correctLevel : QRCode.CorrectLevel.L
+                 });
+             } catch (e) { console.error("QR Code Error", e); }
         }
 
-        // 預約紀錄按鈕：需啟用預約系統
-        if (bookingsBtn) {
-            bookingsBtn.style.display = features.ENABLE_BOOKING_SYSTEM ? 'block' : 'none';
-        }
+    } catch (error) {
+        console.error("會員資料載入失敗:", error);
+    }
 
-        // 優惠券按鈕：依據 CLIENT_SHOW_VOUCHERS 設定 (預設開啟)
-        if (myVouchersBtn) {
-            const showVouchers = features.CLIENT_SHOW_VOUCHERS !== false;
-            myVouchersBtn.style.display = showVouchers ? 'block' : 'none';
-        }
+    // 2. 綁定 2x2 功能按鈕
+    const btnMap = {
+        'btn-my-records': 'page-my-records', // 跳轉到新頁面
+        'btn-my-vouchers': 'page-my-vouchers',
+        'btn-edit-profile': 'page-edit-profile',
+        'btn-go-rally': 'page-rally'
+    };
 
-        // 儲值金按鈕：依據 CLIENT_SHOW_STORED_VALUE 設定 (預設開啟)
-        if (myStoredValueBtn) {
-            const showStored = features.CLIENT_SHOW_STORED_VALUE !== false;
-            myStoredValueBtn.style.display = showStored ? 'block' : 'none';
-        }
-
-        // 5. 設定頭像
-        if (profilePicture && userProfile.pictureUrl) {
-            profilePicture.src = userProfile.pictureUrl;
-        }
-
-        // 6. QR Code 顯示邏輯
-        if (qrcodeContainer && qrcodeElement) {
-             const showQr = features.ENABLE_MEMBERSHIP_SYSTEM && features.PROFILE_SHOW_QR_CODE !== false;
-             
-             if (showQr) {
-                 qrcodeContainer.style.display = 'flex';
-                 qrcodeElement.innerHTML = ''; 
-                 try {
-                     new QRCode(qrcodeElement, { text: userProfile.userId, width: 120, height: 120 });
-                 } catch (e) {
-                     console.error("QRCode library failed to initialize:", e);
-                     qrcodeElement.innerHTML = '<p style="color:red; font-size: 0.8em;">QR Code 載入失敗</p>';
-                 }
-             } else {
-                 qrcodeContainer.style.display = 'none';
-             }
-        }
-
-        // 7. 載入會員資料並更新顯示
-        try {
-            const userData = await fetchproductData(true); 
-            updateProfileDisplay(userData); 
-        } catch (error) {
-            console.error("獲取會員資料失敗:", error);
-            const displayNameEl = document.getElementById('display-name');
-            if(displayNameEl) displayNameEl.textContent = '資料載入失敗';
+    for (const [btnId, pageId] of Object.entries(btnMap)) {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            // 移除舊的監聽器 (防止重複)
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', () => {
+                showPage(pageId);
+            });
         }
     }
+}
+
+// [新增] 初始化綜合紀錄頁面
+async function initializeMyRecordsPage() {
+    if (!userProfile) return;
+
+    // 1. 綁定分頁切換
+    const header = document.querySelector('.records-tabs-header');
+    if (header && !header.dataset.listenerAttached) {
+        header.addEventListener('click', (e) => {
+            const targetTab = e.target.closest('.record-tab');
+            if (targetTab) {
+                // 切換 Tab 樣式
+                header.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
+                targetTab.classList.add('active');
+                
+                // 切換內容顯示
+                const targetId = targetTab.dataset.target;
+                document.querySelectorAll('.records-content-pane').forEach(p => p.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+            }
+        });
+        header.dataset.listenerAttached = 'true';
+    }
+
+    // 2. 載入資料 (平行執行)
+    loadMyBookingsList();
+    loadMyPointsList();
+    loadMyWalletList();
+}
+
+// 輔助：載入預約列表
+async function loadMyBookingsList() {
+    const container = document.getElementById('my-bookings-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        // 呼叫原有 API (假設支援 filter=all)
+        const res = await fetch(`api/my-bookings?userId=${userProfile.userId}&filter=all`);
+        const bookings = await res.json();
+        
+        if (bookings.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無預約紀錄</p>';
+            return;
+        }
+
+        container.innerHTML = bookings.map(b => {
+            const statusColor = b.status === 'confirmed' ? 'var(--color-success)' : (b.status === 'cancelled' ? 'var(--color-danger)' : '#888');
+            return `
+                <div class="record-item" onclick="showPage('page-booking-details', {bookingId: ${b.booking_id}})" style="cursor:pointer;">
+                    <div>
+                        <div class="record-main">${b.booking_date}</div>
+                        <div class="record-sub">${b.status_text}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="record-value" style="color:${statusColor};">$${b.total_amount}</div>
+                        <div class="record-sub">查看 ></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
+
+// 輔助：載入點數列表
+async function loadMyPointsList() {
+    const container = document.getElementById('my-points-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        const res = await fetch(`api/my-purchase-history?userId=${userProfile.userId}`);
+        const points = await res.json();
+        
+        if (points.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無點數紀錄</p>';
+            return;
+        }
+
+        container.innerHTML = points.map(p => {
+            const isPlus = p.exp_added > 0;
+            return `
+                <div class="record-item">
+                    <div>
+                        <div class="record-main">${p.reason}</div>
+                        <div class="record-sub">${new Date(p.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div class="record-value ${isPlus ? 'val-plus' : 'val-minus'}">
+                        ${isPlus ? '+' : ''}${p.exp_added}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
+
+// 輔助：載入儲值列表
+async function loadMyWalletList() {
+    const container = document.getElementById('my-wallet-list');
+    container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
+    
+    try {
+        const res = await fetch(`api/my-stored-value-history?userId=${userProfile.userId}`);
+        const records = await res.json();
+        
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">尚無儲值變動紀錄</p>';
+            return;
+        }
+
+        const typeMap = { 'admin_topup': '儲值', 'admin_deduct': '扣款', 'booking_payment': '消費扣抵' };
+
+        container.innerHTML = records.map(r => {
+            const isPlus = r.amount_changed > 0;
+            return `
+                <div class="record-item">
+                    <div>
+                        <div class="record-main">${typeMap[r.type] || '變動'}</div>
+                        <div class="record-sub">${new Date(r.created_at).toLocaleDateString()} ${r.notes ? '('+r.notes+')' : ''}</div>
+                    </div>
+                    <div class="record-value ${isPlus ? 'val-plus' : 'val-minus'}">
+                        ${isPlus ? '+' : ''}$${Math.abs(r.amount_changed)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+}
 
 async function initializeMyBookingsPage() {
         if (!userProfile) return;

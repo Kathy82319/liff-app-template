@@ -5,7 +5,7 @@
     /* 基礎背景：Feather White */
     --color-bg: #FAF9F6; 
     
-    /* 卡片背景：純白 */
+    /* 卡片背景：純白，讓內容跳出來 */
     --color-card-bg: #FFFFFF;
     
     /* 頁首/導覽列：Porcelain Mist */
@@ -20,7 +20,7 @@
     /* 強調色/圖示底色：Cream */
     --color-accent: #E6DAC8;
     
-    /* 文字顏色 */
+    /* 文字顏色：深褐灰 (配合大地色系的深色文字) */
     --color-text-primary: #4A403A;
     --color-text-secondary: #8C8076;
     
@@ -29,14 +29,14 @@
     --color-success: #4A5D23;
     --color-warning: #FFC107;
 
-    /* 設定 */
+    /* 現代化設定 */
     --font-primary: 'Cwtex Fangsong', 'Noto Sans TC', sans-serif;
-    --border-radius: 12px;
-    --box-shadow: 0 4px 12px rgba(164, 141, 120, 0.15);
+    --border-radius: 12px; /* 稍微圓潤 */
+    --box-shadow: 0 4px 12px rgba(164, 141, 120, 0.15); /* 帶有主色調的陰影 */
 }
 
 /* =========================================
-   2. 基礎設定 (Resets & Base)
+   2. 基礎設定 (Base & Layout)
    ========================================= */
 html {
     box-sizing: border-box;
@@ -47,22 +47,30 @@ html {
 }
 
 body {
-    margin: 0;
-    font-family: var(--font-primary);
     background-color: var(--color-bg);
     color: var(--color-text-primary);
-    /* 調整：距離頂部更近一點 */
+    font-family: var(--font-primary);
+    margin: 0;
+    /* 【需求修正 1】頁首置頂一點 (原為 10px) */
     padding-top: 5px; 
     padding-bottom: 80px; /* 避開底部 Tab Bar */
-    overflow-x: hidden; 
+    overflow-x: hidden; /* 隱藏水平捲軸 */
     width: 100%;
+    box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
 }
 
 img {
     max-width: 100%;
     height: auto;
-    display: block;
+}
+
+#app-content {
+    padding: 15px;
+}
+
+.hidden {
+    display: none !important;
 }
 
 .page {
@@ -70,31 +78,28 @@ img {
     box-sizing: border-box;
 }
 
-/* 隱藏工具 */
-.hidden {
-    display: none !important;
-}
-
 /* =========================================
-   3. 通用元件 (Titles, Buttons, Inputs)
+   3. 通用元件 (Components)
    ========================================= */
 
-/* 頁面主標題 (依據您的需求調整) */
+/* --- 標題樣式 --- */
+/* 【需求修正 1】標題字體改小、置中、有底線、邊距調整 */
 .page-main-title {
     font-size: 1.5rem; /* 字體改小 */
     color: var(--color-primary);
     font-weight: bold;
     
-    /* 恢復置中與底線 */
+    /* 保持置中與底線 */
     text-align: center; 
-    border-bottom: 2px solid var(--color-primary);
+    border-bottom: 2px solid var(--color-primary); /* 恢復底線 */
     
     padding-bottom: 10px;
     margin-top: 0;       /* 貼近頂部 */
     margin-bottom: 20px;
+    padding-left: 0;     /* 移除原本的左邊距 */
 }
 
-/* 主要行動按鈕 (CTA) */
+/* --- 按鈕樣式 --- */
 .cta-button {
     display: block;
     width: 100%;
@@ -107,45 +112,40 @@ img {
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: background-color 0.3s;
-    text-align: center;
 }
 .cta-button:hover {
     background-color: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 .cta-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
-/* 返回按鈕 */
 .details-back-button {
-    padding: 6px 16px;
+    padding: 8px 16px;
     background: transparent;
     border: 1px solid var(--color-secondary);
     color: var(--color-secondary);
     border-radius: 20px;
     cursor: pointer;
-    margin-bottom: 10px;
-    font-size: 0.9rem;
 }
 
-/* 輸入框單元 */
-.form-group {
-    margin-bottom: 15px;
-}
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: var(--color-text-primary);
+.action-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    color: white;
+    transition: opacity 0.2s;
 }
 
+/* --- 輸入框與表單 --- */
 input, select, textarea {
     width: 100%;
     padding: 10px;
     font-size: 1rem;
-    background-color: #FFF;
+    background-color: #FFF; /* 修正為純白 */
     border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
     color: var(--color-text-primary);
@@ -154,16 +154,16 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(164, 141, 120, 0.2);
 }
 
-/* 通用卡片容器 */
-.info-section, .booking-info-card, .exp-record-card {
+/* --- 通用卡片 --- */
+/* 注意：.info-section 將在下方針對店家資訊頁面進行覆寫 */
+.news-card, .details-section, .profile-details-grid, .info-section, .booking-info-card, .exp-record-card, .rental-card {
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
     padding: 15px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 /* =========================================
@@ -173,19 +173,22 @@ input:focus, select:focus, textarea:focus {
     position: fixed;
     bottom: 0;
     left: 0;
+    right: 0;
     width: 100%;
-    height: 65px;
-    background-color: #FFFFFF;
+    height: 65px; /* 稍微加高一點以容納文字 */
+    background-color: #FFFFFF; 
     border-top: 1px solid var(--color-secondary);
     box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 1000;
+    border-radius: 0;
+    margin: 0;
 }
 
 .tab-button {
-    flex: 1;
+    flex: 1; /* 讓按鈕均分寬度 */
     padding: 5px 0;
     background: none;
     border: none;
@@ -196,68 +199,76 @@ input:focus, select:focus, textarea:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     line-height: 1.2;
 }
 
 .tab-button.active {
     color: var(--color-primary);
     font-weight: bold;
+    transform: none;
 }
 
 /* =========================================
-   5. 首頁 (最新情報)
+   5. 頁面樣式：首頁 (Latest News)
    ========================================= */
 #news-filter-container {
     display: flex;
+    justify-content: center;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 .news-filter-btn {
-    padding: 6px 12px;
+    padding: 6px 14px;
     border: 1px solid var(--color-secondary);
     background: transparent;
     color: var(--color-text-secondary);
     border-radius: 16px;
     cursor: pointer;
-    font-size: 0.9rem;
 }
 .news-filter-btn.active {
     background-color: var(--color-primary);
     border-color: var(--color-primary);
     color: var(--color-bg);
 }
-
-.news-card {
-    background-color: var(--color-card-bg);
-    border: 1px solid var(--color-secondary);
-    border-radius: var(--border-radius);
-    padding: 15px;
-    margin-bottom: 20px;
-    cursor: pointer;
-}
 .news-card-header {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
-    font-size: 0.9rem;
 }
-.news-card-category { font-weight: bold; color: var(--color-accent); }
-.news-card-date { color: var(--color-text-secondary); }
+.news-card-category {
+    font-weight: bold;
+    color: var(--color-accent);
+}
+.news-card-date {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+.news-card-title {
+    font-size: 1.2rem;
+    margin: 0 0 10px 0;
+}
 .news-card-image {
     width: 100%;
     height: 180px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: var(--border-radius);
     margin-bottom: 10px;
 }
-.news-card-title { margin: 0 0 5px 0; font-size: 1.1rem; }
-.news-card-snippet { margin: 0; color: var(--color-text-secondary); font-size: 0.9rem; }
 
 /* =========================================
-   6. 產品型錄頁面
+   6. 頁面樣式：產品型錄 (Products)
    ========================================= */
-#filter-controls { margin-bottom: 15px; }
+#product-catalog {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+#filter-controls {
+    margin-bottom: 20px;
+}
 #product-view-controls {
     display: flex;
     justify-content: space-between;
@@ -271,16 +282,59 @@ input:focus, select:focus, textarea:focus {
     padding: 5px 10px;
     cursor: pointer;
 }
-.layout-switcher button:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
-.layout-switcher button:last-child { border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-left: none; }
 .layout-switcher button.active {
     background: var(--color-primary);
-    color: white;
+    color: var(--color-bg);
     border-color: var(--color-primary);
 }
 
-/* 網格模式 */
-.view-grid {
+/* 排序按鈕 */
+.sort-button {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.sort-button .sort-arrow {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+}
+.sort-button[data-sort="default"] .sort-arrow {
+    border-top: 5px solid var(--color-text-secondary);
+    border-bottom: 5px solid var(--color-text-secondary);
+    height: 12px; opacity: 0.5;
+}
+.sort-button[data-sort="price_asc"] .sort-arrow { border-bottom: 7px solid var(--color-primary); }
+.sort-button[data-sort="price_desc"] .sort-arrow { border-top: 7px solid var(--color-primary); }
+
+/* 標籤樣式 */
+.filter-tag-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--color-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.filter-tag-btn.active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-bg);
+}
+.filter-action-btn {
+    padding: 6px 12px; background: transparent; border: none; color: var(--color-primary); cursor: pointer; font-size: 0.9rem;
+}
+
+/* 產品卡片 - Grid View */
+#product-list-container.view-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 15px;
@@ -289,20 +343,23 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--color-card-bg);
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    cursor: pointer;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .view-grid .product-image {
     width: 100%;
     height: 140px;
     object-fit: cover;
-    background-color: #f0f0f0;
+    background-color: var(--color-card-bg);
 }
 .view-grid .product-info { padding: 10px; flex-grow: 1; }
+.view-grid .product-title { margin: 0 0 5px; font-size: 0.9rem; font-weight: 600; }
+.view-grid .product-price { margin: 0; font-size: 0.9rem; color: var(--color-primary); font-weight: bold; }
 
-/* 列表模式 */
-.view-list {
+/* 產品卡片 - List View */
+#product-list-container.view-list {
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -311,19 +368,19 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--color-card-bg);
     border-radius: var(--border-radius);
     overflow: hidden;
+    cursor: pointer;
     display: flex;
     flex-direction: row;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    align-items: center;
 }
 .view-list .product-image {
-    width: 100px;
-    height: 100px;
-    object-fit: cover;
-    flex-shrink: 0;
+    width: 100px; height: 100px; object-fit: cover; flex-shrink: 0;
 }
 .view-list .product-info { padding: 15px; flex-grow: 1; }
+.view-list .product-title { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; }
+.view-list .product-price { margin: 0; font-size: 1rem; color: var(--color-primary); font-weight: bold; }
 
-/* 產品詳細頁圖片庫 */
+/* 產品詳細頁 */
 .details-gallery { margin-bottom: 20px; }
 .details-image-main {
     width: 100%;
@@ -335,71 +392,79 @@ input:focus, select:focus, textarea:focus {
 }
 .details-image-thumbnails { display: flex; gap: 10px; overflow-x: auto; }
 .details-image-thumbnails img {
-    width: 60px; height: 60px;
-    object-fit: cover;
-    border-radius: 8px;
+    width: 60px; height: 60px; object-fit: cover;
+    border-radius: var(--border-radius); cursor: pointer;
     border: 2px solid transparent;
+    transition: border-color 0.3s;
 }
 .details-image-thumbnails img.active { border-color: var(--color-primary); }
 
-/* 詳細頁欄位 */
-.detail-field-section h3 {
-    font-size: 1rem; color: var(--color-primary); margin: 15px 0 5px; border-bottom: 1px dashed var(--color-secondary); padding-bottom: 2px;
+.detail-field-section { margin-bottom: 15px; }
+.detail-field-section h3 { 
+    margin: 0 0 5px 0; font-size: 1.1rem; color: var(--color-primary); 
+    border-bottom: 1px dashed var(--color-secondary); padding-bottom: 2px;
 }
-.detail-field-section p { margin: 0; line-height: 1.6; }
 
 /* =========================================
-   7. 會員中心 & 我的紀錄
+   7. 頁面樣式：會員中心 (Profile)
    ========================================= */
 .profile-card-container {
     background-color: var(--color-card-bg);
-    border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
     padding: 20px;
+    box-shadow: var(--box-shadow);
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    box-shadow: var(--box-shadow);
+    border: 1px solid var(--color-secondary);
 }
 .profile-left { display: flex; align-items: center; gap: 15px; }
 .profile-avatar-img {
-    width: 70px; height: 70px;
-    border-radius: 50%;
-    border: 3px solid var(--color-accent);
-    object-fit: cover;
+    width: 70px; height: 70px; border-radius: 50%;
+    border: 3px solid var(--color-accent); object-fit: cover;
 }
-.profile-text h2 { margin: 0; font-size: 1.2rem; color: var(--color-primary); }
+.profile-text h2 { margin: 0 0 5px 0; font-size: 1.3rem; color: var(--color-primary); }
 .profile-text p { margin: 2px 0; font-size: 0.9rem; color: var(--color-text-secondary); }
 .profile-qrcode-box {
-    background-color: white;
-    padding: 5px;
-    border: 1px solid #eee;
-    border-radius: 8px;
+    background-color: white; padding: 5px;
+    border: 1px solid var(--color-secondary); border-radius: 8px;
 }
+.profile-qrcode-box img { display: block; }
 
-/* 2x2 選單 */
+/* 按鈕選單 Grid */
 .member-menu-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
 }
 .member-menu-btn {
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-secondary);
     border-radius: var(--border-radius);
     padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer; transition: all 0.2s;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    font-weight: bold;
+    color: var(--color-text-primary); font-weight: bold;
 }
-.member-menu-icon { font-size: 1.8rem; }
+.member-menu-btn:active { transform: scale(0.98); background-color: var(--color-accent); }
+.member-menu-icon { font-size: 1.8rem; color: var(--color-primary); }
 
-/* 紀錄 Tabs */
+/* 儲值條 */
+.balance-strip {
+    background-color: var(--color-primary);
+    color: white;
+    padding: 15px 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: var(--box-shadow);
+}
+.balance-label { font-size: 0.9rem; opacity: 0.9; }
+.balance-amount { font-size: 1.5rem; font-weight: bold; }
+
+/* =========================================
+   8. 頁面樣式：我的紀錄 (Records)
+   ========================================= */
 .records-tabs-header {
     display: flex;
     background-color: var(--color-header-bg);
@@ -408,14 +473,9 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 20px;
 }
 .records-tab-btn {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    border-radius: 8px;
-    color: var(--color-text-secondary);
-    font-weight: bold;
+    flex: 1; padding: 10px; border: none; background: none;
+    cursor: pointer; border-radius: 8px;
+    color: var(--color-text-secondary); font-weight: bold; transition: all 0.2s;
 }
 .records-tab-btn.active {
     background-color: var(--color-primary);
@@ -428,96 +488,130 @@ input:focus, select:focus, textarea:focus {
 }
 .records-content-pane.active { display: block; }
 
-/* 紀錄卡片 */
 .record-item {
     background-color: var(--color-card-bg);
     border-bottom: 1px solid var(--color-secondary);
     padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
 }
-.record-item:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
-.record-item:last-child { border-bottom: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
-.record-main { font-weight: bold; color: var(--color-text-primary); }
-.record-sub { font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 3px; }
-.val-plus { color: var(--color-success); font-weight: bold; }
-.val-minus { color: var(--color-danger); font-weight: bold; }
+.record-item:first-child { border-top-left-radius: var(--border-radius); border-top-right-radius: var(--border-radius); }
+.record-item:last-child { border-bottom: none; border-bottom-left-radius: var(--border-radius); border-bottom-right-radius: var(--border-radius); }
+
+.record-main { font-weight: bold; font-size: 1rem; color: var(--color-text-primary); }
+.record-sub { font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; }
+.record-value { font-weight: bold; font-size: 1.1rem; }
+.val-plus { color: var(--color-success); }
+.val-minus { color: var(--color-danger); }
 
 /* =========================================
-   8. 預約與訂位
+   9. 頁面樣式：預約 (Booking)
    ========================================= */
-/* 民宿/商品 選擇列表 */
-#room-selection-container { width: 100%; }
+/* 房型/項目卡片 */
+#room-selection-container { width: 100%; box-sizing: border-box; }
 .room-item {
-    display: flex;
-    align-items: center;
+    display: flex; align-items: center;
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-secondary);
     border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
+    padding: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box; overflow: hidden;
 }
 .room-thumb {
-    width: 80px; height: 80px;
-    object-fit: cover;
-    border-radius: 6px;
-    margin-right: 15px;
-    background-color: #eee;
+    width: 80px; height: 80px; object-fit: cover; border-radius: 6px; flex-shrink: 0;
+    margin-right: 15px; background-color: #eee;
 }
 .room-content { flex-grow: 1; min-width: 0; margin-right: 10px; }
-.room-name { font-weight: bold; font-size: 1rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-name {
+    font-weight: bold; font-size: 1rem; color: var(--color-text-primary); margin-bottom: 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .room-price { color: var(--color-primary); font-weight: bold; }
-.room-controls { display: flex; flex-direction: column; align-items: flex-end; }
-.room-qty-select { width: 60px; text-align: center; }
+.room-controls {
+    display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0;
+}
+.room-qty-select {
+    padding: 5px; border: 1px solid var(--color-secondary); border-radius: 4px; background-color: #fff;
+    width: 60px; text-align: center;
+}
 .room-stock-badge { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+/* 預約詳細頁 */
+#page-booking-details .details-section { margin-bottom: 15px; }
+#page-booking-details h4 { 
+    color: var(--color-primary); margin-top: 20px; margin-bottom: 10px; 
+    border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px; 
+}
+#page-booking-details h4:first-of-type { margin-top: 0; }
+#page-booking-details p { margin: 8px 0; }
+#page-booking-details strong { color: var(--color-text-secondary); margin-right: 5px; }
+.room-item-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--color-secondary); }
+
+/* 【需求修正 3】取消預約按鈕 */
+#details-cancel-booking-btn { 
+    background-color: var(--color-danger); 
+    margin-top: 30px; 
+    color: white;
+    border: none;
+}
 
 /* Flatpickr 日曆覆蓋 */
 .flatpickr-calendar {
     background: var(--color-card-bg) !important;
     border: 1px solid var(--color-primary) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    border-radius: var(--border-radius) !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.flatpickr-month, .flatpickr-weekday, .numInputWrapper { color: var(--color-text-primary) !important; }
+.flatpickr-day { color: var(--color-text-primary) !important; border: 1px solid transparent; }
+.flatpickr-day:not(.flatpickr-disabled):not(.selected):hover {
+    background: rgba(88, 166, 255, 0.3) !important; border-color: rgba(88, 166, 255, 0.5);
 }
 .flatpickr-day.selected {
-    background: var(--color-primary) !important;
-    border-color: var(--color-primary) !important;
+    background: var(--color-primary) !important; border-color: var(--color-primary) !important; color: var(--color-bg) !important;
 }
+.flatpickr-day.flatpickr-disabled { color: rgba(204, 214, 246, 0.2) !important; cursor: not-allowed; }
 
-/* 預約詳細頁 - 取消按鈕 */
-#details-cancel-booking-btn {
-    margin-top: 30px;
-    background-color: var(--color-danger);
-    color: white;
-    border: none;
+#booking-slots-container {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-top: 20px;
 }
+.slot-button {
+    padding: 12px 5px; border: 1px solid var(--color-secondary); background: transparent; color: var(--color-text-secondary);
+    border-radius: var(--border-radius); cursor: pointer;
+}
+.slot-button:hover:not(:disabled) {
+    background: var(--color-primary); border-color: var(--color-primary); color: var(--color-bg);
+}
+.slot-button:disabled { background: rgba(0,0,0,0.2); cursor: not-allowed; border: none; }
 
 /* =========================================
-   9. 店家資訊 (重構後)
+   10. 頁面樣式：店家資訊 (Store Info) - 重構版
    ========================================= */
+/* 【需求修正 2】固定版面，不支援下拉 */
 #page-info {
     height: 90vh; /* 限制高度 */
-    overflow: hidden; /* 隱藏捲軸，固定版面 */
+    overflow: hidden; /* 隱藏滾動條 */
     display: flex;
     flex-direction: column;
 }
 
+/* 內容容器 */
 #store-info-container {
     flex-grow: 1;
-    overflow-y: auto; /* 如果內容真的超出，內部捲動 */
+    overflow-y: auto; /* 如果內容過長，僅內部捲動 */
+    padding-bottom: 20px;
 }
 
-/* 列表式排版 */
+/* 【需求修正 2】列表式排版，移除卡片外框 */
 #page-info .info-section {
-    background-color: transparent;
-    border: none;
+    background-color: transparent; /* 移除背景 */
+    border: none; /* 移除邊框 */
     border-radius: 0;
+    box-shadow: none;
     padding: 12px 0;
     margin-bottom: 0;
     border-bottom: 1px solid var(--color-secondary); /* 細線分隔 */
     
     display: grid;
-    grid-template-columns: 80px 1fr; /* 左標題固定寬度，右內容填滿 */
+    grid-template-columns: 80px 1fr; /* 左標題(固定)，右內容(填滿) */
     align-items: flex-start;
     gap: 15px;
 }
@@ -540,143 +634,151 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.95rem;
     line-height: 1.5;
     
-    /* 限制顯示約兩行，超過顯示... */
+    /* 【需求修正 2】限制顯示約兩行 */
     display: -webkit-box;
     -webkit-line-clamp: 2; 
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: pre-wrap; /* 保留換行 */
 }
 
 /* =========================================
-   10. 集點趣 (Rally)
+   11. 頁面樣式：優惠券 (Vouchers)
    ========================================= */
-/* 懸浮按鈕 FAB */
-.rally-fab-container {
-    position: fixed;
-    bottom: 90px; /* 避開 Tab Bar */
-    right: 20px;
-    z-index: 900;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    transform-origin: center bottom;
-    animation: rallyFloat 3s ease-in-out infinite;
+#page-my-vouchers .voucher-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--border-radius);
+    padding: 15px; margin-bottom: 15px;
 }
+#page-my-vouchers h2 {
+    color: var(--color-primary); margin-top: 20px; margin-bottom: 10px;
+    border-bottom: 1px solid var(--color-secondary); padding-bottom: 5px;
+}
+#page-my-vouchers .voucher-card h4 { margin: 0 0 10px 0; color: var(--color-text-primary); }
+#page-my-vouchers .voucher-card p { margin: 5px 0; font-size: 0.9rem; }
+#page-my-vouchers .voucher-card.used-voucher { opacity: 0.6; background-color: #f0f0f0; }
+#page-my-vouchers .voucher-card .voucher-status-used { color: var(--color-danger); font-weight: bold; }
+
+/* =========================================
+   12. 頁面樣式：集點趣 (Rally)
+   ========================================= */
+/* FAB 按鈕 */
+.rally-fab-container {
+    position: fixed; bottom: 90px; right: 20px; z-index: 900;
+    display: flex; flex-direction: column; align-items: center; cursor: pointer;
+    transform-origin: center bottom; animation: rallyFloat 3s ease-in-out infinite; transition: transform 0.2s;
+}
+.rally-fab-container:active { transform: scale(0.95); }
 .rally-fab-text {
-    background-color: #fff;
-    color: var(--color-accent);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: bold;
-    margin-bottom: 5px;
-    border: 1px solid var(--color-accent);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    background-color: #fff; color: var(--color-accent); padding: 4px 10px;
+    border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15); position: relative; border: 1px solid var(--color-accent);
+}
+.rally-fab-text::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid var(--color-accent);
 }
 .rally-fab-stamp {
-    width: 60px; height: 60px;
-    background-color: #fff;
+    width: 65px; height: 65px; background-color: #fff; color: var(--color-danger);
     border: 3px solid var(--color-danger);
-    /* 不規則圓形 */
     border-radius: 55% 45% 60% 40% / 50% 60% 40% 50%;
     display: flex; justify-content: center; align-items: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    transform: rotate(-10deg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); transform: rotate(-10deg);
 }
-.rally-fab-svg {
-    width: 30px; height: 30px;
-    color: var(--color-danger);
-    opacity: 0.9;
-}
+.rally-fab-svg { width: 32px; height: 32px; opacity: 0.9; transform: rotate(5deg); }
 
 /* 集點卡列表 */
 .rally-card {
-    background-color: var(--color-card-bg);
-    border: 1px solid var(--color-secondary);
-    border-radius: 12px;
-    margin-bottom: 15px;
-    overflow: hidden;
+    background-color: var(--color-card-bg); border: 1px solid var(--color-secondary);
+    border-radius: 12px; margin-bottom: 15px; overflow: hidden; transition: all 0.3s ease;
 }
 .rally-card-header {
-    padding: 15px;
-    display: flex; justify-content: space-between; align-items: center;
-    background: rgba(255,255,255,0.5);
+    padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255, 255, 255, 0.03);
 }
-.rally-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
-.rally-meta { font-size: 0.85rem; color: var(--color-text-secondary); display: flex; gap: 10px; }
+.rally-title { margin: 0 0 5px 0; font-size: 1.1rem; font-weight: bold; color: var(--color-text-primary); }
+.rally-meta { font-size: 0.85rem; color: var(--color-text-secondary); display: flex; gap: 10px; align-items: center; }
 .rally-progress-track {
-    width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden;
+    width: 100%; height: 6px; background-color: rgba(0, 0, 0, 0.1); border-radius: 3px; margin-top: 8px; overflow: hidden;
 }
-.rally-progress-fill { height: 100%; background: var(--color-primary); }
-.rally-badge { padding: 3px 8px; border-radius: 10px; color: white; font-size: 0.75rem; margin-left: 10px; }
+.rally-progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--color-accent), var(--color-primary)); border-radius: 3px; transition: width 0.5s ease;
+}
+.rally-badge {
+    padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; color: #fff; white-space: nowrap; margin-left: 10px;
+}
 .badge-active { background-color: var(--color-primary); }
 .badge-completed { background-color: var(--color-success); }
-
-.rally-card-body {
-    padding: 15px;
-    border-top: 1px solid var(--color-secondary);
-    background-color: #fdfdfd;
+.badge-expired { background-color: var(--color-secondary); }
+.badge-exhausted { background-color: var(--color-danger); }
+.rally-arrow { font-size: 1.2rem; color: var(--color-text-secondary); transition: transform 0.3s ease; margin-left: 10px; }
+.rally-card.expanded .rally-arrow { transform: rotate(180deg); }
+.rally-card-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background-color: #fafafa; }
+.rally-card.expanded .rally-card-body { max-height: 1000px; border-top: 1px solid var(--color-secondary); }
+.rally-body-content { padding: 15px; }
+.rally-desc {
+    font-size: 0.9rem; color: var(--color-text-secondary); white-space: pre-wrap;
+    margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 8px;
 }
 .rally-stations-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 10px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-bottom: 20px;
 }
 .mini-station-card {
-    border: 1px solid var(--color-secondary);
-    border-radius: 8px;
-    padding: 10px 5px;
-    text-align: center;
-    font-size: 0.8rem;
-    background: white;
+    background-color: var(--color-card-bg); border: 1px solid var(--color-secondary);
+    border-radius: 8px; padding: 10px 5px; text-align: center; font-size: 0.8rem; position: relative; cursor: pointer;
 }
 .mini-station-card.collected {
-    border-color: var(--color-success);
-    background-color: rgba(74, 93, 35, 0.1);
-    color: var(--color-success);
-    font-weight: bold;
+    border-color: var(--color-success); background-color: rgba(40, 167, 69, 0.1);
+}
+.mini-station-card.collected::after {
+    content: "✔"; color: var(--color-success); font-size: 1.5rem;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.3;
 }
 
 /* =========================================
-   11. 通用 Modal (彈窗)
+   13. 通用 Modal (彈窗)
    ========================================= */
 .modal-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.7);
-    z-index: 2000;
-    display: none; /* JS 控制 */
-    justify-content: center;
-    align-items: center;
-    padding: 15px;
-    backdrop-filter: blur(2px);
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none; justify-content: center; align-items: center;
+    z-index: 2000; padding: 15px; box-sizing: border-box; backdrop-filter: blur(2px);
 }
 .modal-content {
-    background-color: #FFF;
-    padding: 20px;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 400px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    position: relative;
+    background-color: var(--color-card-bg);
+    padding: 20px; border-radius: 12px;
+    width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto;
+    border: 1px solid var(--color-secondary); position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 .modal-header {
     display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;
+    border-bottom: 1px solid var(--color-secondary); padding-bottom: 10px; margin-bottom: 15px;
 }
 .modal-close {
-    font-size: 1.5rem; border: none; background: none; cursor: pointer; color: #999;
+    font-size: 1.8rem; font-weight: bold; border: none; background: none;
+    cursor: pointer; color: var(--color-text-secondary); padding: 0 5px; line-height: 1;
 }
 
-/* 動畫定義 */
+/* 集點動畫 Modal */
+#rally-animation-modal { position: fixed !important; z-index: 99999 !important; }
+#rally-animation-modal .modal-content { background: #ffffff !important; max-width: 350px !important; }
+
+/* =========================================
+   14. 動畫 (Animations)
+   ========================================= */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 @keyframes rallyFloat {
     0% { transform: translateY(0px) rotate(0deg); }
     50% { transform: translateY(-5px) rotate(2deg); }
     100% { transform: translateY(0px) rotate(0deg); }
 }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

@@ -1978,13 +1978,13 @@ async function initializeProductsPage() {
 //獲取所有活動、站點及用戶進度
 
 async function fetchRallyData() {
-    // 1. 獲取所有進行中的活動
-    const campaignRes = await fetch('/api/rally/campaigns');
+    // [修改] 呼叫 API 時帶上 userId，以便後端判斷是否已領獎
+    const campaignRes = await fetch(`/api/rally/campaigns?userId=${userProfile.userId}`);
     if (!campaignRes.ok) throw new Error('無法獲取活動列表');
     const campaigns = await campaignRes.json();
     
     if (!campaigns || campaigns.length === 0) {
-         rallyData.campaigns = []; // 改用 campaigns 陣列
+         rallyData.campaigns = [];
          return;
     }
 
@@ -2035,10 +2035,10 @@ function renderRallyPage() {
         return;
     }
 
-if (listContainer) {
+    if (listContainer) {
         listContainer.style.display = 'block';
         listContainer.innerHTML = rallyData.campaigns.map((campaign, index) => {
-            // 1. 計算進度 (保持不變)
+            // 1. 計算進度
             const progressList = Array.isArray(campaign.userProgress) ? campaign.userProgress : [];
             const activeStamps = progressList.filter(p => p.is_archived !== 1);
             const stampedIds = new Set(activeStamps.map(p => p.station_id));
@@ -2048,15 +2048,12 @@ if (listContainer) {
             const progressPercent = Math.min(100, Math.round((currentStamps / totalStamps) * 100));
             const isCompleted = currentStamps >= totalStamps;
             
-            // [新增] 判斷獎勵是否已兌換完畢
-            // 如果 total_supply 不是 null (有限量)，且已發數量 >= 總量 -> 視為額滿
-            // 注意：如果使用者自己已經領到了 (isCompleted)，則不顯示額滿，而是顯示已完成
-            let isRewardExhausted = false;
-            if (campaign.voucher_total_supply !== null) {
-                if (campaign.voucher_issued_count >= campaign.voucher_total_supply) {
-                    isRewardExhausted = true;
-                }
-            }
+            // [判斷] 全域庫存是否已滿
+            const isGlobalExhausted = (campaign.voucher_total_supply !== null) && 
+                                      (campaign.voucher_issued_count >= campaign.voucher_total_supply);
+
+            // [判斷] 用戶是否已領獎 (由後端提供)
+            const hasUserRedeemed = campaign.user_has_redeemed === 1;
 
             // 2. 狀態顯示邏輯
             let badgeClass = 'badge-active';
@@ -2065,42 +2062,56 @@ if (listContainer) {
             let btnHtml = '';
             let instructionHtml = '';
 
-            // 優先級判斷：
             if (isCompleted) {
-                // 狀況 A：已集滿 (使用者已經拿到獎勵了，或是等待重置)
-                badgeClass = 'badge-completed';
-                badgeText = '已集滿';
-                
-                if (campaign.can_repeat === 1) {
-                    const resetLink = `https://liff.line.me/2008032417-3yJQGaO6/#page-rally?action=reset&campaign_id=${campaign.campaign_id}`;
-                    btnHtml = `<button class="cta-button btn-start-scan" data-reset-link="${resetLink}" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-info);">🔄 掃描重置碼 (開啟新卡)</button>`;
-                    instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-text-primary);">
-                        <strong>🎉 恭喜完成！</strong><br>請掃描「重置 QR Code」將卡片歸檔並開始新的一輪。
-                    </div>`;
+                if (hasUserRedeemed) {
+                    // [狀態 A] 已集滿 且 已領獎 -> 顯示「恭喜完成」或「重置」
+                    badgeClass = 'badge-completed';
+                    badgeText = '已完成';
+                    
+                    if (campaign.can_repeat === 1) {
+                        const resetLink = `https://liff.line.me/${myLiffId}/#page-rally?action=reset&campaign_id=${campaign.campaign_id}`;
+                        btnHtml = `<button class="cta-button btn-start-scan" data-reset-link="${resetLink}" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-info);">🔄 掃描重置碼 (開啟新卡)</button>`;
+                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-text-primary);">
+                            <strong>🎉 恭喜完成！</strong><br>您已獲得獎勵。請掃描「重置 QR Code」將卡片歸檔並開始新的一輪。
+                        </div>`;
+                    } else {
+                        btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
+                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-success);">您已完成此活動並獲得獎勵。</div>`;
+                    }
+
                 } else {
-                    btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
-                    instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-success);">您已完成此活動並獲得獎勵。</div>`;
+                    // [狀態 B] 已集滿 但 未領獎
+                    if (isGlobalExhausted) {
+                        // 狀況 B-1: 庫存已空 -> 顯示遺憾訊息
+                        badgeClass = 'badge-expired';
+                        badgeText = '獎勵已發完';
+                        btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">來晚了一步</button>`;
+                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">⚠️ 您已集滿點數，但很抱歉，限量獎勵已全數兌換完畢。</div>`;
+                    } else {
+                        // 狀況 B-2: 還有庫存 (極端情況，如系統發放失敗) -> 顯示補領
+                        btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-warning);">⚠️ 點此補領獎勵</button>`;
+                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-warning);">系統偵測您已集滿但尚未收到獎勵，請點擊按鈕嘗試補領。</div>`;
+                    }
                 }
-
-            } else if (isRewardExhausted) {
-                // 狀況 B：還沒集滿，但獎勵已經沒了 (且使用者尚未完成)
-                badgeClass = 'badge-expired'; // 灰色樣式
-                badgeText = '已兌換完畢'; // [需求 3]
-                
-                btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">活動已額滿</button>`;
-                instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">很抱歉，本活動獎勵已全數兌換完畢。</div>`;
-
             } else {
-                // 狀況 C：進行中，且還有獎勵
-                badgeClass = 'badge-active';
-                badgeText = '進行中';
-                btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
+                // 未集滿
+                if (isGlobalExhausted) {
+                    // [狀態 C] 進行中但已額滿
+                    badgeClass = 'badge-expired';
+                    badgeText = '已額滿';
+                    btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">獎勵已兌換完畢</button>`;
+                    instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: #999;">雖然活動獎勵已發完，您仍可繼續集點紀念。</div>`;
+                } else {
+                    // [狀態 D] 正常進行中
+                    badgeClass = 'badge-active';
+                    badgeText = '進行中';
+                    btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
+                }
             }
 
-            // 3. 渲染站點九宮格 [修改：加入點擊事件]
+            // 3. 渲染站點九宮格
             const stationsHtml = (campaign.stations || []).map(s => {
                 const isCollected = stampedIds.has(s.station_id);
-                // 將物件轉為 JSON 字串，需處理單引號以避免 HTML 屬性錯誤
                 const stationData = JSON.stringify(s).replace(/"/g, '&quot;');
                 
                 return `
@@ -2159,8 +2170,8 @@ if (listContainer) {
                 e.stopPropagation();
                 const resetLink = btn.dataset.resetLink;
                 const campaignId = btn.dataset.campaignId;
-
-                startRallyScanner(resetLink, Number(campaignId)); // 傳入重置連結和活動ID
+                // 這裡可以根據需求決定掃描邏輯，預設呼叫掃描器
+                startRallyScanner(resetLink, Number(campaignId)); 
             });
         });
     }

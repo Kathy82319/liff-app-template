@@ -5,11 +5,9 @@ async function request(url, options = {}) {
     const currentCookies = document.cookie;
     console.log(`[API Request] URL: ${url}`);
     console.log(`[API Request] Cookies before fetch: ${currentCookies || '(none)'}`);
-
-
     try {
         const defaultOptions = {
-            credentials: 'same-origin', // 確保發送 Cookie
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -23,22 +21,29 @@ async function request(url, options = {}) {
 
         const response = await fetch(url, defaultOptions);
 
-            if (!response.ok) {
+        // [修改] 錯誤處理增強：將後端 JSON 資料綁定到 Error 物件
+        if (!response.ok) {
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
                 // 收到 JSON 格式錯誤
                 const errorData = await response.json().catch(() => ({ error: `HTTP 錯誤，狀態碼: ${response.status}` }));
                 console.error(`API Error Data for ${url}:`, errorData);
-                throw new Error(errorData.error || '未知的 API 錯誤');
+                
+                // 建立 Error 物件並附加資料
+                const error = new Error(errorData.message || errorData.error || '未知的 API 錯誤');
+                error.status = response.status;
+                error.data = errorData; // 關鍵：讓前端可以讀取 error.data.error === 'affected_users'
+                throw error;
             } else {
-                // 收到非 JSON 格式錯誤 (例如 text/html 錯誤頁面)
+                // 收到非 JSON 格式錯誤
                 const errorText = await response.text().catch(() => '無法讀取錯誤內容');
-                console.error(`API Error: ${url} returned HTTP ${response.status} with non-JSON content. Content Type: ${contentType}`, errorText.substring(0, 500));
-                // 提供一個更通用的錯誤，但提示用戶可能需要重新登入
-                throw new Error(`API 錯誤 (HTTP ${response.status})：無法載入管理資料，請檢查登入狀態。`); 
+                console.error(`API Error: ${url} returned HTTP ${response.status} with non-JSON content.`, errorText.substring(0, 500));
+                throw new Error(`API 錯誤 (HTTP ${response.status})：無法載入資料。`); 
             }
         }
+        
         if (response.status === 204) return { success: true };
+        
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return await response.json();

@@ -781,7 +781,7 @@ input:focus, select:focus, textarea:focus {
 
 /* 九宮格站點 */
 .rally-stations-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 12px; margin-bottom: 20px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(20px, 1fr)); gap: 12px; margin-bottom: 20px;
 }
 .mini-station-card {
     background-color: #FFF;

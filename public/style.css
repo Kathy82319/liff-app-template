@@ -371,14 +371,16 @@ input:focus, select:focus, textarea:focus {
     overflow: hidden !important;
 }
 #product-view-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    background: #FFF;
-    padding: 8px 15px;
-    border-radius: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    background: transparent !important; /* 移除白色背景 */
+    box-shadow: none !important;        /* 移除陰影 */
+    padding: 0 !important;              /* 移除內距 */
+    margin-bottom: 10px !important;     /* 調整間距 */
+    min-height: 0 !important;           /* 允許高度縮小 */
+}
+
+/* 如果裡面完全沒有按鈕 (功能全關)，則直接隱藏整個區塊 */
+#product-view-controls:empty {
+    display: none !important;
 }
 
 /* 切換按鈕優化 */

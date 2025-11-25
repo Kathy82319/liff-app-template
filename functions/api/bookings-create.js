@@ -1,4 +1,4 @@
-// functions/api/bookings-create.js (v4.1 - 修正活動日誌 link)
+// functions/api/bookings-create.js
 
 import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
@@ -17,18 +17,24 @@ export async function onRequest(context) {
         const body = await context.request.json();
         console.log("[bookings-create] Received Payload:", JSON.stringify(body));
 
-        let booking_id; // 在頂層宣告
-        let messageContent; // 訊息內容
-        let contactName; // 聯絡人姓名
-        let bookingDate; // 預約日期
-        let productsInfo = []; // 產品資訊
-        let items = []; // 項目
+        // 【新增】讀取 useStoredValue
+        const useStoredValue = body.useStoredValue === true;
+
+        let booking_id;
+        let messageContent;
+        let contactName;
+        let bookingDate;
+        let productsInfo = [];
+        let items = [];
+        let calculatedTotalAmount = 0; // 總金額
+
+        const operations = []; // 批次操作指令集
 
         if (body.bookingType === 'guesthouse') {
             const { userId, startDate, endDate, items: guesthouseItems } = body;
             contactName = body.contactName;
             bookingDate = startDate;
-            items = guesthouseItems; // 將 items 指向 guesthouseItems
+            items = guesthouseItems;
 
             if (!userId || !startDate || !endDate || !contactName || !body.contactPhone || !Array.isArray(items) || items.length === 0) {
                 return new Response(JSON.stringify({ error: '民宿訂房缺少必要參數。' }), { status: 400 });
@@ -72,15 +78,14 @@ export async function onRequest(context) {
 
             const totalQuantityBooked = items.reduce((sum, item) => sum + item.quantity, 0);
 
-            const operations = [];
-             const bookingStmt = db.prepare(
+            const bookingStmt = db.prepare(
                 `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, check_out_date, status, time_slot, num_of_people)
                  VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING booking_id`
             );
              const bookingResult = await bookingStmt.bind(
                  userId,
-                 body.contactName, // 使用 body 傳來的
-                 body.contactPhone, // 使用 body 傳來的
+                 body.contactName,
+                 body.contactPhone,
                  startDate,
                  endDate,
                  '',
@@ -90,7 +95,7 @@ export async function onRequest(context) {
              if (!bookingResult || !bookingResult.booking_id) {
                  throw new Error('無法建立預約主紀錄，請稍後再試。');
              }
-             booking_id = bookingResult.booking_id; // 賦值給頂層
+             booking_id = bookingResult.booking_id;
              console.log(`[bookings-create] Guesthouse Booking record created with ID: ${booking_id}`);
 
             const itemInsertStmt = db.prepare(
@@ -98,10 +103,9 @@ export async function onRequest(context) {
             );
              const productsInfoStmt = db.prepare(`SELECT product_id, name, price_weekday, price_friday, price_saturday FROM Products WHERE product_id IN (${productPlaceholders})`);
              const { results: fetchedProductsInfo } = await productsInfoStmt.bind(...productIdsToCheck).all();
-             productsInfo = fetchedProductsInfo; // 賦值給頂層
+             productsInfo = fetchedProductsInfo;
 
-            let calculatedTotalAmount = 0;
-
+            // 計算總金額
             for (const item of items) {
                  const productDetails = productsInfo.find(p => p.product_id === item.productId);
                  if (!productDetails) { throw new Error(`找不到產品資訊: ${item.productId}`); }
@@ -137,9 +141,6 @@ export async function onRequest(context) {
                     operations.push(inventoryUpdateStmt.bind(item.quantity, dateStr, item.productId, item.quantity));
                 }
             }
-             const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ? WHERE booking_id = ?");
-             operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, booking_id));
-            await db.batch(operations);
 
             // --- 準備訊息內容 ---
             messageContent = DEFAULT_AUTO_CONFIRMATION_CONTENT;
@@ -169,7 +170,7 @@ export async function onRequest(context) {
             const { userId, timeSlot, numOfPeople, items: studioItems } = body;
             contactName = body.contactName;
             bookingDate = body.bookingDate;
-            items = studioItems; // 將 items 指向 studioItems
+            items = studioItems;
 
             if (!userId || !bookingDate || !timeSlot || !numOfPeople || numOfPeople <= 0 || !contactName || !body.contactPhone) {
                 return new Response(JSON.stringify({ error: '工作室預約缺少必要參數。' }), { status: 400 });
@@ -191,10 +192,9 @@ export async function onRequest(context) {
              if (!bookingResult || !bookingResult.booking_id) {
                  throw new Error('無法建立預約主紀錄，請稍後再試。');
              }
-             booking_id = bookingResult.booking_id; // 賦值給頂層
+             booking_id = bookingResult.booking_id;
              console.log(`[bookings-create] Studio Booking record created with ID: ${booking_id}`);
 
-            const itemOperations = [];
             const itemStmt = db.prepare(
                 'INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)'
             );
@@ -206,18 +206,15 @@ export async function onRequest(context) {
                 productsInfo = fetchedProductsInfo || [];
              }
 
-            let calculatedTotalAmount = 0;
+            // 計算總金額
             items.forEach(item => {
                 const productDetails = productsInfo.find(p => p.name === item.name);
                 calculatedTotalAmount += (item.price * item.quantity);
-                itemOperations.push(itemStmt.bind(
+                operations.push(itemStmt.bind(
                     booking_id, item.name, item.quantity, item.price,
                     productDetails ? productDetails.product_id : null
                 ));
             });
-             const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ? WHERE booking_id = ?");
-             itemOperations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, booking_id));
-            await db.batch(itemOperations);
 
              // --- 準備訊息內容 ---
              messageContent = `感謝您的預約！\n\n您的預約資訊如下：\n日期：{{bookingDate}}\n時段：{{timeSlot}}\n項目：{{itemSummary}}\n\n期待您的光臨！`;
@@ -240,11 +237,67 @@ export async function onRequest(context) {
              return new Response(JSON.stringify({ error: `未知的預約類型: ${body.bookingType}` }), { status: 400 });
         }
 
-        // --- 【v6.2 修正】統一在最外層記錄活動 (使用頂層變數) ---
+        // === 步驟 B: 【新增】儲值金扣款邏輯 ===
+        let paymentStatus = 'unpaid'; // 預設未付款
+
+        if (useStoredValue) {
+            // 1. 查詢使用者當前餘額
+            const userStmt = db.prepare("SELECT stored_value_balance FROM Users WHERE user_id = ?");
+            const user = await userStmt.bind(body.userId).first();
+            const currentBalance = user ? (user.stored_value_balance || 0) : 0;
+
+            // 2. 檢查餘額是否足夠
+            if (currentBalance < calculatedTotalAmount) {
+                // 如果餘額不足，回傳錯誤 (不會執行後續的 batch，所以預約不會建立)
+                return new Response(JSON.stringify({ 
+                    error: `儲值金餘額不足 (餘額: $${currentBalance}，需支付: $${calculatedTotalAmount})。請先儲值或改用現場付款。` 
+                }), { status: 402 }); // 402 Payment Required
+            }
+
+            // 3. 扣除餘額 (加入 operations)
+            const newBalance = currentBalance - calculatedTotalAmount;
+            operations.push(
+                db.prepare("UPDATE Users SET stored_value_balance = ? WHERE user_id = ?")
+                  .bind(newBalance, body.userId)
+            );
+
+            // 4. 寫入儲值金變動紀錄 (加入 operations)
+            // booking_id 此時已存在 (從 RETURNING 取得)
+            const historyNote = `預訂 #${String(booking_id).padStart(5, '0')} 款項扣抵`;
+            operations.push(
+                db.prepare("INSERT INTO StoredValueHistory (user_id, amount_changed, current_balance, type, notes) VALUES (?, ?, ?, 'booking_payment', ?)")
+                  .bind(body.userId, -calculatedTotalAmount, newBalance, historyNote)
+            );
+
+            // 5. 標記訂單為已付款
+            paymentStatus = 'paid';
+        }
+
+        // === 步驟 C: 更新訂單總金額與付款狀態 ===
+        // 將 payment_status 一併寫入
+        const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ?, payment_status = ? WHERE booking_id = ?");
+        operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, paymentStatus, booking_id));
+
+        // === 步驟 D: 執行所有資料庫操作 ===
+        await db.batch(operations);
+
+        // === 步驟 E: 寫入活動紀錄與回傳 ===
         const activityStmt = db.prepare("INSERT INTO Activities (type, message, link) VALUES (?, ?, ?)");
-        const activityLink = `#bookings-${booking_id}`; // 新格式
-        context.waitUntil(activityStmt.bind('new_booking', `顧客 ${contactName} 預訂了 ${bookingDate} 的服務`, activityLink).run());
-        // --- 修正結束 ---
+        const activityLink = `#bookings-${booking_id}`;
+        let activityMsg = body.bookingType === 'guesthouse' 
+            ? `顧客 ${contactName.trim()} 預訂了 ${bookingDate} 至 ${body.endDate} 的服務`
+            : `顧客 ${contactName.trim()} 預訂了 ${bookingDate} 的服務`;
+        
+        if (useStoredValue) {
+            activityMsg += " (儲值金付款)";
+        }
+            
+        context.waitUntil(activityStmt.bind('new_booking', activityMsg, activityLink).run());
+
+        // 準備回傳訊息
+        if (useStoredValue && !messageContent.includes("儲值金")) { 
+             messageContent += `\n(已使用儲值金扣款 $${calculatedTotalAmount})`;
+        }
 
         return new Response(JSON.stringify({
             success: true,

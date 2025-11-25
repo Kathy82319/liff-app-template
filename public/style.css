@@ -944,39 +944,41 @@ input:focus, select:focus, textarea:focus {
 /* =========================================
    10. 頁面樣式：店家資訊 (Store Info) - 優化版
    ========================================= */
+/* =========================================
+   10. 頁面樣式：店家資訊 (Store Info) - 優化版
+   ========================================= */
 /* 修正容器內距，讓第一個項目靠上 */
 #store-info-container {
-    padding-top: 15px !important; /* 原本是 20px，縮小一點 */
+    /* 【修改】移除上方內距，讓它貼齊容器頂部 */
+    padding-top: 0 !important; 
+    padding-bottom: 20px;
 }
 
 #page-info .info-section {
     background-color: transparent;
     border: none;
     border-radius: 0;
-    padding: 12px 0;
+    /* 【修改】大幅縮小上下間距 (原 12px -> 8px) */
+    padding: 8px 0; 
     margin-bottom: 0;
     border-bottom: 1px solid rgba(0,0,0,0.05);
     
     display: grid;
-    /* 【修正】將標題欄寬度從 80px 縮小為 60px，並縮小 gap */
-    grid-template-columns: 60px 1fr; 
-    gap: 10px; /* 標題與內容的間距 */
+    /* 【修改】縮小標題欄寬度與間距 */
+    grid-template-columns: 50px 1fr; 
+    gap: 8px; 
     
-    align-items: center; /* 垂直置中 */
+    align-items: flex-start; /* 【修改】改為靠上對齊，避免多行文字時標題置中 */
 }
 
-/* 【修正】讓第一個項目完全貼頂 */
-#page-info .info-section:first-child {
-    padding-top: 0;
-    border-top: none;
-}
-
+/* 確保標題文字大小適中並靠上 */
 #page-info .info-section h2 {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-secondary);
     margin: 0;
     font-weight: bold;
-    line-height: 1.4;
+    line-height: 1.5; /* 與內文行高一致，確保首行對齊 */
+    margin-top: 2px; /* 微調對齊 */
 }
 
 #page-info .info-section p {
@@ -984,7 +986,13 @@ input:focus, select:focus, textarea:focus {
     color: var(--color-text-primary);
     font-size: 1rem;
     line-height: 1.5;
-    display: flex; /* 為了讓地圖按鈕跟文字並排 */
+    display: flex; 
     align-items: center;
     flex-wrap: wrap;
+}
+
+/* 【修改】讓第一個項目完全貼頂，且不需要 border-top */
+#page-info .info-section:first-child {
+    padding-top: 10px; /* 稍微留一點點呼吸空間，或設為 0 完全貼頂 */
+    border-top: none;
 }

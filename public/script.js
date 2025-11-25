@@ -966,14 +966,13 @@ async function loadMyBookingsList(filter, container) {
 
 // [新增] 初始化綜合紀錄頁面
 async function initializeMyRecordsPage() {
+    console.log("初始化我的紀錄頁面..."); // Debug 用
     if (!userProfile) return;
 
-    // --- A. 綁定分頁切換事件 (這是分頁按鈕失效的主因) ---
+    // --- A. 綁定分頁切換事件 (Tab) ---
     const header = document.querySelector('.records-tabs-header');
-    // 確保 header 存在且只綁定一次
     if (header && !header.dataset.listenerAttached) {
         header.addEventListener('click', (e) => {
-            // 找到被點擊的按鈕 (.record-tab)
             const targetTab = e.target.closest('.record-tab');
             if (targetTab) {
                 // 1. 移除所有 Tab 的 active 樣式
@@ -981,51 +980,57 @@ async function initializeMyRecordsPage() {
                 // 2. 設定當前 Tab 為 active
                 targetTab.classList.add('active');
                 
-                // 3. 隱藏所有內容區塊 (.records-content-pane)
-                const targetId = targetTab.dataset.target;
-                document.querySelectorAll('.records-content-pane').forEach(p => p.classList.remove('active'));
+                // 3. 隱藏所有內容區塊
+                const allPanes = document.querySelectorAll('.records-content-pane');
+                allPanes.forEach(p => p.classList.remove('active'));
                 
                 // 4. 顯示對應的內容區塊
+                const targetId = targetTab.dataset.target;
                 const contentPane = document.getElementById(targetId);
-                if (contentPane) contentPane.classList.add('active');
+                if (contentPane) {
+                    contentPane.classList.add('active');
+                } else {
+                    console.error(`找不到對應的內容區塊 ID: ${targetId}`);
+                }
             }
         });
-        // 標記已綁定，避免重複
         header.dataset.listenerAttached = 'true';
     }
 
     // --- B. 預約紀錄 Tab 初始化 ---
     const bookingContainer = document.getElementById('my-bookings-container');
-    const pastBookingContainer = document.getElementById('past-bookings-list'); 
     const toggleBtn = document.getElementById('toggle-past-bookings-btn');    
 
-    if (bookingContainer && toggleBtn) {
+    // 確保元素存在才執行
+    if (bookingContainer) {
         bookingContainer.innerHTML = '<p style="text-align:center; color:#888;">查詢中...</p>';
-        // 預設隱藏過往紀錄容器
-        if(document.getElementById('past-bookings-container')) {
-             document.getElementById('past-bookings-container').style.display = 'none';
-        }
-        toggleBtn.textContent = '查看過往/已取消紀錄';
         
-        // 重置並綁定切換按鈕 (使用 cloneNode 移除舊監聽器)
-        const newBtn = toggleBtn.cloneNode(true);
-        toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
-        newBtn.addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', newBtn));
-
-        // 綁定預約卡片點擊事件 (使用事件委派)
+        // 綁定點擊事件 (委派模式，處理動態生成的卡片)
         bookingContainer.removeEventListener('click', handleBookingCardClick);
         bookingContainer.addEventListener('click', handleBookingCardClick);
         
-        if (pastBookingContainer) {
-            pastBookingContainer.removeEventListener('click', handleBookingCardClick);
-            pastBookingContainer.addEventListener('click', handleBookingCardClick);
-        }
-
         // 載入預約資料
         loadMyBookingsList('current', bookingContainer);
     }
 
-    // --- C. 載入點數與儲值紀錄 (關鍵：務必呼叫這兩行) ---
+    if (toggleBtn) {
+        // 重置切換按鈕 (移除舊監聽器)
+        const newBtn = toggleBtn.cloneNode(true);
+        toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
+        newBtn.addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', newBtn));
+        
+        // 確保過往紀錄容器預設隱藏
+        const pastContainer = document.getElementById('past-bookings-container');
+        if (pastContainer) {
+            pastContainer.style.display = 'none';
+            // 也要為過往紀錄綁定點擊事件
+            pastContainer.removeEventListener('click', handleBookingCardClick);
+            pastContainer.addEventListener('click', handleBookingCardClick);
+        }
+    }
+
+    // --- C. 載入點數與儲值紀錄 (這兩行一定要執行) ---
+    console.log("正在載入點數與儲值紀錄...");
     loadMyPointsList();
     loadMyWalletList();
 }

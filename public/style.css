@@ -866,3 +866,13 @@ input:focus, select:focus, textarea:focus {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* --- 強制修正分頁切換顯示問題 --- */
+.records-content-pane {
+    display: none !important; /* 預設強制隱藏 */
+}
+
+.records-content-pane.active {
+    display: block !important; /* 只有 active 時強制顯示 */
+    animation: fadeIn 0.3s ease;
+}

@@ -77,23 +77,49 @@ function calculateTotalPrice() {
 
 function renderRoomList(availabilityData, startDate, endDate) {
     const container = document.getElementById('room-selection-container');
-    const detailsForm = document.getElementById('booking-details-form');
-    if (!container || !detailsForm) return;
+    // 注意：我們不再動態隱藏 detailsForm，因為現在它預設顯示
+    const detailsForm = document.getElementById('booking-details-form'); 
+    if (!container) return;
 
-    guesthouseBookingData.roomAvailability = availabilityData; 
+    // 判斷是否為「預覽模式」 (還沒選日期)
+    const isPreviewMode = !availabilityData || !startDate || !endDate;
+
+    guesthouseBookingData.roomAvailability = availabilityData || {}; 
     guesthouseBookingData.selectedRooms = {}; 
 
     const productsToRender = allProducts.filter(p => p.is_visible);
 
     if (productsToRender.length === 0) {
         container.innerHTML = '<p style="text-align:center;">目前沒有可預訂的房型。</p>';
-        detailsForm.style.display = 'none';
         return;
     }
 
     let hasAnyBookableRoom = false; 
 
     container.innerHTML = productsToRender.map(product => {
+        // --- 預覽模式邏輯 ---
+        if (isPreviewMode) {
+            // 顯示預設平日價格，並提示請選日期
+            const defaultPrice = product.price_weekday !== null ? `$${product.price_weekday} 起` : '洽詢';
+            const images = JSON.parse(product.images || '[]');
+            const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/100x100/E6DAC8/A48D78?text=No+Image';
+            
+            return `
+                <div class="room-item" style="opacity: 0.8; background-color: #f9f9f9;">
+                    <img src="${imageUrl}" class="room-thumb" alt="${product.name}">
+                    <div class="room-content">
+                        <div class="room-name">${product.name}</div>
+                        <div class="room-price" style="color:#888;">${defaultPrice} <span style="font-size:0.8em; font-weight:normal;">/ 晚</span></div>
+                        <span style="font-size:0.8rem; color: var(--color-primary);">← 請先選擇日期</span>
+                    </div>
+                    <div class="room-controls">
+                        <select class="room-qty-select" disabled><option>0</option></select>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 原有查詢後邏輯 ---
         const roomInfo = availabilityData[product.product_id];
         let isOverallAvailable = false;
         let maxQuantity = 0;
@@ -121,15 +147,14 @@ function renderRoomList(availabilityData, startDate, endDate) {
             }
         }
 
-        // 【關鍵】使用符合 CSS 的結構：room-item, room-thumb, room-content
         return `
-            <div class="room-item" style="${!isOverallAvailable ? 'opacity: 0.6; background-color: #f9f9f9;' : ''}">
+            <div class="room-item" style="${!isOverallAvailable ? 'opacity: 0.6; background-color: #eee;' : ''}">
                 <img src="${imageUrl}" class="room-thumb" alt="${product.name}">
                 
                 <div class="room-content">
                     <div class="room-name">${product.name}</div>
                     <div class="room-price">${priceText} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
-                    ${!isOverallAvailable ? '<span style="color:red; font-size:0.8rem;">已售完</span>' : ''}
+                    ${!isOverallAvailable ? '<span style="color:red; font-size:0.8rem;">已售完 / 未開放</span>' : ''}
                 </div>
 
                 <div class="room-controls">
@@ -156,10 +181,10 @@ function renderRoomList(availabilityData, startDate, endDate) {
         });
     });
 
-    detailsForm.style.display = hasAnyBookableRoom ? 'block' : 'none';
-    
-    if (!hasAnyBookableRoom) {
-         container.innerHTML += '<p style="text-align: center; color: var(--color-danger); margin-top: 10px;">所選日期已無空房。</p>';
+    // 注意：我們不再隱藏 detailsForm，因為它包含聯絡資訊，顯示著也無妨
+    // 如果真的沒有空房，這行提示會顯示在列表下方
+    if (!isPreviewMode && !hasAnyBookableRoom) {
+         container.innerHTML += '<p style="text-align: center; color: var(--color-danger); margin-top: 10px;">抱歉，所選日期區間已無空房。</p>';
     }
 
     calculateTotalPrice();

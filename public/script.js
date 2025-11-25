@@ -1033,6 +1033,8 @@ async function initializeMyRecordsPage() {
 // 輔助：載入點數列表
 async function loadMyPointsList() {
     const container = document.getElementById('my-points-list');
+    if (!container) return;
+    
     container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
     
     try {
@@ -1058,12 +1060,17 @@ async function loadMyPointsList() {
                 </div>
             `;
         }).join('');
-    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+    } catch (e) { 
+        console.error("點數載入錯誤", e);
+        container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; 
+    }
 }
 
 // 輔助：載入儲值列表
 async function loadMyWalletList() {
     const container = document.getElementById('my-wallet-list');
+    if (!container) return;
+    
     container.innerHTML = '<p style="text-align:center; color:#999; padding:15px;">載入中...</p>';
     
     try {
@@ -1091,9 +1098,11 @@ async function loadMyWalletList() {
                 </div>
             `;
         }).join('');
-    } catch (e) { container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; }
+    } catch (e) { 
+        console.error("儲值載入錯誤", e);
+        container.innerHTML = '<p style="text-align:center; color:red;">載入失敗</p>'; 
+    }
 }
-
 async function initializeMyBookingsPage() {
         if (!userProfile) return;
 

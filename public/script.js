@@ -968,42 +968,51 @@ async function loadMyBookingsList(filter, container) {
 async function initializeMyRecordsPage() {
     if (!userProfile) return;
 
-    // 1. 綁定分頁切換
+    // --- A. 綁定分頁切換事件 (這是分頁按鈕失效的主因) ---
     const header = document.querySelector('.records-tabs-header');
+    // 確保 header 存在且只綁定一次
     if (header && !header.dataset.listenerAttached) {
         header.addEventListener('click', (e) => {
+            // 找到被點擊的按鈕 (.record-tab)
             const targetTab = e.target.closest('.record-tab');
             if (targetTab) {
+                // 1. 移除所有 Tab 的 active 樣式
                 header.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
+                // 2. 設定當前 Tab 為 active
                 targetTab.classList.add('active');
                 
+                // 3. 隱藏所有內容區塊 (.records-content-pane)
                 const targetId = targetTab.dataset.target;
                 document.querySelectorAll('.records-content-pane').forEach(p => p.classList.remove('active'));
-                document.getElementById(targetId).classList.add('active');
+                
+                // 4. 顯示對應的內容區塊
+                const contentPane = document.getElementById(targetId);
+                if (contentPane) contentPane.classList.add('active');
             }
         });
+        // 標記已綁定，避免重複
         header.dataset.listenerAttached = 'true';
     }
 
-    // 2. 處理「預約紀錄」Tab
+    // --- B. 預約紀錄 Tab 初始化 ---
     const bookingContainer = document.getElementById('my-bookings-container');
     const pastBookingContainer = document.getElementById('past-bookings-list'); 
     const toggleBtn = document.getElementById('toggle-past-bookings-btn');    
 
     if (bookingContainer && toggleBtn) {
         bookingContainer.innerHTML = '<p style="text-align:center; color:#888;">查詢中...</p>';
+        // 預設隱藏過往紀錄容器
         if(document.getElementById('past-bookings-container')) {
              document.getElementById('past-bookings-container').style.display = 'none';
         }
         toggleBtn.textContent = '查看過往/已取消紀錄';
         
-        // 重置並綁定切換按鈕
+        // 重置並綁定切換按鈕 (使用 cloneNode 移除舊監聽器)
         const newBtn = toggleBtn.cloneNode(true);
         toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
         newBtn.addEventListener('click', () => togglePastView('bookings', 'past-bookings-container', newBtn));
 
-        // --- 【新增】綁定點擊事件 (委派模式) ---
-        // 這會捕捉 .booking-info-card 的點擊並執行跳轉
+        // 綁定預約卡片點擊事件 (使用事件委派)
         bookingContainer.removeEventListener('click', handleBookingCardClick);
         bookingContainer.addEventListener('click', handleBookingCardClick);
         
@@ -1012,11 +1021,11 @@ async function initializeMyRecordsPage() {
             pastBookingContainer.addEventListener('click', handleBookingCardClick);
         }
 
-        // 載入資料
+        // 載入預約資料
         loadMyBookingsList('current', bookingContainer);
     }
 
-    // 3. 載入其他紀錄
+    // --- C. 載入點數與儲值紀錄 (關鍵：務必呼叫這兩行) ---
     loadMyPointsList();
     loadMyWalletList();
 }

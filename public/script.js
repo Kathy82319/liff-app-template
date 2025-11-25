@@ -1536,7 +1536,7 @@ async function initializeInfoPage() {
         // 名稱 (第一項，特別移除上方 padding)
         if (info.store_name) {
             html += `
-                <div class="info-section" style="${rowStyle} padding-top: 0; border-top: none;">
+                <div class="info-section" style="${rowStyle} padding-top: 10px; border-top: none;font-size: 0.95rem;">
                     <h2 style="${titleStyle}">名稱</h2>
                     <p style="${contentStyle}">${info.store_name}</p>
                 </div>
@@ -1545,7 +1545,7 @@ async function initializeInfoPage() {
         
         // 地址
         html += `
-            <div class="info-section" style="${rowStyle}">
+            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
                 <h2 style="${titleStyle}">地址</h2>
                 <p style="${contentStyle}">${addressHtml}</p>
             </div>
@@ -1553,7 +1553,7 @@ async function initializeInfoPage() {
         
         // 電話
         html += `
-            <div class="info-section" style="${rowStyle}">
+            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
                 <h2 style="${titleStyle}">電話</h2>
                 <p style="${contentStyle}">${info.phone || '未提供'}</p>
             </div>
@@ -1561,7 +1561,7 @@ async function initializeInfoPage() {
         
         // 營業時間
         html += `
-            <div class="info-section" style="${rowStyle}">
+            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
                 <h2 style="${titleStyle}">時間</h2>
                 <p style="${contentStyle}">${info.opening_hours || '未提供'}</p>
             </div>
@@ -1569,7 +1569,7 @@ async function initializeInfoPage() {
         
         // 介紹
         html += `
-            <div class="info-section" style="${rowStyle} border-bottom: none;">
+            <div class="info-section" style="${rowStyle} border-bottom: none; font-size: 0.95rem;">
                 <h2 style="${titleStyle}">介紹</h2>
                 <p style="${contentStyle}">${info.description || '未提供'}</p>
             </div>

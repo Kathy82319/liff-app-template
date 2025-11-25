@@ -100,17 +100,17 @@ img {
 /* --- 標題樣式 --- */
 .page-main-title {
     font-size: 1.4rem;
-    color: var(--color-primary);
-    font-weight: 900; /* 加粗 */
+    /* 【修正】顏色改深 (原為 --color-primary) */
+    color: var(--color-text-primary); 
+    font-weight: 900;
     text-align: center; 
-    /* 移除硬線條，改用虛線或純留白 */
     border-bottom: none;
     
-    /* 裝飾：標題下方的小圓點 */
     position: relative;
-    padding-bottom: 15px;
-    margin-top: 10px;
-    margin-bottom: 25px;
+    /* 【修正】間距減少一半 */
+    padding-bottom: 8px; /* 原 15px */
+    margin-top: 5px;     /* 原 10px */
+    margin-bottom: 15px; /* 原 25px */
     letter-spacing: 1px;
 }
 
@@ -120,12 +120,12 @@ img {
     display: block;
     width: 40px;
     height: 4px;
-    background-color: var(--color-accent); /* 黃色裝飾 */
+    background-color: var(--color-accent);
     border-radius: 2px;
-    margin: 8px auto 0;
+    /* 【修正】裝飾線距離也微調 */
+    margin: 5px auto 0; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-
 /* --- 按鈕樣式 (CTA) --- */
 .cta-button {
     display: block;
@@ -209,7 +209,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* --- 通用卡片容器 (核心風格) --- */
-/* 這裡移除了 border，加上了發光陰影 */
 .news-card, .details-section, .profile-details-grid, .info-section-card, .booking-info-card, .exp-record-card, .rental-card {
     background-color: var(--color-card-bg);
     border: none; /* 移除框線 */
@@ -232,23 +231,29 @@ input:focus, select:focus, textarea:focus {
    ========================================= */
 #tab-bar {
     position: fixed;
-    bottom: 15px; /* 懸浮起來 */
-    left: 15px;
-    right: 15px;
-    width: auto;
-    height: 65px;
+    /* 【修正】貼合底部，寬度全滿 */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    
+    /* 【修正】高度增加以容納大字體 */
+    height: 80px; 
+    
     background-color: #FFFFFF;
-    /* 強烈的圓角 */
-    border-radius: 35px; 
-    /* 移除上方線條，改用強烈陰影 */
+    
+    /* 【修正】僅上方圓角 (圓弧邊框效果) */
+    border-radius: 25px 25px 0 0; 
+    
     border: none;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    /* 陰影改為向上 */
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
     
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 1000;
-    padding: 0 10px;
+    padding: 5px 0 10px 0; /* 下方留一點空間給 iPhone Home Bar */
 }
 
 .tab-button {
@@ -256,34 +261,37 @@ input:focus, select:focus, textarea:focus {
     padding: 5px 0;
     background: none;
     border: none;
-    color: #AAA; /* 未選中顏色淡一點 */
-    font-size: 0.7rem;
+    color: #AAA;
+    
+    /* 【修正】字體加大 (約 11pt) */
+    font-size: 0.9rem; 
+    
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 5px; /* 增加圖示與文字間距 */
     line-height: 1.2;
     transition: all 0.3s;
-    border-radius: 50%; /* 點擊波紋 */
-    height: 60px;
+    height: 100%; /* 填滿高度 */
 }
 
 .tab-button.active {
     color: var(--color-primary);
     font-weight: bold;
-    /* 選中時稍微放大或加個小點 */
     position: relative;
 }
+
+/* 選中時下方的小圓點 */
 .tab-button.active::after {
     content: '';
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     background-color: var(--color-primary);
     border-radius: 50%;
     position: absolute;
-    bottom: 5px;
+    bottom: 5px; /* 位置微調 */
 }
 
 /* =========================================

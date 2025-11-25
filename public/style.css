@@ -363,7 +363,13 @@ input:focus, select:focus, textarea:focus {
 /* =========================================
    6. 產品型錄頁面
    ========================================= */
-#filter-controls { margin-bottom: 20px; }
+
+#filter-controls[style*="display: none"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
 #product-view-controls {
     display: flex;
     justify-content: space-between;
@@ -456,11 +462,23 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 15px;
     box-shadow: var(--box-shadow);
 }
+.details-image-thumbnails { 
+    display: flex; 
+    flex-direction: row; /* 橫向 */
+    flex-wrap: nowrap;   /* 不換行 */
+    gap: 10px; 
+    overflow-x: auto;    /* 超出可左右滑動 */
+    padding-bottom: 5px; /* 預留捲軸空間 */
+    margin-top: 10px;
+}
 .details-image-thumbnails img {
-    width: 60px; height: 60px; object-fit: cover;
-    border-radius: 10px; cursor: pointer;
+    width: 70px; height: 70px; 
+    object-fit: cover;
+    border-radius: 10px; 
+    cursor: pointer;
     border: 2px solid transparent;
     opacity: 0.7;
+    flex-shrink: 0; /* 防止被壓縮 */
 }
 .details-image-thumbnails img.active {
     border-color: var(--color-primary);
@@ -858,12 +876,33 @@ input:focus, select:focus, textarea:focus {
     border: none;
     box-shadow: 0 20px 50px rgba(129, 199, 181, 0.25); /* 強烈發光陰影 */
 }
+/* 修正 Modal Header 標題與叉叉對齊 */
 .modal-header {
-    border-bottom: none; /* 移除分隔線 */
-    margin-bottom: 10px;
+    display: flex; 
+    justify-content: space-between; /* 左右推開 */
+    align-items: center; /* 垂直置中 */
+    border-bottom: 1px solid rgba(0,0,0,0.1); /* 讓分隔線淡一點 */
+    padding-bottom: 15px; 
+    margin-bottom: 15px;
+    width: 100%; /* 確保佔滿寬度 */
 }
-.modal-header h3 { color: var(--color-primary); font-size: 1.3rem; }
-.modal-close { font-size: 2rem; color: var(--color-secondary); }
+
+.modal-header h3 { 
+    margin: 0; 
+    color: var(--color-primary); 
+    font-size: 1.3rem; 
+    flex-grow: 1; /* 標題佔據剩餘空間 */
+}
+.modal-close {
+    font-size: 2rem; 
+    color: var(--color-text-secondary); 
+    background: none;
+    border: none;
+    padding: 0 10px;
+    cursor: pointer;
+    line-height: 1;
+    margin-right: -10px; /* 微調靠右 */
+}
 
 /* =========================================
    14. 動畫 (Animations)

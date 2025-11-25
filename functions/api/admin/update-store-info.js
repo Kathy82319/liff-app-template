@@ -6,7 +6,7 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json();
-    const { address, phone, opening_hours, description, cancellationPolicy, checkInInstructions } = body;
+    const { store_name, address, phone, opening_hours, description, cancellationPolicy, checkInInstructions } = body;
 
     // --- 驗證 ---
     const errors = [];
@@ -23,8 +23,8 @@ export async function onRequest(context) {
 
     // 1. 更新 StoreInfo
     operations.push(
-        db.prepare('UPDATE StoreInfo SET address = ?, phone = ?, opening_hours = ?, description = ? WHERE id = 1')
-          .bind(address, phone, opening_hours, description)
+        db.prepare('UPDATE StoreInfo SET store_name = ?, address = ?, phone = ?, opening_hours = ?, description = ? WHERE id = 1')
+          .bind(store_name || null, address, phone, opening_hours, description)
     );
 
     // 2. 更新 MessageDrafts (ID 1) - 如果有傳入政策欄位

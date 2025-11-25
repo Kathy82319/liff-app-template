@@ -33,6 +33,7 @@ export const onRequest = async (context) => {
     // 3. 合併回傳
     const responseData = {
         ...(info || {}),
+        store_name: info?.store_name || '',
         cancellationPolicy: policyData.cancellationPolicy || '',
         checkInInstructions: policyData.checkInInstructions || ''
     };

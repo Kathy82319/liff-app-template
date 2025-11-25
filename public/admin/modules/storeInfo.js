@@ -24,6 +24,7 @@ function populateStoreInfoForm(info) {
     }
 
     // 使用安全函式填值
+    setVal('info-store-name', info.store_name);
     setVal('info-address', info.address);
     setVal('info-phone', info.phone);
     setVal('info-hours', info.opening_hours);
@@ -72,6 +73,7 @@ function setupEventListeners() {
             
             // 收集資料時也使用 Optional Chaining (?.) 避免錯誤
             const formData = {
+                store_name: document.getElementById('info-store-name')?.value,
                 address: document.getElementById('info-address')?.value,
                 phone: document.getElementById('info-phone')?.value,
                 opening_hours: document.getElementById('info-hours')?.value,

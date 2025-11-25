@@ -1497,6 +1497,12 @@ async function initializeInfoPage() {
         
         // 重新生成 HTML，使用符合 CSS Grid 的結構 (移除多餘的 div 包裝)
         // 每個 .info-section 包含一個 h2 (左) 和一個 p (右)
+        const nameHtml = info.store_name ? `
+            <div class="info-section">
+                <h2>名稱</h2>
+                <p id="store-name" style="font-weight: bold; color: var(--color-primary); font-size: 1.1rem;">${info.store_name}</p>
+            </div>` : '';
+            
         container.innerHTML = `
             <div class="info-section">
                 <h2>地址</h2>

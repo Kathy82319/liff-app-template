@@ -1473,8 +1473,8 @@ function showRedeemModal(voucherId, voucherTitle) {
 // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
 
 async function initializeInfoPage() {
+    // 1. 設定標題 (保持原本邏輯)
     try {
-        // 設定標題邏輯 (保持不變)
         const logic = activeTemplate?.logic || {};
         const navBarConfig = logic.navBar || [];
         const pageTitle = document.querySelector('#page-info .page-main-title');
@@ -1487,43 +1487,46 @@ async function initializeInfoPage() {
     const container = document.getElementById('store-info-container');
     if (!container) return;
 
-    // 預先顯示載入狀態
-    container.innerHTML = '<p style="text-align:center; padding:20px;">載入中...</p>';
+    // 【關鍵修正】不要清空 innerHTML，保留您在 HTML 寫好的結構！
+    // 移除這行：container.innerHTML = '<p>載入中...</p>'; 
 
     try {
         const response = await fetch('/api/get-store-info');
         if (!response.ok) throw new Error('無法獲取店家資訊');
         const info = await response.json();
         
-        // 重新生成 HTML，使用符合 CSS Grid 的結構 (移除多餘的 div 包裝)
-        // 每個 .info-section 包含一個 h2 (左) 和一個 p (右)
-        const nameHtml = info.store_name ? `
-            <div class="info-section">
-                <h2>名稱</h2>
-                <p id="store-name" style="font-weight: bold; color: var(--color-primary); font-size: 1.1rem;">${info.store_name}</p>
-            </div>` : '';
-            
-        container.innerHTML = `
-            <div class="info-section">
-                <h2>地址</h2>
-                <p id="store-address">${info.address || '未提供'}</p>
-            </div>
-            <div class="info-section">
-                <h2>電話</h2>
-                <p id="store-phone">${info.phone || '未提供'}</p>
-            </div>
-            <div class="info-section">
-                <h2>營業時間</h2>
-                <p id="store-hours" style="white-space: pre-wrap;">${info.opening_hours || '未提供'}</p>
-            </div>
-            <div class="info-section">
-                <h2>店家介紹</h2>
-                <p id="store-description" style="white-space: pre-wrap;">${info.description || '未提供'}</p>
-            </div>
-        `;
+        // 2. 填入店家名稱 (針對您新增的欄位)
+        const nameEl = document.getElementById('store-name');
+        const nameSection = document.getElementById('info-section-name');
+        
+        if (info.store_name) {
+            if (nameEl) nameEl.textContent = info.store_name;
+            // 確保區塊是顯示的 (使用 grid 以配合您的 CSS 排版)
+            if (nameSection) nameSection.style.display = 'grid'; 
+        } else {
+            // 如果後台沒填名稱，隱藏該區塊
+            if (nameSection) nameSection.style.display = 'none';
+        }
+
+        // 3. 填入其他資訊 (使用輔助函式安全填入)
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val || '未提供';
+        };
+
+        setVal('store-address', info.address);
+        setVal('store-phone', info.phone);
+        // 保留換行格式
+        const hoursEl = document.getElementById('store-hours');
+        if (hoursEl) hoursEl.textContent = info.opening_hours || '未提供';
+        
+        const descEl = document.getElementById('store-description');
+        if (descEl) descEl.textContent = info.description || '未提供';
 
     } catch (error) {
-        container.innerHTML = `<p style="color:var(--color-danger); text-align:center;">${error.message}</p>`;
+        console.error("店家資訊載入失敗", error);
+        // 只有在真的失敗時才覆蓋內容顯示錯誤
+        container.innerHTML = `<p style="color:var(--color-danger); text-align:center; padding:20px;">載入失敗: ${error.message}</p>`;
     }
 }
 

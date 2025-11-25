@@ -56,26 +56,63 @@ function calculateTotalPrice() {
     const estimatedTotalPriceEl = document.getElementById('estimated-total-price');
     if (!estimatedTotalPriceEl) return;
 
-    if (guesthouseBookingData.numberOfNights <= 0) {
-        estimatedTotalPriceEl.textContent = '$0';
-        return;
-    }
-
-    for (const productId in guesthouseBookingData.selectedRooms) {
-        const quantity = guesthouseBookingData.selectedRooms[productId];
-        const roomInfo = guesthouseBookingData.roomAvailability[productId];
-        if (quantity > 0 && roomInfo && roomInfo.pricePerNight !== null) {
-            const priceForRoom = roomInfo.totalPrice !== null
-                               ? roomInfo.totalPrice
-                               : (roomInfo.pricePerNight * guesthouseBookingData.numberOfNights);
-            total += priceForRoom * quantity;
+    // 計算邏輯
+    if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
+        if (guesthouseBookingData.numberOfNights > 0) {
+            for (const productId in guesthouseBookingData.selectedRooms) {
+                const quantity = guesthouseBookingData.selectedRooms[productId];
+                const roomInfo = guesthouseBookingData.roomAvailability[productId];
+                if (quantity > 0 && roomInfo && roomInfo.pricePerNight !== null) {
+                    const priceForRoom = roomInfo.totalPrice !== null
+                                    ? roomInfo.totalPrice
+                                    : (roomInfo.pricePerNight * guesthouseBookingData.numberOfNights);
+                    total += priceForRoom * quantity;
+                }
+            }
         }
+    } else {
+        // 工作室樣板計算邏輯
+        document.querySelectorAll('.booking-item-row').forEach(row => {
+            const qty = parseFloat(row.querySelector('.booking-item-qty').value) || 0;
+            const priceInput = row.querySelector('.booking-item-actual-price');
+            const price = priceInput && priceInput.value ? parseFloat(priceInput.value) : 0;
+            total += qty * price;
+        });
     }
 
     estimatedTotalPriceEl.textContent = `$${Math.round(total)}`; 
-}
 
-// public/script.js
+    // --- [核心邏輯] 檢查餘額是否足夠 ---
+    const checkbox = document.getElementById('use-stored-value-checkbox');
+    // 假設 checkbox 旁有一個 span 用來顯示文字 (通常是 label 的一部分)
+    // 這裡我們查找 label 內的文字節點或 span
+    const labelContainer = checkbox?.closest('label');
+    const textSpan = labelContainer?.querySelector('span'); // 假設結構是 <input> <span>文字</span>
+
+    if (checkbox && textSpan) {
+        // 只要總金額大於餘額，就鎖定
+        if (total > 0 && total > currentMemberBalance) {
+            checkbox.checked = false;
+            checkbox.disabled = true;
+            textSpan.textContent = "儲值金額不足無法使用";
+            textSpan.style.color = "var(--color-danger)";
+            textSpan.style.fontWeight = "bold";
+        } else {
+            // 餘額足夠 (且大於 0)
+            if (currentMemberBalance > 0) {
+                checkbox.disabled = false;
+                textSpan.textContent = "使用儲值金付款";
+                textSpan.style.color = ""; 
+                textSpan.style.fontWeight = "bold";
+            } else {
+                // 餘額為 0 (在初始化時已處理，這裡再次確保)
+                checkbox.disabled = true;
+                textSpan.textContent = "使用儲值金付款";
+                textSpan.style.color = "";
+            }
+        }
+    }
+}
 
 function renderRoomList(availabilityData, startDate, endDate) {
     const container = document.getElementById('room-selection-container');
@@ -1536,7 +1573,7 @@ async function initializeInfoPage() {
         // 名稱 (第一項，特別移除上方 padding)
         if (info.store_name) {
             html += `
-                <div class="info-section" style="${rowStyle} padding-top: 10px; border-top: none;font-size: 0.95rem;">
+                <div class="info-section" style="${rowStyle} padding-top: 0; border-top: none;">
                     <h2 style="${titleStyle}">名稱</h2>
                     <p style="${contentStyle}">${info.store_name}</p>
                 </div>
@@ -1545,7 +1582,7 @@ async function initializeInfoPage() {
         
         // 地址
         html += `
-            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
+            <div class="info-section" style="${rowStyle}">
                 <h2 style="${titleStyle}">地址</h2>
                 <p style="${contentStyle}">${addressHtml}</p>
             </div>
@@ -1553,7 +1590,7 @@ async function initializeInfoPage() {
         
         // 電話
         html += `
-            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
+            <div class="info-section" style="${rowStyle}">
                 <h2 style="${titleStyle}">電話</h2>
                 <p style="${contentStyle}">${info.phone || '未提供'}</p>
             </div>
@@ -1561,7 +1598,7 @@ async function initializeInfoPage() {
         
         // 營業時間
         html += `
-            <div class="info-section" style="${rowStyle} font-size: 0.95rem;">
+            <div class="info-section" style="${rowStyle}">
                 <h2 style="${titleStyle}">時間</h2>
                 <p style="${contentStyle}">${info.opening_hours || '未提供'}</p>
             </div>
@@ -1569,7 +1606,7 @@ async function initializeInfoPage() {
         
         // 介紹
         html += `
-            <div class="info-section" style="${rowStyle} border-bottom: none; font-size: 0.95rem;">
+            <div class="info-section" style="${rowStyle} border-bottom: none;">
                 <h2 style="${titleStyle}">介紹</h2>
                 <p style="${contentStyle}">${info.description || '未提供'}</p>
             </div>
@@ -2756,6 +2793,8 @@ const removeBtn = document.createElement('button');
 
 
 async function initializeBookingPage() {
+    // 【移除】這裡原本有強制注入 CSS 的代碼，現在已移除以恢復您原先的日曆樣式
+
     const features = activeTemplate?.features || {};
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
     const storedValuePaymentGroup = document.getElementById('stored-value-payment-group');
@@ -2774,25 +2813,19 @@ async function initializeBookingPage() {
         if (viewMyBookingsBtn) viewMyBookingsBtn.textContent = terms.PROFILE_BOOKINGS_BTN_LABEL || '查看我的預約';
     } catch(e) { console.error(e); }
 
-    // 確保產品資料已載入
     try {
         if (allProducts.length === 0) {
             const res = await fetch('/api/get-products');
             if (!res.ok) throw new Error('無法獲取服務項目列表');
             allProducts = await res.json();
         }
-    } catch (error) {
-        console.error("獲取產品失敗:", error);
-    }
+    } catch (error) { console.error("獲取產品失敗:", error); }
 
-    // 綁定「查看我的預約」按鈕
     const viewMyBookingsBtn = document.getElementById('view-my-bookings-btn');
     if (viewMyBookingsBtn) {
         const newBtn = viewMyBookingsBtn.cloneNode(true);
         viewMyBookingsBtn.parentNode.replaceChild(newBtn, viewMyBookingsBtn);
-        newBtn.addEventListener('click', () => {
-            showPage('page-my-records');
-        });
+        newBtn.addEventListener('click', () => showPage('page-my-records'));
     }
 
     const confirmBtn = document.getElementById('confirm-booking-btn');
@@ -2801,13 +2834,12 @@ async function initializeBookingPage() {
         confirmBtn.dataset.listenerAttached = 'true'; 
     }
 
-    // --- [新增功能] 綁定儲值金確認視窗 ---
+    // 綁定儲值金 Checkbox (加入確認視窗)
     const useStoredValueCheckbox = document.getElementById('use-stored-value-checkbox');
     if (useStoredValueCheckbox) {
         const newCheckbox = useStoredValueCheckbox.cloneNode(true);
         useStoredValueCheckbox.parentNode.replaceChild(newCheckbox, useStoredValueCheckbox);
-        
-        newCheckbox.checked = false; // 重置為未勾選
+        newCheckbox.checked = false; // 預設重置
 
         newCheckbox.addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -2819,17 +2851,16 @@ async function initializeBookingPage() {
         });
     }
 
-    // --- [修復日曆] 呼叫對應的初始化函式 ---
+    // 初始化特定樣板邏輯
     if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
         await initializeGuesthouseBooking(); 
     } else {
         await initializeStudioBooking(); 
     }
 
-    // --- [新增功能] 抓取並顯示會員餘額 ---
+    // 獲取並顯示餘額
     try {
         const userData = await fetchproductData(true); // 強制刷新
-        
         if (userData) {
             // 預填聯絡資訊
             const nameInput = document.getElementById('contact-name');
@@ -2837,17 +2868,19 @@ async function initializeBookingPage() {
             if (nameInput) nameInput.value = userData.real_name || userProfile?.displayName || '';
             if (phoneInput) phoneInput.value = userData.phone || '';
 
-            // 更新餘額顯示
+            // 更新全域餘額變數
+            currentMemberBalance = userData.stored_value_balance || 0;
+
+            // 更新顯示
             const balanceDisplay = document.getElementById('stored-value-balance-display');
             const checkbox = document.getElementById('use-stored-value-checkbox');
             
             if (balanceDisplay) {
-                const balance = userData.stored_value_balance || 0;
-                balanceDisplay.textContent = `(餘額: $${balance})`;
+                balanceDisplay.textContent = `(餘額: $${currentMemberBalance})`;
                 
                 // 如果餘額為 0，停用勾選框
                 if (checkbox) {
-                    if (balance <= 0) {
+                    if (currentMemberBalance <= 0) {
                         checkbox.disabled = true;
                         balanceDisplay.style.color = 'var(--color-danger)';
                         balanceDisplay.textContent += ' - 餘額不足';
@@ -2860,6 +2893,8 @@ async function initializeBookingPage() {
         }
     } catch(err){ console.warn("預填資訊或餘額載入失敗:", err); }
 }
+
+
 // --- [補回] 初始化民宿預約 (日曆修復關鍵) ---
 async function initializeGuesthouseBooking() {
     console.log("初始化民宿訂房 UI");

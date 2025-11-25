@@ -56,63 +56,26 @@ function calculateTotalPrice() {
     const estimatedTotalPriceEl = document.getElementById('estimated-total-price');
     if (!estimatedTotalPriceEl) return;
 
-    // 計算邏輯
-    if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
-        if (guesthouseBookingData.numberOfNights > 0) {
-            for (const productId in guesthouseBookingData.selectedRooms) {
-                const quantity = guesthouseBookingData.selectedRooms[productId];
-                const roomInfo = guesthouseBookingData.roomAvailability[productId];
-                if (quantity > 0 && roomInfo && roomInfo.pricePerNight !== null) {
-                    const priceForRoom = roomInfo.totalPrice !== null
-                                    ? roomInfo.totalPrice
-                                    : (roomInfo.pricePerNight * guesthouseBookingData.numberOfNights);
-                    total += priceForRoom * quantity;
-                }
-            }
+    if (guesthouseBookingData.numberOfNights <= 0) {
+        estimatedTotalPriceEl.textContent = '$0';
+        return;
+    }
+
+    for (const productId in guesthouseBookingData.selectedRooms) {
+        const quantity = guesthouseBookingData.selectedRooms[productId];
+        const roomInfo = guesthouseBookingData.roomAvailability[productId];
+        if (quantity > 0 && roomInfo && roomInfo.pricePerNight !== null) {
+            const priceForRoom = roomInfo.totalPrice !== null
+                               ? roomInfo.totalPrice
+                               : (roomInfo.pricePerNight * guesthouseBookingData.numberOfNights);
+            total += priceForRoom * quantity;
         }
-    } else {
-        // 工作室樣板計算邏輯
-        document.querySelectorAll('.booking-item-row').forEach(row => {
-            const qty = parseFloat(row.querySelector('.booking-item-qty').value) || 0;
-            const priceInput = row.querySelector('.booking-item-actual-price');
-            const price = priceInput && priceInput.value ? parseFloat(priceInput.value) : 0;
-            total += qty * price;
-        });
     }
 
     estimatedTotalPriceEl.textContent = `$${Math.round(total)}`; 
-
-    // --- [核心邏輯] 檢查餘額是否足夠 ---
-    const checkbox = document.getElementById('use-stored-value-checkbox');
-    // 假設 checkbox 旁有一個 span 用來顯示文字 (通常是 label 的一部分)
-    // 這裡我們查找 label 內的文字節點或 span
-    const labelContainer = checkbox?.closest('label');
-    const textSpan = labelContainer?.querySelector('span'); // 假設結構是 <input> <span>文字</span>
-
-    if (checkbox && textSpan) {
-        // 只要總金額大於餘額，就鎖定
-        if (total > 0 && total > currentMemberBalance) {
-            checkbox.checked = false;
-            checkbox.disabled = true;
-            textSpan.textContent = "儲值金額不足無法使用";
-            textSpan.style.color = "var(--color-danger)";
-            textSpan.style.fontWeight = "bold";
-        } else {
-            // 餘額足夠 (且大於 0)
-            if (currentMemberBalance > 0) {
-                checkbox.disabled = false;
-                textSpan.textContent = "使用儲值金付款";
-                textSpan.style.color = ""; 
-                textSpan.style.fontWeight = "bold";
-            } else {
-                // 餘額為 0 (在初始化時已處理，這裡再次確保)
-                checkbox.disabled = true;
-                textSpan.textContent = "使用儲值金付款";
-                textSpan.style.color = "";
-            }
-        }
-    }
 }
+
+// public/script.js
 
 function renderRoomList(availabilityData, startDate, endDate) {
     const container = document.getElementById('room-selection-container');
@@ -1510,7 +1473,7 @@ function showRedeemModal(voucherId, voucherTitle) {
 // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
 
 async function initializeInfoPage() {
-    // 1. 設定導覽列標題
+    // 1. 設定標題 (保持不變)
     try {
         const logic = activeTemplate?.logic || {};
         const navBarConfig = logic.navBar || [];
@@ -1524,95 +1487,57 @@ async function initializeInfoPage() {
     const container = document.getElementById('store-info-container');
     if (!container) return;
 
-    container.innerHTML = '<p style="text-align:center; color:#888;">載入中...</p>';
-
     try {
         const response = await fetch('/api/get-store-info');
         if (!response.ok) throw new Error('無法獲取店家資訊');
         const info = await response.json();
         
-        // --- 2. 使用 JS 強制重繪 HTML 結構與樣式 (解決 CSS 無效問題) ---
-        // 定義樣式常數
-        const rowStyle = `
-            display: grid; 
-            grid-template-columns: 50px 1fr; 
-            gap: 8px; 
-            align-items: start; 
-            padding: 8px 0; 
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-        `;
-        const titleStyle = `
-            font-size: 0.95rem; 
-            color: var(--color-secondary); 
-            margin: 0; 
-            font-weight: bold; 
-            line-height: 1.5;
-            margin-top: 2px;
-        `;
-        const contentStyle = `
-            margin: 0; 
-            color: var(--color-text-primary); 
-            font-size: 1rem; 
-            line-height: 1.5; 
-            white-space: pre-wrap;
-            display: flex; align-items: center; flex-wrap: wrap;
-        `;
-
-        // 準備資料欄位
-        const mapUrl = info.address ? `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(info.address)}` : '#';
-        const addressHtml = info.address ? `
-            <span>${info.address}</span>
-            <a href="${mapUrl}" target="_blank" class="map-link-btn" title="開啟地圖" style="margin-left:5px; display:inline-flex; align-items:center; justify-content:center; background:#E8F5E9; border-radius:50%; width:24px; height:24px; text-decoration:none; color:#2E7D32;">
-                📍
-            </a>
-        ` : '未提供';
-
-        // 組裝 HTML
-        let html = '';
+        // 2. 填入店家名稱
+        const nameEl = document.getElementById('store-name');
+        const nameSection = document.getElementById('info-section-name');
         
-        // 名稱 (第一項，特別移除上方 padding)
         if (info.store_name) {
-            html += `
-                <div class="info-section" style="${rowStyle} padding-top: 0; border-top: none;">
-                    <h2 style="${titleStyle}">名稱</h2>
-                    <p style="${contentStyle}">${info.store_name}</p>
-                </div>
-            `;
+            if (nameEl) nameEl.textContent = info.store_name;
+            if (nameSection) nameSection.style.display = 'grid'; 
+        } else {
+            if (nameSection) nameSection.style.display = 'none';
         }
-        
-        // 地址
-        html += `
-            <div class="info-section" style="${rowStyle}">
-                <h2 style="${titleStyle}">地址</h2>
-                <p style="${contentStyle}">${addressHtml}</p>
-            </div>
-        `;
-        
-        // 電話
-        html += `
-            <div class="info-section" style="${rowStyle}">
-                <h2 style="${titleStyle}">電話</h2>
-                <p style="${contentStyle}">${info.phone || '未提供'}</p>
-            </div>
-        `;
-        
-        // 營業時間
-        html += `
-            <div class="info-section" style="${rowStyle}">
-                <h2 style="${titleStyle}">時間</h2>
-                <p style="${contentStyle}">${info.opening_hours || '未提供'}</p>
-            </div>
-        `;
-        
-        // 介紹
-        html += `
-            <div class="info-section" style="${rowStyle} border-bottom: none;">
-                <h2 style="${titleStyle}">介紹</h2>
-                <p style="${contentStyle}">${info.description || '未提供'}</p>
-            </div>
-        `;
 
-        container.innerHTML = html;
+        // 3. 填入其他資訊 (【修改】支援地址地圖連結)
+        const setVal = (id, val, isAddress = false) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            const textContent = val || '未提供';
+            
+            if (isAddress && val) {
+                // 產生 Google Map 連結
+                // 使用 encodeURIComponent 確保地址特殊字元正確
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(val)}`;
+                
+                // 放入地址文字 + 地圖圖示 (SVG Location Icon)
+                el.innerHTML = `
+                    <span>${textContent}</span>
+                    <a href="${mapUrl}" target="_blank" class="map-link-btn" title="在 Google 地圖開啟">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                    </a>
+                `;
+            } else {
+                el.textContent = textContent;
+            }
+        };
+
+        setVal('store-address', info.address, true); // 第三個參數 true 表示這是地址
+        setVal('store-phone', info.phone);
+        
+        // 保留換行格式
+        const hoursEl = document.getElementById('store-hours');
+        if (hoursEl) hoursEl.textContent = info.opening_hours || '未提供';
+        
+        const descEl = document.getElementById('store-description');
+        if (descEl) descEl.textContent = info.description || '未提供';
 
     } catch (error) {
         console.error("店家資訊載入失敗", error);
@@ -2791,10 +2716,9 @@ const removeBtn = document.createElement('button');
 
 
 
+// public/script.js
 
 async function initializeBookingPage() {
-    // 【移除】這裡原本有強制注入 CSS 的代碼，現在已移除以恢復您原先的日曆樣式
-
     const features = activeTemplate?.features || {};
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
     const storedValuePaymentGroup = document.getElementById('stored-value-payment-group');
@@ -2819,13 +2743,20 @@ async function initializeBookingPage() {
             if (!res.ok) throw new Error('無法獲取服務項目列表');
             allProducts = await res.json();
         }
-    } catch (error) { console.error("獲取產品失敗:", error); }
+    } catch (error) {
+        console.error("獲取產品失敗:", error);
+    }
 
+    // 【修正 1】修正按鈕導向，改為 'page-my-records'
     const viewMyBookingsBtn = document.getElementById('view-my-bookings-btn');
     if (viewMyBookingsBtn) {
+        // 移除舊監聽器 (透過 cloneNode)
         const newBtn = viewMyBookingsBtn.cloneNode(true);
         viewMyBookingsBtn.parentNode.replaceChild(newBtn, viewMyBookingsBtn);
-        newBtn.addEventListener('click', () => showPage('page-my-records'));
+        
+        newBtn.addEventListener('click', () => {
+            showPage('page-my-records'); // 導向正確的頁面 ID
+        });
     }
 
     const confirmBtn = document.getElementById('confirm-booking-btn');
@@ -2834,68 +2765,24 @@ async function initializeBookingPage() {
         confirmBtn.dataset.listenerAttached = 'true'; 
     }
 
-    // 綁定儲值金 Checkbox (加入確認視窗)
-    const useStoredValueCheckbox = document.getElementById('use-stored-value-checkbox');
-    if (useStoredValueCheckbox) {
-        const newCheckbox = useStoredValueCheckbox.cloneNode(true);
-        useStoredValueCheckbox.parentNode.replaceChild(newCheckbox, useStoredValueCheckbox);
-        newCheckbox.checked = false; // 預設重置
-
-        newCheckbox.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                const confirmed = confirm("是否確認是用儲值金作為本次預訂使用？\n\n注意：預訂後若需取消，儲值金將不會自動退還，需聯繫店家人工處理。");
-                if (!confirmed) {
-                    e.target.checked = false;
-                }
-            }
-        });
-    }
-
-    // 初始化特定樣板邏輯
     if (CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template') {
         await initializeGuesthouseBooking(); 
     } else {
         await initializeStudioBooking(); 
     }
 
-    // 獲取並顯示餘額
     try {
-        const userData = await fetchproductData(true); // 強制刷新
+        const userData = await fetchproductData(); 
         if (userData) {
-            // 預填聯絡資訊
             const nameInput = document.getElementById('contact-name');
             const phoneInput = document.getElementById('contact-phone');
             if (nameInput) nameInput.value = userData.real_name || userProfile?.displayName || '';
             if (phoneInput) phoneInput.value = userData.phone || '';
-
-            // 更新全域餘額變數
-            currentMemberBalance = userData.stored_value_balance || 0;
-
-            // 更新顯示
-            const balanceDisplay = document.getElementById('stored-value-balance-display');
-            const checkbox = document.getElementById('use-stored-value-checkbox');
-            
-            if (balanceDisplay) {
-                balanceDisplay.textContent = `(餘額: $${currentMemberBalance})`;
-                
-                // 如果餘額為 0，停用勾選框
-                if (checkbox) {
-                    if (currentMemberBalance <= 0) {
-                        checkbox.disabled = true;
-                        balanceDisplay.style.color = 'var(--color-danger)';
-                        balanceDisplay.textContent += ' - 餘額不足';
-                    } else {
-                        checkbox.disabled = false;
-                        balanceDisplay.style.color = 'var(--color-text-secondary)';
-                    }
-                }
-            }
         }
-    } catch(err){ console.warn("預填資訊或餘額載入失敗:", err); }
+    } catch(err){ console.warn("預填資訊失敗:", err); }
 }
 
-
-// --- [補回] 初始化民宿預約 (日曆修復關鍵) ---
+//初始化民宿樣板的預約頁面
 async function initializeGuesthouseBooking() {
     console.log("初始化民宿訂房 UI");
     const dateRangePickerEl = document.getElementById('booking-date-range-picker');
@@ -2906,8 +2793,9 @@ async function initializeGuesthouseBooking() {
 
     guesthouseBookingData = { startDate: null, endDate: null, numberOfNights: 0, roomAvailability: {}, selectedRooms: {} };
     
+    // 【修正 2】初始化時，直接顯示預覽列表，不隱藏表單
     detailsForm.style.display = 'block'; 
-    renderRoomList(null, null, null); 
+    renderRoomList(null, null, null); // 渲染預覽列表
     
     document.getElementById('estimated-total-price').textContent = '$0'; 
 
@@ -2926,6 +2814,7 @@ async function initializeGuesthouseBooking() {
                 const start = selectedDates[0];
                 const end = selectedDates[1];
                 
+                // 簡單防呆：如果選到同一天，當作無效
                 if (start.getTime() === end.getTime()) return;
 
                 guesthouseBookingData.startDate = flatpickr.formatDate(start, "Y-m-d");
@@ -2939,6 +2828,8 @@ async function initializeGuesthouseBooking() {
                     return;
                 }
 
+                // 【修正 3】查詢期間不要清空 innerHTML，避免版面跳動
+                // 可以加個簡單的 loading class 或 opacity 變化
                 roomSelectionContainer.style.opacity = '0.5';
 
                 try {
@@ -2957,6 +2848,7 @@ async function initializeGuesthouseBooking() {
                     alert("查詢房況失敗，請稍後再試");
                 }
             } else {
+                 // 清除日期時，回復預覽狀態
                  guesthouseBookingData.startDate = null;
                  guesthouseBookingData.endDate = null;
                  guesthouseBookingData.numberOfNights = 0;
@@ -2967,7 +2859,8 @@ async function initializeGuesthouseBooking() {
     });
 }
 
-// --- [補回] 初始化工作室預約 (日曆修復關鍵) ---
+//初始化工作室樣板 (或其他) 的預約頁面
+ 
 async function initializeStudioBooking() {
     console.log("初始化工作室預約 UI");
     const pageBookingDiv = document.getElementById('app-content').querySelector('#page-booking');
@@ -2980,17 +2873,23 @@ async function initializeStudioBooking() {
 
      let datepickerContainer = pageBookingDiv.querySelector('#booking-datepicker-container');
      if (!datepickerContainer) {
+         console.log("動態創建 #booking-datepicker-container (工作室樣板用)。");
          datepickerContainer = document.createElement('div');
          datepickerContainer.id = 'booking-datepicker-container';
          const firstDetailsSection = pageBookingDiv.querySelector('.details-section'); 
          if(firstDetailsSection) {
              firstDetailsSection.innerHTML = '<h3>1. 選擇日期與時段</h3>'; 
              firstDetailsSection.appendChild(datepickerContainer); 
+         } else {
+             console.error("找不到可以插入 datepickerContainer 的位置。");
+             pageBookingDiv.innerHTML = `<p style="color:red">頁面結構錯誤，無法初始化預約功能。</p>`;
+             return;
          }
      }
 
      let timeSlotContainer = pageBookingDiv.querySelector('#booking-time-slot-container');
      if (!timeSlotContainer) {
+         console.log("動態創建 #booking-time-slot-container (工作室樣板用)。");
          timeSlotContainer = document.createElement('div');
          timeSlotContainer.id = 'booking-time-slot-container';
          timeSlotContainer.style.marginTop = '20px';
@@ -3005,6 +2904,7 @@ async function initializeStudioBooking() {
      let itemsContainer = detailsForm.querySelector('#booking-items-container');
      let addBookingItemBtn = detailsForm.querySelector('#add-booking-item-btn');
      if (!itemsContainer) {
+         console.log("動態創建 #booking-items-container 和按鈕 (工作室樣板用)。");
          const itemsSection = document.createElement('div');
          itemsSection.className = 'form-group';
          itemsSection.innerHTML = `
@@ -3018,8 +2918,11 @@ async function initializeStudioBooking() {
              detailsForm.insertBefore(itemsSection, hrElement); 
              itemsContainer = document.getElementById('booking-items-container'); 
              addBookingItemBtn = document.getElementById('add-booking-item-btn'); 
+         } else {
+              console.error("找不到可以插入 itemsContainer 的位置。");
          }
      }
+
 
     if (itemsContainer) itemsContainer.innerHTML = ''; 
     if(addBookingItemBtn && !addBookingItemBtn.dataset.listenerAttached) {
@@ -3038,6 +2941,10 @@ async function initializeStudioBooking() {
         enabledDates = (await response.json()).enabledDates;
     } catch(e) {
         console.error('無法獲取可預約日期設定:', e);
+        if(datepickerContainer) { 
+            datepickerContainer.innerHTML = `<p style="color:var(--color-danger)">無法載入可預約日期，請稍後再試。</p>`;
+        }
+        return; 
     }
 
     flatpickr(datepickerContainer, { 
@@ -3072,6 +2979,10 @@ async function initializeStudioBooking() {
                      if (priceDisplay) {
                           priceDisplay.textContent = actualPrice !== null ? ` ($${actualPrice})` : '';
                      }
+                 } else if (priceInputHidden){ 
+                      priceInputHidden.value = '';
+                      let priceDisplay = row.querySelector('.price-display-hint');
+                      if (priceDisplay) priceDisplay.textContent = '';
                  }
              });
         },
@@ -3086,216 +2997,6 @@ async function initializeStudioBooking() {
                 if (detailsForm) detailsForm.style.display = 'none'; 
             }
         });
-    }
-}
-
-// --- [新增功能] 民宿訂房確認 (傳遞 useStoredValue) ---
-async function handleGuesthouseBookingConfirmation(confirmBtn) {
-    console.log("處理民宿訂房提交");
-
-    if (!guesthouseBookingData.startDate || !guesthouseBookingData.endDate || guesthouseBookingData.numberOfNights <= 0) {
-        alert('請先選擇有效的入住與退房日期！');
-        return;
-    }
-    if (Object.keys(guesthouseBookingData.selectedRooms).length === 0) {
-        alert('請至少選擇一個房型與數量！');
-        return;
-    }
-
-    const contactName = document.getElementById('contact-name').value.trim();
-    const contactPhone = document.getElementById('contact-phone').value.trim();
-    if (!contactName || !contactPhone) {
-        alert('預約姓名與聯絡電話為必填！');
-        return;
-    }
-    const phoneRegex = /^09\d{8}$/;
-    if (!phoneRegex.test(contactPhone)) {
-        alert('請輸入正確的 10 位手機號碼 (必須為 09 開頭)。');
-        return;
-    }
-
-    const itemsForApi = [];
-    for (const productId in guesthouseBookingData.selectedRooms) {
-        const quantity = guesthouseBookingData.selectedRooms[productId];
-        if (quantity > 0) {
-            itemsForApi.push({ productId: productId, quantity: quantity });
-        }
-    }
-
-    if (itemsForApi.length === 0) {
-        alert('請至少選擇一個房型與數量！');
-        return;
-    }
-
-    // [關鍵] 讀取是否使用儲值金
-    const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
-
-    const bookingPayload = {
-        userId: userProfile.userId,          
-        startDate: guesthouseBookingData.startDate, 
-        endDate: guesthouseBookingData.endDate,    
-        contactName: contactName,           
-        contactPhone: contactPhone,        
-        items: itemsForApi,                  
-        bookingType: 'guesthouse',
-        useStoredValue: useStoredValue // 傳遞參數
-    };
-
-    try {
-        confirmBtn.dataset.isSubmitting = 'true'; 
-        confirmBtn.disabled = true;            
-        confirmBtn.textContent = '處理中...';   
-
-        console.log("送出民宿訂房 payload:", JSON.stringify(bookingPayload));
-
-        const createRes = await fetch('/api/bookings-create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bookingPayload)
-        });
-
-        const result = await createRes.json(); 
-
-        if (!createRes.ok) {
-            // 如果是餘額不足等錯誤，會在這裡被 catch
-            throw new Error(result.error || '建立訂房時發生未知錯誤');
-        }
-
-        fetch('/api/send-message', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
-        }).catch(err => console.error("發送 LINE 通知失敗:", err));
-
-        appContent.innerHTML = `
-            <div class="details-section" style="text-align: center;">
-                <h2 style="color: var(--color-accent);">✅ 訂房成功！</h2>
-                <p>3 秒後將自動跳轉至您的預約列表...</p>
-            </div>
-        `;
-        setTimeout(() => { showPage('page-my-bookings'); }, 3000);
-
-    } catch (error) { 
-        console.error("訂房失敗:", error);
-        alert(`訂房失敗：${error.message}`);
-        confirmBtn.dataset.isSubmitting = 'false'; 
-        confirmBtn.disabled = false;           
-        confirmBtn.textContent = '確認訂房';       
-    }
-}
-
-// --- [新增功能] 工作室預約確認 (傳遞 useStoredValue) ---
-async function handleStudioBookingConfirmation(confirmBtn) {
-     console.log("處理工作室預約提交");
-    const items = [];
-    const itemRows = document.querySelectorAll('.booking-item-row'); 
-    let calculatedTotalAmount = 0;
-    let itemsValid = true;
-
-    const bookingDate = bookingData.date; 
-    if (!bookingDate) { 
-        alert('請先選擇預約日期！');
-        return;
-    }
-
-    itemRows.forEach(row => {
-        if (!itemsValid) return;
-        const nameSelect = row.querySelector('.booking-item-select');
-        const qtyInput = row.querySelector('.booking-item-qty');
-        const priceInputHidden = row.querySelector('.booking-item-actual-price'); 
-
-        const name = nameSelect?.value; 
-        const qty = parseInt(qtyInput?.value, 10); 
-        const priceStr = priceInputHidden?.value; 
-        const price = (priceStr !== undefined && priceStr !== '') ? parseFloat(priceStr) : null;
-
-        if (name && !isNaN(qty) && qty > 0) { 
-             if (price === null || isNaN(price) || price < 0) { 
-                 alert(`項目 "${name}" 無法根據您選擇的日期找到有效價格，請確認日期或重新選擇項目。`);
-                 itemsValid = false; 
-             } else {
-                 items.push({ name, qty, price }); 
-                 calculatedTotalAmount += qty * price;
-             }
-        } else if (name) { 
-             alert(`項目 "${name}" 的數量無效。`);
-             itemsValid = false;
-        }
-    });
-
-    if (!itemsValid || items.length === 0) {
-        if (items.length === 0 && itemsValid) { 
-            alert('請至少選擇一個有效的預約項目！');
-        }
-        return;
-    }
-
-    const timeSlot = document.getElementById('time-slot-select')?.value; 
-    const numOfPeople = document.getElementById('booking-people')?.value; 
-    const contactName = document.getElementById('contact-name')?.value;  
-    const contactPhone = document.getElementById('contact-phone')?.value; 
-
-    if (!timeSlot || !contactName || !contactPhone || !numOfPeople) {
-         alert('時段、姓名、電話與人數為必填！');
-         return;
-    }
-     const phoneRegex = /^09\d{8}$/;
-     if (!phoneRegex.test(contactPhone)) {
-         alert('請輸入正確的 10 位手機號碼 (必須為 09 開頭)。');
-         return;
-     }
-
-    // [關鍵] 讀取是否使用儲值金
-    const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
-
-    const bookingPayload = {
-        userId: userProfile.userId,
-        bookingDate: bookingDate,      
-        timeSlot: timeSlot,         
-        numOfPeople: numOfPeople,    
-        contactName: contactName,
-        contactPhone: contactPhone,
-        items: items,                
-        totalAmount: calculatedTotalAmount, 
-        bookingType: 'studio',
-        useStoredValue: useStoredValue // 傳遞參數
-    };
-
-    try {
-        confirmBtn.dataset.isSubmitting = 'true'; 
-        confirmBtn.disabled = true;            
-        confirmBtn.textContent = '處理中...';   
-
-        const createRes = await fetch('/api/bookings-create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bookingPayload)
-        });
-
-        const result = await createRes.json(); 
-
-        if (!createRes.ok) {
-            throw new Error(result.error || '建立預約時發生未知錯誤');
-        }
-
-        fetch('/api/send-message', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
-        }).catch(err => console.error("發送 LINE 通知失敗:", err));
-
-        appContent.innerHTML = `
-            <div class="details-section" style="text-align: center;">
-                <h2 style="color: var(--color-accent);">✅ 預約成功！</h2>
-                <p>3 秒後將自動跳轉至您的預約列表...</p>
-            </div>
-        `;
-        setTimeout(() => { showPage('page-my-bookings'); }, 3000);
-
-    } catch (error) { 
-        console.error("預約失敗:", error);
-        alert(`預約失敗：${error.message}`);
-        confirmBtn.dataset.isSubmitting = 'false'; 
-        confirmBtn.disabled = false;            
-        confirmBtn.textContent = '確認預約';       
     }
 }
 

@@ -690,48 +690,6 @@ input:focus, select:focus, textarea:focus {
     padding-left: 5px; padding-right: 5px;
 }
 
-#page-info .info-section {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    /* 【修正】縮小上下內距 (原 15px -> 10px) */
-    padding: 10px 0; 
-    margin-bottom: 0;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    
-    display: grid;
-    /* 【修正】縮小欄位間距 (原 20px -> 8px)，讓標題跟內容靠更近 */
-    grid-template-columns: 70px 1fr; 
-    align-items: center; /* 垂直置中對齊，看起來更整齊 */
-    gap: 8px; 
-}
-
-/* 【修正】讓第一個項目 (通常是名稱) 離頂部近一點 */
-#page-info .info-section:first-child {
-    padding-top: 0;
-}
-
-#page-info .info-section:last-child { border-bottom: none; }
-
-#page-info .info-section h2 {
-    font-size: 0.95rem; /* 字體稍微縮小一點點以配合緊湊排版 */
-    color: var(--color-secondary);
-    margin: 0;
-    font-weight: bold;
-    line-height: 1.4;
-}
-
-#page-info .info-section p {
-    margin: 0;
-    color: var(--color-text-primary);
-    font-size: 1rem;
-    line-height: 1.5;
-    display: flex; /* 為了讓地址後面的圖示能對齊 */
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-}
-
 /* --- 【新增】Google Map 按鈕樣式 --- */
 .map-link-btn {
     display: inline-flex;
@@ -981,4 +939,52 @@ input:focus, select:focus, textarea:focus {
 .records-content-pane.active {
     display: block !important; /* 只有 active 時強制顯示 */
     animation: fadeIn 0.3s ease;
+}
+
+/* =========================================
+   10. 頁面樣式：店家資訊 (Store Info) - 優化版
+   ========================================= */
+/* 修正容器內距，讓第一個項目靠上 */
+#store-info-container {
+    padding-top: 15px !important; /* 原本是 20px，縮小一點 */
+}
+
+#page-info .info-section {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    
+    display: grid;
+    /* 【修正】將標題欄寬度從 80px 縮小為 60px，並縮小 gap */
+    grid-template-columns: 60px 1fr; 
+    gap: 10px; /* 標題與內容的間距 */
+    
+    align-items: center; /* 垂直置中 */
+}
+
+/* 【修正】讓第一個項目完全貼頂 */
+#page-info .info-section:first-child {
+    padding-top: 0;
+    border-top: none;
+}
+
+#page-info .info-section h2 {
+    font-size: 1rem;
+    color: var(--color-secondary);
+    margin: 0;
+    font-weight: bold;
+    line-height: 1.4;
+}
+
+#page-info .info-section p {
+    margin: 0;
+    color: var(--color-text-primary);
+    font-size: 1rem;
+    line-height: 1.5;
+    display: flex; /* 為了讓地圖按鈕跟文字並排 */
+    align-items: center;
+    flex-wrap: wrap;
 }

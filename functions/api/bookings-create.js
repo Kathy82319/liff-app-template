@@ -187,33 +187,13 @@ export async function onRequest(context) {
             const bookingStmt = db.prepare(
                 'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people) VALUES (?, ?, ?, ?, ?, ?) RETURNING booking_id'
             );
-             const bookingResult = await bookingStmt.bind(userId, contactName, body.contactPhone, bookingDate, timeSlot, numOfPeople).first();
-
-             if (!bookingResult || !bookingResult.booking_id) {
-                 throw new Error('無法建立預約主紀錄，請稍後再試。');
-             }
-             booking_id = bookingResult.booking_id;
-             console.log(`[bookings-create] Studio Booking record created with ID: ${booking_id}`);
-
-            const itemStmt = db.prepare(
-                'INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)'
-            );
-             const itemNames = items.map(item => item.name);
-             const namePlaceholders = itemNames.map(() => '?').join(',');
-             if (itemNames.length > 0) {
-                const productsInfoStmt = db.prepare(`SELECT name, product_id FROM Products WHERE name IN (${namePlaceholders})`);
-                const { results: fetchedProductsInfo } = await productsInfoStmt.bind(...itemNames).all();
-                productsInfo = fetchedProductsInfo || [];
-             }
+            const bookingResult = await bookingStmt.bind(userId, contactName, body.contactPhone, bookingDate, timeSlot, numOfPeople).first();
+            booking_id = bookingResult.booking_id;
 
             // 計算總金額
             items.forEach(item => {
-                const productDetails = productsInfo.find(p => p.name === item.name);
                 calculatedTotalAmount += (item.price * item.quantity);
-                operations.push(itemStmt.bind(
-                    booking_id, item.name, item.quantity, item.price,
-                    productDetails ? productDetails.product_id : null
-                ));
+                operations.push(db.prepare('INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)').bind(booking_id, item.name, item.quantity, item.price, null));
             });
 
              // --- 準備訊息內容 ---
@@ -262,7 +242,6 @@ export async function onRequest(context) {
             );
 
             // 4. 寫入儲值金變動紀錄 (加入 operations)
-            // booking_id 此時已存在 (從 RETURNING 取得)
             const historyNote = `預訂 #${String(booking_id).padStart(5, '0')} 款項扣抵`;
             operations.push(
                 db.prepare("INSERT INTO StoredValueHistory (user_id, amount_changed, current_balance, type, notes) VALUES (?, ?, ?, 'booking_payment', ?)")

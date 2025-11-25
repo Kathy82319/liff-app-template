@@ -1473,7 +1473,7 @@ function showRedeemModal(voucherId, voucherTitle) {
 // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
 
 async function initializeInfoPage() {
-    // 1. 設定標題 (保持原本邏輯)
+    // 1. 設定標題 (保持不變)
     try {
         const logic = activeTemplate?.logic || {};
         const navBarConfig = logic.navBar || [];
@@ -1487,35 +1487,51 @@ async function initializeInfoPage() {
     const container = document.getElementById('store-info-container');
     if (!container) return;
 
-    // 【關鍵修正】不要清空 innerHTML，保留您在 HTML 寫好的結構！
-    // 移除這行：container.innerHTML = '<p>載入中...</p>'; 
-
     try {
         const response = await fetch('/api/get-store-info');
         if (!response.ok) throw new Error('無法獲取店家資訊');
         const info = await response.json();
         
-        // 2. 填入店家名稱 (針對您新增的欄位)
+        // 2. 填入店家名稱
         const nameEl = document.getElementById('store-name');
         const nameSection = document.getElementById('info-section-name');
         
         if (info.store_name) {
             if (nameEl) nameEl.textContent = info.store_name;
-            // 確保區塊是顯示的 (使用 grid 以配合您的 CSS 排版)
             if (nameSection) nameSection.style.display = 'grid'; 
         } else {
-            // 如果後台沒填名稱，隱藏該區塊
             if (nameSection) nameSection.style.display = 'none';
         }
 
-        // 3. 填入其他資訊 (使用輔助函式安全填入)
-        const setVal = (id, val) => {
+        // 3. 填入其他資訊 (【修改】支援地址地圖連結)
+        const setVal = (id, val, isAddress = false) => {
             const el = document.getElementById(id);
-            if (el) el.textContent = val || '未提供';
+            if (!el) return;
+            
+            const textContent = val || '未提供';
+            
+            if (isAddress && val) {
+                // 產生 Google Map 連結
+                // 使用 encodeURIComponent 確保地址特殊字元正確
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(val)}`;
+                
+                // 放入地址文字 + 地圖圖示 (SVG Location Icon)
+                el.innerHTML = `
+                    <span>${textContent}</span>
+                    <a href="${mapUrl}" target="_blank" class="map-link-btn" title="在 Google 地圖開啟">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                    </a>
+                `;
+            } else {
+                el.textContent = textContent;
+            }
         };
 
-        setVal('store-address', info.address);
+        setVal('store-address', info.address, true); // 第三個參數 true 表示這是地址
         setVal('store-phone', info.phone);
+        
         // 保留換行格式
         const hoursEl = document.getElementById('store-hours');
         if (hoursEl) hoursEl.textContent = info.opening_hours || '未提供';
@@ -1525,7 +1541,6 @@ async function initializeInfoPage() {
 
     } catch (error) {
         console.error("店家資訊載入失敗", error);
-        // 只有在真的失敗時才覆蓋內容顯示錯誤
         container.innerHTML = `<p style="color:var(--color-danger); text-align:center; padding:20px;">載入失敗: ${error.message}</p>`;
     }
 }
@@ -2108,6 +2123,44 @@ function renderRallyPage() {
 
     if (listContainer) {
         listContainer.style.display = 'block';
+
+        // --- 【新增】排序邏輯 ---
+        // 規則：進行中 (Active) 排前面，已完成/已結束/已過期 排後面
+        rallyData.campaigns.sort((a, b) => {
+            // 輔助函式：判斷單一活動是否屬於「黯淡組 (Dimmed)」
+            const isDimmed = (campaign) => {
+                // 計算進度
+                const progressList = Array.isArray(campaign.userProgress) ? campaign.userProgress : [];
+                const activeStamps = progressList.filter(p => p.is_archived !== 1);
+                const stampedIds = new Set(activeStamps.map(p => p.station_id));
+                const isCompleted = stampedIds.size >= campaign.required_stamps;
+                const hasUserRedeemed = campaign.user_has_redeemed === 1;
+                
+                // 檢查過期
+                const now = new Date();
+                const isExpired = campaign.end_date && new Date(campaign.end_date + 'T23:59:59') < now;
+                
+                // 已領獎(且不能重複) 或 已過期 -> 視為黯淡
+                // 注意：如果已集滿但還沒領獎，還是要顯示在上面提醒領獎
+                if (isExpired) return true;
+                if (isCompleted && hasUserRedeemed && campaign.can_repeat !== 1) return true;
+                
+                return false;
+            };
+
+            const aDimmed = isDimmed(a);
+            const bDimmed = isDimmed(b);
+
+            // 如果 A 是黯淡，B 不是，B 排前面 (return 1)
+            if (aDimmed && !bDimmed) return 1;
+            // 如果 A 不是，B 是，A 排前面 (return -1)
+            if (!aDimmed && bDimmed) return -1;
+            // 狀態相同，則依照 ID 排序 (新活動在前)
+            return b.campaign_id - a.campaign_id;
+        });
+        // --- 排序結束 ---
+
+
         listContainer.innerHTML = rallyData.campaigns.map((campaign, index) => {
             // 1. 計算進度
             const progressList = Array.isArray(campaign.userProgress) ? campaign.userProgress : [];
@@ -2119,47 +2172,56 @@ function renderRallyPage() {
             const progressPercent = Math.min(100, Math.round((currentStamps / totalStamps) * 100));
             const isCompleted = currentStamps >= totalStamps;
             
-            // [判斷] 全域庫存是否已滿
             const isGlobalExhausted = (campaign.voucher_total_supply !== null) && 
                                       (campaign.voucher_issued_count >= campaign.voucher_total_supply);
-
-            // [判斷] 用戶是否已領獎 (由後端提供)
             const hasUserRedeemed = campaign.user_has_redeemed === 1;
 
-            // 2. 狀態顯示邏輯
+            // 檢查是否過期
+            const now = new Date();
+            const isExpired = campaign.end_date && new Date(campaign.end_date + 'T23:59:59') < now;
+
+            // 2. 狀態與樣式邏輯
             let badgeClass = 'badge-active';
             let badgeText = '進行中';
             let expiryText = campaign.end_date ? `截止: ${campaign.end_date}` : '永久有效';
             let btnHtml = '';
             let instructionHtml = '';
+            let isDimmed = false; // 黯淡標記
 
-            if (isCompleted) {
+            if (isExpired) {
+                // [狀態 X] 已過期
+                badgeClass = 'badge-expired';
+                badgeText = '已結束';
+                isDimmed = true;
+                btnHtml = `<button class="cta-button" disabled style="background-color: #999;">活動已結束</button>`;
+            } else if (isCompleted) {
                 if (hasUserRedeemed) {
-                    // [狀態 A] 已集滿 且 已領獎 -> 顯示「恭喜完成」或「重置」
+                    // [狀態 A] 已集滿 且 已領獎
                     badgeClass = 'badge-completed';
                     badgeText = '已完成';
                     
                     if (campaign.can_repeat === 1) {
+                        // 可重複 -> 正常顯示
                         const resetLink = `https://liff.line.me/${myLiffId}/#page-rally?action=reset&campaign_id=${campaign.campaign_id}`;
                         btnHtml = `<button class="cta-button btn-start-scan" data-reset-link="${resetLink}" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-info);">🔄 掃描重置碼 (開啟新卡)</button>`;
                         instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-text-primary);">
                             <strong>🎉 恭喜完成！</strong><br>您已獲得獎勵。請掃描「重置 QR Code」將卡片歸檔並開始新的一輪。
                         </div>`;
                     } else {
+                        // 不可重複 -> 黯淡顯示
+                        isDimmed = true;
                         btnHtml = `<button class="cta-button" disabled style="background-color: var(--color-success); opacity: 0.8;">🎉 獎勵已發放</button>`;
                         instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-success);">您已完成此活動並獲得獎勵。</div>`;
                     }
 
                 } else {
-                    // [狀態 B] 已集滿 但 未領獎
+                    // [狀態 B] 已集滿 但 未領獎 (這是最重要的狀態，保持亮起)
                     if (isGlobalExhausted) {
-                        // 狀況 B-1: 庫存已空 -> 顯示遺憾訊息
                         badgeClass = 'badge-exhausted';
                         badgeText = '獎勵已發完';
                         btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">來晚了一步</button>`;
-                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">⚠️ 您已集滿點數，但很抱歉，限量獎勵已全數兌換完畢。</div>`;
+                        instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-danger);">⚠️ 限量獎勵已全數兌換完畢。</div>`;
                     } else {
-                        // 狀況 B-2: 還有庫存 (極端情況，如系統發放失敗) -> 顯示補領
                         btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-warning);">⚠️ 點此補領獎勵</button>`;
                         instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--color-warning);">系統偵測您已集滿但尚未收到獎勵，請點擊按鈕嘗試補領。</div>`;
                     }
@@ -2167,20 +2229,18 @@ function renderRallyPage() {
             } else {
                 // 未集滿
                 if (isGlobalExhausted) {
-                    // [狀態 C] 進行中但已額滿
                     badgeClass = 'badge-exhausted';
                     badgeText = '已額滿';
+                    isDimmed = true; // 已額滿也讓它黯淡
                     btnHtml = `<button class="cta-button" disabled style="background-color: #999; cursor: not-allowed;">獎勵已兌換完畢</button>`;
-                    instructionHtml = `<div style="margin-top: 10px; font-size: 0.9rem; color: #999;">雖然活動獎勵已發完，您仍可繼續集點紀念。</div>`;
                 } else {
-                    // [狀態 D] 正常進行中
                     badgeClass = 'badge-active';
                     badgeText = '進行中';
                     btnHtml = `<button class="cta-button btn-start-scan" data-campaign-id="${campaign.campaign_id}" style="background-color: var(--color-accent);">📸 掃描集點</button>`;
                 }
             }
 
-            // 3. 渲染站點九宮格
+            // 3. 渲染站點
             const stationsHtml = (campaign.stations || []).map(s => {
                 const isCollected = stampedIds.has(s.station_id);
                 const stationData = JSON.stringify(s).replace(/"/g, '&quot;');
@@ -2192,12 +2252,16 @@ function renderRallyPage() {
                 `;
             }).join('');
 
-            // 4. 預設展開第一個活動
-            const isExpanded = index === 0 ? 'expanded' : '';
+            // 4. 【修正】展開邏輯：只有第一個「非黯淡」的活動才預設展開
+            // 由於我們已經排過序，現在陣列前面的就是 active 的，所以可以直接用 index === 0，
+            // 但要額外判斷該活動是否為 dimmed (避免全部都是 dimmed 時第一個也被展開，視需求而定)
+            const isExpanded = (index === 0 && !isDimmed) ? 'expanded' : '';
+            
+            // 5. 【新增】加入 dimmed class
+            const dimmedClass = isDimmed ? 'dimmed' : '';
 
-            // 5. 組合卡片 HTML
             return `
-                <div class="rally-card ${isExpanded}" id="rally-card-${campaign.campaign_id}">
+                <div class="rally-card ${isExpanded} ${dimmedClass}" id="rally-card-${campaign.campaign_id}">
                     <div class="rally-card-header" onclick="toggleRallyCard(${campaign.campaign_id})">
                         <div class="rally-info">
                             <div style="display:flex; align-items:center;">
@@ -2241,7 +2305,6 @@ function renderRallyPage() {
                 e.stopPropagation();
                 const resetLink = btn.dataset.resetLink;
                 const campaignId = btn.dataset.campaignId;
-                // 這裡可以根據需求決定掃描邏輯，預設呼叫掃描器
                 startRallyScanner(resetLink, Number(campaignId)); 
             });
         });

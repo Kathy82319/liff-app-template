@@ -1,7 +1,3 @@
-{
-type: uploaded file
-fileName: kathy82319/liff-app-template/liff-app-template-9b3930d33bd5bda8ebcc5a098c4c201b299f79b3/public/script.js
-fullContent:
 // public/script.js (v14.0 - 修正儲值金付款邏輯)
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -3387,4 +3383,3 @@ async function handleStudioBookingConfirmation(confirmBtn) {
 
     main();
 });
-}

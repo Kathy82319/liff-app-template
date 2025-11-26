@@ -582,37 +582,7 @@ function setupGlobalEventListeners() {
         });
     }
 
-    async function handleCancelBooking(bookingId) {
-        const card = document.getElementById(`booking-card-${bookingId}`);
-        if (!card) return; 
-        const button = card.querySelector('.cancel-booking-btn');
 
-        try {
-            button.disabled = true;
-            button.textContent = '處理中...';
-
-            const response = await fetch('/api/cancel-booking', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: Number(bookingId), userId: userProfile.userId })
-            });
-
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.error || '取消失敗，請稍後再試');
-            }
-
-            alert('預約已成功取消！');
-            initializeMyBookingsPage();
-
-        } catch (error) {
-            alert(error.message);
-            if (button) {
-                button.disabled = false;
-                button.textContent = '取消預約';
-            }
-        }
-    }
     // =================================================================
     // 輔助函式
     // =================================================================
@@ -1153,6 +1123,7 @@ function handleBookingCardClick(event) {
     }
 }
 
+// --- 修正後的預約詳細頁初始化 ---
 async function initializeBookingDetailsPage(data) {
     const loadingEl = document.getElementById('booking-details-loading');
     const contentContainer = document.getElementById('booking-details-content-container');
@@ -1179,11 +1150,16 @@ async function initializeBookingDetailsPage(data) {
 
         let policy = await policyRes.json().catch(() => ({ cancellationPolicy: '-', checkInInstructions: '-' }));
 
-        // 填入資料
+        // 1. 【新增】填入預約單號 (補零格式)
+        const bookingIdDisplay = document.getElementById('details-booking-id');
+        if (bookingIdDisplay) {
+            bookingIdDisplay.textContent = `#${String(booking.booking_id).padStart(5, '0')}`;
+        }
+
+        // 填入其他資料
         document.getElementById('details-check-in-date').textContent = booking.booking_date || '-';
         document.getElementById('details-check-out-date').textContent = booking.check_out_date || '-';
         
-        // 計算晚數
         let nights = '-';
         if(booking.booking_date && booking.check_out_date) {
              const start = new Date(booking.booking_date);
@@ -1192,7 +1168,6 @@ async function initializeBookingDetailsPage(data) {
         }
         document.getElementById('details-nights').textContent = nights;
 
-        // 填入項目
         const itemsListEl = document.getElementById('details-items-list');
         itemsListEl.innerHTML = (booking.items || []).map(item => 
             `<div class="room-item-row"><span>${item.item_name} x ${item.quantity}</span> <span>$${item.price * item.quantity}</span></div>`
@@ -1202,21 +1177,19 @@ async function initializeBookingDetailsPage(data) {
         document.getElementById('details-cancellation-policy').textContent = policy.cancellationPolicy || '未設定';
         document.getElementById('details-check-in-instructions').textContent = policy.checkInInstructions || '未設定';
 
-        // [關鍵] 恢復取消按鈕邏輯
-        // 只有狀態是 'confirmed' 且後台設定允許取消 (或預設允許) 時才顯示
+        // 2. 【修正】取消按鈕顯示與綁定
         const enableCancellation = CONFIG.FEATURES.ENABLE_CUSTOMER_CANCELLATION !== false; 
         
         if (booking.status === 'confirmed' && enableCancellation) {
-            cancelBtn.style.display = 'block'; // 顯示按鈕
+            cancelBtn.style.display = 'block'; 
             
-            // 移除舊監聽器並綁定新的 (防止重複綁定)
+            // 使用 cloneNode 移除舊監聽器
             const newBtn = cancelBtn.cloneNode(true);
             cancelBtn.parentNode.replaceChild(newBtn, cancelBtn);
             
             newBtn.addEventListener('click', async () => {
-                if (confirm('您確定要取消這筆預約嗎？此操作無法復原。')) {
-                    await handleCancelBooking(booking.booking_id); // 呼叫 script.js 既有的取消函式
-                }
+                // 直接傳遞 booking ID 和 按鈕元素
+                await handleCancelBooking(booking.booking_id, newBtn); 
             });
         }
 
@@ -1228,6 +1201,48 @@ async function initializeBookingDetailsPage(data) {
     }
 }
 
+// --- 全新通用的取消預約函式 ---
+async function handleCancelBooking(bookingId, buttonElement = null) {
+    // 如果沒有傳入 buttonElement，嘗試從舊版列表卡片尋找 (相容性)
+    let btn = buttonElement;
+    if (!btn) {
+        const card = document.getElementById(`booking-card-${bookingId}`);
+        if (card) btn = card.querySelector('.cancel-booking-btn');
+    }
+
+    // 確認提示
+    if (!confirm('您確定要取消這筆預約嗎？此操作無法復原。')) return;
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '處理中...';
+        }
+
+        const response = await fetch('/api/cancel-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingId: Number(bookingId), userId: userProfile.userId })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || '取消失敗，請稍後再試');
+        }
+
+        alert('預約已成功取消！');
+        
+        // 取消成功後，建議跳轉回列表頁以更新狀態
+        showPage('page-my-records');
+
+    } catch (error) {
+        alert(error.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '取消預約';
+        }
+    }
+}
 async function initializeMyExpHistoryPage() {
         if (!userProfile) return;
 

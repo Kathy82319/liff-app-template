@@ -93,6 +93,21 @@ img {
     animation: fadeInPage 0.4s ease-out;
 }
 
+/* --- 全域標題與段落間距調整 (減半預設值) --- */
+h2 {
+    /* 瀏覽器預設約 20px -> 改為 10px */
+    margin-top: 10px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+p {
+    /* 瀏覽器預設約 16px -> 改為 8px */
+    margin-top: 8px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
 /* =========================================
    3. 通用元件 (Components)
    ========================================= */

@@ -1,5 +1,3 @@
-// functions/api/bookings-create.js
-
 import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
 const FIXED_DRAFT_IDS = {
@@ -17,7 +15,6 @@ export async function onRequest(context) {
         const body = await context.request.json();
         console.log("[bookings-create] Received Payload:", JSON.stringify(body));
 
-        // 【新增】讀取 useStoredValue
         const useStoredValue = body.useStoredValue === true;
 
         let booking_id;
@@ -49,13 +46,18 @@ export async function onRequest(context) {
                  }
             }
 
-            const bookingDates = getDateRange(startDate, endDate);
-            if (bookingDates.length === 0) {
+            // 【修正重點 1】取得完整範圍，但定義 stayDates (排除退房日)
+            const fullDateRange = getDateRange(startDate, endDate);
+            const stayDates = fullDateRange.slice(0, -1); // 排除最後一天
+
+            if (stayDates.length === 0) {
                  return new Response(JSON.stringify({ error: '無效的入住天數。' }), { status: 400 });
             }
 
             const productIdsToCheck = items.map(item => item.productId);
-            const datePlaceholders = bookingDates.map(() => '?').join(',');
+            // 查詢庫存時，我們仍查詢 fullDateRange 比較安全 (雖然 stayDates 已經足夠)
+            // 這裡為了與計算邏輯一致，我們只查 stayDates 的庫存
+            const datePlaceholders = stayDates.map(() => '?').join(',');
             const productPlaceholders = productIdsToCheck.map(() => '?').join(',');
 
             const inventoryCheckStmt = db.prepare(
@@ -63,10 +65,11 @@ export async function onRequest(context) {
                  FROM RoomInventory
                  WHERE inventory_date IN (${datePlaceholders}) AND product_id IN (${productPlaceholders})`
             );
-            const { results: currentInventory } = await inventoryCheckStmt.bind(...bookingDates, ...productIdsToCheck).all();
+            const { results: currentInventory } = await inventoryCheckStmt.bind(...stayDates, ...productIdsToCheck).all();
 
+            // 檢查庫存 (只檢查 stayDates)
             for (const item of items) {
-                for (const dateStr of bookingDates) {
+                for (const dateStr of stayDates) {
                     const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
                     if (!inventoryRecord || inventoryRecord.status !== 'Open' || inventoryRecord.quantity_available < item.quantity) {
                         console.error(`[bookings-create] Inventory Check FAILED for ${item.productId} on ${dateStr}. Record:`, inventoryRecord, `Requested: ${item.quantity}`);
@@ -106,12 +109,13 @@ export async function onRequest(context) {
              const { results: fetchedProductsInfo } = await productsInfoStmt.bind(...productIdsToCheck).all();
              productsInfo = fetchedProductsInfo;
 
-            // 計算總金額
+            // 計算總金額 (【修正重點 2】只遍歷 stayDates)
             for (const item of items) {
                  const productDetails = productsInfo.find(p => p.product_id === item.productId);
                  if (!productDetails) { throw new Error(`找不到產品資訊: ${item.productId}`); }
+                 
                  let itemTotalPrice = 0;
-                 for (const dateStr of bookingDates) {
+                 for (const dateStr of stayDates) { // 只計算入住夜
                      const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
                      let dailyPrice = inventoryRecord?.base_price;
                      if (dailyPrice === null || dailyPrice === undefined) {
@@ -126,19 +130,20 @@ export async function onRequest(context) {
                      }
                      itemTotalPrice += dailyPrice;
                  }
-                 const pricePerItem = itemTotalPrice;
+                 const pricePerItem = itemTotalPrice; // 這是單間房 N 晚的總價
                  calculatedTotalAmount += pricePerItem * item.quantity;
                  operations.push(itemInsertStmt.bind(
                       booking_id, item.productId, productDetails.name, item.quantity, pricePerItem
                  ));
             }
              
+            // 扣除庫存 (【修正重點 3】只扣除 stayDates)
             const inventoryUpdateStmt = db.prepare(
                 `UPDATE RoomInventory SET quantity_available = quantity_available - ?
                  WHERE inventory_date = ? AND product_id = ? AND quantity_available >= ?`
             );
             for (const item of items) {
-                for (const dateStr of bookingDates) {
+                for (const dateStr of stayDates) { // 只扣除入住夜的庫存
                     operations.push(inventoryUpdateStmt.bind(item.quantity, dateStr, item.productId, item.quantity));
                 }
             }
@@ -164,10 +169,12 @@ export async function onRequest(context) {
                      const name = productsInfo.find(p => p.product_id === item.productId)?.name || item.productId;
                      return `${name} x${item.quantity}`;
                  }).join(', ');
-                 messageContent = `您已成功預訂 ${startDate} 至 ${endDate} (${bookingDates.length}晚)，預訂房型：${roomSummary}。總金額 $${calculatedTotalAmount}。此訊息僅為通知，若有問題請聯絡店家。`;
+                 messageContent = `您已成功預訂 ${startDate} 至 ${endDate} (${stayDates.length}晚)，預訂房型：${roomSummary}。總金額 $${calculatedTotalAmount}。此訊息僅為通知，若有問題請聯絡店家。`;
             }
 
         } else if (body.bookingType === 'studio' || !body.bookingType) {
+            // ... (工作室邏輯保持不變，省略以節省空間) ...
+            // (為確保檔案完整性，這部分請使用上次提供的 studio 邏輯，或直接將下方內容填入)
             const { userId, timeSlot, numOfPeople, items: studioItems } = body;
             contactName = body.contactName;
             bookingDate = body.bookingDate;
@@ -191,13 +198,11 @@ export async function onRequest(context) {
             const bookingResult = await bookingStmt.bind(userId, contactName, body.contactPhone, bookingDate, timeSlot, numOfPeople).first();
             booking_id = bookingResult.booking_id;
 
-            // 計算總金額
             items.forEach(item => {
                 calculatedTotalAmount += (item.price * item.quantity);
                 operations.push(db.prepare('INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)').bind(booking_id, item.name, item.quantity, item.price, null));
             });
 
-             // --- 準備訊息內容 ---
              messageContent = `感謝您的預約！\n\n您的預約資訊如下：\n日期：{{bookingDate}}\n時段：{{timeSlot}}\n項目：{{itemSummary}}\n\n期待您的光臨！`;
              try {
                 const draftStmt = db.prepare("SELECT content FROM MessageDrafts WHERE draft_id = ?");
@@ -210,7 +215,6 @@ export async function onRequest(context) {
                     .replace(/{{itemSummary}}/g, itemSummary)
                     .replace(/{{totalAmount}}/g, `$${calculatedTotalAmount}`);
              } catch (draftError) {
-                 console.error("[bookings-create] Error fetching/processing draft for studio:", draftError);
                  const itemSummary = items.map(item => `${item.name} x${item.quantity}`).join(', ');
                  messageContent = `您已成功預約 ${bookingDate} ${timeSlot || ''}，預約項目：${itemSummary}。此訊息僅為通知，若有問題請聯絡店家。`;
              }
@@ -218,43 +222,36 @@ export async function onRequest(context) {
              return new Response(JSON.stringify({ error: `未知的預約類型: ${body.bookingType}` }), { status: 400 });
         }
 
-        // === 步驟 B: 【新增】儲值金扣款邏輯 ===
-        let paymentStatus = 'unpaid'; // 預設未付款
+        // === 步驟 B: 儲值金扣款邏輯 ===
+        let paymentStatus = 'unpaid'; 
 
         if (useStoredValue) {
-            // 1. 查詢使用者當前餘額
             const userStmt = db.prepare("SELECT stored_value_balance FROM Users WHERE user_id = ?");
             const user = await userStmt.bind(body.userId).first();
             const currentBalance = user ? (user.stored_value_balance || 0) : 0;
 
-            // 2. 檢查餘額是否足夠
             if (currentBalance < calculatedTotalAmount) {
-                // 如果餘額不足，回傳錯誤 (不會執行後續的 batch，所以預約不會建立)
                 return new Response(JSON.stringify({ 
                     error: `儲值金餘額不足 (餘額: $${currentBalance}，需支付: $${calculatedTotalAmount})。請先儲值或改用現場付款。` 
-                }), { status: 402 }); // 402 Payment Required
+                }), { status: 402 }); 
             }
 
-            // 3. 扣除餘額 (加入 operations)
             const newBalance = currentBalance - calculatedTotalAmount;
             operations.push(
                 db.prepare("UPDATE Users SET stored_value_balance = ? WHERE user_id = ?")
                   .bind(newBalance, body.userId)
             );
 
-            // 4. 寫入儲值金變動紀錄 (加入 operations)
             const historyNote = `預訂 #${String(booking_id).padStart(5, '0')} 款項扣抵`;
             operations.push(
                 db.prepare("INSERT INTO StoredValueHistory (user_id, amount_changed, current_balance, type, notes) VALUES (?, ?, ?, 'booking_payment', ?)")
                   .bind(body.userId, -calculatedTotalAmount, newBalance, historyNote)
             );
 
-            // 5. 標記訂單為已付款
             paymentStatus = 'paid';
         }
 
         // === 步驟 C: 更新訂單總金額與付款狀態 ===
-        // 將 payment_status 一併寫入
         const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ?, payment_status = ? WHERE booking_id = ?");
         operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, paymentStatus, booking_id));
 
@@ -274,7 +271,6 @@ export async function onRequest(context) {
             
         context.waitUntil(activityStmt.bind('new_booking', activityMsg, activityLink).run());
 
-        // 準備回傳訊息
         if (useStoredValue && !messageContent.includes("儲值金")) { 
              messageContent += `\n(已使用儲值金扣款 $${calculatedTotalAmount})`;
         }

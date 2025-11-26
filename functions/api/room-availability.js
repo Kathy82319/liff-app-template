@@ -1,5 +1,3 @@
-// functions/api/room-availability.js
-
 import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
 export async function onRequest(context) {
@@ -14,48 +12,67 @@ export async function onRequest(context) {
 
         const startDate = url.searchParams.get('startDate');
         const endDate = url.searchParams.get('endDate');
+        const productIdFilter = url.searchParams.get('productId');
 
         // --- 輸入驗證 ---
         if (!startDate || !endDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
             return new Response(JSON.stringify({ error: '請提供有效的 startDate 和 endDate (YYYY-MM-DD)' }), { status: 400 });
         }
-        // endDate 必須嚴格晚於 startDate (因為範圍不包含 endDate)
         if (new Date(startDate) >= new Date(endDate)) {
-            return new Response(JSON.stringify({ error: 'endDate 必須晚於 startDate' }), { status: 400 });
+            return new Response(JSON.stringify({ error: 'startDate 必須早於 endDate (至少入住一晚)' }), { status: 400 });
         }
 
         // --- 查詢資料 ---
-        const dateRange = getDateRange(startDate, endDate); // 獲取入住期間的日期列表 (不含退房日)
-        if (dateRange.length === 0) {
-             // 如果 startDate 和 endDate 相鄰，則 dateRange 會是空的，也視為無效範圍
-             return new Response(JSON.stringify({ error: '無效的日期範圍 (至少需入住一晚)' }), { status: 400 });
-        }
-
         // 1. 獲取指定範圍內的所有 `RoomInventory` 記錄
-        // 查詢範圍是入住期間的所有日期
-        const inventoryQuery = "SELECT * FROM RoomInventory WHERE inventory_date BETWEEN ?1 AND ?2";
+        // 我們需要查詢範圍內的所有設定 (包含退房日，以防萬一需要顯示)，但計算價格時會排除退房日
+        let inventoryQuery = "SELECT * FROM RoomInventory WHERE inventory_date BETWEEN ?1 AND ?2";
+        const queryParams = [startDate, endDate];
+        if (productIdFilter) {
+            inventoryQuery += " AND product_id = ?3";
+            queryParams.push(productIdFilter);
+        }
         const inventoryStmt = db.prepare(inventoryQuery);
-        // 查詢的結束日期是 dateRange 中的最後一天 (即退房日的前一天)
-        const lastDateInRange = dateRange[dateRange.length - 1];
-        const { results: inventoryData } = await inventoryStmt.bind(startDate, lastDateInRange).all();
+        const { results: inventoryData } = await inventoryStmt.bind(...queryParams).all();
 
-        // 2. 獲取所有房型的基本資料 (包含預設價格)
-        // TODO: 這裡可以優化，只查詢民宿相關的房型 (例如： WHERE category = '房型')
-        const productsStmt = db.prepare("SELECT product_id, name, price_weekday, price_friday, price_saturday FROM Products");
-        const { results: products } = await productsStmt.all();
+        // 2. 獲取所有（或指定）房型的基本資料 (包含預設價格)
+        let productsQuery = "SELECT product_id, name, price_weekday, price_friday, price_saturday FROM Products";
+        const productParams = [];
+        if (productIdFilter) {
+             productsQuery += " WHERE product_id = ?1";
+             productParams.push(productIdFilter);
+        }
+        const productsStmt = db.prepare(productsQuery);
+        const { results: products } = await productsStmt.bind(...productParams).all();
 
         // --- 處理資料並組裝回應 ---
         const responseData = {};
+        
+        // 【修正重點】取得完整日期範圍，但計算價格與檢查庫存時排除最後一天 (退房日)
+        const fullDateRange = getDateRange(startDate, endDate);
+        
+        // 實際入住的夜晚 (排除退房日)
+        // 例如：1/1 入住，1/2 退房。fullDateRange = [1/1, 1/2]。stayDates = [1/1]。
+        const stayDates = fullDateRange.slice(0, -1); 
 
-        // 遍歷所有房型
+        if (stayDates.length === 0) {
+             // 理論上前面的驗證已擋掉，但防呆
+             return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // 初始化所有房型的結構
+        products.forEach(product => {
+            responseData[product.product_id] = {};
+        });
+
+        // 針對每個房型計算
         products.forEach(product => {
             let isAvailableOverall = true; // 先假設此房型在整個期間都可訂
             let minQuantity = Infinity;    // 記錄期間內最小的可訂數量
             let totalCalculatedPrice = 0;  // 累加期間總價
             const dailyDetails = [];       // (可選) 記錄每日細節
 
-            // 遍歷入住期間的每一天 (dateRange 不含退房日)
-            for (const dateStr of dateRange) {
+            // 【修正重點】只遍歷「入住夜」(stayDates) 來計算價格與檢查庫存
+            for (const dateStr of stayDates) {
                 const dayOfWeek = getDayOfWeek(dateStr); // 獲取星期幾
                 // 查找當天是否有特定的庫存記錄
                 const inventoryRecord = inventoryData.find(inv => inv.product_id === product.product_id && inv.inventory_date === dateStr);
@@ -81,7 +98,6 @@ export async function onRequest(context) {
                     } else { // 平日 (日~四)
                         dailyPrice = product.price_weekday;
                     }
-                    // 如果連平日價都沒有，dailyPrice 會維持 null
                 }
 
                 // 檢查當天是否真正可預訂 (狀態開啟、數量>0、價格有效且>0)
@@ -89,56 +105,58 @@ export async function onRequest(context) {
 
                 // 更新整體的狀態和最小數量
                 if (!isDailyAvailable) {
-                    isAvailableOverall = false; // 只要有一天不可訂，整體就不可訂
+                    isAvailableOverall = false; 
                 }
-                // 更新期間內的最小剩餘數量 (即使當天不可訂，也要更新最小值，可能是 0)
-                minQuantity = Math.min(minQuantity, dailyQuantity);
+                // 更新期間內的最小剩餘數量
+                if (dailyStatus === 'Open') {
+                     minQuantity = Math.min(minQuantity, dailyQuantity);
+                } else {
+                     minQuantity = 0; // 如果沒開，可用數量視為 0
+                }
 
-                // 累加總價 (只有在價格有效時才累加)
+                // 累加總價
                 if (dailyPrice !== null && dailyPrice > 0) {
                     totalCalculatedPrice += dailyPrice;
                 } else {
-                    // 如果某天價格無效，雖然可能仍有房間 (dailyQuantity>0)，但總價計算會忽略這天
-                    // isAvailableOverall 已被設為 false，所以最終 totalPrice 會是 null
+                    // 價格無效，無法計算總價
+                    isAvailableOverall = false; 
                 }
 
-                // (可選) 記錄每日細節
                 dailyDetails.push({
                     date: dateStr,
-                    price: dailyPrice,        // 當日的實際價格
-                    available: dailyQuantity, // 當日剩餘數量
-                    isBookable: isDailyAvailable // 標記當天是否可訂
+                    price: dailyPrice,
+                    available: dailyQuantity,
+                    isBookable: isDailyAvailable
                 });
-            } // --- 每日檢查結束 ---
-
-            // 處理邊界情況：如果從未找到任何房間記錄 (minQuantity 仍是 Infinity)
-            if (minQuantity === Infinity) {
-                minQuantity = 0;         // 實際可訂數量為 0
-                isAvailableOverall = false; // 確保整體不可訂
             }
 
-            // 計算平均每晚價格 (僅在總價大於0時計算)
-            const avgPricePerNight = totalCalculatedPrice > 0 && dateRange.length > 0 ? Math.round(totalCalculatedPrice / dateRange.length) : null;
+            // 處理邊界情況
+            if (minQuantity === Infinity) {
+                minQuantity = 0;
+                isAvailableOverall = false;
+            }
+
+            // 計算平均每晚價格
+            const avgPricePerNight = totalCalculatedPrice > 0 && stayDates.length > 0 ? Math.round(totalCalculatedPrice / stayDates.length) : null;
 
             // 儲存此房型的最終結果
             responseData[product.product_id] = {
-                isAvailable: isAvailableOverall,                // 整體是否可訂
-                minAvailableQuantity: minQuantity,              // 期間最小剩餘數量
-                totalPrice: isAvailableOverall ? totalCalculatedPrice : null, // 只有整體可訂才提供總價
-                pricePerNight: avgPricePerNight,                // 平均每晚價格
-                dailyDetails: dailyDetails // (可選擇是否回傳每日細節給前端)
+                isAvailable: isAvailableOverall,
+                minAvailableQuantity: minQuantity,
+                totalPrice: isAvailableOverall ? totalCalculatedPrice : null, // 總價
+                pricePerNight: avgPricePerNight,
+                dailyDetails: dailyDetails
             };
-        }); // --- 房型遍歷結束 ---
+        });
 
-        // 回傳所有房型的結果
         return new Response(JSON.stringify(responseData), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         });
 
     } catch (error) {
-        console.error('Error in api/room-availability API:', error);
-        return new Response(JSON.stringify({ error: '查詢房型可用性失敗', details: error.message }), {
+        console.error('Error in admin/get-room-inventory API:', error);
+        return new Response(JSON.stringify({ error: '獲取房量資料失敗', details: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });

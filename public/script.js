@@ -3188,13 +3188,11 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
         }
     }
 
-    // 再次確認是否有選擇項目
     if (itemsForApi.length === 0) {
         alert('請至少選擇一個房型與數量！');
         return;
     }
 
-    // --- 【新增 5】讀取 Checkbox 狀態 ---
     const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
 
     const bookingPayload = {
@@ -3205,15 +3203,13 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
         contactPhone: contactPhone,        
         items: itemsForApi,                  
         bookingType: 'guesthouse',
-        useStoredValue: useStoredValue // 傳送 flag
+        useStoredValue: useStoredValue 
     };
 
     try {
         confirmBtn.dataset.isSubmitting = 'true'; 
         confirmBtn.disabled = true;            
         confirmBtn.textContent = '處理中...';   
-
-        console.log("送出民宿訂房 payload:", JSON.stringify(bookingPayload));
 
         const createRes = await fetch('/api/bookings-create', {
             method: 'POST',
@@ -3223,7 +3219,6 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
 
         if (!createRes.ok) {
             const errorResult = await createRes.json().catch(() => ({ error: `伺服器錯誤 ${createRes.status}` }));
-            // 如果是 402 (餘額不足)，顯示特定訊息
             if (createRes.status === 402) {
                  throw new Error(errorResult.error);
             }
@@ -3237,13 +3232,17 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
             body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
         }).catch(err => console.error("發送 LINE 通知失敗:", err));
 
+        // 【修正重點 1】更新成功畫面，加入提示文字
         appContent.innerHTML = `
-            <div class="details-section" style="text-align: center;">
-                <h2 style="color: var(--color-accent);">✅ 訂房成功！</h2>
-                <p>3 秒後將自動跳轉至您的預約列表...</p>
+            <div class="details-section" style="text-align: center; padding: 40px 20px;">
+                <h2 style="color: var(--color-accent); font-size: 2rem;">✅ 訂房成功！</h2>
+                <p style="font-size: 1.1rem; margin-top: 20px;">預約紀錄可點選您預定的項目查看詳細的預訂內容。</p>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">3 秒後將自動跳轉至您的預約列表...</p>
             </div>
         `;
-        setTimeout(() => { showPage('page-my-bookings'); }, 3000);
+        
+        // 【修正重點 2】修正跳轉目標為 'page-my-records' (這是正確的頁面 ID)
+        setTimeout(() => { showPage('page-my-records'); }, 3000);
 
     } catch (error) { 
         console.error("訂房失敗:", error);
@@ -3281,7 +3280,6 @@ async function handleStudioBookingConfirmation(confirmBtn) {
 
         if (name && !isNaN(qty) && qty > 0) { 
              if (price === null || isNaN(price) || price < 0) { 
-                 console.error(`工作室項目 "${name}" 價格無效: '${priceStr}'`);
                  alert(`項目 "${name}" 無法根據您選擇的日期找到有效價格，請確認日期或重新選擇項目。`);
                  itemsValid = false; 
              } else {
@@ -3316,7 +3314,6 @@ async function handleStudioBookingConfirmation(confirmBtn) {
          return;
      }
 
-    // --- 【新增 6】讀取 Checkbox 狀態 ---
     const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
 
     const bookingPayload = {
@@ -3329,15 +3326,13 @@ async function handleStudioBookingConfirmation(confirmBtn) {
         items: items,                
         totalAmount: calculatedTotalAmount, 
         bookingType: 'studio',
-        useStoredValue: useStoredValue // 傳送 flag
+        useStoredValue: useStoredValue 
     };
 
     try {
         confirmBtn.dataset.isSubmitting = 'true'; 
         confirmBtn.disabled = true;            
         confirmBtn.textContent = '處理中...';   
-
-        console.log("送出工作室預約 payload:", JSON.stringify(bookingPayload));
 
         const createRes = await fetch('/api/bookings-create', {
             method: 'POST',
@@ -3360,13 +3355,17 @@ async function handleStudioBookingConfirmation(confirmBtn) {
             body: JSON.stringify({ userId: userProfile.userId, message: result.confirmationMessage })
         }).catch(err => console.error("發送 LINE 通知失敗:", err));
 
+        // 【修正重點 1】更新成功畫面，加入提示文字
         appContent.innerHTML = `
-            <div class="details-section" style="text-align: center;">
-                <h2 style="color: var(--color-accent);">✅ 預約成功！</h2>
-                <p>3 秒後將自動跳轉至您的預約列表...</p>
+            <div class="details-section" style="text-align: center; padding: 40px 20px;">
+                <h2 style="color: var(--color-accent); font-size: 2rem;">✅ 預約成功！</h2>
+                <p style="font-size: 1.1rem; margin-top: 20px;">預約紀錄可點選您預定的項目查看詳細的預訂內容。</p>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">3 秒後將自動跳轉至您的預約列表...</p>
             </div>
         `;
-        setTimeout(() => { showPage('page-my-bookings'); }, 3000);
+        
+        // 【修正重點 2】修正跳轉目標為 'page-my-records'
+        setTimeout(() => { showPage('page-my-records'); }, 3000);
 
     } catch (error) { 
         console.error("預約失敗:", error);

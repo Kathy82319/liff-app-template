@@ -30,6 +30,7 @@ export async function onRequest(context) {
 
         const operations = []; // 批次操作指令集
 
+        // === 步驟 A: 建立預約主檔與項目 (依類型) ===
         if (body.bookingType === 'guesthouse') {
             const { userId, startDate, endDate, items: guesthouseItems } = body;
             contactName = body.contactName;

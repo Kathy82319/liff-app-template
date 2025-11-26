@@ -1,3 +1,9 @@
+{
+type: uploaded file
+fileName: kathy82319/liff-app-template/liff-app-template-9b3930d33bd5bda8ebcc5a098c4c201b299f79b3/public/script.js
+fullContent:
+// public/script.js (v14.0 - 修正儲值金付款邏輯)
+
 document.addEventListener('DOMContentLoaded', () => {
 
     let myLiffId = ""; 
@@ -8,16 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeTemplate = null; 
     let CONFIG; 
     
-    let productView = { 
-        layout: 'grid', 
-        sort: 'default' 
-    };
-    let activeFilters = {
-        keyword: '',
-        filter_1: null,
-        filter_2: null,
-        filter_3: null
-    };
+    let productView = { layout: 'grid', sort: 'default' };
+    let activeFilters = { keyword: '', filter_1: null, filter_2: null, filter_3: null };
     let allProducts = [];
     let allNews = [];
     let bookingData = {};
@@ -2238,7 +2236,7 @@ function renderRallyPage() {
             // 3. 渲染站點
             const stationsHtml = (campaign.stations || []).map(s => {
                 const isCollected = stampedIds.has(s.station_id);
-                const stationData = JSON.stringify(s).replace(/"/g, '&quot;');
+                const stationData = JSON.stringify(s).replace(/"/g, '"');
                 
                 return `
                     <div class="mini-station-card ${isCollected ? 'collected' : ''}" onclick="openStationMissionModal(${stationData}, ${isCollected})">
@@ -2718,6 +2716,11 @@ async function initializeBookingPage() {
     const showStoredValue = features.CLIENT_SHOW_STORED_VALUE !== false;
     const storedValuePaymentGroup = document.getElementById('stored-value-payment-group');
     
+    // --- 【新增 1】取得餘額顯示區塊和 Checkbox ---
+    const balanceDisplay = document.getElementById('stored-value-balance-display');
+    const storedValueCheckbox = document.getElementById('use-stored-value-checkbox');
+    let currentUserBalance = 0;
+
     if (storedValuePaymentGroup) {
         storedValuePaymentGroup.style.display = showStoredValue ? 'block' : 'none';
     }
@@ -2773,8 +2776,90 @@ async function initializeBookingPage() {
             const phoneInput = document.getElementById('contact-phone');
             if (nameInput) nameInput.value = userData.real_name || userProfile?.displayName || '';
             if (phoneInput) phoneInput.value = userData.phone || '';
+            
+            // --- 【新增 2】更新顯示餘額 ---
+            currentUserBalance = userData.stored_value_balance || 0;
+            if (balanceDisplay) {
+                balanceDisplay.textContent = `(餘額: $${currentUserBalance})`;
+                // 如果餘額為 0，可選：禁用 checkbox
+                if (storedValueCheckbox && currentUserBalance <= 0) {
+                    storedValueCheckbox.disabled = true;
+                    storedValueCheckbox.checked = false;
+                    balanceDisplay.style.color = 'gray';
+                } else if (storedValueCheckbox) {
+                    storedValueCheckbox.disabled = false;
+                    balanceDisplay.style.color = 'var(--color-text-secondary)';
+                }
+            }
         }
     } catch(err){ console.warn("預填資訊失敗:", err); }
+
+    // --- 【新增 3】綁定 Checkbox 邏輯 ---
+    if (storedValueCheckbox && !storedValueCheckbox.dataset.listenerAttached) {
+        storedValueCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                // 1. 計算目前總金額 (這需要一個共用的計算函式)
+                const currentTotal = calculateCurrentTotal(); 
+                
+                // 2. 驗證總金額
+                if (currentTotal <= 0) {
+                    alert("請先選擇預約項目或日期以計算金額。");
+                    e.target.checked = false;
+                    return;
+                }
+
+                // 3. 驗證餘額
+                if (currentUserBalance < currentTotal) {
+                    alert(`儲值金餘額不足 (需 $${currentTotal}，餘額 $${currentUserBalance})，無法使用儲值金付款。`);
+                    e.target.checked = false;
+                    return;
+                }
+
+                // 4. 確認對話框
+                const confirmed = confirm("是否確認用儲值金付款？\n付款後若需取消將不自動退還，需聯繫店家。");
+                if (!confirmed) {
+                    e.target.checked = false;
+                }
+            }
+        });
+        storedValueCheckbox.dataset.listenerAttached = 'true';
+    }
+}
+
+// --- 【新增 4】計算當前預約總金額的輔助函式 ---
+function calculateCurrentTotal() {
+    let total = 0;
+    const isGuesthouse = CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+
+    if (isGuesthouse) {
+        // 從已存在的 calculateTotalPrice 邏輯取得 (或直接讀取 DOM，比較簡單但較不精確)
+        // 這裡重用 guesthouseBookingData
+        if (guesthouseBookingData.numberOfNights > 0) {
+            for (const productId in guesthouseBookingData.selectedRooms) {
+                const quantity = guesthouseBookingData.selectedRooms[productId];
+                const roomInfo = guesthouseBookingData.roomAvailability[productId];
+                if (quantity > 0 && roomInfo && roomInfo.pricePerNight !== null) {
+                    const priceForRoom = roomInfo.totalPrice !== null
+                                    ? roomInfo.totalPrice
+                                    : (roomInfo.pricePerNight * guesthouseBookingData.numberOfNights);
+                    total += priceForRoom * quantity;
+                }
+            }
+        }
+    } else {
+        // Studio 模式：遍歷 DOM 項目
+        document.querySelectorAll('.booking-item-row').forEach(row => {
+            const qtyInput = row.querySelector('.booking-item-qty');
+            const priceInputHidden = row.querySelector('.booking-item-actual-price');
+            const qty = parseInt(qtyInput?.value, 10);
+            const price = parseFloat(priceInputHidden?.value);
+            
+            if (!isNaN(qty) && !isNaN(price)) {
+                total += qty * price;
+            }
+        });
+    }
+    return Math.round(total);
 }
 
 //初始化民宿樣板的預約頁面
@@ -3113,6 +3198,9 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
         return;
     }
 
+    // --- 【新增 5】讀取 Checkbox 狀態 ---
+    const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
+
     const bookingPayload = {
         userId: userProfile.userId,          
         startDate: guesthouseBookingData.startDate, 
@@ -3120,7 +3208,8 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
         contactName: contactName,           
         contactPhone: contactPhone,        
         items: itemsForApi,                  
-        bookingType: 'guesthouse'            
+        bookingType: 'guesthouse',
+        useStoredValue: useStoredValue // 傳送 flag
     };
 
     try {
@@ -3138,6 +3227,10 @@ async function handleGuesthouseBookingConfirmation(confirmBtn) {
 
         if (!createRes.ok) {
             const errorResult = await createRes.json().catch(() => ({ error: `伺服器錯誤 ${createRes.status}` }));
+            // 如果是 402 (餘額不足)，顯示特定訊息
+            if (createRes.status === 402) {
+                 throw new Error(errorResult.error);
+            }
             throw new Error(errorResult.error || '建立訂房時發生未知錯誤');
         }
 
@@ -3227,6 +3320,9 @@ async function handleStudioBookingConfirmation(confirmBtn) {
          return;
      }
 
+    // --- 【新增 6】讀取 Checkbox 狀態 ---
+    const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked || false;
+
     const bookingPayload = {
         userId: userProfile.userId,
         bookingDate: bookingDate,      
@@ -3236,7 +3332,8 @@ async function handleStudioBookingConfirmation(confirmBtn) {
         contactPhone: contactPhone,
         items: items,                
         totalAmount: calculatedTotalAmount, 
-        bookingType: 'studio'         
+        bookingType: 'studio',
+        useStoredValue: useStoredValue // 傳送 flag
     };
 
     try {
@@ -3254,6 +3351,9 @@ async function handleStudioBookingConfirmation(confirmBtn) {
 
         if (!createRes.ok) {
             const errorResult = await createRes.json().catch(() => ({ error: `伺服器錯誤 ${createRes.status}` }));
+            if (createRes.status === 402) {
+                 throw new Error(errorResult.error);
+            }
             throw new Error(errorResult.error || '建立預約時發生未知錯誤');
         }
 
@@ -3287,3 +3387,4 @@ async function handleStudioBookingConfirmation(confirmBtn) {
 
     main();
 });
+}

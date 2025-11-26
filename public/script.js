@@ -1498,12 +1498,13 @@ async function initializeInfoPage() {
         
         if (info.store_name) {
             if (nameEl) nameEl.textContent = info.store_name;
-            if (nameSection) nameSection.style.display = 'grid'; 
+            // 【關鍵修正】移除強制 grid，改為空字串，讓 CSS 的設定生效
+            if (nameSection) nameSection.style.display = ''; 
         } else {
             if (nameSection) nameSection.style.display = 'none';
         }
 
-        // 3. 填入其他資訊 (【修改】支援地址地圖連結)
+        // 3. 填入其他資訊 (包含地址地圖連結)
         const setVal = (id, val, isAddress = false) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -1511,11 +1512,9 @@ async function initializeInfoPage() {
             const textContent = val || '未提供';
             
             if (isAddress && val) {
-                // 產生 Google Map 連結
-                // 使用 encodeURIComponent 確保地址特殊字元正確
+                // 修正 Google Map 連結格式
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(val)}`;
                 
-                // 放入地址文字 + 地圖圖示 (SVG Location Icon)
                 el.innerHTML = `
                     <span>${textContent}</span>
                     <a href="${mapUrl}" target="_blank" class="map-link-btn" title="在 Google 地圖開啟">
@@ -1529,10 +1528,9 @@ async function initializeInfoPage() {
             }
         };
 
-        setVal('store-address', info.address, true); // 第三個參數 true 表示這是地址
+        setVal('store-address', info.address, true);
         setVal('store-phone', info.phone);
         
-        // 保留換行格式
         const hoursEl = document.getElementById('store-hours');
         if (hoursEl) hoursEl.textContent = info.opening_hours || '未提供';
         

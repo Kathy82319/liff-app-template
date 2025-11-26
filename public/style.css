@@ -100,17 +100,14 @@ img {
 /* --- 標題樣式 --- */
 .page-main-title {
     font-size: 1.4rem;
-    /* 【修正】顏色改深 (原為 --color-primary) */
     color: var(--color-text-primary); 
     font-weight: 900;
     text-align: center; 
     border-bottom: none;
-    
     position: relative;
-    /* 【修正】間距減少一半 */
-    padding-bottom: 8px; /* 原 15px */
-    margin-top: 5px;     /* 原 10px */
-    margin-bottom: 15px; /* 原 25px */
+    padding-bottom: 8px;
+    margin-top: 5px;
+    margin-bottom: 15px;
     letter-spacing: 1px;
 }
 
@@ -122,10 +119,10 @@ img {
     height: 4px;
     background-color: var(--color-accent);
     border-radius: 2px;
-    /* 【修正】裝飾線距離也微調 */
     margin: 5px auto 0; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
+
 /* --- 按鈕樣式 (CTA) --- */
 .cta-button {
     display: block;
@@ -134,7 +131,6 @@ img {
     font-size: 1.1rem;
     font-weight: bold;
     color: #FFF; /* 改為白字 */
-    /* 漸層背景 */
     background: linear-gradient(135deg, var(--color-primary) 0%, #64B5F6 100%);
     border: none;
     border-radius: 25px; /* 膠囊狀 */
@@ -194,7 +190,6 @@ input, select, textarea {
     padding: 12px 15px;
     font-size: 1rem;
     background-color: #FFF; 
-    /* 移除邊框，改用內陰影或柔和陰影 */
     border: none;
     border-radius: 15px;
     color: var(--color-text-primary);
@@ -231,24 +226,15 @@ input:focus, select:focus, textarea:focus {
    ========================================= */
 #tab-bar {
     position: fixed;
-    /* 【修正】貼合底部，寬度全滿 */
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    
-    /* 【修正】高度增加以容納大字體 */
     height: 80px; 
-    
     background-color: #FFFFFF;
-    
-    /* 【修正】僅上方圓角 (圓弧邊框效果) */
     border-radius: 25px 25px 0 0; 
-    
     border: none;
-    /* 陰影改為向上 */
     box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
-    
     display: flex;
     justify-content: space-around;
     align-items: center;
@@ -262,10 +248,7 @@ input:focus, select:focus, textarea:focus {
     background: none;
     border: none;
     color: #AAA;
-    
-    /* 【修正】字體加大 (約 11pt) */
     font-size: 0.9rem; 
-    
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -646,14 +629,39 @@ input:focus, select:focus, textarea:focus {
     background: #F5F5F5; border: none; border-radius: 8px;
 }
 
-/* Flatpickr 日曆美化 */
+/* --- [FIX 1] Flatpickr 日曆美化與手機版截斷修正 --- */
 .flatpickr-calendar {
     background: #FFF !important;
     border: none !important;
     border-radius: 20px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
     padding: 10px !important;
+    
+    /* 關鍵修正：寬度適應與盒模型 */
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
+
+/* 確保容器不會溢出 */
+.flatpickr-rContainer {
+    width: 100% !important;
+}
+
+.flatpickr-days {
+    width: 100% !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* 讓日期格子平均分佈，避免最右邊被切 */
+.dayContainer {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    justify-content: space-around !important;
+}
+
 .flatpickr-day.selected {
     background: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
@@ -673,7 +681,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   10. 頁面樣式：店家資訊 (Store Info)
+   10. 頁面樣式：店家資訊 (Store Info) - 優化版
    ========================================= */
 #page-info {
     height: 90vh;
@@ -688,6 +696,8 @@ input:focus, select:focus, textarea:focus {
     padding-bottom: 20px;
     /* 增加左右 padding 讓內容不貼邊 */
     padding-left: 5px; padding-right: 5px;
+    /* 【修改】移除上方內距，讓它貼齊容器頂部 */
+    padding-top: 0 !important; 
 }
 
 /* --- 【新增】Google Map 按鈕樣式 --- */
@@ -709,6 +719,46 @@ input:focus, select:focus, textarea:focus {
 .map-link-btn:active {
     transform: scale(0.9);
     background-color: #C8E6C9;
+}
+
+/* --- [FIX 2] 店家資訊垂直間距修正 --- */
+#page-info .info-section {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    
+    /* 強制使用 Flex 垂直排列 */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important; /* 設定極小間距 (約標題高度的 1/4) */
+    padding: 10px 0 !important; /* 適度的上下內距 */
+}
+
+/* 確保標題與內容的 Margin 歸零，完全由 gap 控制 */
+#page-info .info-section h2 {
+    font-size: 0.95rem;
+    color: var(--color-secondary);
+    font-weight: bold;
+    line-height: 1.2;
+    margin: 0 !important; /* 歸零 */
+}
+
+#page-info .info-section p {
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+    line-height: 1.4;
+    display: flex; 
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 !important; /* 歸零 */
+}
+
+/* 讓第一個項目完全貼頂，且不需要 border-top */
+#page-info .info-section:first-child {
+    padding-top: 10px; /* 稍微留一點點呼吸空間，或設為 0 完全貼頂 */
+    border-top: none;
 }
 
 /* =========================================
@@ -939,60 +989,4 @@ input:focus, select:focus, textarea:focus {
 .records-content-pane.active {
     display: block !important; /* 只有 active 時強制顯示 */
     animation: fadeIn 0.3s ease;
-}
-
-/* =========================================
-   10. 頁面樣式：店家資訊 (Store Info) - 優化版
-   ========================================= */
-/* =========================================
-   10. 頁面樣式：店家資訊 (Store Info) - 優化版
-   ========================================= */
-/* 修正容器內距，讓第一個項目靠上 */
-#store-info-container {
-    /* 【修改】移除上方內距，讓它貼齊容器頂部 */
-    padding-top: 0 !important; 
-    padding-bottom: 20px;
-}
-
-#page-info .info-section {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    /* 【修改】大幅縮小上下間距 (原 12px -> 8px) */
-    padding: 8px 0; 
-    margin-bottom: 0;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    
-    display: grid;
-    /* 【修改】縮小標題欄寬度與間距 */
-    grid-template-columns: 50px 1fr; 
-    gap: 8px; 
-    
-    align-items: flex-start; /* 【修改】改為靠上對齊，避免多行文字時標題置中 */
-}
-
-/* 確保標題文字大小適中並靠上 */
-#page-info .info-section h2 {
-    font-size: 0.95rem;
-    color: var(--color-secondary);
-    margin: 0;
-    font-weight: bold;
-    line-height: 1.5; /* 與內文行高一致，確保首行對齊 */
-    margin-top: 2px; /* 微調對齊 */
-}
-
-#page-info .info-section p {
-    margin: 0;
-    color: var(--color-text-primary);
-    font-size: 1rem;
-    line-height: 1.5;
-    display: flex; 
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-/* 【修改】讓第一個項目完全貼頂，且不需要 border-top */
-#page-info .info-section:first-child {
-    padding-top: 10px; /* 稍微留一點點呼吸空間，或設為 0 完全貼頂 */
-    border-top: none;
 }

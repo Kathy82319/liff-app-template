@@ -1471,16 +1471,13 @@ function showRedeemModal(voucherId, voucherTitle) {
     };
 }
 // --- ▲▲▲ 新增函式結束 ▲▲▲ ---
-
 async function initializeInfoPage() {
-    // 1. 設定標題 (保持不變)
+    // 1. 設定標題
     try {
-        const logic = activeTemplate?.logic || {};
-        const navBarConfig = logic.navBar || [];
+        const terms = CONFIG?.TERMS || {}; 
         const pageTitle = document.querySelector('#page-info .page-main-title');
         if (pageTitle) {
-            const infoNav = navBarConfig.find(item => item.target === 'page-info');
-            pageTitle.textContent = infoNav?.label || '店家資訊';
+            pageTitle.textContent = terms.ADMIN_STORE_INFO_LABEL || '店家資訊'; 
         }
     } catch(e) { console.error(e); }
 
@@ -1498,7 +1495,10 @@ async function initializeInfoPage() {
         
         if (info.store_name) {
             if (nameEl) nameEl.textContent = info.store_name;
-            // 【關鍵修正】移除強制 grid，改為空字串，讓 CSS 的設定生效
+            
+            // 【關鍵修正】：將原本的 'grid' 改為空字串 ''
+            // 這會移除 JS 加上的 style="display: grid;"
+            // 讓您在 CSS/HTML 裡寫的 class 樣式終於能生效
             if (nameSection) nameSection.style.display = ''; 
         } else {
             if (nameSection) nameSection.style.display = 'none';
@@ -1512,15 +1512,12 @@ async function initializeInfoPage() {
             const textContent = val || '未提供';
             
             if (isAddress && val) {
-                // 修正 Google Map 連結格式
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(val)}`;
                 
                 el.innerHTML = `
                     <span>${textContent}</span>
-                    <a href="${mapUrl}" target="_blank" class="map-link-btn" title="在 Google 地圖開啟">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                        </svg>
+                    <a href="${mapUrl}" target="_blank" class="map-link-btn" title="在 Google 地圖開啟" style="text-decoration:none; margin-left:5px;">
+                        📍
                     </a>
                 `;
             } else {

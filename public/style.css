@@ -3,7 +3,7 @@
 /* =========================================
    1. 全域變數：清新薄荷與微光 (Mint & Glow Theme)
    ========================================= */
-:root {
+   :root {
     /* 基礎背景：極淡的薄荷白 */
     --color-bg: #F2F9F8; 
     
@@ -43,6 +43,89 @@
     
     /* 較深的陰影 (用於懸浮) */
     --box-shadow-hover: 0 8px 20px rgba(129, 199, 181, 0.25), 0 15px 30px rgba(255, 241, 118, 0.4);
+}
+
+/* =========================================
+   10. 頁面樣式：店家資訊 (Store Info) - 優化版
+   ========================================= */
+#page-info {
+    height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#store-info-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+    padding-left: 5px; padding-right: 5px;
+    padding-top: 0 !important; 
+}
+
+/* --- Google Map 按鈕 --- */
+.map-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #E8F5E9; /* 淡綠底 */
+    color: #2E7D32; /* 深綠圖示 */
+    border: 1px solid #C8E6C9;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: transform 0.2s;
+    margin-left: 5px;
+}
+.map-link-btn:active {
+    transform: scale(0.9);
+    background-color: #C8E6C9;
+}
+
+/* --- [FIX 2] 店家資訊垂直間距修正 --- */
+/* 修正原理：強制 Flex Column 佈局，並設定 gap 為 2px 極小間距 */
+#page-info .info-section {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    
+    /* 強制垂直排列 */
+    display: flex !important;
+    flex-direction: column !important;
+    
+    /* 關鍵：標題與內容間距僅 2px */
+    gap: 2px !important; 
+    
+    padding: 10px 0 !important;
+}
+
+/* 強制移除標題與內容的 Margin */
+#page-info .info-section h2 {
+    font-size: 0.95rem;
+    color: var(--color-secondary);
+    font-weight: bold;
+    line-height: 1.2;
+    margin: 0 !important;
+}
+
+#page-info .info-section p {
+    color: var(--color-text-primary);
+    font-size: 1.1rem;
+    line-height: 1.4;
+    display: flex; 
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 !important;
+}
+
+/* 第一個項目貼頂 */
+#page-info .info-section:first-child {
+    padding-top: 10px;
+    border-top: none;
 }
 
 /* =========================================
@@ -696,89 +779,6 @@ input:focus, select:focus, textarea:focus {
     color: white;
     border: none;
     box-shadow: 0 4px 10px rgba(255, 138, 128, 0.3);
-}
-
-/* =========================================
-   10. 頁面樣式：店家資訊 (Store Info) - 優化版
-   ========================================= */
-#page-info {
-    height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-#store-info-container {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding-bottom: 20px;
-    padding-left: 5px; padding-right: 5px;
-    padding-top: 0 !important; 
-}
-
-/* --- Google Map 按鈕 --- */
-.map-link-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #E8F5E9; /* 淡綠底 */
-    color: #2E7D32; /* 深綠圖示 */
-    border: 1px solid #C8E6C9;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    text-decoration: none;
-    font-size: 14px;
-    transition: transform 0.2s;
-    margin-left: 5px;
-}
-.map-link-btn:active {
-    transform: scale(0.9);
-    background-color: #C8E6C9;
-}
-
-/* --- [FIX 2] 店家資訊垂直間距修正 --- */
-/* 修正原理：強制 Flex Column 佈局，並設定 gap 為 2px 極小間距 */
-#page-info .info-section {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    margin-bottom: 0;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    
-    /* 強制垂直排列 */
-    display: flex !important;
-    flex-direction: column !important;
-    
-    /* 關鍵：標題與內容間距僅 2px */
-    gap: 2px !important; 
-    
-    padding: 10px 0 !important;
-}
-
-/* 強制移除標題與內容的 Margin */
-#page-info .info-section h2 {
-    font-size: 0.95rem;
-    color: var(--color-secondary);
-    font-weight: bold;
-    line-height: 1.2;
-    margin: 0 !important;
-}
-
-#page-info .info-section p {
-    color: var(--color-text-primary);
-    font-size: 1.1rem;
-    line-height: 1.4;
-    display: flex; 
-    align-items: center;
-    flex-wrap: wrap;
-    margin: 0 !important;
-}
-
-/* 第一個項目貼頂 */
-#page-info .info-section:first-child {
-    padding-top: 10px;
-    border-top: none;
 }
 
 /* =========================================

@@ -1,6 +1,7 @@
 // public/admin/modules/userManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js'; 
+import { escapeHtml } from '../../utils.js';
 
 let allUsers = []; 
 let allSettings = []; 
@@ -59,12 +60,20 @@ function renderUserList(users) {
                 const balance = user.stored_value_balance || 0;
                 cell.innerHTML = `<span style="font-weight:bold; color: var(--color-primary);">$${balance}</span>`;
             } else if (col.key === 'line_display_name') {
-                // 特殊處理名稱
-                const displayName = user.real_name ? `${user.real_name} (${user.line_display_name})` : user.line_display_name;
-                const phoneDisplay = user.phone ? user.phone : '<span style="color:#ccc;">未設定電話</span>';
+                // 【修改 2】使用 escapeHtml 保護變數
+                const safeName = escapeHtml(user.line_display_name);
+                const safeRealName = escapeHtml(user.real_name);
+                const safePhone = escapeHtml(user.phone);
+
+                const displayName = user.real_name ? `${safeRealName} (${safeName})` : safeName;
+                const phoneDisplay = user.phone ? safePhone : '<span style="color:#ccc;">未設定電話</span>';
+                
+                // 這裡的 innerHTML 現在是安全的，因為內容已經消毒過
                 cell.innerHTML = `<div class="main-info">${displayName}</div><div class="sub-info">${phoneDisplay}</div>`;
             } else {
-                cell.textContent = getProperty(user, col.key, 'N/A');
+                // 一般欄位也要保護
+                const rawValue = getProperty(user, col.key, 'N/A');
+                cell.textContent = rawValue; // 【提示】textContent 本身就有防護效果，如果是 innerHTML 才需要 escapeHtml
             }
         });
 

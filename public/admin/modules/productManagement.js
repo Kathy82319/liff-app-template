@@ -1,6 +1,7 @@
 // public/admin/modules/productManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
+import { escapeHtml } from '../../utils.js';
 
 let allProducts = [];
 let sortableProducts = null;
@@ -224,32 +225,28 @@ function updateDynamicButtonsState() {
 
 // 渲染列表函式 (保持不變)
 function renderProductList(products) {
-    // ... (existing code for thead, tbody checks) ...
      const productListTbody = document.getElementById('product-list-tbody');
      const productListThead = document.querySelector('#page-inventory thead tr');
      if (!productListTbody || !productListThead || !activeTemplate || !activeTemplate.logic || !activeTemplate.logic.adminColumns) {
-         // ... (error handling remains the same) ...
           return;
      }
 
-     // --- Dynamically find the index for the 'price' column if it exists ---
+     // --- (表頭生成的程式碼保持不變) ---
      let priceColumnIndex = -1;
-     const headers = [ // Rebuild headers array for index finding
-         { key: '__checkbox__' }, // Placeholder
-         { key: '__order__' },    // Placeholder
+     const headers = [ 
+         { key: '__checkbox__' },
+         { key: '__order__' },
          ...activeTemplate.logic.adminColumns,
-         { key: '__visible__' },  // Placeholder
-         { key: '__actions__' }   // Placeholder
+         { key: '__visible__' },
+         { key: '__actions__' }
      ];
-     priceColumnIndex = headers.findIndex(col => col.key === 'price'); // Find the old price column definition
+     priceColumnIndex = headers.findIndex(col => col.key === 'price');
 
-     // --- Generate Header ---
      let headerHTML = `
         <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
         <th style="width: 50px;">順序</th>
     `;
      activeTemplate.logic.adminColumns.forEach(col => {
-         // --- Replace 'price' header label ---
          const label = (col.key === 'price') ? '價格(平日/五/六)' : col.label;
          headerHTML += `<th>${label}</th>`;
      });
@@ -265,7 +262,7 @@ function renderProductList(products) {
         const row = productListTbody.insertRow();
         row.className = 'draggable-row';
         row.dataset.productId = p.product_id;
-        let cells = []; // Store cell HTML temporarily
+        let cells = []; 
 
         cells.push(`<td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>`);
         cells.push(`<td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>`);
@@ -273,14 +270,17 @@ function renderProductList(products) {
         activeTemplate.logic.adminColumns.forEach(col => {
             let cellContent = 'N/A';
             if (col.key === 'price') {
-                 // --- Display all three prices ---
                  cellContent = `${p.price_weekday || '-'}/${p.price_friday || '-'}/${p.price_saturday || '-'}`;
             } else if (p.hasOwnProperty(col.key)) {
-                 cellContent = p[col.key] || 'N/A';
-                 // Simple truncation for potentially long text like description
-                 if (typeof cellContent === 'string' && cellContent.length > 50) {
-                      cellContent = cellContent.substring(0, 47) + '...';
+                 // 【安全修正】這裡是最重要的地方，產品名稱、描述都要消毒
+                 const rawValue = p[col.key] || 'N/A';
+                 let safeValue = escapeHtml(rawValue);
+                 
+                 // 截斷處理
+                 if (typeof safeValue === 'string' && safeValue.length > 50) {
+                      safeValue = safeValue.substring(0, 47) + '...';
                  }
+                 cellContent = safeValue;
             }
             cells.push(`<td>${cellContent}</td>`);
         });

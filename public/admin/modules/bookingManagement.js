@@ -1,6 +1,7 @@
 // public/admin/modules/bookingManagement.js (v12.6 - 房型顯示修正與即時搜尋版)
 import { api } from '../api.js';
 import { ui } from '../ui.js';
+import { escapeHtml } from '../../utils.js';
 
 // 防抖動函式：避免輸入時頻繁呼叫 API
 function debounce(func, delay) {
@@ -9,17 +10,6 @@ function debounce(func, delay) {
         clearTimeout(timer);
         timer = setTimeout(() => func.apply(this, args), delay);
     };
-}
-
-// XSS 防護函式
-function escapeHtml(text) {
-    if (!text) return text;
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
 }
 
 // --- 變數宣告 ---
@@ -152,21 +142,33 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
     if (!isEditing) { // --- VIEW MODE ---
         html = `<h4>顧客資訊</h4>`;
         if (userProfile) {
+            // 【安全修正】使用 escapeHtml 包覆所有變數
+            const safeName = escapeHtml(userProfile.line_display_name);
+            const safeRealName = escapeHtml(userProfile.real_name);
+            const safePhone = escapeHtml(userProfile.phone);
+            const safeClass = escapeHtml(userProfile.class);
+            const safeTag = escapeHtml(userProfile.tag);
+            const safeNotes = escapeHtml(userProfile.notes);
+            
+            // 組合顯示名稱
+            const displayName = safeRealName || safeName || escapeHtml(booking.contact_name);
+
             html += `
                 <div class="details-grid-container">
-                    <div><strong>姓名:</strong> ${userProfile.real_name  || userProfile.line_display_name || booking.contact_name}</div>
-                    <div><strong>電話:</strong> ${userProfile.phone || booking.contact_phone || '未提供'}</div>
+                    <div><strong>姓名:</strong> ${displayName}</div>
+                    <div><strong>電話:</strong> ${safePhone || escapeHtml(booking.contact_phone) || '未提供'}</div>
                     <div><strong>等級:</strong> ${userProfile.level || '-'}</div>
-                    <div><strong>會員方案:</strong> ${userProfile.class || '無'}</div>
-                    <div><strong>標籤:</strong> ${userProfile.tag || '無'}</div>
+                    <div><strong>會員方案:</strong> ${safeClass || '無'}</div>
+                    <div><strong>標籤:</strong> ${safeTag || '無'}</div>
                 </div>
-                ${userProfile.notes ? `<div class="crm-notes-section"><h5>顧客備註</h5><p style="white-space: pre-wrap; margin: 0;">${userProfile.notes}</p></div>` : ''}
+                ${userProfile.notes ? `<div class="crm-notes-section"><h5>顧客備註</h5><p style="white-space: pre-wrap; margin: 0;">${safeNotes}</p></div>` : ''}
             `;
         } else {
-            html += `<p><strong>姓名:</strong> ${booking.contact_name}</p>`;
-            html += `<p><strong>電話:</strong> ${booking.contact_phone || '未提供'}</p>`;
+            html += `<p><strong>姓名:</strong> ${escapeHtml(booking.contact_name)}</p>`;
+            html += `<p><strong>電話:</strong> ${escapeHtml(booking.contact_phone) || '未提供'}</p>`;
             html += `<p>(臨時顧客)</p>`;
         }
+        
         // --- 2. 預約資訊 ---
         const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
         
@@ -196,15 +198,17 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 <div class="details-grid-container">
                     <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
                     <div><strong>預約日期:</strong> ${booking.booking_date}</div>
-                    <div><strong>預約時段:</strong> ${booking.time_slot}</div>
+                    <div><strong>預約時段:</strong> ${escapeHtml(booking.time_slot)}</div>
                     <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
                     <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
-                    <div><strong>聯絡電話:</strong> ${booking.contact_phone || '未提供'}</div>
+                    <div><strong>聯絡電話:</strong> ${escapeHtml(booking.contact_phone) || '未提供'}</div>
                     <div><strong>訂單狀態:</strong> ${translateStatus(booking.status)}</div>
                 </div>
             `;
         }
-        html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${booking.notes || '無'}</pre></div>`;
+        // 【安全修正】備註內容消毒
+        html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${escapeHtml(booking.notes) || '無'}</pre></div>`;
+        
         // --- 3. 預約項目 ---
         html += `<h4>預約項目</h4>`;
         if (booking.items && booking.items.length > 0) {
@@ -217,8 +221,10 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 const quantity = Number(item.quantity) || 0;
                 const subtotal = price * quantity;
                 calculatedTotal += subtotal;
+                
+                // 【安全修正】項目名稱消毒
                 html += `<tr>`;
-                html += `<td>${item.item_name}</td>`;
+                html += `<td>${escapeHtml(item.item_name)}</td>`;
                 html += `<td>${quantity}</td>`;
                 html += `<td>$${price}</td>`; 
                 html += `<td>$${subtotal}</td>`;
@@ -233,13 +239,14 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
         contentEl.innerHTML = html;
 
     } else { // --- EDIT MODE ---
+        // 編輯模式主要使用 input value，這部分相對安全，但如果有插入 HTML 的地方仍需注意
         // 單號補零
         const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
         
-        // --- 優化：根據樣板顯示不同的編輯欄位 ---
         let dateInputsHtml = '';
         if (isGuesthouse) {
-            // 民宿：使用一個日期選擇器 (Range Mode)
+            // value 屬性不需要 escapeHtml，因為瀏覽器會處理，但如果是 innerHTML 拼接字串則需要
+            // 這裡 booking.booking_date 是日期格式 (YYYY-MM-DD)，風險極低，但為了統一習慣可以加
             dateInputsHtml = `
                 <div style="grid-column: span 2;">
                     <label>入住/退房日期:</label>
@@ -249,13 +256,15 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 </div>
             `;
         } else {
-            // 工作室：日期 + 時段
+            // 【安全修正】time_slot 消毒
             dateInputsHtml = `
                 <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
-                <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${booking.time_slot}"></div>
+                <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${escapeHtml(booking.time_slot)}"></div>
             `;
         }
 
+        // 【安全修正】contact_phone, notes 放入 textarea/input 的 value 中通常安全，但若用 JS 拼接 HTML 字串設定 innerHTML 則需注意引號。
+        // 最安全的做法是：先建立 DOM，再設定 value。但為了維持您的程式結構，我們在這裡對屬性值做 escapeHtml。
         contentEl.innerHTML = `
             <h4>預約資訊 (編輯中)</h4>
             <div id="booking-edit-form" class="details-grid-container">
@@ -263,9 +272,9 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                  ${dateInputsHtml}
                  <div><label>總人數:</label><input type="number" id="edit-booking-people" value="${booking.num_of_people || ''}" min="1" ${isGuesthouse ? 'readonly title="民宿人數由房型數量決定"' : ''}></div>
                  <div><label>預估總金額:</label><input type="number" id="edit-booking-amount" value="${booking.total_amount || ''}" min="0"></div>
-                 <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${booking.contact_phone || ''}"></div>
+                 <div><label>聯絡電話:</label><input type="tel" id="edit-booking-phone" value="${escapeHtml(booking.contact_phone) || ''}"></div>
             </div>
-            <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${booking.notes || ''}</textarea></div>
+            <div><label>內部備註:</label><textarea id="edit-booking-notes" rows="3">${escapeHtml(booking.notes) || ''}</textarea></div>
             
             <h4 style="display:flex; justify-content:space-between; align-items:center;">
                 預約項目 (編輯中)
@@ -274,21 +283,18 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             <div id="edit-items-container"></div>
         `;
 
-        // [v12.4] 填充現有項目
         const container = document.getElementById('edit-items-container');
         if (booking.items && booking.items.length > 0) {
             booking.items.forEach(item => addEditItemRow(container, item));
         } else {
-            // 如果沒有項目，預設加一行空的
             addEditItemRow(container);
         }
 
-        // [v12.4] 綁定新增按鈕
         document.getElementById('btn-add-edit-item').addEventListener('click', () => {
             addEditItemRow(container);
         });
 
-        // 初始化 Flatpickr
+        // (Flatpickr 初始化代碼保持不變...)
         if (isGuesthouse) {
             flatpickr("#edit-booking-date-range", { 
                 mode: "range", 
@@ -300,7 +306,6 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                         document.getElementById('edit-booking-date').value = startStr;
                         document.getElementById('edit-checkout-date').value = flatpickr.formatDate(selectedDates[1], "Y-m-d");
                         
-                        // [v12.4] 日期改變時，嘗試更新所有項目的價格 (如果是民宿)
                         document.querySelectorAll('.edit-item-row').forEach(row => {
                             updateEditItemPrice(row, startStr);
                         });
@@ -312,7 +317,6 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             flatpickr("#edit-booking-date", { 
                 dateFormat: "Y-m-d",
                 onChange: (selectedDates, dateStr) => {
-                    // [v12.4] 日期改變時，更新價格
                     document.querySelectorAll('.edit-item-row').forEach(row => {
                         updateEditItemPrice(row, dateStr);
                     });
@@ -1204,34 +1208,36 @@ function renderBookingList(bookings) {
             const cell = row.insertCell();
             let cellContent;
             
-            // --- 【修正 N/A】增加對 'items' 和 'product_name' 的判斷 ---
             if (col.key === 'item_summary' || col.key === 'items' || col.key === 'product_name') {
-                // 優先從 items 陣列組合字串
                 if (booking.items && booking.items.length > 0) {
-                    cellContent = booking.items.map(item => `${item.item_name} x${item.quantity}`).join(', ');
+                    // 【安全修正】項目名稱消毒
+                    cellContent = booking.items.map(item => `${escapeHtml(item.item_name)} x${item.quantity}`).join(', ');
                 } else {
                     cellContent = '<span style="color:#ccc">無項目</span>';
                 }
             } 
-            // --- 【修正 名稱】顯示 LINE 名稱 + 真實姓名 + 電話 ---
             else if (col.key === 'contact_name') {
-                 const realNamePart = booking.real_name ? ` <span style="color:#666">(${booking.real_name})</span>` : '';
-                 cellContent = `<div>${booking.contact_name}${realNamePart}</div>`;
-                 if (booking.contact_phone) {
-                     cellContent += `<div style="font-size:0.85em; color:#888;">${booking.contact_phone}</div>`;
+                 // 【安全修正】姓名與電話消毒
+                 const safeContact = escapeHtml(booking.contact_name);
+                 const safeRealName = escapeHtml(booking.real_name);
+                 const safePhone = escapeHtml(booking.contact_phone);
+                 
+                 const realNamePart = safeRealName ? ` <span style="color:#666">(${safeRealName})</span>` : '';
+                 cellContent = `<div>${safeContact}${realNamePart}</div>`;
+                 if (safePhone) {
+                     cellContent += `<div style="font-size:0.85em; color:#888;">${safePhone}</div>`;
                  }
             }
-            // --- 【修正 訂單號】補零 ---
             else if (col.key === 'booking_id') {
                  cellContent = `#${String(booking.booking_id).padStart(5, '0')}`;
             }
-            // --- 日期與其他欄位 ---
             else if (col.key === 'booking_date' && isGuesthouse) {
                  cellContent = booking.booking_date;
             } else if (col.key === 'check_out_date' && isGuesthouse) {
                  cellContent = booking.check_out_date || '-';
             } else if (col.key === 'datetime_summary') {
-                 cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${booking.time_slot || booking.check_out_date || ''}</div>`;
+                 // 【安全修正】時段消毒
+                 cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${escapeHtml(booking.time_slot) || booking.check_out_date || ''}</div>`;
             } else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
             } else if (col.key === 'status') {
@@ -1243,7 +1249,9 @@ function renderBookingList(bookings) {
                 if (booking.status === 'no-show') statusClass = 'status-noshow';
                 cellContent = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
             } else {
-                cellContent = getProperty(booking, col.key, 'N/A');
+                // 【安全修正】其他欄位預設消毒
+                const rawValue = getProperty(booking, col.key, 'N/A');
+                cellContent = escapeHtml(rawValue);
             }
             cell.innerHTML = cellContent;
         });
@@ -1384,10 +1392,14 @@ function updateCalendar() {
             if (b.status === 'confirmed') statusClass = 'status-confirmed';
             if (b.status === 'checked-in') statusClass = 'status-checked-in';
             if (b.status === 'no-show') statusClass = 'status-noshow';
-            const timeDisplay = b.time_slot ? `${b.time_slot} ` : '';
+            
+            // 【安全修正】時段與名稱消毒
+            const timeDisplay = b.time_slot ? `${escapeHtml(b.time_slot)} ` : '';
+            const safeName = escapeHtml(b.contact_name);
+
              bookingsHtml += `
                 <div class="calendar-booking ${statusClass}" data-booking-id="${b.booking_id}" style="cursor: pointer;">
-                    <span>${timeDisplay}${b.contact_name}</span>
+                    <span>${timeDisplay}${safeName}</span>
                     <button class="btn-quick-cancel" data-booking-id="${b.booking_id}">&times;</button>
                 </div>
              `;

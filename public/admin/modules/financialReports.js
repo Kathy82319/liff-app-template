@@ -237,8 +237,6 @@ function renderTransactions(list) {
     const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'checked-in': '已報到', 'completed': '完成' };
 
     tbody.innerHTML = list.map(item => {
-        const safeSummary = escapeHtml(item.item_summary || '');
-        const safeContact = escapeHtml(item.contact_name || '未知');
         const isTopup = item.type === 'topup';
         const date = new Date(item.booking_date).toLocaleDateString();
         const amountStyle = isTopup ? 'color: green; font-weight: bold;' : '';
@@ -277,8 +275,13 @@ function renderTransactions(list) {
              toggleHtml = '<span style="color:green;">✔</span>';
         }
 
-        // --- 2. 顯示項目內容 (【修改】單號補零) ---
+        // --- 2. 顯示項目內容 ---
         const bookingIdDisplay = isTopup ? '後台加值' : `#${String(item.booking_id).padStart(5, '0')}`;
+        
+        // 【安全修正】對動態內容進行消毒
+        const safeSummary = escapeHtml(item.item_summary || '');
+        const safeContact = escapeHtml(item.contact_name || '未知');
+
         const contentDisplay = `
             <div>${bookingIdDisplay}</div>
             <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${safeSummary}</div>
@@ -290,7 +293,6 @@ function renderTransactions(list) {
                 <td>${typeLabel}</td>
                 <td>${contentDisplay}</td>
                 <td>${safeContact}</td>
-                <td>${item.contact_name || '未知'}</td>
                 <td style="${amountStyle}">$${item.total_amount}</td>
                 <td>${statusText}</td>
                 <td>${toggleHtml}</td>

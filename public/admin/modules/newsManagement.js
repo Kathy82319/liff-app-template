@@ -29,7 +29,6 @@ function getProperty(obj, path, defaultValue = 'N/A') {
 // 渲染情報列表 (藍圖驅動版)
 function renderNewsList(newsItems) {
     const newsListTbody = document.getElementById('news-list-tbody');
-    // --- 【修改】獲取 Thead 中的 tr 元素 ---
     const newsListTheadTr = document.querySelector('#page-news thead tr');
 
     if (!newsListTbody || !newsListTheadTr) {
@@ -70,17 +69,16 @@ function renderNewsList(newsItems) {
         // --- 5. 根據欄位設定動態插入儲存格 ---
         columns.forEach(col => {
             const cell = row.insertCell();
-            // 【安全修正】先獲取值，再消毒
             let rawValue = getProperty(news, col.key, 'N/A');
             
-            // 如果是圖片欄位，我們要允許它顯示圖片標籤，還是只顯示網址？
-            // 根據您的原始碼，這裡通常顯示文字。若是圖片預覽，需特別處理。
-            // 假設這裡是純文字顯示：
-            cell.innerHTML = escapeHtml(rawValue); 
+            // 【安全修正】如果是圖片欄位，我們要顯示縮圖還是文字？
+            // 根據您的原始碼，這裡原本是直接顯示文字。
+            // 為了安全，我們對所有動態內容進行消毒。
+            cell.innerHTML = escapeHtml(rawValue);
         });
 
         // --- 6. 渲染固定的「狀態」和「操作」儲存格 ---
-        // 插入「狀態」
+        // 插入「狀態」 (HTML 是我們自己寫的，所以安全)
         row.insertCell().innerHTML = news.is_published ? '<span style="color: var(--color-success);">已發布</span>' : '草稿';
         
         // 插入「操作」

@@ -18,7 +18,6 @@ function getLiffBaseUrl() {
     return "https://liff.line.me/UNKNOWN_ID";
 }
 // --- Helper: 渲染活動列表 ---
-// public/admin/modules/rallyManagement.js
 
 function renderCampaignList(campaigns) {
     const tbody = document.getElementById('campaign-list-tbody');
@@ -32,28 +31,32 @@ function renderCampaignList(campaigns) {
     tbody.innerHTML = campaigns.map(c => {
         const statusText = c.is_active ? '<span style="color: var(--color-success);">啟用中</span>' : '<span style="color: var(--color-secondary);">已停用</span>';
         const dateRange = (c.start_date && c.end_date) ? `${c.start_date} ~ ${c.end_date}` : '永久有效';
-        const reward = allVoucherTemplates.find(v => v.template_id == c.reward_voucher_id)?.title || `ID: ${c.reward_voucher_id}`;
+        // 獎勵名稱如果是動態的，也建議消毒，雖然通常來自內部設定
+        const rawRewardTitle = allVoucherTemplates.find(v => v.template_id == c.reward_voucher_id)?.title || `ID: ${c.reward_voucher_id}`;
+        const safeReward = escapeHtml(rawRewardTitle);
         
-        // [新增] 判斷是否顯示「重置碼」按鈕
+        // 【安全修正】活動標題消毒
+        const safeTitle = escapeHtml(c.title);
+
+        // 判斷是否顯示「重置碼」按鈕
         let resetBtnHtml = '';
         if (c.can_repeat) {
             const resetLink = `${getLiffBaseUrl()}/#page-rally?action=reset&campaign_id=${c.campaign_id}`;
             resetBtnHtml = `<button class="action-btn btn-show-reset-qrcode" data-link="${resetLink}" style="background-color: #6f42c1; margin-right: 5px;">重置碼</button>`;
         }
-        const safeTitle = escapeHtml(c.title);
+
         return `
             <tr data-campaign-id="${c.campaign_id}">
                 <td>
                     ${safeTitle}
-                    ${c.title}
                     ${c.can_repeat ? '<span style="font-size:0.8em; background:#eee; padding:2px 5px; border-radius:4px; margin-left:5px;">可循環</span>' : ''}
                 </td>
                 <td>集滿 ${c.required_stamps} 點</td>
-                <td>${reward}</td>
+                <td>${safeReward}</td>
                 <td>${dateRange}</td>
                 <td>${statusText}</td>
                 <td class="actions-cell">
-                    ${resetBtnHtml} <button class="action-btn btn-view-stations" data-campaign-id="${c.campaign_id}" data-title="${c.title}" style="background-color: var(--color-info);">站點管理</button>
+                    ${resetBtnHtml} <button class="action-btn btn-view-stations" data-campaign-id="${c.campaign_id}" data-title="${safeTitle}" style="background-color: var(--color-info);">站點管理</button>
                     <button class="action-btn btn-edit-campaign" data-campaign-id="${c.campaign_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
                     <button class="action-btn btn-delete-campaign" data-campaign-id="${c.campaign_id}" style="background-color: var(--color-danger);">刪除</button>
                 </td>
@@ -68,6 +71,7 @@ function renderStationList(stations, campaignTitle) {
     const titleEl = document.getElementById('current-campaign-title');
     if (!tbody || !titleEl) return;
 
+    // 雖然 textContent 是安全的，但保持一致性是好習慣
     titleEl.textContent = `活動：${campaignTitle} 的站點管理`;
 
     if (stations.length === 0) {
@@ -76,19 +80,20 @@ function renderStationList(stations, campaignTitle) {
     }
 
     tbody.innerHTML = stations.map(s => {
-        const safeName = escapeHtml(s.name);
-        const safePartner = escapeHtml(s.partner_name || '無');
         const statusText = s.is_active ? '<span style="color: var(--color-success);">啟用中</span>' : '<span style="color: var(--color-secondary);">已停用</span>';
         const expiryDate = s.expiry_date || '永久有效';
         
-        // QR Code 連結格式 (LIFF App URL + 站點代碼)
+        // QR Code 連結
         const claimLink = `${getLiffBaseUrl()}/#page-rally?partner_code=${s.unique_partner_code}`;
+
+        // 【安全修正】站點名稱與合作夥伴名稱消毒
+        const safeName = escapeHtml(s.name);
+        const safePartner = escapeHtml(s.partner_name || '無');
 
         return `
             <tr>
                 <td><div class="main-info">${safeName}</div><div class="sub-info">${s.unique_partner_code}</div></td>
                 <td>${safePartner}</td>
-                <td>${s.partner_name || '無'}</td>
                 <td>${expiryDate}</td>
                 <td>${statusText}</td>
                 <td class="actions-cell">

@@ -231,7 +231,6 @@ function renderProductList(products) {
           return;
      }
 
-     // --- (表頭生成的程式碼保持不變) ---
      let priceColumnIndex = -1;
      const headers = [ 
          { key: '__checkbox__' },
@@ -256,7 +255,6 @@ function renderProductList(products) {
     `;
      productListThead.innerHTML = headerHTML;
 
-    // --- Generate Rows ---
     productListTbody.innerHTML = '';
     products.forEach(p => {
         const row = productListTbody.insertRow();
@@ -272,9 +270,9 @@ function renderProductList(products) {
             if (col.key === 'price') {
                  cellContent = `${p.price_weekday || '-'}/${p.price_friday || '-'}/${p.price_saturday || '-'}`;
             } else if (p.hasOwnProperty(col.key)) {
-                 // 【安全修正】這裡是最重要的地方，產品名稱、描述都要消毒
+                 // 【安全修正】產品名稱、描述等所有動態欄位消毒
                  const rawValue = p[col.key] || 'N/A';
-                 let safeValue = escapeHtml(rawValue);
+                 let safeValue = escapeHtml(rawValue); // <--- 這裡使用了 escapeHtml
                  
                  // 截斷處理
                  if (typeof safeValue === 'string' && safeValue.length > 50) {

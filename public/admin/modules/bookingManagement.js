@@ -151,7 +151,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             const safeNotes = escapeHtml(userProfile.notes);
             
             // 組合顯示名稱
-            const displayName = safeRealName || safeName || escapeHtml(booking.contact_name);
+            const displayName = userProfile.real_name ? `${safeRealName} (${safeName})` : safeName;
 
             html += `
                 <div class="details-grid-container">
@@ -239,14 +239,10 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
         contentEl.innerHTML = html;
 
     } else { // --- EDIT MODE ---
-        // 編輯模式主要使用 input value，這部分相對安全，但如果有插入 HTML 的地方仍需注意
-        // 單號補零
         const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
         
         let dateInputsHtml = '';
         if (isGuesthouse) {
-            // value 屬性不需要 escapeHtml，因為瀏覽器會處理，但如果是 innerHTML 拼接字串則需要
-            // 這裡 booking.booking_date 是日期格式 (YYYY-MM-DD)，風險極低，但為了統一習慣可以加
             dateInputsHtml = `
                 <div style="grid-column: span 2;">
                     <label>入住/退房日期:</label>
@@ -263,8 +259,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             `;
         }
 
-        // 【安全修正】contact_phone, notes 放入 textarea/input 的 value 中通常安全，但若用 JS 拼接 HTML 字串設定 innerHTML 則需注意引號。
-        // 最安全的做法是：先建立 DOM，再設定 value。但為了維持您的程式結構，我們在這裡對屬性值做 escapeHtml。
+        // 【安全修正】input value 使用 escapeHtml 防止引號截斷攻擊
         contentEl.innerHTML = `
             <h4>預約資訊 (編輯中)</h4>
             <div id="booking-edit-form" class="details-grid-container">
@@ -290,11 +285,15 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             addEditItemRow(container);
         }
 
-        document.getElementById('btn-add-edit-item').addEventListener('click', () => {
-            addEditItemRow(container);
-        });
+        // 綁定新增按鈕 (注意：這裡使用 cloneNode 或檢查是否已綁定，以防重複)
+        const addBtn = document.getElementById('btn-add-edit-item');
+        if(addBtn) {
+             addBtn.replaceWith(addBtn.cloneNode(true));
+             document.getElementById('btn-add-edit-item').addEventListener('click', () => {
+                addEditItemRow(container);
+            });
+        }
 
-        // (Flatpickr 初始化代碼保持不變...)
         if (isGuesthouse) {
             flatpickr("#edit-booking-date-range", { 
                 mode: "range", 
@@ -1233,14 +1232,18 @@ function renderBookingList(bookings) {
             }
             else if (col.key === 'booking_date' && isGuesthouse) {
                  cellContent = booking.booking_date;
-            } else if (col.key === 'check_out_date' && isGuesthouse) {
+            }
+            else if (col.key === 'check_out_date' && isGuesthouse) {
                  cellContent = booking.check_out_date || '-';
-            } else if (col.key === 'datetime_summary') {
+            }
+            else if (col.key === 'datetime_summary') {
                  // 【安全修正】時段消毒
                  cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${escapeHtml(booking.time_slot) || booking.check_out_date || ''}</div>`;
-            } else if (col.key === 'total_amount') {
+            }
+            else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
-            } else if (col.key === 'status') {
+            }
+            else if (col.key === 'status') {
                 const translatedStatus = translateStatus(booking.status);
                 let statusClass = '';
                 if (booking.status === 'confirmed') statusClass = 'status-confirmed';
@@ -1249,7 +1252,7 @@ function renderBookingList(bookings) {
                 if (booking.status === 'no-show') statusClass = 'status-noshow';
                 cellContent = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
             } else {
-                // 【安全修正】其他欄位預設消毒
+                // 【安全修正】其他所有欄位預設消毒
                 const rawValue = getProperty(booking, col.key, 'N/A');
                 cellContent = escapeHtml(rawValue);
             }

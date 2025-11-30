@@ -77,11 +77,12 @@ function renderDraftList(drafts) {
         // 5. 根據欄位設定動態插入儲存格
         columns.forEach(col => {
             const cell = row.insertCell();
-            // 【安全修正】這裡原本是 getProperty，我們要包一層
             let rawValue = getProperty(draft, col.key, 'N/A');
-            let cellContent = escapeHtml(rawValue); // <--- 消毒
+            
+            // 【安全修正】對動態欄位內容進行消毒
+            let cellContent = escapeHtml(rawValue);
 
-            // 特殊處理：為固定草稿加上標記 (標記的 HTML 是我們自己寫的，是安全的)
+            // 特殊處理：為固定草稿加上標記 (這段 HTML 是我們寫死的，所以安全)
             if (col.key === 'title') {
                  cellContent += isFixed ? ' <span style="font-size: 0.8em; color: var(--color-secondary); margin-left: 5px;">(系統保留)</span>' : '';
             }
@@ -90,9 +91,10 @@ function renderDraftList(drafts) {
 
         // 6. 渲染固定的「內容預覽」和「操作」儲存格
         
-        // 插入「內容預覽」
+        // 插入「內容預覽」【安全修正】
+        // 先消毒內容，再進行截斷，確保不會截斷了 HTML 實體導致顯示錯誤，也防止 XSS
         let safeContent = escapeHtml(draft.content || '');
-        let contentPreview = String(draft.content || '').substring(0, 50) + (String(draft.content || '').length > 50 ? '...' : '');
+        let contentPreview = String(safeContent).substring(0, 50) + (String(safeContent).length > 50 ? '...' : '');
         row.insertCell().innerHTML = contentPreview;
 
         // 插入「操作」

@@ -1,3 +1,4 @@
+// functions/api/bookings-create.js (v15.0 - 安全強化版)
 import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
 const FIXED_DRAFT_IDS = {
@@ -15,6 +16,19 @@ export async function onRequest(context) {
         const body = await context.request.json();
         console.log("[bookings-create] Received Payload:", JSON.stringify(body));
 
+        const { userId } = body;
+
+        // --- 【安全性修正 1】頻率限制 (Rate Limiting) ---
+        // 防止惡意使用者短時間內灌爆資料庫 (限制：每分鐘最多 3 筆)
+        if (userId) {
+            const recent = await db.prepare("SELECT COUNT(*) as count FROM Bookings WHERE user_id = ? AND created_at > datetime('now', '-1 minute')").bind(userId).first();
+            if (recent && recent.count >= 3) {
+                console.warn(`[Security] User ${userId} rate limit exceeded.`);
+                return new Response(JSON.stringify({ error: '預約請求過於頻繁，請稍待一分鐘後再試。' }), { status: 429 });
+            }
+        }
+        // --- 修正結束 ---
+
         const useStoredValue = body.useStoredValue === true;
 
         let booking_id;
@@ -23,13 +37,14 @@ export async function onRequest(context) {
         let bookingDate;
         let productsInfo = [];
         let items = [];
-        let calculatedTotalAmount = 0; // 總金額
+        let calculatedTotalAmount = 0; // 總金額 (將由後端重新計算)
 
         const operations = []; // 批次操作指令集
 
         // === 步驟 A: 建立預約主檔與項目 (依類型) ===
         if (body.bookingType === 'guesthouse') {
-            const { userId, startDate, endDate, items: guesthouseItems } = body;
+            // ... (民宿邏輯保持不變，因原本已有庫存與價格檢查) ...
+            const { startDate, endDate, items: guesthouseItems } = body;
             contactName = body.contactName;
             bookingDate = startDate;
             items = guesthouseItems;
@@ -46,17 +61,14 @@ export async function onRequest(context) {
                  }
             }
 
-            // 【修正重點 1】取得完整範圍，但定義 stayDates (排除退房日)
             const fullDateRange = getDateRange(startDate, endDate);
-            const stayDates = fullDateRange.slice(0, -1); // 排除最後一天
+            const stayDates = fullDateRange.slice(0, -1); 
 
             if (stayDates.length === 0) {
                  return new Response(JSON.stringify({ error: '無效的入住天數。' }), { status: 400 });
             }
 
             const productIdsToCheck = items.map(item => item.productId);
-            // 查詢庫存時，我們仍查詢 fullDateRange 比較安全 (雖然 stayDates 已經足夠)
-            // 這裡為了與計算邏輯一致，我們只查 stayDates 的庫存
             const datePlaceholders = stayDates.map(() => '?').join(',');
             const productPlaceholders = productIdsToCheck.map(() => '?').join(',');
 
@@ -67,12 +79,10 @@ export async function onRequest(context) {
             );
             const { results: currentInventory } = await inventoryCheckStmt.bind(...stayDates, ...productIdsToCheck).all();
 
-            // 檢查庫存 (只檢查 stayDates)
             for (const item of items) {
                 for (const dateStr of stayDates) {
                     const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
                     if (!inventoryRecord || inventoryRecord.status !== 'Open' || inventoryRecord.quantity_available < item.quantity) {
-                        console.error(`[bookings-create] Inventory Check FAILED for ${item.productId} on ${dateStr}. Record:`, inventoryRecord, `Requested: ${item.quantity}`);
                         const productInfo = await db.prepare("SELECT name FROM Products WHERE product_id = ?").bind(item.productId).first();
                         const productName = productInfo ? productInfo.name : item.productId;
                         return new Response(JSON.stringify({ error: `抱歉，房型 "${productName}" 在 ${dateStr} 的數量不足或未開放預訂。` }), { status: 409 });
@@ -100,7 +110,6 @@ export async function onRequest(context) {
                  throw new Error('無法建立預約主紀錄，請稍後再試。');
              }
              booking_id = bookingResult.booking_id;
-             console.log(`[bookings-create] Guesthouse Booking record created with ID: ${booking_id}`);
 
             const itemInsertStmt = db.prepare(
                 `INSERT INTO BookingItems (booking_id, product_id, item_name, quantity, price) VALUES (?, ?, ?, ?, ?)`
@@ -109,13 +118,12 @@ export async function onRequest(context) {
              const { results: fetchedProductsInfo } = await productsInfoStmt.bind(...productIdsToCheck).all();
              productsInfo = fetchedProductsInfo;
 
-            // 計算總金額 (【修正重點 2】只遍歷 stayDates)
             for (const item of items) {
                  const productDetails = productsInfo.find(p => p.product_id === item.productId);
                  if (!productDetails) { throw new Error(`找不到產品資訊: ${item.productId}`); }
                  
                  let itemTotalPrice = 0;
-                 for (const dateStr of stayDates) { // 只計算入住夜
+                 for (const dateStr of stayDates) { 
                      const inventoryRecord = currentInventory.find(inv => inv.inventory_date === dateStr && inv.product_id === item.productId);
                      let dailyPrice = inventoryRecord?.base_price;
                      if (dailyPrice === null || dailyPrice === undefined) {
@@ -130,25 +138,23 @@ export async function onRequest(context) {
                      }
                      itemTotalPrice += dailyPrice;
                  }
-                 const pricePerItem = itemTotalPrice; // 這是單間房 N 晚的總價
+                 const pricePerItem = itemTotalPrice; 
                  calculatedTotalAmount += pricePerItem * item.quantity;
                  operations.push(itemInsertStmt.bind(
                       booking_id, item.productId, productDetails.name, item.quantity, pricePerItem
                  ));
             }
              
-            // 扣除庫存 (【修正重點 3】只扣除 stayDates)
             const inventoryUpdateStmt = db.prepare(
                 `UPDATE RoomInventory SET quantity_available = quantity_available - ?
                  WHERE inventory_date = ? AND product_id = ? AND quantity_available >= ?`
             );
             for (const item of items) {
-                for (const dateStr of stayDates) { // 只扣除入住夜的庫存
+                for (const dateStr of stayDates) { 
                     operations.push(inventoryUpdateStmt.bind(item.quantity, dateStr, item.productId, item.quantity));
                 }
             }
 
-            // --- 準備訊息內容 ---
             messageContent = DEFAULT_AUTO_CONFIRMATION_CONTENT;
             try {
                 const draftStmt = db.prepare("SELECT content FROM MessageDrafts WHERE draft_id = ?");
@@ -164,7 +170,6 @@ export async function onRequest(context) {
                     .replace(/{{roomSummary}}/g, roomSummary)
                     .replace(/{{totalAmount}}/g, `$${calculatedTotalAmount}`);
             } catch (draftError) {
-                console.error("[bookings-create] Error fetching/processing draft:", draftError);
                  const roomSummary = items.map(item => {
                      const name = productsInfo.find(p => p.product_id === item.productId)?.name || item.productId;
                      return `${name} x${item.quantity}`;
@@ -173,9 +178,8 @@ export async function onRequest(context) {
             }
 
         } else if (body.bookingType === 'studio' || !body.bookingType) {
-            // ... (工作室邏輯保持不變，省略以節省空間) ...
-            // (為確保檔案完整性，這部分請使用上次提供的 studio 邏輯，或直接將下方內容填入)
-            const { userId, timeSlot, numOfPeople, items: studioItems } = body;
+            // --- 【安全性修正 2】工作室模式：強制後端查價 ---
+            const { timeSlot, numOfPeople, items: studioItems } = body;
             contactName = body.contactName;
             bookingDate = body.bookingDate;
             items = studioItems;
@@ -186,22 +190,46 @@ export async function onRequest(context) {
             if (!Array.isArray(items) || items.length === 0) {
                 return new Response(JSON.stringify({ error: '預約必須至少包含一個項目。' }), { status: 400 });
             }
-            for (const item of items) {
-                 if (item.price === null || item.price === undefined || isNaN(item.price) || item.price < 0) {
-                     return new Response(JSON.stringify({ error: `預約項目 "${item.name}" 缺少有效價格。` }), { status: 400 });
-                 }
-            }
 
+            // 1. 查詢所有產品以獲取正確價格
+            const { results: allProducts } = await db.prepare("SELECT name, price_weekday, price_friday, price_saturday FROM Products").all();
+
+            // 2. 建立預約主檔
             const bookingStmt = db.prepare(
                 'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people) VALUES (?, ?, ?, ?, ?, ?) RETURNING booking_id'
             );
             const bookingResult = await bookingStmt.bind(userId, contactName, body.contactPhone, bookingDate, timeSlot, numOfPeople).first();
             booking_id = bookingResult.booking_id;
 
-            items.forEach(item => {
-                calculatedTotalAmount += (item.price * item.quantity);
-                operations.push(db.prepare('INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)').bind(booking_id, item.name, item.quantity, item.price, null));
-            });
+            // 3. 遍歷項目，強制使用資料庫價格
+            const insertItemStmt = db.prepare('INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)');
+            
+            for (const item of items) {
+                // 從資料庫中找到對應產品 (根據名稱)
+                // 注意：若前端傳來的名稱被竄改，這裡會找不到而報錯，這也是一種防護
+                const product = allProducts.find(p => p.name === item.name);
+                
+                if (!product) {
+                    throw new Error(`找不到產品 "${item.name}"，無法計算價格。`);
+                }
+
+                // 根據日期計算正確價格 (呼叫共用邏輯)
+                const dayOfWeek = getDayOfWeek(bookingDate); // 0-6
+                let realPrice = product.price_weekday;
+                if (dayOfWeek === 5) realPrice = product.price_friday !== null ? product.price_friday : realPrice;
+                else if (dayOfWeek === 6) realPrice = product.price_saturday !== null ? product.price_saturday : realPrice;
+
+                // 如果資料庫中價格未設定 (null)，則報錯
+                if (realPrice === null) {
+                    throw new Error(`產品 "${item.name}" 價格設定不完整，無法結帳。`);
+                }
+
+                // 使用後端查到的 realPrice，忽略前端傳來的 item.price
+                calculatedTotalAmount += (realPrice * item.quantity);
+                
+                operations.push(insertItemStmt.bind(booking_id, item.name, item.quantity, realPrice, null));
+            }
+            // --- 修正結束 ---
 
              messageContent = `感謝您的預約！\n\n您的預約資訊如下：\n日期：{{bookingDate}}\n時段：{{timeSlot}}\n項目：{{itemSummary}}\n\n期待您的光臨！`;
              try {
@@ -222,7 +250,7 @@ export async function onRequest(context) {
              return new Response(JSON.stringify({ error: `未知的預約類型: ${body.bookingType}` }), { status: 400 });
         }
 
-        // === 步驟 B: 儲值金扣款邏輯 ===
+        // === 步驟 B: 儲值金扣款邏輯 (使用後端計算的金額) ===
         let paymentStatus = 'unpaid'; 
 
         if (useStoredValue) {
@@ -251,7 +279,7 @@ export async function onRequest(context) {
             paymentStatus = 'paid';
         }
 
-        // === 步驟 C: 更新訂單總金額與付款狀態 ===
+        // === 步驟 C: 更新訂單總金額與付款狀態 (使用後端計算的金額) ===
         const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ?, payment_status = ? WHERE booking_id = ?");
         operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, paymentStatus, booking_id));
 

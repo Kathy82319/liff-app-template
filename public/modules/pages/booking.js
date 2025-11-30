@@ -21,13 +21,12 @@ export async function init() {
     const viewBtn = document.getElementById('view-my-bookings-btn');
     if (viewBtn) {
         viewBtn.textContent = terms.PROFILE_BOOKINGS_BTN_LABEL || '查看我的預約';
-        // 使用 cloneNode 清除舊事件
         const newBtn = viewBtn.cloneNode(true);
         viewBtn.parentNode.replaceChild(newBtn, viewBtn);
         newBtn.addEventListener('click', () => router.navigate('page-my-records'));
     }
 
-    // 載入產品 (如果沒有)
+    // 載入產品
     if (state.allProducts.length === 0) {
         try { state.allProducts = await api.getProducts(); } catch(e) {}
     }
@@ -82,7 +81,6 @@ function setupStoredValue(balance) {
                 display.style.color = 'var(--color-text-secondary)';
             }
             
-            // 綁定 Checkbox 邏輯
             const newCheckbox = checkbox.cloneNode(true);
             checkbox.parentNode.replaceChild(newCheckbox, checkbox);
             newCheckbox.addEventListener('change', (e) => {
@@ -125,7 +123,7 @@ function initializeGuesthouse() {
             if (selectedDates.length === 2) {
                 const start = selectedDates[0];
                 const end = selectedDates[1];
-                if (start.getTime() === end.getTime()) return; // 同一天無效
+                if (start.getTime() === end.getTime()) return;
 
                 guesthouseData.startDate = flatpickr.formatDate(start, "Y-m-d");
                 guesthouseData.endDate = flatpickr.formatDate(end, "Y-m-d");
@@ -216,32 +214,121 @@ function renderRoomList(availabilityData) {
 
 // --- 工作室模式邏輯 (簡化版) ---
 function initializeStudio() {
-    // 這裡需要移植原 script.js 中動態建立 DOM (datepickerContainer, timeSlotContainer) 的邏輯
-    // 為節省篇幅，假設 HTML 結構已由 script.js 的動態邏輯建立，重點在於 flatpickr 和 API
     const pageDiv = document.getElementById('page-booking');
-    let dateContainer = pageDiv.querySelector('#booking-datepicker-container');
+    const detailsForm = document.getElementById('booking-details-form'); 
     
-    // 如果 DOM 不存在，動態建立 (移植自原 script.js)
+    if (!pageDiv || !detailsForm) return;
+
+    let dateContainer = pageDiv.querySelector('#booking-datepicker-container');
     if (!dateContainer) {
         dateContainer = document.createElement('div');
         dateContainer.id = 'booking-datepicker-container';
         pageDiv.querySelector('.details-section').appendChild(dateContainer);
-        // ... (其他 DOM 建立邏輯，如 timeSlotContainer, itemsContainer)
-        // 建議：將這些 DOM 結構直接寫入 index.html 模板中會更乾淨，但為了相容性，這裡保留動態建立
     }
-    // ... (初始化 Items Row 等 UI) ...
-    
-    // 初始化 Flatpickr
+
+    let timeSlotContainer = pageDiv.querySelector('#booking-time-slot-container');
+    if (!timeSlotContainer) {
+        timeSlotContainer = document.createElement('div');
+        timeSlotContainer.id = 'booking-time-slot-container';
+        timeSlotContainer.style.marginTop = '20px';
+        timeSlotContainer.style.display = 'none'; 
+        timeSlotContainer.innerHTML = `
+            <label for="time-slot-select" style="display: block; margin-bottom: 10px;">請選擇時段：</label>
+            <select id="time-slot-select"></select>
+        `;
+        dateContainer.parentNode.appendChild(timeSlotContainer);
+    }
+
+    let itemsContainer = detailsForm.querySelector('#booking-items-container');
+    let addBookingItemBtn = detailsForm.querySelector('#add-booking-item-btn');
+    if (!itemsContainer) {
+        const itemsSection = document.createElement('div');
+        itemsSection.className = 'form-group';
+        itemsSection.innerHTML = `
+            <label>預約項目</label>
+            <div id="booking-items-container"></div>
+            <button type="button" id="add-booking-item-btn" class="cta-button" style="margin-top: 10px; background-color: var(--color-secondary); font-size: 0.9rem; padding: 8px;">⊕ 新增項目</button>
+        `;
+        const hrElement = detailsForm.querySelector('hr'); 
+        if(hrElement) detailsForm.insertBefore(itemsSection, hrElement); 
+        
+        itemsContainer = document.getElementById('booking-items-container'); 
+        addBookingItemBtn = document.getElementById('add-booking-item-btn'); 
+    }
+
+    if (itemsContainer) itemsContainer.innerHTML = ''; 
+    if(addBookingItemBtn) {
+        const newBtn = addBookingItemBtn.cloneNode(true);
+        addBookingItemBtn.parentNode.replaceChild(newBtn, addBookingItemBtn);
+        newBtn.addEventListener('click', () => addBookingItemRow());
+    }
+    if(itemsContainer) addBookingItemRow();
+
     api.getBookingsCheckInit().then(res => {
         flatpickr(dateContainer, {
             inline: true, minDate: "today", dateFormat: "Y-m-d", locale: "zh_tw",
             enable: res.enabledDates,
             onChange: (selected, dateStr) => {
                 bookingData.date = dateStr;
-                // 更新時段選單、價格...
+                const timeSlotSel = document.getElementById('time-slot-select');
+                if (dateStr) {
+                    timeSlotContainer.style.display = 'block';
+                    if(timeSlotSel) renderTimeSlots(timeSlotSel);
+                } else {
+                    timeSlotContainer.style.display = 'none';
+                    detailsForm.style.display = 'none';
+                }
             }
         });
     });
+
+    const timeSlotSelect = document.getElementById('time-slot-select'); 
+    if (timeSlotSelect) {
+        timeSlotSelect.addEventListener('change', (e) => {
+            detailsForm.style.display = e.target.value ? 'block' : 'none';
+        });
+    }
+}
+
+function renderTimeSlots(selectElement) {
+    if (!selectElement) return;
+    selectElement.innerHTML = '<option value="">-- 請選擇 --</option>'; 
+    for (let hour = 8; hour <= 18; hour++) {
+        const timeString = `${hour.toString().padStart(2, '0')}:00`;
+        selectElement.add(new Option(timeString, timeString));
+    }
+}
+
+function addBookingItemRow() {
+    const container = document.getElementById('booking-items-container');
+    if (!container || container.children.length >= 5) return;
+
+    const itemRow = document.createElement('div');
+    itemRow.className = 'booking-item-row';
+    itemRow.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+
+    const select = document.createElement('select');
+    select.className = 'booking-item-select';
+    select.style.flexGrow = '1';
+    select.add(new Option('-- 請選擇服務項目 --', ''));
+    state.allProducts.filter(p => p.is_visible).forEach(p => {
+        select.add(new Option(p.name, p.name));
+    });
+
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.className = 'booking-item-qty';
+    qtyInput.value = 1;
+    qtyInput.min = 1;
+    qtyInput.style.width = '70px';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '-';
+    removeBtn.style.cssText = 'background: var(--color-danger); border: none; color: white; border-radius: 4px; padding: 5px 10px;';
+    removeBtn.onclick = () => itemRow.remove();
+
+    itemRow.append(select, qtyInput, removeBtn);
+    container.appendChild(itemRow);
 }
 
 // --- 共用計算邏輯 ---
@@ -258,7 +345,7 @@ function calculateCurrentTotal() {
         }
         return Math.round(total);
     } else {
-        // Studio 模式計算 (略)
+        // Studio 模式暫時簡化
         return 0; 
     }
 }
@@ -274,13 +361,11 @@ async function handleBookingConfirmation(e) {
     btn.disabled = true;
     btn.textContent = '處理中...';
 
-    // 收集表單資料
     const name = document.getElementById('contact-name').value.trim();
     const phone = document.getElementById('contact-phone').value.trim();
     const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked;
 
-    // 驗證
-    if (!name || !phone) { alert('請填寫姓名與電話'); btn.disabled = false; return; }
+    if (!name || !phone) { alert('請填寫姓名與電話'); btn.disabled = false; btn.textContent = '確認訂房'; return; }
     
     const isGuesthouse = state.config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
     let payload = {
@@ -291,23 +376,41 @@ async function handleBookingConfirmation(e) {
     };
 
     if (isGuesthouse) {
-        if (!guesthouseData.startDate) { alert('請選擇日期'); btn.disabled = false; return; }
+        if (!guesthouseData.startDate) { alert('請選擇日期'); btn.disabled = false; btn.textContent = '確認訂房'; return; }
         const items = Object.entries(guesthouseData.selectedRooms).map(([pid, qty]) => ({ productId: pid, quantity: qty }));
-        if (items.length === 0) { alert('請選擇房型'); btn.disabled = false; return; }
+        if (items.length === 0) { alert('請選擇房型'); btn.disabled = false; btn.textContent = '確認訂房'; return; }
         
         payload.startDate = guesthouseData.startDate;
         payload.endDate = guesthouseData.endDate;
         payload.items = items;
         payload.bookingType = 'guesthouse';
     } else {
-        // Studio payload building...
+        const date = bookingData.date;
+        const time = document.getElementById('time-slot-select')?.value;
+        if (!date || !time) { alert('請選擇日期與時段'); btn.disabled = false; btn.textContent = '確認預約'; return; }
+        
+        const items = [];
+        document.querySelectorAll('.booking-item-row').forEach(row => {
+            const name = row.querySelector('select').value;
+            const qty = row.querySelector('input').value;
+            if(name) items.push({ name, quantity: parseInt(qty) });
+        });
+        
+        if (items.length === 0) { alert('請選擇項目'); btn.disabled = false; btn.textContent = '確認預約'; return; }
+
+        payload.bookingDate = date;
+        payload.timeSlot = time;
+        payload.numOfPeople = 1;
+        payload.items = items;
+        payload.bookingType = 'studio';
     }
 
     try {
         const res = await api.createBooking(payload);
-        // 發送通知
-        await fetch('/api/send-message', { 
+        // 發送通知 (非同步)
+        fetch('/api/send-message', { 
             method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: state.userProfile.userId, message: res.confirmationMessage }) 
         });
         
@@ -316,13 +419,16 @@ async function handleBookingConfirmation(e) {
     } catch (err) {
         alert(err.message);
         btn.disabled = false;
-        btn.textContent = '確認訂房';
+        btn.textContent = isGuesthouse ? '確認訂房' : '確認預約';
     }
 }
 
-// 預約詳情 Modal 渲染 (供 router 呼叫)
+// 預約詳情 Modal (簡化版)
 export function renderBookingDetails(bookingId) {
-    // 這裡需要實作顯示 booking-details-modal 的邏輯
-    // 包含 fetch API 獲取單筆預約詳情，並填入 Modal
-    // 由於篇幅，這裡建議移植原 script.js 中的 initializeBookingDetailsPage 邏輯
+    if (!bookingId) return;
+    const modal = document.getElementById('booking-details-modal');
+    if (!modal) return;
+    // 這裡通常會 fetch 單筆訂單詳情然後顯示在 modal
+    // 為了簡化，建議將原本 script.js 中 initializeBookingDetailsPage 的邏輯移入
+    // 並在此處呼叫 showModal('#booking-details-modal')
 }

@@ -12,7 +12,6 @@ export async function init() {
     if (loadingEl) loadingEl.style.display = 'block';
     if (listContainer) listContainer.style.display = 'none';
 
-    // 綁定關閉按鈕
     const stopScanBtn = document.getElementById('stop-rally-scan-btn');
     if (stopScanBtn && !stopScanBtn.dataset.bound) {
         stopScanBtn.addEventListener('click', stopScanner);
@@ -20,7 +19,6 @@ export async function init() {
     }
 
     try {
-        // 1. 獲取活動列表
         const campaigns = await api.getRallyCampaigns(state.userProfile.userId);
         
         if (campaigns.length === 0) {
@@ -28,7 +26,6 @@ export async function init() {
             return;
         }
 
-        // 2. 平行獲取詳細資料 (站點 & 進度)
         const fullData = await Promise.all(campaigns.map(async (c) => {
             const [stations, progress] = await Promise.all([
                 api.getRallyStations(c.campaign_id),
@@ -53,7 +50,6 @@ function renderList(campaigns) {
     if (!container) return;
 
     container.innerHTML = campaigns.map(c => {
-        // 計算進度
         const activeStamps = (c.userProgress || []).filter(p => p.is_archived !== 1);
         const stampedIds = new Set(activeStamps.map(p => p.station_id));
         const current = stampedIds.size;
@@ -64,7 +60,6 @@ function renderList(campaigns) {
         let btnHtml = `<button class="cta-button btn-start-scan" data-id="${c.campaign_id}" style="background:var(--color-accent);">📸 掃描集點</button>`;
         if (isCompleted) {
             btnHtml = `<button class="cta-button" disabled style="background:#ccc;">已完成</button>`;
-            // 如果可重複，顯示重置按鈕邏輯 (略)
         }
 
         const stationsHtml = (c.stations || []).map(s => {
@@ -89,7 +84,6 @@ function renderList(campaigns) {
         </div>`;
     }).join('');
 
-    // 綁定掃描按鈕
     container.querySelectorAll('.btn-start-scan').forEach(btn => {
         btn.addEventListener('click', () => startScanner(btn.dataset.id));
     });
@@ -125,31 +119,26 @@ async function stopScanner() {
 }
 
 async function handleScanResult(text, campaignId) {
-    // 解析 QR Code 參數 (partner_code)
     let partnerCode = text;
     try {
         const url = new URL(text);
         partnerCode = url.searchParams.get('partner_code') || text;
     } catch(e) {}
 
-    // 顯示 Modal (Loading)
     const modal = document.getElementById('rally-animation-modal');
     modal.style.display = 'flex';
     document.getElementById('rally-animation-message').textContent = '驗證中...';
 
     try {
         const res = await api.redeemRallyStation({ userId: state.userProfile.userId, partnerCode });
-        // 成功
         document.getElementById('rally-animation-message').textContent = res.message;
         document.getElementById('rally-modal-icon').textContent = '✅';
-        // 刷新列表
         init();
     } catch (err) {
         document.getElementById('rally-animation-message').textContent = err.message;
         document.getElementById('rally-modal-icon').textContent = '❌';
     }
     
-    // 綁定關閉
     document.getElementById('rally-modal-close-btn').onclick = () => {
         modal.style.display = 'none';
     };

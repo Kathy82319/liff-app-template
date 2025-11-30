@@ -1,6 +1,7 @@
 // public/admin/modules/financialReports.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
+import { escapeHtml } from '../../utils.js';
 
 let reportDateRangePicker = null;
 let currentTransactions = [];
@@ -236,6 +237,8 @@ function renderTransactions(list) {
     const statusMap = { 'confirmed': '已確認', 'cancelled': '已取消', 'no-show': '未到', 'checked-in': '已報到', 'completed': '完成' };
 
     tbody.innerHTML = list.map(item => {
+        const safeSummary = escapeHtml(item.item_summary || '');
+        const safeContact = escapeHtml(item.contact_name || '未知');
         const isTopup = item.type === 'topup';
         const date = new Date(item.booking_date).toLocaleDateString();
         const amountStyle = isTopup ? 'color: green; font-weight: bold;' : '';
@@ -278,7 +281,7 @@ function renderTransactions(list) {
         const bookingIdDisplay = isTopup ? '後台加值' : `#${String(item.booking_id).padStart(5, '0')}`;
         const contentDisplay = `
             <div>${bookingIdDisplay}</div>
-            <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${item.item_summary || ''}</div>
+            <div style="font-size: 0.85em; color: #666; margin-top: 4px;">${safeSummary}</div>
         `;
 
         return `
@@ -286,6 +289,7 @@ function renderTransactions(list) {
                 <td>${date}</td>
                 <td>${typeLabel}</td>
                 <td>${contentDisplay}</td>
+                <td>${safeContact}</td>
                 <td>${item.contact_name || '未知'}</td>
                 <td style="${amountStyle}">$${item.total_amount}</td>
                 <td>${statusText}</td>

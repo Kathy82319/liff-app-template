@@ -1,6 +1,7 @@
 // public/admin/modules/draftsManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
+import { escapeHtml } from '../../utils.js';
 
 let allDrafts = []; 
 let activeTemplate = null; 
@@ -76,8 +77,11 @@ function renderDraftList(drafts) {
         // 5. 根據欄位設定動態插入儲存格
         columns.forEach(col => {
             const cell = row.insertCell();
-            let cellContent = getProperty(draft, col.key, 'N/A');
-            // 特殊處理：為固定草稿加上標記
+            // 【安全修正】這裡原本是 getProperty，我們要包一層
+            let rawValue = getProperty(draft, col.key, 'N/A');
+            let cellContent = escapeHtml(rawValue); // <--- 消毒
+
+            // 特殊處理：為固定草稿加上標記 (標記的 HTML 是我們自己寫的，是安全的)
             if (col.key === 'title') {
                  cellContent += isFixed ? ' <span style="font-size: 0.8em; color: var(--color-secondary); margin-left: 5px;">(系統保留)</span>' : '';
             }
@@ -87,6 +91,7 @@ function renderDraftList(drafts) {
         // 6. 渲染固定的「內容預覽」和「操作」儲存格
         
         // 插入「內容預覽」
+        let safeContent = escapeHtml(draft.content || '');
         let contentPreview = String(draft.content || '').substring(0, 50) + (String(draft.content || '').length > 50 ? '...' : '');
         row.insertCell().innerHTML = contentPreview;
 

@@ -2,12 +2,13 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { router } from '../router.js';
-import { toast, showModal } from '../ui.js';
+import { toast } from '../ui.js';
 
+// --- 主頁面初始化 ---
 export async function init() {
     if (!state.userProfile) return;
 
-    // 1. 綁定按鈕
+    // 1. 綁定會員選單按鈕
     const btnMap = {
         'btn-my-records': 'page-my-records',
         'btn-my-vouchers': 'page-my-vouchers',
@@ -16,13 +17,15 @@ export async function init() {
     };
     for (const [btnId, pageId] of Object.entries(btnMap)) {
         const btn = document.getElementById(btnId);
-        if (btn && !btn.dataset.bound) {
-            btn.addEventListener('click', () => router.navigate(pageId));
-            btn.dataset.bound = 'true';
+        // 使用 cloneNode 清除舊事件監聽器，防止重複綁定
+        if (btn) {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', () => router.navigate(pageId));
         }
     }
 
-    // 2. 獲取資料
+    // 2. 獲取最新資料並更新 UI
     try {
         const userData = await api.getUserProfile(state.userProfile.userId);
         updateDisplay(userData);
@@ -31,6 +34,7 @@ export async function init() {
         const qrContainer = document.getElementById('qrcode');
         if (qrContainer) {
             qrContainer.innerHTML = '';
+            // 使用 qrcode.js 產生 QR Code
             new QRCode(qrContainer, { text: state.userProfile.userId, width: 65, height: 65 });
         }
         
@@ -53,11 +57,15 @@ function updateDisplay(data) {
     setText('display-name', data.real_name || state.userProfile.displayName);
     setText('user-class', data.class || '一般會員');
     setText('user-level', `Lv.${data.level} (點數: ${data.current_exp})`);
-    setText('user-stored-value', `$${data.stored_value_balance || 0}`);
+    
+    // 儲值金
+    const storedValueEl = document.getElementById('user-stored-value');
+    if(storedValueEl) storedValueEl.textContent = `$${data.stored_value_balance || 0}`;
 
     const balanceContainer = document.getElementById('user-balance-container');
     if (balanceContainer) balanceContainer.style.display = (features.CLIENT_SHOW_STORED_VALUE !== false) ? 'block' : 'none';
 
+    // 專屬優惠行
     const perkP = document.getElementById('user-perk-line');
     if (perkP) {
         if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
@@ -69,20 +77,23 @@ function updateDisplay(data) {
     }
 }
 
-// --- Edit Profile ---
+// --- 編輯個人資料頁面 ---
 export async function initEdit() {
     const terms = state.activeTemplate?.terms || {};
     const pageTitle = document.querySelector('#page-edit-profile .page-main-title');
     if (pageTitle) pageTitle.textContent = terms.PROFILE_EDIT_BTN_LABEL || '編輯個人資料';
 
+    // 載入資料填入表單
     const userData = await api.getUserProfile(state.userProfile.userId);
-    document.getElementById('edit-profile-name').value = state.userProfile.displayName;
-    document.getElementById('edit-profile-real-name').value = userData.real_name || '';
-    document.getElementById('edit-profile-phone').value = userData.phone || '';
-    document.getElementById('edit-profile-email').value = userData.email || '';
-
     const form = document.getElementById('edit-profile-form');
+    
     if (form) {
+        document.getElementById('edit-profile-name').value = state.userProfile.displayName;
+        document.getElementById('edit-profile-real-name').value = userData.real_name || '';
+        document.getElementById('edit-profile-phone').value = userData.phone || '';
+        document.getElementById('edit-profile-email').value = userData.email || '';
+
+        // 綁定提交
         form.onsubmit = async (e) => {
             e.preventDefault();
             const statusMsg = document.getElementById('edit-profile-form-status');
@@ -97,6 +108,7 @@ export async function initEdit() {
                     pictureUrl: state.userProfile.pictureUrl
                 });
                 statusMsg.textContent = '儲存成功！';
+                statusMsg.style.color = 'green';
                 setTimeout(() => history.back(), 1500);
             } catch (err) {
                 statusMsg.textContent = `失敗: ${err.message}`;
@@ -106,26 +118,27 @@ export async function initEdit() {
     }
 }
 
-// --- Vouchers ---
+// --- 我的優惠券頁面 ---
 export async function initVouchers() {
     const availableContainer = document.getElementById('my-vouchers-container-available');
     const usedContainer = document.getElementById('my-vouchers-container-used');
     if (!availableContainer || !usedContainer) return;
 
-    availableContainer.innerHTML = '<p>查詢中...</p>';
-    usedContainer.innerHTML = '<p>查詢中...</p>';
+    availableContainer.innerHTML = '<p style="text-align:center;">查詢中...</p>';
+    usedContainer.innerHTML = '<p style="text-align:center;">查詢中...</p>';
 
     try {
         const vouchers = await api.getMyVouchers(state.userProfile.userId);
         const now = new Date();
         
+        // 篩選
         const available = vouchers.filter(v => !v.is_used && (!v.valid_to || new Date(v.valid_to + 'T23:59:59') >= now));
         const used = vouchers.filter(v => v.is_used || (v.valid_to && new Date(v.valid_to + 'T23:59:59') < now));
 
         renderVouchers(available, availableContainer, false);
         renderVouchers(used, usedContainer, true);
 
-        // Bind redeem
+        // 綁定核銷按鈕 (Event Delegation)
         availableContainer.onclick = (e) => {
             const btn = e.target.closest('.btn-redeem-voucher');
             if (btn) {
@@ -133,14 +146,14 @@ export async function initVouchers() {
             }
         };
     } catch (e) {
-        availableContainer.innerHTML = `<p style="color:red">${e.message}</p>`;
+        availableContainer.innerHTML = `<p style="color:red; text-align:center;">${e.message}</p>`;
         usedContainer.innerHTML = '';
     }
 }
 
 function renderVouchers(list, container, isUsed) {
     if (list.length === 0) {
-        container.innerHTML = `<p>${isUsed ? '無紀錄' : '無可用優惠券'}</p>`;
+        container.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">${isUsed ? '無紀錄' : '無可用優惠券'}</p>`;
         return;
     }
     container.innerHTML = list.map(v => {
@@ -161,11 +174,16 @@ function renderVouchers(list, container, isUsed) {
 
 function showRedeemModal(id, title) {
     const modal = document.getElementById('voucher-redeem-modal');
+    if (!modal) return;
+    
     document.getElementById('voucher-redeem-title').textContent = title;
     document.getElementById('voucher-redeem-code').textContent = `ID: ${id}`;
+    
     const qrEl = document.getElementById('voucher-redeem-qrcode');
     qrEl.innerHTML = '';
+    // 產生核銷 QR Code (內容就是 Voucher ID)
     new QRCode(qrEl, { text: id, width: 200, height: 200 });
+    
     modal.style.display = 'flex';
     document.getElementById('voucher-redeem-close-btn').onclick = () => modal.style.display = 'none';
 }

@@ -4,11 +4,13 @@ export const state = {
     userProfile: null,
     config: null,
     activeTemplate: null,
-    // 暫存資料
+    
+    // 資料快取
     allProducts: [],
     allNews: []
 };
 
+// 簡單的狀態更新 helper
 export function setState(key, value) {
     state[key] = value;
 }

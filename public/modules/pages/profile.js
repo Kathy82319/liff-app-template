@@ -1,0 +1,171 @@
+// public/modules/pages/profile.js
+import { api } from '../api.js';
+import { state } from '../state.js';
+import { router } from '../router.js';
+import { toast, showModal } from '../ui.js';
+
+export async function init() {
+    if (!state.userProfile) return;
+
+    // 1. 綁定按鈕
+    const btnMap = {
+        'btn-my-records': 'page-my-records',
+        'btn-my-vouchers': 'page-my-vouchers',
+        'btn-edit-profile': 'page-edit-profile',
+        'btn-go-rally': 'page-rally'
+    };
+    for (const [btnId, pageId] of Object.entries(btnMap)) {
+        const btn = document.getElementById(btnId);
+        if (btn && !btn.dataset.bound) {
+            btn.addEventListener('click', () => router.navigate(pageId));
+            btn.dataset.bound = 'true';
+        }
+    }
+
+    // 2. 獲取資料
+    try {
+        const userData = await api.getUserProfile(state.userProfile.userId);
+        updateDisplay(userData);
+        
+        // 更新 QR Code
+        const qrContainer = document.getElementById('qrcode');
+        if (qrContainer) {
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, { text: state.userProfile.userId, width: 65, height: 65 });
+        }
+        
+        // 更新頭像
+        const picEl = document.getElementById('profile-picture');
+        if (picEl && state.userProfile.pictureUrl) picEl.src = state.userProfile.pictureUrl;
+
+    } catch (e) {
+        console.error("Profile load failed", e);
+    }
+}
+
+function updateDisplay(data) {
+    if (!data) return;
+    const features = state.activeTemplate?.features || {};
+    const terms = state.activeTemplate?.terms || {};
+
+    const setText = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+    
+    setText('display-name', data.real_name || state.userProfile.displayName);
+    setText('user-class', data.class || '一般會員');
+    setText('user-level', `Lv.${data.level} (點數: ${data.current_exp})`);
+    setText('user-stored-value', `$${data.stored_value_balance || 0}`);
+
+    const balanceContainer = document.getElementById('user-balance-container');
+    if (balanceContainer) balanceContainer.style.display = (features.CLIENT_SHOW_STORED_VALUE !== false) ? 'block' : 'none';
+
+    const perkP = document.getElementById('user-perk-line');
+    if (perkP) {
+        if (features.PROFILE_SHOW_PERK_LINE !== false && data.perk && data.class !== '無') {
+            perkP.innerHTML = `<strong>${terms.PROFILE_PERK_LABEL || '專屬優惠'}：</strong><span>${data.perk}</span>`;
+            perkP.style.display = 'block';
+        } else {
+            perkP.style.display = 'none';
+        }
+    }
+}
+
+// --- Edit Profile ---
+export async function initEdit() {
+    const terms = state.activeTemplate?.terms || {};
+    const pageTitle = document.querySelector('#page-edit-profile .page-main-title');
+    if (pageTitle) pageTitle.textContent = terms.PROFILE_EDIT_BTN_LABEL || '編輯個人資料';
+
+    const userData = await api.getUserProfile(state.userProfile.userId);
+    document.getElementById('edit-profile-name').value = state.userProfile.displayName;
+    document.getElementById('edit-profile-real-name').value = userData.real_name || '';
+    document.getElementById('edit-profile-phone').value = userData.phone || '';
+    document.getElementById('edit-profile-email').value = userData.email || '';
+
+    const form = document.getElementById('edit-profile-form');
+    if (form) {
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const statusMsg = document.getElementById('edit-profile-form-status');
+            statusMsg.textContent = '儲存中...';
+            try {
+                await api.updateUserProfile({
+                    userId: state.userProfile.userId,
+                    realName: document.getElementById('edit-profile-real-name').value.trim(),
+                    phone: document.getElementById('edit-profile-phone').value,
+                    email: document.getElementById('edit-profile-email').value,
+                    displayName: state.userProfile.displayName,
+                    pictureUrl: state.userProfile.pictureUrl
+                });
+                statusMsg.textContent = '儲存成功！';
+                setTimeout(() => history.back(), 1500);
+            } catch (err) {
+                statusMsg.textContent = `失敗: ${err.message}`;
+                statusMsg.style.color = 'red';
+            }
+        };
+    }
+}
+
+// --- Vouchers ---
+export async function initVouchers() {
+    const availableContainer = document.getElementById('my-vouchers-container-available');
+    const usedContainer = document.getElementById('my-vouchers-container-used');
+    if (!availableContainer || !usedContainer) return;
+
+    availableContainer.innerHTML = '<p>查詢中...</p>';
+    usedContainer.innerHTML = '<p>查詢中...</p>';
+
+    try {
+        const vouchers = await api.getMyVouchers(state.userProfile.userId);
+        const now = new Date();
+        
+        const available = vouchers.filter(v => !v.is_used && (!v.valid_to || new Date(v.valid_to + 'T23:59:59') >= now));
+        const used = vouchers.filter(v => v.is_used || (v.valid_to && new Date(v.valid_to + 'T23:59:59') < now));
+
+        renderVouchers(available, availableContainer, false);
+        renderVouchers(used, usedContainer, true);
+
+        // Bind redeem
+        availableContainer.onclick = (e) => {
+            const btn = e.target.closest('.btn-redeem-voucher');
+            if (btn) {
+                showRedeemModal(btn.dataset.voucherId, btn.dataset.voucherTitle);
+            }
+        };
+    } catch (e) {
+        availableContainer.innerHTML = `<p style="color:red">${e.message}</p>`;
+        usedContainer.innerHTML = '';
+    }
+}
+
+function renderVouchers(list, container, isUsed) {
+    if (list.length === 0) {
+        container.innerHTML = `<p>${isUsed ? '無紀錄' : '無可用優惠券'}</p>`;
+        return;
+    }
+    container.innerHTML = list.map(v => {
+        let valText = v.type === 'redeem_item' ? `兌換: ${v.redeem_item_name}` : (v.type === 'discount_fixed' ? `$${v.value} 折扣` : `${v.value}% 折扣`);
+        let actionHtml = isUsed 
+            ? (v.is_used ? `<p class="voucher-status-used">已使用</p>` : `<p class="voucher-status-used">已過期</p>`)
+            : `<button class="cta-button btn-redeem-voucher" data-voucher-id="${v.voucher_id}" data-voucher-title="${v.title}" style="margin-top:10px; padding:8px; background:var(--color-accent);">出示核銷</button>`;
+        
+        return `
+        <div class="booking-info-card voucher-card ${isUsed ? 'used-voucher' : ''}">
+            <h4>${v.title}</h4>
+            <p><strong>${valText}</strong></p>
+            <p>效期: ${v.valid_to || '永久'}</p>
+            ${actionHtml}
+        </div>`;
+    }).join('');
+}
+
+function showRedeemModal(id, title) {
+    const modal = document.getElementById('voucher-redeem-modal');
+    document.getElementById('voucher-redeem-title').textContent = title;
+    document.getElementById('voucher-redeem-code').textContent = `ID: ${id}`;
+    const qrEl = document.getElementById('voucher-redeem-qrcode');
+    qrEl.innerHTML = '';
+    new QRCode(qrEl, { text: id, width: 200, height: 200 });
+    modal.style.display = 'flex';
+    document.getElementById('voucher-redeem-close-btn').onclick = () => modal.style.display = 'none';
+}

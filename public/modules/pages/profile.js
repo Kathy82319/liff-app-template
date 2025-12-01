@@ -151,6 +151,7 @@ export async function initVouchers() {
     }
 }
 
+
 function renderVouchers(list, container, isUsed) {
     if (list.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">${isUsed ? '無紀錄' : '無可用優惠券'}</p>`;
@@ -158,9 +159,12 @@ function renderVouchers(list, container, isUsed) {
     }
     container.innerHTML = list.map(v => {
         let valText = v.type === 'redeem_item' ? `兌換: ${v.redeem_item_name}` : (v.type === 'discount_fixed' ? `$${v.value} 折扣` : `${v.value}% 折扣`);
+        
+        // 【關鍵修正】移除 background:var(--color-accent); 
+        // 改為只保留 margin 和 padding，讓 CSS class (.cta-button) 的主色樣式生效
         let actionHtml = isUsed 
             ? (v.is_used ? `<p class="voucher-status-used">已使用</p>` : `<p class="voucher-status-used">已過期</p>`)
-            : `<button class="cta-button btn-redeem-voucher" data-voucher-id="${v.voucher_id}" data-voucher-title="${v.title}" style="margin-top:10px; padding:8px; background:var(--color-accent);">出示核銷</button>`;
+            : `<button class="cta-button btn-redeem-voucher" data-voucher-id="${v.voucher_id}" data-voucher-title="${v.title}" style="margin-top:10px; padding:8px;">出示核銷</button>`;
         
         return `
         <div class="booking-info-card voucher-card ${isUsed ? 'used-voucher' : ''}">

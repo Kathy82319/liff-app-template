@@ -3,20 +3,18 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { router } from '../router.js';
 
-// 頁面內部狀態
 let productView = { layout: 'grid', sort: 'default' };
 let activeFilters = { keyword: '', filter_1: null, filter_2: null, filter_3: null };
 
 export async function init() {
-    // 從 LocalStorage 恢復偏好
+    // 【關鍵補全】讀取排序偏好
     productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
-    productView.sort = 'default';
+    productView.sort = localStorage.getItem('product_sort_preference') || 'default';
 
     const container = document.getElementById('product-list-container');
     if (!container) return;
     container.innerHTML = `<p>載入中...</p>`; 
 
-    // 設定標題
     const terms = state.activeTemplate?.terms || {};
     const features = state.activeTemplate?.features || {};
     const pageTitle = document.querySelector('#page-products .page-main-title'); 
@@ -24,23 +22,17 @@ export async function init() {
         pageTitle.textContent = terms.PRODUCT_CATALOG_TITLE;
     }
 
-    // UI 控制項顯示邏輯
     setupUIControls(features, terms);
 
     try {
-        // 如果還沒載入產品，則載入
         if (state.allProducts.length === 0) {
             state.allProducts = await api.getProducts();
         }
-        
-        // 產生動態篩選器
         if (state.config?.LOGIC?.PRODUCT_FILTERS) {
              populateFilters(); 
         }
-        
         renderProducts();
         
-        // 綁定搜尋框
         const searchInput = document.getElementById('keyword-search');
         if (searchInput && !searchInput.dataset.bound) {
             searchInput.addEventListener('input', e => { 
@@ -50,7 +42,6 @@ export async function init() {
             searchInput.dataset.bound = 'true';
         }
         
-        // 綁定清除按鈕
         const clearBtn = document.getElementById('clear-filters');
         if (clearBtn && !clearBtn.dataset.bound) {
             clearBtn.addEventListener('click', () => {
@@ -103,7 +94,6 @@ function setupUIControls(features, terms) {
         if (layoutSwitcher) layoutSwitcher.style.display = features.ENABLE_PRODUCT_LAYOUT_SWITCH ? 'block' : 'none';
         if (sortButton) sortButton.style.display = features.PRODUCT_SHOW_SORTING !== false ? 'flex' : 'none';
         
-        // 綁定切換按鈕 (只綁一次)
         if (gridBtn && !gridBtn.dataset.bound) {
             gridBtn.addEventListener('click', () => {
                 productView.layout = 'grid';
@@ -123,7 +113,13 @@ function setupUIControls(features, terms) {
         if (sortButton && !sortButton.dataset.bound) {
             sortButton.addEventListener('click', () => {
                 const current = productView.sort;
-                productView.sort = (current === 'default') ? 'price_desc' : (current === 'price_desc' ? 'price_asc' : 'default');
+                // 切換排序邏輯：預設 -> 價格高 -> 價格低
+                if (current === 'default') productView.sort = 'price_desc';
+                else if (current === 'price_desc') productView.sort = 'price_asc';
+                else productView.sort = 'default';
+                
+                // 【關鍵補全】儲存排序偏好
+                localStorage.setItem('product_sort_preference', productView.sort);
                 renderProducts();
             });
             sortButton.dataset.bound = 'true';
@@ -163,14 +159,10 @@ function renderProducts() {
     if(!container) return;
 
     let filtered = state.allProducts.filter(p => p.is_visible === 1);
-
-    // 關鍵字搜尋
     const keyword = activeFilters.keyword.toLowerCase().trim();
     if (keyword) { 
         filtered = filtered.filter(p => p.name.toLowerCase().includes(keyword)); 
     }
-
-    // 動態篩選
     const filterDefinitions = state.config?.LOGIC?.PRODUCT_FILTERS || [];
     filterDefinitions.forEach(filterDef => {
         const key = filterDef.id;
@@ -179,7 +171,7 @@ function renderProducts() {
         }
     });
 
-    // 排序
+    // 執行排序
     switch (productView.sort) {
         case 'price_desc':
             filtered.sort((a, b) => (b.price_weekday || 0) - (a.price_weekday || 0));
@@ -192,11 +184,20 @@ function renderProducts() {
             break;
     }
 
-    // 更新 UI 狀態
     container.className = productView.layout === 'grid' ? 'view-grid' : 'view-list';
     document.getElementById('view-grid-btn')?.classList.toggle('active', productView.layout === 'grid');
     document.getElementById('view-list-btn')?.classList.toggle('active', productView.layout === 'list');
-    if(sortButton) sortButton.dataset.sort = productView.sort;
+    
+    if(sortButton) {
+        sortButton.dataset.sort = productView.sort;
+        // 更新按鈕文字箭頭
+        const arrow = sortButton.querySelector('.sort-arrow');
+        if(arrow) {
+            if (productView.sort === 'price_desc') arrow.textContent = '↓';
+            else if (productView.sort === 'price_asc') arrow.textContent = '↑';
+            else arrow.textContent = '';
+        }
+    }
 
     if (filtered.length === 0) {
         const term = state.activeTemplate?.terms?.PRODUCT_NAME || '項目';
@@ -204,7 +205,6 @@ function renderProducts() {
         return;
     }
 
-    // 渲染卡片
     container.innerHTML = filtered.map(product => {
         let priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
         const isList = productView.layout === 'list';
@@ -225,7 +225,6 @@ function renderProducts() {
         `;
     }).join('');
     
-    // 綁定點擊事件
     container.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', () => {
             const p = state.allProducts.find(x => x.product_id === card.dataset.productId);
@@ -234,7 +233,6 @@ function renderProducts() {
     });
 }
 
-// 產品詳細頁渲染
 export function renderDetails(product) {
     if (!product) return;
     const contentContainer = document.querySelector('#product-details-content');
@@ -246,7 +244,6 @@ export function renderDetails(product) {
     detailsTitle.textContent = product.name;
     contentContainer.innerHTML = '';
 
-    // 圖片處理
     const mainImage = gallery.querySelector('.details-image-main');
     const thumbnails = gallery.querySelector('.details-image-thumbnails');
     try {
@@ -255,8 +252,6 @@ export function renderDetails(product) {
             mainImage.src = images[0];
             thumbnails.innerHTML = images.map((img, i) => `<img src="${img}" class="${i===0?'active':''}" data-src="${img}">`).join('');
             gallery.style.display = 'block';
-            
-            // 縮圖點擊
             thumbnails.onclick = (e) => {
                 if (e.target.tagName === 'IMG') {
                     mainImage.src = e.target.dataset.src;
@@ -269,7 +264,6 @@ export function renderDetails(product) {
         }
     } catch(e) { gallery.style.display = 'none'; }
 
-    // 價格區塊
     const priceSection = document.createElement('div');
     priceSection.className = 'detail-field-section product-price-details';
     priceSection.innerHTML = `
@@ -281,7 +275,6 @@ export function renderDetails(product) {
         </p>`;
     contentContainer.appendChild(priceSection);
 
-    // 動態欄位與規格
     if (state.activeTemplate?.fields) {
         state.activeTemplate.fields.forEach(field => {
             if (['name', 'images', 'is_visible'].includes(field.key) || field.key.startsWith('price_')) return;
@@ -293,7 +286,6 @@ export function renderDetails(product) {
                 section.innerHTML = `<h3>${field.label}</h3><p>${String(value).replace(/\n/g, '<br>')}</p>`;
                 contentContainer.appendChild(section);
 
-                // 描述後插入規格
                 if (field.key === 'description') {
                     for (let i = 1; i <= 5; i++) {
                         const sName = product[`spec_${i}_name`];

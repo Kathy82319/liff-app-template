@@ -13,7 +13,7 @@ const FIXED_DRAFT_IDS = {
 
 // 【修正重點】這裡的文字必須與後端 (functions/api/admin/message-drafts.js) 完全一致
 const FIXED_DRAFT_TITLES = {
-    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "入住自動發送的通知" 
+    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "預訂完成自動發送通知" 
 };
 
 /**

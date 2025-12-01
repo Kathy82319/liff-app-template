@@ -12,7 +12,7 @@ export async function request(url, options = {}) {
             }
         });
 
-        // 處理 409 Conflict (通常是資訊性錯誤，如已領過券，不應視為系統崩潰)
+        // 處理 409 Conflict (通常是資訊性錯誤，如已領過券)
         if (response.status === 409) {
             const errorData = await response.json();
             const error = new Error(errorData.error || 'Conflict');
@@ -38,7 +38,7 @@ export async function request(url, options = {}) {
 
 // API 集合
 export const api = {
-    // 基礎 Request 暴露 (供某些特殊情況直接呼叫)
+    // 基礎 Request 暴露
     request: request,
 
     // 系統設定與公開資訊
@@ -61,6 +61,9 @@ export const api = {
     
     // 個人紀錄查詢
     getMyBookings: (userId, filter) => request(`/api/my-bookings?userId=${userId}&filter=${filter}`),
+    // 【新增】透過 ID 查詢單筆預約
+    getBookingById: (userId, bookingId) => request(`/api/my-bookings?userId=${userId}&bookingId=${bookingId}`),
+    
     getMyPurchaseHistory: (userId) => request(`/api/my-purchase-history?userId=${userId}`),
     getMyStoredValueHistory: (userId) => request(`/api/my-stored-value-history?userId=${userId}`),
     getMyVouchers: (userId) => request(`/api/my-vouchers?userId=${userId}`),

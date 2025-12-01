@@ -3,11 +3,11 @@
 // --- 固定草稿的 ID ---
 const FIXED_DRAFT_IDS = {
     POLICY: 1, // 入住須知 (將在列表隱藏，改由店家資訊管理)
-    AUTO_CONFIRMATION: 2 // 入住自動發送的通知
+    AUTO_CONFIRMATION: 2 
 };
 // --- 固定草稿的標題 ---
 const FIXED_DRAFT_TITLES = {
-    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "入住自動發送的通知"
+    [FIXED_DRAFT_IDS.AUTO_CONFIRMATION]: "預訂完成自動發送通知"
 };
 
 // --- 預設內容 (自動通知) ---

@@ -54,17 +54,20 @@ async function loadBookings(filter, container) {
     try {
         const bookings = await api.getMyBookings(state.userProfile.userId, filter);
         if (bookings.length === 0) {
-            container.innerHTML = '<p style="text-align:center;">無紀錄</p>';
+            container.innerHTML = '<p style="text-align:center; color:#999; padding:10px;">無紀錄</p>';
             return;
         }
         
         container.innerHTML = bookings.map(b => {
             let statusColor = b.status === 'confirmed' ? 'green' : 'red';
+            // 簡單翻譯狀態
+            let statusText = b.status_text || b.status;
+            
             return `
             <div class="booking-info-card" onclick="openDetails(${b.booking_id})">
                 <div style="display:flex; justify-content:space-between;">
                     <strong>${b.booking_date}</strong>
-                    <span style="color:${statusColor}">${b.status_text}</span>
+                    <span style="color:${statusColor}">${statusText}</span>
                 </div>
                 <p>${b.items[0]?.item_name}...</p>
                 <p style="text-align:right;">$${b.total_amount}</p>
@@ -74,32 +77,68 @@ async function loadBookings(filter, container) {
         window.openDetails = (id) => router.navigate('page-booking-details', { bookingId: id });
 
     } catch (e) {
-        container.innerHTML = `<p style="color:red">${e.message}</p>`;
+        container.innerHTML = `<p style="color:red; text-align:center;">${e.message}</p>`;
     }
 }
 
 async function loadPoints() {
     const container = document.getElementById('my-points-list');
+    if (!container) return;
+    
     try {
         const records = await api.getMyPurchaseHistory(state.userProfile.userId);
+        
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">目前沒有點數紀錄。</p>';
+            return;
+        }
+
         container.innerHTML = records.map(r => `
             <div class="record-item">
                 <div>${r.reason} <small>${new Date(r.created_at).toLocaleDateString()}</small></div>
-                <div class="${r.exp_added > 0 ? 'val-plus' : 'val-minus'}">${r.exp_added}</div>
+                <div class="${r.exp_added > 0 ? 'val-plus' : 'val-minus'}">${r.exp_added > 0 ? '+' : ''}${r.exp_added}</div>
             </div>
         `).join('');
-    } catch(e) {}
+    } catch(e) {
+        container.innerHTML = '<p style="color:red; text-align:center;">載入失敗</p>';
+    }
 }
 
 async function loadWallet() {
     const container = document.getElementById('my-wallet-list');
+    if (!container) return;
+    
+    // 【關鍵修正】定義中文對照表
+    const typeMap = {
+        'admin_topup': '店家儲值',
+        'admin_deduct': '店家扣款',
+        'booking_payment': '預訂扣款'
+    };
+
     try {
         const records = await api.getMyStoredValueHistory(state.userProfile.userId);
-        container.innerHTML = records.map(r => `
+        
+        if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">目前沒有儲值紀錄。</p>';
+            return;
+        }
+
+        container.innerHTML = records.map(r => {
+            // 轉換類型名稱
+            const typeLabel = typeMap[r.type] || r.type;
+            // 金額加號處理
+            const amountDisplay = r.amount_changed > 0 ? `+${r.amount_changed}` : r.amount_changed;
+            // 備註顯示
+            const noteDisplay = r.notes ? ` <span style="font-size:0.8em; color:#aaa;">(${r.notes})</span>` : '';
+
+            return `
             <div class="record-item">
-                <div>${r.type} <small>${new Date(r.created_at).toLocaleDateString()}</small></div>
-                <div class="${r.amount_changed > 0 ? 'val-plus' : 'val-minus'}">$${r.amount_changed}</div>
+                <div>${typeLabel}${noteDisplay} <small style="display:block; margin-top:2px;">${new Date(r.created_at).toLocaleDateString()}</small></div>
+                <div class="${r.amount_changed > 0 ? 'val-plus' : 'val-minus'}">$${amountDisplay}</div>
             </div>
-        `).join('');
-    } catch(e) {}
+        `;
+        }).join('');
+    } catch(e) {
+        container.innerHTML = '<p style="color:red; text-align:center;">載入失敗</p>';
+    }
 }

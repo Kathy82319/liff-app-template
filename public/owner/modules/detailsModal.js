@@ -170,14 +170,13 @@ function renderBookingActions(booking, user) {
      const targetName = user?.line_display_name || booking.contact_name || booking.customer_name;
      const targetId = user?.user_id || booking.user_id;
      
-     // 1. 先加入「發送訊息」按鈕 (互換位置)
+     // 1. 【交換順序】先加入「發送訊息」按鈕 (會在上面)
      if (targetId) {
         actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${targetId}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
      }
 
-     // 2. 再加入「取消訂單」按鈕 (互換位置 & 修改文字)
+     // 2. 【交換順序】再加入「取消訂單」按鈕 (會在下面)，並修正文字
      if (booking.status !== 'cancelled' && booking.status !== 'no-show') {
-          // 【修正】文字改為 "取消該筆訂單"
           actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id || booking.order_id}" style="background-color: var(--color-danger);">取消該筆訂單</button>`);
      }
      
@@ -222,49 +221,65 @@ async function handleModalAction(event) {
      const targetUserId = button.dataset.userId;
      const targetName = button.dataset.targetName;
      
+     // 保存原始文字以便復原
+     const originalText = button.textContent;
+     
      button.disabled = true;
      button.textContent = '...';
 
      try {
          switch (action) {
              case 'cancel':
-                 if (await ui.confirmAction('確定要取消嗎？')) {
-                     // 判斷是預約還是訂單
-                     const isOrder = state.currentTemplate === 'ecommerce_template';
-                     // 這裡簡化，假設都是用 update-booking-status (或你需要區分 API)
+                 // 【修正重點】處理確認框的結果
+                 const confirmed = await ui.confirmAction('確定要取消此筆訂單嗎？此操作無法復原。');
+                 if (confirmed) {
+                     // 使用者點擊「確定」
                      await api.fetchData('/api/update-booking-status', { 
                          method: 'POST', 
                          headers: { 'Content-Type': 'application/json' }, 
                          body: JSON.stringify({ bookingId: Number(id), status: 'cancelled' }) 
                      });
-                     ui.toast('已取消！'); 
+                     ui.toast('訂單已取消！'); 
                      ui.closeModal();
+                     
                      // 重新載入當前頁面資料
                      const activeModule = await import('./booking.js');
                      activeModule.reload();
+                 } else {
+                     // 使用者點擊「取消」-> 恢復按鈕狀態
+                     button.disabled = false;
+                     button.textContent = originalText;
                  }
                  break;
                  
              case 'send-message':
+                  // 開啟訊息視窗不需要鎖定按鈕太久，開啟後即可恢復
                   await openSendMessageModal(targetUserId, targetName);
+                  button.disabled = false;
+                  button.textContent = originalText;
                   break;
                   
              case 'edit-customer':
                  const customerModule = await import('./customer.js');
                  await customerModule.openEditCustomerModal(targetUserId);
+                 // 編輯視窗開啟後，原按鈕可以恢復
+                 button.disabled = false;
+                 button.textContent = originalText;
                  break;
              
              case 'adjust-stored-value':
              case 'issue-voucher':
                  const opModule = await import('./operation.js');
                  opModule.openQuickAction(action, targetUserId, targetName);
+                 button.disabled = false;
+                 button.textContent = originalText;
                  break;
          }
      } catch (error) {
          ui.toast(`操作失敗：${error.message}`);
-     } finally {
+         // 發生錯誤時，也要恢復按鈕
          button.disabled = false;
-         // 恢復按鈕文字 (略，為了簡化)
+         button.textContent = originalText;
      }
 }
 

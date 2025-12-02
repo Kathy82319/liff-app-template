@@ -111,6 +111,16 @@ function setupEventListeners() {
         if (button && button.dataset.tab) { switchTab(button.dataset.tab); }
     });
 
+    // 【修正重點】改用全域事件委派來處理 Modal 關閉按鈕
+    // 這樣可以確保動態生成的 Modal 或初始化的 Modal 都能被捕捉到
+    document.addEventListener('click', (e) => {
+        // 檢查點擊的是否為關閉按鈕 (或其子元素)
+        if (e.target.closest('.modal-close')) {
+            e.preventDefault(); // 防止可能的預設行為
+            UI.closeModal();
+        }
+    });
+
     document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => UI.closeModal());
     });

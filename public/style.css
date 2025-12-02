@@ -1033,3 +1033,73 @@ input:focus, select:focus, textarea:focus {
     animation: fadeIn 0.3s ease;
 }
 
+/* --- Owner LIFF 專屬優化樣式 --- */
+
+/* 1. 開啟完整後台按鈕 (右上角小按鈕) */
+.admin-link-btn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 999; /* 確保浮在最上層 */
+    
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    border-radius: 50%; /* 圓形 */
+    
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.admin-link-btn:active {
+    transform: scale(0.9);
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* 2. 預約管理日曆置中修正 */
+/* 強制設定父容器為 Flex 且置中 */
+#calendar-view {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+    padding-top: 10px;
+}
+
+/* 確保日曆本體 (Flatpickr) 不會跑版 */
+#calendar-view .flatpickr-calendar.inline {
+    margin: 0 auto !important; /* 強制水平置中 */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* 加一點陰影比較好看 */
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+}
+
+/* 3. 優化最新動態卡片的閱讀性 */
+.activity-formatted-row {
+    display: flex;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+    align-items: baseline;
+}
+.activity-label {
+    color: #888;
+    font-size: 0.85rem;
+    min-width: 40px; /* 固定標籤寬度 */
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+.activity-value {
+    color: var(--color-text-primary);
+    font-weight: 500;
+    word-break: break-all;
+}

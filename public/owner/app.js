@@ -1,8 +1,8 @@
 // public/owner/app.js
 import { api } from './api.js';
 import { state, setState } from './state.js';
-import { ui } from './ui.js';
-import * as UI from './ui.js'; // 額外引入供全域事件使用
+import { ui } from './ui.js'; // 這裡引入 ui 物件
+import * as UI from './ui.js'; // 這裡引入所有具名匯出
 
 async function main() {
     const loadingView = document.getElementById('loading-view');
@@ -48,8 +48,6 @@ async function main() {
             mainView.style.display = 'block';
             initializeAppUI(state.currentTemplate);
             setupEventListeners();
-            
-            // 【修正重點】移除了還不存在的 initOwnerReasonInput() 呼叫
             
             // 進入第一個 Tab
             switchTab('activity');
@@ -111,18 +109,12 @@ function setupEventListeners() {
         if (button && button.dataset.tab) { switchTab(button.dataset.tab); }
     });
 
-    // 【修正重點】改用全域事件委派來處理 Modal 關閉按鈕
-    // 這樣可以確保動態生成的 Modal 或初始化的 Modal 都能被捕捉到
+    // 【修正重點】使用 ui.closeModal() (小寫 ui)
     document.addEventListener('click', (e) => {
-        // 檢查點擊的是否為關閉按鈕 (或其子元素)
         if (e.target.closest('.modal-close')) {
-            e.preventDefault(); // 防止可能的預設行為
-            UI.closeModal();
+            e.preventDefault(); 
+            ui.closeModal(); 
         }
-    });
-
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => UI.closeModal());
     });
 
     const quickBtn = document.getElementById('quick-action-btn');
@@ -187,7 +179,6 @@ async function switchTab(tabId) {
         }
     } catch (e) {
         console.error(`載入模組 ${tabId} 失敗:`, e);
-        // 因為檔案還沒全補齊，除了 activity 外的 tab 報錯是正常的
     }
 }
 

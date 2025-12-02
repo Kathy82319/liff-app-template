@@ -1,7 +1,9 @@
 // public/owner/ui.js
 import { state, setState } from './state.js';
 
-function showModal(title, bodyHtml, actionsHtml = '') {
+// --- 顯示/隱藏 Modal 的核心邏輯 ---
+
+export function showModal(title, bodyHtml, actionsHtml = '') {
     const detailsModal = document.getElementById('details-modal');
     const detailsModalTitle = document.getElementById('details-modal-title');
     const detailsModalBody = document.getElementById('details-modal-body');
@@ -17,8 +19,14 @@ function showModal(title, bodyHtml, actionsHtml = '') {
     }
 }
 
-function hideAllModals() {
-    const modals = ['details-modal', 'send-message-modal', 'quick-booking-modal', 'edit-customer-modal'];
+// 隱藏所有 Modal
+export function hideAllModals() {
+    const modals = [
+        'details-modal', 
+        'send-message-modal', 
+        'quick-booking-modal', 
+        'edit-customer-modal'
+    ];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -26,7 +34,8 @@ function hideAllModals() {
     setState('currentHistoryState', { modal: null });
 }
 
-function closeModal() {
+// 觸發瀏覽器「上一頁」來關閉 Modal (或是直接關閉)
+export function closeModal() {
     if (state.currentHistoryState && state.currentHistoryState.modal) {
         history.back();
     } else {
@@ -34,7 +43,9 @@ function closeModal() {
     }
 }
 
-function updateHistoryState(modalName, action = 'open') {
+// --- 歷史紀錄管理 ---
+
+export function updateHistoryState(modalName, action = 'open') {
     if (action === 'open') {
         const newState = { modal: modalName };
         history.pushState(newState, '');
@@ -46,20 +57,22 @@ function updateHistoryState(modalName, action = 'open') {
     }
 }
 
-function handlePopState(event) {
+export function handlePopState(event) {
     const targetState = event.state || { modal: null };
     setState('currentHistoryState', targetState);
-    hideAllModals();
+    hideAllModals(); 
 }
 
-function displayInlineError(message, containerId = 'activity-list-content') {
+// --- 其他 UI 輔助函式 ---
+
+export function displayInlineError(message, containerId = 'activity-list-content') {
     const container = document.getElementById(containerId);
     if (container && container.id !== 'loading-view') { 
         container.innerHTML = `<p style="color: var(--color-danger); text-align: center;">${message}</p>`;
     }
 }
 
-function translateStatus(status) {
+export function translateStatus(status) {
     const isGuesthouse = state.currentTemplate === 'guesthouse_template';
     switch (status) {
         case 'confirmed': return '已確認';
@@ -70,18 +83,18 @@ function translateStatus(status) {
     }
 }
 
-function toast(message) {
+export function toast(message) {
     alert(message);
 }
 
-function confirmAction(message) {
+export function confirmAction(message) {
     return new Promise((resolve) => {
         const result = confirm(message);
         resolve(result);
     });
 }
 
-// 【修正重點】包裝匯出
+// 預設匯出物件 (相容舊寫法)
 export const ui = {
     showModal,
     hideAllModals,
@@ -93,6 +106,3 @@ export const ui = {
     toast,
     confirmAction
 };
-
-// 為了相容部分直接引用的寫法 (如 api.js 裡用到的)，同時保留具名匯出
-export { displayInlineError, handlePopState, updateHistoryState };

@@ -1064,39 +1064,57 @@ input:focus, select:focus, textarea:focus {
     color: white;
 }
 
+/* 1. 鎖定老闆後台的日曆容器，強制重置定位 */
+#booking-view-calendar .flatpickr-calendar.inline {
+    /* 關鍵：取消絕對定位，改回一般文檔流 */
+    position: static !important; 
+    
+    /* 寬度設定：填滿容器，但設定最大寬度以免在平板太寬 */
+    width: 100% !important; 
+    max-width: 340px !important; 
+    
+    /* 置中設定 */
+    margin: 0 auto !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important; /* 移除原本的 -50% 位移 */
+    
+    /* 外觀微調 */
+    box-shadow: none !important; /* 嵌入式通常不需要太強烈的浮動陰影 */
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
+/* 2. 確保日曆內部的容器也是滿寬 (這是造成變窄的主因之一) */
+#booking-view-calendar .flatpickr-innerContainer,
+#booking-view-calendar .flatpickr-rContainer,
+#booking-view-calendar .flatpickr-days,
+#booking-view-calendar .dayContainer {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* 3. 調整日期格子的寬度分配，確保撐滿 */
+#booking-view-calendar .flatpickr-day {
+    max-width: initial !important; /* 移除最大寬度限制 */
+    height: 40px !important;       /* 手機板按鈕高度稍微加大好點擊 */
+    line-height: 40px !important;
+    margin-top: 5px !important;
+}
+
+/* 4. 修正外層容器，確保它是滿寬的 Flex 直欄 */
 #booking-view-calendar {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    width: 100%;
-    /* 確保容器本身不被限制寬度 */
-    max-width: 100vw; 
-    box-sizing: border-box;
-    padding: 0 10px; /* 給左右一點緩衝 */
+    align-items: center; /* 讓內部元素置中 */
 }
 
-#calendar-view {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
+#calendar-view, 
 #calendar-placeholder {
     width: 100%;
     display: flex;
     justify-content: center;
-}
-
-/* 強制重置 Flatpickr 的定位，讓它變成普通區塊元素並置中 */
-.flatpickr-calendar.inline {
-    margin: 0 auto !important;
-    position: relative !important; /* 關鍵：取消 absolute */
-    top: auto !important;          /* 清除原本的 top */
-    left: auto !important;         /* 清除原本的 left */
-    transform: none !important;    /* 清除任何位移 */
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

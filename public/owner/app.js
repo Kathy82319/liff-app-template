@@ -126,22 +126,31 @@ function setupEventListeners() {
     }
     
     document.getElementById('go-to-admin-panel-btn')?.addEventListener('click', async (e) => {
-        const btn = e.target;
+        // 使用 e.currentTarget 確保抓到 button 元素，而不是裡面的 span
+        const btn = e.currentTarget; 
+        
+        // 鎖定按鈕，並加上透明度以示區別，但不改變內容
         btn.disabled = true;
-        btn.textContent = '正在產生連結...';
+        btn.style.opacity = '0.5'; 
+        
         try {
             const result = await api.fetchData('/api/generate-admin-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: state.userId })
             });
+            
             if (!result.success) throw new Error(result.error || '無法產生連結');
+            
+            // 開啟視窗
             liff.openWindow({ url: result.link, external: true });
+            
         } catch (error) {
             alert(`開啟失敗: ${error.message}`);
         } finally {
+            // 恢復按鈕狀態
             btn.disabled = false;
-            btn.textContent = '開啟完整版後台';
+            btn.style.opacity = '1';
         }
     });
 }

@@ -1064,12 +1064,15 @@ input:focus, select:focus, textarea:focus {
     color: white;
 }
 
-/* 外層容器：確保寬度 100% 且內容置中 */
 #booking-view-calendar {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    /* 確保容器本身不被限制寬度 */
+    max-width: 100vw; 
+    box-sizing: border-box;
+    padding: 0 10px; /* 給左右一點緩衝 */
 }
 
 #calendar-view {
@@ -1094,8 +1097,9 @@ input:focus, select:focus, textarea:focus {
     transform: none !important;    /* 清除任何位移 */
     box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
     
-    /* 確保不超過手機螢幕寬度 */
-    max-width: 95vw !important; 
+    /* 確保寬度適中，不要太窄也不要超過螢幕 */
+    width: 320px !important; 
+    max-width: 90vw !important; 
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

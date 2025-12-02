@@ -107,7 +107,6 @@ async function loadDailyCards(date) {
     const dateStr = date.toISOString().split('T')[0];
     
     let apiUrl = '';
-    // 判斷樣板類型來決定 API
     if (state.currentTemplate === 'ecommerce_template') {
          apiUrl = `/api/admin/get-orders?date=${dateStr}`;
     } else {

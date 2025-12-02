@@ -13,7 +13,6 @@ export function init() {
         searchBtn.addEventListener('click', searchCustomers);
         searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') searchCustomers(); });
         
-        // 綁定結果點擊
         resultsContainer.addEventListener('click', (e) => {
             const item = e.target.closest('.customer-result-item');
             if (item && item.dataset.userId) {
@@ -21,7 +20,6 @@ export function init() {
             }
         });
         
-        // 綁定編輯表單提交
         const editForm = document.getElementById('edit-customer-form');
         if (editForm) {
             editForm.addEventListener('submit', handleEditCustomerSubmit);
@@ -63,15 +61,14 @@ export async function openEditCustomerModal(userId) {
     const modal = document.getElementById('edit-customer-modal');
     if (!modal) return;
     
-    // 先載入資料填入表單
     try {
-        ui.showModal('載入中...', '正在準備編輯表單...'); // 這裡借用 detailsModal 的 loading 效果，雖然有點怪，但可以用
+        ui.showModal('載入中...', '正在準備編輯表單...'); 
         
         const data = await api.fetchData(`/api/admin/user-details?userId=${userId}`);
         const user = data.profile;
         state.currentEditingProfile = user;
         
-        ui.hideAllModals(); // 關閉 loading
+        ui.hideAllModals(); 
         
         document.getElementById('edit-customer-modal-title').textContent = `編輯: ${user.line_display_name}`;
         document.getElementById('edit-customer-user-id').value = user.user_id;
@@ -108,10 +105,9 @@ async function handleEditCustomerSubmit(e) {
         });
         
         alert('更新成功！');
-        ui.updateHistoryState('edit-customer', 'close'); // 關閉 Modal
+        ui.updateHistoryState('edit-customer', 'close'); 
         document.getElementById('edit-customer-modal').style.display = 'none';
         
-        // 重新開啟詳情頁以顯示最新資料
         openDetailsModal('user', userId);
         
     } catch (error) {

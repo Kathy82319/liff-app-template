@@ -11,14 +11,18 @@ export function init() {
     document.getElementById('op-search-btn')?.addEventListener('click', handleOpSearch);
     document.getElementById('op-submit-points-btn')?.addEventListener('click', handleOpSubmitPoints);
     
-    // 綁定輸入即搜尋
+    // 綁定輸入即搜尋 (防抖動)
     const opInput = document.getElementById('op-search-input');
     if (opInput && !opInput.dataset.bound) {
-        opInput.addEventListener('input', debounce(handleOpSearch, 500));
+        let timer;
+        opInput.addEventListener('input', (e) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => handleOpSearch(), 500);
+        });
         opInput.dataset.bound = 'true';
     }
     
-    // 綁定內部 Tab 切換 (發點數/核銷券)
+    // 綁定內部 Tab 切換
     const opActionPanel = document.getElementById('op-action-panel');
     if (opActionPanel) {
         opActionPanel.querySelector('.view-switcher')?.addEventListener('click', (e) => {
@@ -30,27 +34,20 @@ export function init() {
                 document.getElementById('op-view-vouchers').style.display = btn.dataset.opView === 'vouchers' ? 'block' : 'none';
             }
         });
-        
-        // 綁定核銷按鈕 (事件委派)
+        // 核銷按鈕
         document.getElementById('op-voucher-list')?.addEventListener('click', handleOpVoucherClick);
     }
 }
 
-// 供 DetailsModal 呼叫的快速入口
+// 快速入口
 export async function openQuickAction(action, userId, userName) {
-    // 切換到 Redeem Tab
     document.querySelector('.tab-button[data-tab="redeem"]').click();
-    
-    // 預填搜尋並鎖定該用戶
     document.getElementById('op-search-input').value = userName;
     await selectOpUser(userId);
     
-    // 根據 action 切換子分頁
     if (action === 'adjust-stored-value') {
-        // 手機板暫無儲值介面，這裡可以導向點數介面或提示
         alert("手機板暫時僅支援點數發放與優惠券核銷。請使用完整後台進行儲值操作。");
     } else if (action === 'issue-voucher') {
-        // 手機板暫無發券介面
         alert("手機板暫時僅支援核銷。請使用完整後台發送優惠券。");
     }
 }
@@ -66,7 +63,7 @@ function startRedeemScanner() {
     startBtn.style.display = 'none';
     msgEl.textContent = '請對準 QR Code...';
     
-    if (state.html5QrCodeScanner) return; // 避免重複啟動
+    if (state.html5QrCodeScanner) return; 
 
     if (typeof Html5Qrcode === 'undefined') {
         alert("掃碼元件未載入");
@@ -92,15 +89,13 @@ function startRedeemScanner() {
 
 async function handleScanResult(text) {
     try {
-        // 假設 text 就是 voucherId (或是包含 voucherId 的 URL)
-        // 這裡做個簡單處理，如果是 URL 取參數，否則直接當 ID
         let voucherId = text;
         try {
             const url = new URL(text);
             voucherId = url.searchParams.get('voucher_id') || text;
         } catch(e){}
 
-        const result = await api.fetchData('/api/admin/redeem-voucher', {
+        await api.fetchData('/api/admin/redeem-voucher', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ voucherId: voucherId })
@@ -153,7 +148,6 @@ async function selectOpUser(userId) {
     document.getElementById('op-search-result-container').style.display = 'none';
     document.getElementById('op-action-panel').style.display = 'block';
     
-    // 載入該用戶的優惠券
     const list = document.getElementById('op-voucher-list');
     list.innerHTML = '<p>載入優惠券...</p>';
     
@@ -226,7 +220,6 @@ async function handleOpVoucherClick(e) {
 }
 
 function initOwnerReasonInput() {
-    // 檢查並建立 datalist (參考原 owner-liff.js 邏輯)
     const select = document.getElementById('op-points-reason');
     if (select) {
         const container = select.parentElement;
@@ -235,7 +228,7 @@ function initOwnerReasonInput() {
         const input = document.createElement('input');
         input.id = 'op-points-reason-input';
         input.setAttribute('list', 'reason-list');
-        input.className = 'form-control'; // 假設有這個 class
+        input.className = 'form-control';
         container.appendChild(input);
         
         const datalist = document.createElement('datalist');
@@ -267,12 +260,4 @@ function saveOwnerReason(reason) {
         localStorage.setItem('admin_reasons', JSON.stringify(saved));
         updateReasonDatalist();
     }
-}
-
-function debounce(func, delay) {
-    let timer;
-    return function(...args) {
-        clearTimeout(timer);
-        timer = setTimeout(() => func.apply(this, args), delay);
-    };
 }

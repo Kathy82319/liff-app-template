@@ -194,8 +194,6 @@ async function handleRoomGridEvent(e, eventType) {
         if (updatedData.quantity !== undefined) state.currentRoomInventoryData[productId][date].quantity_available = updatedData.quantity;
         if (updatedData.price !== undefined) state.currentRoomInventoryData[productId][date].base_price = updatedData.price;
 
-        // 重新渲染該單元格
-        // 為了簡化，直接重繪整個表格 (或您可以實作 updateCellVisuals 來優化)
         renderRoomControlGrid(); 
 
     } catch (error) {
@@ -205,7 +203,6 @@ async function handleRoomGridEvent(e, eventType) {
 }
 
 function calculateCellVisuals(status, quantity, price) {
-    // 簡單的視覺邏輯
     if (status === 'Closed') {
         return { 
             bgColor: 'rgba(220, 53, 69, 0.1)', 

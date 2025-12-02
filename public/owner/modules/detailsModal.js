@@ -166,15 +166,21 @@ export function renderCustomerDetailsBody(data) {
 
 function renderBookingActions(booking, user) {
      let actions = [];
-     if (booking.status !== 'cancelled' && booking.status !== 'no-show') {
-          actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id || booking.order_id}" style="background-color: var(--color-danger);">取消</button>`);
-     }
+     
      const targetName = user?.line_display_name || booking.contact_name || booking.customer_name;
      const targetId = user?.user_id || booking.user_id;
      
+     // 1. 先加入「發送訊息」按鈕 (互換位置)
      if (targetId) {
         actions.push(`<button class="cta-button" data-action="send-message" data-user-id="${targetId}" data-target-name="${targetName}" style="background-color: var(--color-secondary);">發送訊息</button>`);
      }
+
+     // 2. 再加入「取消訂單」按鈕 (互換位置 & 修改文字)
+     if (booking.status !== 'cancelled' && booking.status !== 'no-show') {
+          // 【修正】文字改為 "取消該筆訂單"
+          actions.push(`<button class="cta-button" data-action="cancel" data-id="${booking.booking_id || booking.order_id}" style="background-color: var(--color-danger);">取消該筆訂單</button>`);
+     }
+     
      return actions.join('');
 }
 
@@ -268,18 +274,27 @@ async function openSendMessageModal(targetUserId, targetName) {
     if (!modal) return;
     
     document.getElementById('send-message-modal-title').textContent = `發送給 ${targetName}`;
-    document.getElementById('direct-message-content').value = '';
+    const contentTextarea = document.getElementById('direct-message-content'); // 取得文字框
+    contentTextarea.value = '';
     
     const select = document.getElementById('message-draft-select');
     select.innerHTML = '<option value="">-- 載入中... --</option>';
     
+    // 【新增】綁定草稿選擇事件 (修正問題 2)
+    // 為了避免重複綁定，先移除舊的 (如果有的話)，或是直接用 onchange 屬性
+    select.onchange = (e) => {
+        if (e.target.value) {
+            contentTextarea.value = e.target.value;
+        }
+    };
+
     // 綁定送出按鈕
     const btn = document.getElementById('send-message-submit-btn');
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
     newBtn.onclick = async () => {
-        const msg = document.getElementById('direct-message-content').value.trim();
+        const msg = contentTextarea.value.trim(); // 使用變數
         if(!msg) return ui.toast('請輸入內容');
         newBtn.disabled = true;
         try {

@@ -112,7 +112,7 @@ function setupEventListeners() {
     });
 
     document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => UI.updateHistoryState('close', 'close'));
+        btn.addEventListener('click', () => UI.closeModal());
     });
 
     const quickBtn = document.getElementById('quick-action-btn');

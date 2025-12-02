@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import { router } from '../router.js';
 import { ui } from '../ui.js';
 
+let isSubmitting = false;
 let bookingData = {
     date: null,
     timeSlot: null
@@ -73,6 +74,7 @@ export async function init() {
     if (confirmBtn) {
         const newBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+        
         newBtn.addEventListener('click', handleBookingConfirmation);
     }
 
@@ -580,16 +582,29 @@ function calculateTotalPrice() {
 }
 
 async function handleBookingConfirmation(e) {
+    if (isSubmitting) return; // 防止重複提交鎖
+
     const btn = e.target;
+    
+    // 1. 鎖定按鈕
+    isSubmitting = true;
     btn.disabled = true;
     btn.textContent = '處理中...';
+
+    // 取得當前顯示的表單 (關鍵修正：限制選擇器範圍)
+    const activeForm = document.getElementById('booking-details-form');
+    if (!activeForm) {
+        ui.toast('找不到預約表單', 'error');
+        resetButton(btn);
+        return;
+    }
 
     const name = document.getElementById('contact-name').value.trim();
     const phone = document.getElementById('contact-phone').value.trim();
     const useStoredValue = document.getElementById('use-stored-value-checkbox')?.checked;
 
-    if (!name || !phone) { ui.toast('請填寫姓名與電話', 'error'); btn.disabled = false; btn.textContent = '確認預約'; return; }
-    if (!/^09\d{8}$/.test(phone)) { ui.toast('請輸入正確的 10 碼手機號碼', 'error'); btn.disabled = false; btn.textContent = '確認預約'; return; }
+    if (!name || !phone) { ui.toast('請填寫姓名與電話', 'error'); resetButton(btn); return; }
+    if (!/^09\d{8}$/.test(phone)) { ui.toast('請輸入正確的 10 碼手機號碼', 'error'); resetButton(btn); return; }
 
     const templateType = state.config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
     let payload = {
@@ -600,9 +615,9 @@ async function handleBookingConfirmation(e) {
     };
 
     if (templateType === 'guesthouse_template') {
-        if (!guesthouseData.startDate) { ui.toast('請選擇日期', 'error'); btn.disabled = false; return; }
+        if (!guesthouseData.startDate) { ui.toast('請選擇日期', 'error'); resetButton(btn); return; }
         const items = Object.entries(guesthouseData.selectedRooms).map(([pid, qty]) => ({ productId: pid, quantity: qty }));
-        if (items.length === 0) { ui.toast('請選擇房型', 'error'); btn.disabled = false; return; }
+        if (items.length === 0) { ui.toast('請選擇房型', 'error'); resetButton(btn); return; }
         
         payload.startDate = guesthouseData.startDate;
         payload.endDate = guesthouseData.endDate;
@@ -611,16 +626,23 @@ async function handleBookingConfirmation(e) {
     } else {
         const date = bookingData.date;
         const time = document.getElementById('time-slot-select')?.value;
-        if (!date || !time) { ui.toast('請選擇日期與時段', 'error'); btn.disabled = false; return; }
+        if (!date || !time) { ui.toast('請選擇日期與時段', 'error'); resetButton(btn); return; }
         
         const items = [];
-        document.querySelectorAll('.booking-item-row').forEach(row => {
-            const name = row.querySelector('select').value;
-            const qty = row.querySelector('input').value;
-            if(name) items.push({ name, quantity: parseInt(qty) });
+        // 【關鍵修正】只搜尋 activeForm 內的項目，避免抓到隱藏的 template
+        activeForm.querySelectorAll('.booking-item-row').forEach(row => {
+            const select = row.querySelector('select');
+            const input = row.querySelector('input[type="number"]');
+            
+            // 確保元素存在且有值
+            if (select && input) {
+                const name = select.value;
+                const qty = parseInt(input.value);
+                if(name && qty > 0) items.push({ name, quantity: qty });
+            }
         });
         
-        if (items.length === 0) { ui.toast('請至少選擇一個項目', 'error'); btn.disabled = false; return; }
+        if (items.length === 0) { ui.toast('請至少選擇一個項目', 'error'); resetButton(btn); return; }
 
         payload.bookingDate = date;
         payload.timeSlot = time;
@@ -631,6 +653,7 @@ async function handleBookingConfirmation(e) {
 
     try {
         const res = await api.createBooking(payload);
+        // 不等待 LINE 訊息發送，避免卡住介面
         api.sendMessage(state.userProfile.userId, res.confirmationMessage).catch(err => console.error("發送 LINE 失敗", err));
         
         document.getElementById('app-content').innerHTML = `
@@ -640,12 +663,20 @@ async function handleBookingConfirmation(e) {
                 <p style="color:#888; font-size:0.9rem;">3 秒後自動跳轉至紀錄頁...</p>
             </div>
         `;
-        setTimeout(() => router.navigate('page-my-records'), 3000);
+        setTimeout(() => {
+            isSubmitting = false; // 重置鎖
+            router.navigate('page-my-records');
+        }, 3000);
     } catch (err) {
         ui.toast(err.message || "預約失敗", 'error');
-        btn.disabled = false;
-        btn.textContent = '確認預約';
+        resetButton(btn);
     }
+}
+
+function resetButton(btn) {
+    btn.disabled = false;
+    btn.textContent = '確認預約';
+    isSubmitting = false;
 }
 
 // =================================================================

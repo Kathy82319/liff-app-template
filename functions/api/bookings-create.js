@@ -14,17 +14,20 @@ export async function onRequest(context) {
 
         const db = context.env.DB;
         const body = await context.request.json();
-        console.log("[bookings-create] Received Payload:", JSON.stringify(body));
-
         const { userId } = body;
 
-        // --- 【安全性修正 1】頻率限制 (Rate Limiting) ---
-        // 防止惡意使用者短時間內灌爆資料庫 (限制：每分鐘最多 3 筆)
+        // --- 【新增：安全性修正】頻率限制 (Rate Limiting) ---
+        // 防止惡意使用者或系統錯誤導致短時間內大量建立訂單
+        // 限制：檢查該用戶在過去 60 秒內是否已有超過 1 筆「剛建立」的訂單
         if (userId) {
-            const recent = await db.prepare("SELECT COUNT(*) as count FROM Bookings WHERE user_id = ? AND created_at > datetime('now', '-1 minute')").bind(userId).first();
-            if (recent && recent.count >= 3) {
-                console.warn(`[Security] User ${userId} rate limit exceeded.`);
-                return new Response(JSON.stringify({ error: '預約請求過於頻繁，請稍待一分鐘後再試。' }), { status: 429 });
+            // 檢查最近 10 秒內的訂單 (防止連點)
+            const duplicateCheck = await db.prepare(
+                "SELECT COUNT(*) as count FROM Bookings WHERE user_id = ? AND created_at > datetime('now', '-10 seconds')"
+            ).bind(userId).first();
+
+            if (duplicateCheck && duplicateCheck.count > 0) {
+                console.warn(`[Security] User ${userId} duplicate submission blocked.`);
+                return new Response(JSON.stringify({ error: '預約處理中，請勿重複點擊。' }), { status: 429 });
             }
         }
         // --- 修正結束 ---

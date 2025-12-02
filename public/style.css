@@ -1091,11 +1091,12 @@ input:focus, select:focus, textarea:focus {
 /* 強制重置 Flatpickr 的定位，讓它變成普通區塊元素並置中 */
 .flatpickr-calendar.inline {
     margin: 0 auto !important;
+    position: relative !important; /* 關鍵：取消 absolute */
+    top: auto !important;          /* 清除原本的 top */
+    left: auto !important;         /* 清除原本的 left */
+    transform: none !important;    /* 清除任何位移 */
     box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-    
-    /* 確保寬度適中，不要太窄也不要超過螢幕 */
-    width: 320px !important; 
-    max-width: 90vw !important; 
+
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

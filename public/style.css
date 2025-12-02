@@ -1064,24 +1064,38 @@ input:focus, select:focus, textarea:focus {
     color: white;
 }
 
-/* 2. 預約管理日曆置中修正 */
-/* 強制設定父容器為 Flex 且置中 */
-#calendar-view {
+/* 外層容器：確保寬度 100% 且內容置中 */
+#booking-view-calendar {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
     width: 100%;
-    margin-bottom: 20px;
-    padding-top: 10px;
 }
 
-/* 確保日曆本體 (Flatpickr) 不會跑版 */
-#calendar-view .flatpickr-calendar.inline {
-    margin: 0 auto !important; /* 強制水平置中 */
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* 加一點陰影比較好看 */
-    position: relative !important;
-    top: auto !important;
-    left: auto !important;
+#calendar-view {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+#calendar-placeholder {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* 強制重置 Flatpickr 的定位，讓它變成普通區塊元素並置中 */
+.flatpickr-calendar.inline {
+    margin: 0 auto !important;
+    position: relative !important; /* 關鍵：取消 absolute */
+    top: auto !important;          /* 清除原本的 top */
+    left: auto !important;         /* 清除原本的 left */
+    transform: none !important;    /* 清除任何位移 */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+    
+    /* 確保不超過手機螢幕寬度 */
+    max-width: 95vw !important; 
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

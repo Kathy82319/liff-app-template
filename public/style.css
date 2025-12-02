@@ -1033,17 +1033,3 @@ input:focus, select:focus, textarea:focus {
     animation: fadeIn 0.3s ease;
 }
 
-/* 強制置中 Flatpickr 的容器 */
-#calendar-placeholder {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    margin-bottom: 20px;
-}
-
-/* 確保日曆本體不被其他樣式跑版 */
-#calendar-placeholder .flatpickr-calendar.inline {
-    margin: 0 auto !important;
-    box-shadow: none !important; /* 移除陰影讓它融合背景，或保留看您喜好 */
-    border: 1px solid var(--color-border);
-}

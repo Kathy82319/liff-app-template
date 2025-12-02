@@ -205,7 +205,8 @@ function renderRoomList(availabilityData) {
 
     let hasBookable = false;
     container.innerHTML = products.map(p => {
-        let priceText = p.price_weekday !== null ? `$${p.price_weekday} 起` : '洽詢';
+        // 預設顯示 (尚未選擇日期時)
+        let priceHtml = p.price_weekday !== null ? `$${p.price_weekday} <span style="font-size:0.8em; color:#888;">起 / 晚</span>` : '洽詢';
         let maxQty = 0;
         let isDisabled = true;
         let statusHtml = '';
@@ -214,7 +215,24 @@ function renderRoomList(availabilityData) {
             const info = availabilityData[p.product_id];
             if (info && info.isAvailable) {
                 maxQty = info.minAvailableQuantity || 0;
-                priceText = info.pricePerNight !== null ? `$${info.pricePerNight}` : '洽詢';
+                
+                // --- 【修改重點】顯示均價與總價 ---
+                const avgPrice = info.pricePerNight !== null ? `$${info.pricePerNight}` : '洽詢';
+                const totalPrice = info.totalPrice !== null ? `$${info.totalPrice}` : null;
+                
+                if (totalPrice) {
+                    // 顯示格式：
+                    // $2000 / 晚
+                    // 小計 $6000
+                    priceHtml = `
+                        <div style="font-weight:bold;">${avgPrice} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
+                        <div style="font-size:0.95rem; color:var(--color-primary); font-weight:bold; margin-top:2px;">小計 ${totalPrice}</div>
+                    `;
+                } else {
+                    priceHtml = `${avgPrice} <span style="font-size:0.8em; color:#888;">/ 晚</span>`;
+                }
+                // ---------------------------------
+
                 isDisabled = false;
                 hasBookable = true;
             } else {
@@ -240,12 +258,12 @@ function renderRoomList(availabilityData) {
             <img src="${img}" class="room-thumb">
             <div class="room-content">
                 <div class="room-name">${p.name}</div>
-                <div class="room-price">${priceText} <span style="font-size:0.8em; color:#888;">/ 晚</span></div>
+                <div class="room-price">${priceHtml}</div>
                 ${statusHtml}
             </div>
             <div class="room-controls">
                 <select class="room-qty-select" data-pid="${p.product_id}" ${isDisabled ? 'disabled' : ''}>${opts}</select>
-                ${!isDisabled ? `<span class="room-stock-badge">剩 ${maxQty}</span>` : ''}
+                ${!isDisabled ? `<span class="room-stock-badge">剩 ${maxQty} 間</span>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -263,7 +281,6 @@ function renderRoomList(availabilityData) {
     if (!isPreview && !hasBookable) container.innerHTML += '<p style="text-align:center; color:var(--color-danger); margin-top:10px;">抱歉，此日期區間已無空房。</p>';
     calculateTotalPrice();
 }
-
 // =================================================================
 // 4. 工作室模式 (Studio) 邏輯 - 【修復版】
 // =================================================================

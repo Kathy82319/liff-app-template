@@ -654,14 +654,14 @@ function setupEventListeners() {
     page.dataset.initialized = 'true';
 }
 
-// --- 初始化日期選擇器的獨立函數 (v5 - 保持獨立) ---
+// --- 初始化日期選擇器 (修正：解決自動載入失效問題) ---
 export function initializeDatePickers() {
      if (isDatePickerInitialized) return;
      console.log("[InitPickers] Initializing date pickers...");
      const dateRangeInput = document.getElementById('rav-date-range');
+     
      if (dateRangeInput) {
           try {
-              // 【修改】預設為今天到未來 30 天
               const today = new Date();
               const nextMonth = new Date();
               nextMonth.setDate(today.getDate() + 30);
@@ -672,8 +672,15 @@ export function initializeDatePickers() {
                   locale: "zh_tw",
                   defaultDate: [ today, nextMonth ],
                   onReady: function(selectedDates, dateStr, instance) {
+                       // 【關鍵修正】
+                       // Flatpickr 的 onReady 有時會比外部變數賦值更早執行。
+                       // 所以我們在這裡強制把 instance 指派給全域變數 dateRangePicker，
+                       // 確保 loadInventoryData() 讀取時不會是 null。
+                       dateRangePicker = instance; 
+                       
                        if (Array.isArray(selectedDates) && selectedDates.length === 2) {
-                            loadInventoryData(); // 初始載入
+                            console.log("[InitPickers] Triggering auto-load...");
+                            loadInventoryData(); // 這時候呼叫就安全了
                        }
                   }
               });
@@ -683,7 +690,6 @@ export function initializeDatePickers() {
           }
      }
 }
-
 
 // --- 模組初始化函式 (init v5 - 載入產品並綁定事件) ---
 export const init = async () => {

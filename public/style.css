@@ -1086,9 +1086,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* 讓老闆端的日曆容器置中並滿寬 */
-#booking-view-calendar {
+#booking-view-calendar.active {
     width: 100%;
-    display: flex;
+    display: flex; /* 只有 active 時才顯示 flex，否則會被 sub-view 隱藏 */
     flex-direction: column;
     align-items: center;
 }

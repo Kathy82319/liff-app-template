@@ -841,17 +841,29 @@ input:focus, select:focus, textarea:focus {
 }
 .filter-row.date-row {
     display: grid;
-    grid-template-columns: 85px 1fr 15px 1fr; /* 類型 | 開始 | ~ | 結束 */
+    /* 調整比例：選單(70px) | 日期(自動) | 分隔(10px) | 日期(自動) */
+    grid-template-columns: 70px 1fr 10px 1fr; 
+    align-items: center;
+    gap: 4px; /* 縮小間距 */
 }
 /* 輸入框統一樣式 */
-.filter-row select, .filter-row input {
+/* 確保輸入框可以縮小以適應手機螢幕 */
+.filter-row select, 
+.filter-row input {
     width: 100%;
-    padding: 10px;
+    padding: 8px 4px; /* 減少左右內距 */
     border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 6px;
+    font-size: 0.85rem; /* 字體稍微縮小 */
     background-color: #fff;
     box-sizing: border-box;
+    min-width: 0; /* 關鍵：允許 Grid 子元素縮小於內容寬度 */
+}
+
+/* 針對 iOS Safari 的日期輸入框移除預設樣式，避免被撐開 */
+input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 /* --- 4. 列表卡片 (List Item) 新樣式 --- */

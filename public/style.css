@@ -1122,15 +1122,6 @@ input:focus, select:focus, textarea:focus {
     line-height: 40px !important;
 }
 
-/* "今天" 的樣式 */
-.flatpickr-calendar.inline .flatpickr-day.today {
-    border-color: var(--color-warning) !important; /* 淡黃色邊框 */
-    color: var(--color-text-primary) !important;
-}
-.flatpickr-calendar.inline .flatpickr-day.today:hover {
-    background: transparent !important;
-    color: var(--color-text-primary) !important;
-}
 
 /* "被選中" 的樣式 (改成主色調：薄荷綠) */
 .flatpickr-calendar.inline .flatpickr-day.selected,

@@ -1065,23 +1065,24 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Owner LIFF 嵌入式日曆專用設定
+   Owner LIFF 嵌入式日曆專用設定 (美化版)
    ========================================= */
 .flatpickr-calendar.inline {
-    /* 1. 寬度設為 100%，讓它跟隨外層容器大小 */
+    /* 1. 佈局修正：滿寬、置中、取消定位 */
     width: 100% !important;
     max-width: 100% !important;
-    
-    /* 2. 取消所有的定位偏移，讓它乖乖待在原位 */
+    position: static !important;
     left: auto !important;
     top: auto !important;
     transform: none !important;
     margin: 0 !important;
     
-    /* 3. 外觀微調：移除浮動陰影，因為它是平面的 */
-    box-shadow: none !important;
-    border: 1px solid var(--color-border) !important;
-    background-color: transparent !important;
+    /* 2. 外觀美化：卡片風格 (關鍵修正) */
+    background-color: var(--color-card-bg) !important; /* 改為純白背景 */
+    box-shadow: var(--box-shadow) !important;          /* 加上主題陰影 */
+    border: 1px solid var(--color-secondary) !important; /* 加上淡邊框 */
+    border-radius: var(--border-radius) !important;    /* 圓角 */
+    padding: 15px 10px !important;                     /* 增加內距讓呼吸感更好 */
 }
 
 /* 讓老闆端的日曆容器置中並滿寬 */
@@ -1090,6 +1091,71 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* --- 日曆內部顏色微調 (符合 Mint & Glow 主題) --- */
+
+/* 月份與年份文字 */
+.flatpickr-calendar.inline .flatpickr-month {
+    color: var(--color-text-primary) !important;
+    fill: var(--color-text-primary) !important;
+    margin-bottom: 10px; /* 與下方星期幾拉開距離 */
+}
+.flatpickr-calendar.inline .flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-calendar.inline .flatpickr-current-month input.cur-year {
+    font-weight: 900 !important;
+    color: var(--color-text-primary) !important;
+}
+
+/* 星期幾 (週一、週二...) */
+.flatpickr-calendar.inline span.flatpickr-weekday {
+    color: var(--color-text-secondary) !important;
+    font-weight: bold !important;
+}
+
+/* 日期格子 */
+.flatpickr-calendar.inline .flatpickr-day {
+    color: var(--color-text-primary) !important;
+    border-radius: 12px !important; /* 方形圓角，比較現代 */
+    margin-top: 5px !important;
+    height: 40px !important;        /* 加大點擊範圍 */
+    line-height: 40px !important;
+}
+
+/* "今天" 的樣式 */
+.flatpickr-calendar.inline .flatpickr-day.today {
+    border-color: var(--color-warning) !important; /* 淡黃色邊框 */
+    color: var(--color-text-primary) !important;
+}
+.flatpickr-calendar.inline .flatpickr-day.today:hover {
+    background: transparent !important;
+    color: var(--color-text-primary) !important;
+}
+
+/* "被選中" 的樣式 (改成主色調：薄荷綠) */
+.flatpickr-calendar.inline .flatpickr-day.selected,
+.flatpickr-calendar.inline .flatpickr-day.startRange,
+.flatpickr-calendar.inline .flatpickr-day.endRange,
+.flatpickr-calendar.inline .flatpickr-day.selected.inRange,
+.flatpickr-calendar.inline .flatpickr-day.startRange.inRange,
+.flatpickr-calendar.inline .flatpickr-day.endRange.inRange,
+.flatpickr-calendar.inline .flatpickr-day.selected:focus,
+.flatpickr-calendar.inline .flatpickr-day.startRange:focus,
+.flatpickr-calendar.inline .flatpickr-day.endRange:focus,
+.flatpickr-calendar.inline .flatpickr-day.selected:hover,
+.flatpickr-calendar.inline .flatpickr-day.startRange:hover,
+.flatpickr-calendar.inline .flatpickr-day.endRange:hover {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(129, 199, 181, 0.4) !important; /* 主色發光陰影 */
+    font-weight: bold !important;
+}
+
+/* 加上事件標記點的樣式 (如果有活動) */
+.flatpickr-calendar.inline .flatpickr-day.has-event::after {
+    background-color: var(--color-danger) !important; /* 紅點 */
+    bottom: 4px;
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

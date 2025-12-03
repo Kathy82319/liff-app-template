@@ -50,30 +50,77 @@ export async function init() {
 }
 
 async function loadBookings(filter, container) {
-    container.innerHTML = '<p style="text-align:center;">載入中...</p>';
+    container.innerHTML = '<p style="text-align:center; padding: 20px; color:#888;">載入中...</p>';
     try {
         const bookings = await api.getMyBookings(state.userProfile.userId, filter);
+        
         if (bookings.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:#999; padding:10px;">無紀錄</p>';
+            container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">無相關紀錄</p>';
             return;
         }
         
         container.innerHTML = bookings.map(b => {
-            let statusColor = b.status === 'confirmed' ? 'green' : 'red';
-            // 簡單翻譯狀態
-            let statusText = b.status_text || b.status;
+            // 1. 狀態顏色邏輯 (與後台一致的色系)
+            let statusColor = '#888';
+            let statusBg = '#f0f0f0';
             
+            switch(b.status) {
+                case 'confirmed': statusColor = '#28a745'; statusBg = '#e6f4ea'; break; // 綠 (已確認)
+                case 'checked-in': statusColor = '#17a2b8'; statusBg = '#e0f7fa'; break; // 藍 (已報到/入住)
+                case 'cancelled': statusColor = '#dc3545'; statusBg = '#ffebee'; break; // 紅 (已取消)
+                case 'no-show': statusColor = '#ffc107'; statusBg = '#fff8e1'; break;   // 黃 (未到)
+                default: break;
+            }
+            
+            const statusText = b.status_text || b.status;
+
+            // 2. 住宿期間 / 預約時間 格式化
+            let period = b.booking_date;
+            if (b.check_out_date && b.check_out_date !== b.booking_date) {
+                // 民宿模式：顯示 入住 ~ 退房
+                period = `${b.booking_date} ~ ${b.check_out_date}`; 
+            } else if (b.time_slot) {
+                // 工作室模式：顯示 日期 + 時段
+                period = `${b.booking_date} ${b.time_slot}`;
+            }
+
+            // 3. 項目名稱摘要
+            const itemsName = b.items && b.items.length > 0 
+                ? b.items.map(i => `${i.item_name} x${i.quantity}`).join(', ') 
+                : '無項目資訊';
+
+            // 4. 新的卡片 HTML 結構
+            // 加入 onclick 事件，並在右下角增加 "詳情 ›" 引導
             return `
-            <div class="booking-info-card" onclick="openDetails(${b.booking_id})">
-                <div style="display:flex; justify-content:space-between;">
-                    <strong>${b.booking_date}</strong>
-                    <span style="color:${statusColor}">${statusText}</span>
+            <div class="booking-info-card" onclick="openDetails(${b.booking_id})" style="cursor: pointer; position: relative; padding: 15px; border-left: 5px solid ${statusColor};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    
+                    <div style="flex: 1; padding-right: 10px;">
+                        <div style="font-weight: 900; color: var(--color-primary); font-size: 1.05rem; margin-bottom: 6px;">
+                            ${period}
+                        </div>
+                        <div style="font-size: 1rem; color: var(--color-text-primary); margin-bottom: 6px; font-weight: 500; line-height: 1.4;">
+                            ${itemsName}
+                        </div>
+                        <div style="font-size: 0.9rem; color: #999;">
+                            總金額：$${b.total_amount}
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; min-height: 70px;">
+                        <span style="color: ${statusColor}; background: ${statusBg}; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; white-space: nowrap;">
+                            ${statusText}
+                        </span>
+                        
+                        <div style="color: var(--color-secondary); font-size: 0.9rem; display: flex; align-items: center; margin-top: 15px;">
+                            詳情 <span style="font-size: 1.2rem; margin-left: 3px; font-weight: bold;">›</span>
+                        </div>
+                    </div>
                 </div>
-                <p>${b.items[0]?.item_name}...</p>
-                <p style="text-align:right;">$${b.total_amount}</p>
             </div>`;
         }).join('');
         
+        // 確保全域函式存在 (如果是透過 onclick="openDetails..." 呼叫)
         window.openDetails = (id) => router.navigate('page-booking-details', { bookingId: id });
 
     } catch (e) {

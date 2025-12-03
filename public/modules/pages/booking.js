@@ -127,7 +127,7 @@ function setupStoredValueUI(balance) {
                         e.target.checked = false;
                         return;
                     }
-                    if (!confirm("確認使用儲值金付款？")) {
+                    if (!confirm("確認使用儲值金付款？使用後若取消預約，儲值金將不自動歸還，請謹慎操作。")) {
                         e.target.checked = false;
                     }
                 }

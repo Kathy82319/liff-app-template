@@ -71,12 +71,6 @@ async function loadBookings(filter, container) {
             return;
         }
         
-        // 提示文字 (只在顯示"進行中"預約且有資料時顯示一次)
-        let hintHtml = '';
-        if (filter === 'current') {
-            hintHtml = `<div style="font-size: 0.85rem; color: #666; margin-bottom: 10px; text-align: center; background-color: #fffbe6; padding: 5px; border-radius: 8px;">💡 點擊卡片可查看詳細資訊</div>`;
-        }
-
         const listHtml = bookings.map(b => {
             // 1. 狀態顏色邏輯
             let statusColor = '#888';

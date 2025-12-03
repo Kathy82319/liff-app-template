@@ -747,6 +747,99 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 4px 10px rgba(255, 138, 128, 0.3);
 }
 
+/* --- 1. 日曆對齊修正 --- */
+/* 強制讓星期標題容器也佔滿寬度並平均分配，對齊下方的日期 */
+.flatpickr-calendar.inline .flatpickr-weekdays {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-around !important; /* 與日期容器一致 */
+    margin-bottom: 5px !important;
+}
+
+.flatpickr-calendar.inline span.flatpickr-weekday {
+    flex: 1 !important; /* 每個星期標題等寬佔滿 */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+/* --- 2. 列表篩選器新排版 --- */
+.filter-controls-container {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--color-secondary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* 行距 */
+}
+
+/* 每一行的容器 */
+.filter-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* 第一行：搜尋框佔大部分，狀態選單小小一個 */
+.filter-row .search-input {
+    flex-grow: 1; /* 佔滿剩餘空間 */
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 0.95rem;
+}
+
+.filter-row .status-select-small {
+    flex-grow: 0;
+    width: 110px; /* 固定小寬度 */
+    padding: 10px 5px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 0.9rem;
+    background-color: #f9f9f9;
+}
+
+/* 第二行：日期篩選 (讓兩個日期框平分) */
+.filter-row.date-row {
+    display: grid;
+    grid-template-columns: 85px 1fr 15px 1fr; /* 類型 | 開始 | ~ | 結束 */
+    align-items: center;
+    gap: 5px;
+}
+
+.filter-row select, 
+.filter-row input[type="date"] {
+    width: 100%;
+    padding: 8px 5px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+/* 查詢按鈕樣式 (美化版) */
+.btn-filter-search {
+    width: 100%;
+    background-color: var(--color-primary); /* 使用主色 */
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: background 0.3s;
+}
+.btn-filter-search:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
 /* =========================================
    10. 頁面樣式：店家資訊 (Store Info) - 優化版
    ========================================= */

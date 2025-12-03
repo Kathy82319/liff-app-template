@@ -266,27 +266,36 @@
                 </div>
 
                 <div id="booking-view-list" class="sub-view">
-                    <div class="filter-controls">
-                        <input type="search" id="order-search-input" placeholder="搜尋編號、姓名...">
-                        <select id="order-date-filter-type">
-                            <option value="booking_date">訂單日</option>
-                            <option value="created_at">建立日</option>
-                        </select>
-                        <input type="date" id="order-date-filter-start">
-                        <input type="date" id="order-date-filter-end">
-                        <select id="order-status-filter">
-                            <option value="">所有狀態</option>
-                            <option value="confirmed">預約成功/待處理</option>
-                            <option value="checked-in">已報到/已入住/已出貨</option>
-                            <option value="cancelled">已取消</option>
-                        </select>
-                        <button id="order-filter-apply-btn">查詢</button>
+                    <div class="filter-controls-container">
+                        <div class="filter-row">
+                            <input type="search" id="order-search-input" placeholder="搜尋姓名/編號..." style="flex-grow: 1;">
+                            <select id="order-status-filter" style="width: 110px; flex-shrink: 0; background-color: #f9f9f9;">
+                                <option value="">狀態: 全部</option>
+                                <option value="confirmed">待處理</option>
+                                <option value="checked-in">已完成</option>
+                                <option value="cancelled">已取消</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-row date-row">
+                            <select id="order-date-filter-type">
+                                <option value="booking_date">預約日</option>
+                                <option value="created_at">建立日</option>
+                            </select>
+                            <input type="date" id="order-date-filter-start">
+                            <span style="text-align:center; color:#888;">~</span>
+                            <input type="date" id="order-date-filter-end">
+                        </div>
+
+                        <div class="filter-row">
+                            <button id="order-filter-apply-btn" class="cta-button" style="padding: 10px; font-size: 1rem; margin-top: 0;">🔍 查詢</button>
+                        </div>
                     </div>
+
                     <div id="order-list-content">
                         <p>正在載入列表...</p>
                     </div>
                 </div>
-            </div>
 
             <div id="tab-content-room-control" class="tab-content">
                 <h2>房量控管</h2>

@@ -747,23 +747,82 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 4px 10px rgba(255, 138, 128, 0.3);
 }
 
-/* --- 1. 日曆對齊修正 --- */
-/* 強制讓星期標題容器也佔滿寬度並平均分配，對齊下方的日期 */
-.flatpickr-calendar.inline .flatpickr-weekdays {
+/* =========================================
+   [整合版] 老闆後台 (Owner LIFF) 專屬修正
+   ========================================= */
+
+/* --- 1. 嵌入式日曆 (Inline Calendar) 強制對齊與美化 --- */
+#booking-view-calendar .flatpickr-calendar.inline {
+    /* 佈局：回歸文檔流，滿寬 */
+    position: static !important;
     width: 100% !important;
-    display: flex !important;
-    justify-content: space-around !important; /* 與日期容器一致 */
-    margin-bottom: 5px !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    
+    /* 外觀：卡片化 */
+    background-color: var(--color-card-bg) !important;
+    box-shadow: var(--box-shadow) !important;
+    border: 1px solid var(--color-secondary) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
 }
 
-.flatpickr-calendar.inline span.flatpickr-weekday {
-    flex: 1 !important; /* 每個星期標題等寬佔滿 */
+/* 強制內部容器滿寬 */
+#booking-view-calendar .flatpickr-rContainer,
+#booking-view-calendar .flatpickr-days,
+#booking-view-calendar .dayContainer {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* 關鍵修正：讓星期標題 (一, 二...) 與日期格子 (1, 2...) 使用相同的分佈邏輯 */
+#booking-view-calendar .flatpickr-weekdays {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-around !important; /* 確保平均分佈 */
+    margin-bottom: 5px !important;
+}
+#booking-view-calendar span.flatpickr-weekday {
+    flex: 1 !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
 }
 
-/* --- 2. 列表篩選器新排版 --- */
+/* 日期格子美化 */
+#booking-view-calendar .flatpickr-day {
+    max-width: initial !important; /* 移除寬度限制 */
+    height: 40px !important;       /* 加大點擊高度 */
+    line-height: 40px !important;
+    margin-top: 5px !important;
+    border-radius: 10px !important;
+}
+
+/* 選中狀態顏色 (薄荷綠) */
+#booking-view-calendar .flatpickr-day.selected {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* --- 2. 視圖容器控制 --- */
+#booking-view-calendar { display: none; }
+#booking-view-calendar.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+#booking-view-calendar h3, 
+#daily-cards-container {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- 3. 列表篩選器 (List Filters) 排版 --- */
 .filter-controls-container {
     background-color: #fff;
     padding: 15px;
@@ -773,71 +832,63 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 15px;
     display: flex;
     flex-direction: column;
-    gap: 12px; /* 行距 */
+    gap: 12px;
 }
-
-/* 每一行的容器 */
 .filter-row {
     display: flex;
     gap: 10px;
     align-items: center;
 }
-
-/* 第一行：搜尋框佔大部分，狀態選單小小一個 */
-.filter-row .search-input {
-    flex-grow: 1; /* 佔滿剩餘空間 */
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 0.95rem;
-}
-
-.filter-row .status-select-small {
-    flex-grow: 0;
-    width: 110px; /* 固定小寬度 */
-    padding: 10px 5px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 0.9rem;
-    background-color: #f9f9f9;
-}
-
-/* 第二行：日期篩選 (讓兩個日期框平分) */
 .filter-row.date-row {
     display: grid;
     grid-template-columns: 85px 1fr 15px 1fr; /* 類型 | 開始 | ~ | 結束 */
-    align-items: center;
-    gap: 5px;
 }
-
-.filter-row select, 
-.filter-row input[type="date"] {
+/* 輸入框統一樣式 */
+.filter-row select, .filter-row input {
     width: 100%;
-    padding: 8px 5px;
+    padding: 10px;
     border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 0.9rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
     background-color: #fff;
     box-sizing: border-box;
 }
 
-/* 查詢按鈕樣式 (美化版) */
-.btn-filter-search {
-    width: 100%;
-    background-color: var(--color-primary); /* 使用主色 */
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 10px;
-    font-size: 1rem;
-    font-weight: bold;
+/* --- 4. 列表卡片 (List Item) 新樣式 --- */
+.order-list-item {
+    background-color: var(--color-card-bg);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid #eee;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transition: background 0.3s;
+    transition: transform 0.2s;
 }
-.btn-filter-search:active {
-    transform: translateY(1px);
-    box-shadow: none;
+.order-list-item:active { transform: scale(0.98); }
+
+/* 卡片內部佈局：左右分欄 */
+.order-card-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.order-card-left { flex-grow: 1; }
+.order-card-right {
+    text-align: right;
+    min-width: 80px; /* 確保右側有足夠空間顯示狀態 */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+
+/* 狀態標籤樣式 */
+.status-badge-text {
+    font-weight: 900; /* 加粗 */
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
 }
 
 /* =========================================

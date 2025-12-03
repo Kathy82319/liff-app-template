@@ -697,18 +697,18 @@ input:focus, select:focus, textarea:focus {
 
 /* --- [FIX 1] Flatpickr 日曆美化與手機版截斷修正 --- */
 /* 修正原理：強制固定日曆寬度為 310px，並使用 absolute positioning 置中 */
-.flatpickr-calendar {
+.flatpickr-calendar:not(.inline) {
     background: #FFF !important;
     border: none !important;
     border-radius: 20px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
     padding: 10px !important;
     
-    /* 強制固定寬度，避免被父層切斷或撐太寬 */
+    /* 強制固定寬度 */
     width: 310px !important;
     max-width: 90vw !important; 
     
-    /* 絕對置中 */
+    /* 絕對置中 (這些就是害老闆端跑版的主因) */
     left: 50% !important;
     transform: translateX(-50%) !important;
     margin: 0 auto !important;
@@ -1064,57 +1064,32 @@ input:focus, select:focus, textarea:focus {
     color: white;
 }
 
-/* 1. 鎖定老闆後台的日曆容器，強制重置定位 */
-#booking-view-calendar .flatpickr-calendar.inline {
-    /* 關鍵：取消絕對定位，改回一般文檔流 */
-    position: static !important; 
-    
-    /* 寬度設定：填滿容器，但設定最大寬度以免在平板太寬 */
-    width: 100% !important; 
-    max-width: 340px !important; 
-    
-    /* 置中設定 */
-    margin: 0 auto !important;
-    left: auto !important;
-    top: auto !important;
-    transform: none !important; /* 移除原本的 -50% 位移 */
-    
-    /* 外觀微調 */
-    box-shadow: none !important; /* 嵌入式通常不需要太強烈的浮動陰影 */
-    background-color: transparent !important;
-    padding: 0 !important;
-}
-
-/* 2. 確保日曆內部的容器也是滿寬 (這是造成變窄的主因之一) */
-#booking-view-calendar .flatpickr-innerContainer,
-#booking-view-calendar .flatpickr-rContainer,
-#booking-view-calendar .flatpickr-days,
-#booking-view-calendar .dayContainer {
+/* =========================================
+   Owner LIFF 嵌入式日曆專用設定
+   ========================================= */
+.flatpickr-calendar.inline {
+    /* 1. 寬度設為 100%，讓它跟隨外層容器大小 */
     width: 100% !important;
     max-width: 100% !important;
+    
+    /* 2. 取消所有的定位偏移，讓它乖乖待在原位 */
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    
+    /* 3. 外觀微調：移除浮動陰影，因為它是平面的 */
+    box-shadow: none !important;
+    border: 1px solid var(--color-border) !important;
+    background-color: transparent !important;
 }
 
-/* 3. 調整日期格子的寬度分配，確保撐滿 */
-#booking-view-calendar .flatpickr-day {
-    max-width: initial !important; /* 移除最大寬度限制 */
-    height: 40px !important;       /* 手機板按鈕高度稍微加大好點擊 */
-    line-height: 40px !important;
-    margin-top: 5px !important;
-}
-
-/* 4. 修正外層容器，確保它是滿寬的 Flex 直欄 */
+/* 讓老闆端的日曆容器置中並滿寬 */
 #booking-view-calendar {
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center; /* 讓內部元素置中 */
-}
-
-#calendar-view, 
-#calendar-placeholder {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    align-items: center;
 }
 
 /* 3. 優化最新動態卡片的閱讀性 */

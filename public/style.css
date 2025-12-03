@@ -1078,8 +1078,6 @@ input:focus, select:focus, textarea:focus {
     margin: 0 !important;
     
     /* 2. 外觀美化：卡片風格 (關鍵修正) */
-    width: 100% !important;
-    max-width: 100% !important;
     background-color: var(--color-card-bg) !important; /* 改為純白背景 */
     box-shadow: var(--box-shadow) !important;          /* 加上主題陰影 */
     border: 1px solid var(--color-secondary) !important; /* 加上淡邊框 */
@@ -1178,4 +1176,40 @@ input:focus, select:focus, textarea:focus {
     color: var(--color-text-primary);
     font-weight: 500;
     word-break: break-all;
+}
+
+/* =========================================
+   Owner LIFF 列表寬度修正
+   ========================================= */
+
+/* 強制讓「今日事項」標題與卡片列表佔滿 100% 寬度 */
+#booking-view-calendar h3, 
+#daily-cards-container {
+    width: 100%;
+    text-align: left;       /* 讓標題靠左對齊 (如果您喜歡置中可改為 center) */
+    padding: 0 5px;         /* 稍微留一點邊距，不要貼太死 */
+    box-sizing: border-box; /* 確保 padding 不會導致超出寬度 */
+}
+
+/* 確保標題與日曆之間有點距離 */
+#booking-view-calendar h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: var(--color-text-primary);
+    border-left: 4px solid var(--color-primary); /* 加個左側裝飾線，增加層次感 */
+    padding-left: 10px;
+}
+
+/* 卡片容器微調 */
+#daily-cards-container {
+    margin-top: 0; /* 標題已經有 margin-bottom 了 */
+}
+
+/* 確保卡片本身也是滿寬 */
+.daily-card {
+    width: 100%;
+    box-sizing: border-box;
+    /* 增加一點陰影讓它跟日曆一樣有立體感 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
 }

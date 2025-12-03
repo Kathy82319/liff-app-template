@@ -1,4 +1,4 @@
-// functions/api/get-users.js
+// functions/api/admin/get-users.js
 export async function onRequest(context) {
   try {
     if (context.request.method !== 'GET') {

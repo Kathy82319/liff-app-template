@@ -2,14 +2,13 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 
-let currentProducts = []; // 存放房型資料 (不過濾 category)
-let currentInventoryData = {}; // 存放讀取的庫存資料 { "房型ID": { "日期": { status, quantity_available, base_price } } }
-let dateRangePicker = null; // 主日期範圍選擇器實例
-let bulkEditDatePicker = null; // 批次修改日期選擇器實例
-let displayedDates = []; // 當前表格顯示的日期陣列
-let isDatePickerInitialized = false; // 日期選擇器初始化標記
+let currentProducts = []; 
+let currentInventoryData = {}; 
+let dateRangePicker = null; 
+let bulkEditDatePicker = null; 
+let displayedDates = []; 
+let isDatePickerInitialized = false; 
 
-// --- Helper: 取得某日期是星期幾的縮寫 ---
 const weekdayShort = ["日", "一", "二", "三", "四", "五", "六"];
 
 // --- 核心渲染函式 (符合新設計 v5) ---
@@ -17,10 +16,10 @@ function renderAvailabilityGrid() {
     console.log("[RenderGrid] Starting grid rendering...");
     const container = document.getElementById('rav-grid-container');
     const productSelect = document.getElementById('rav-product-select');
-if (!container || !productSelect) {
-        console.error("[RenderGrid] Error: Container or product select not found.");
-        return;
-    }
+    const soldOutSection = document.getElementById('rav-sold-out-section');
+    const soldOutList = document.getElementById('rav-sold-out-list');
+
+    if (!container || !productSelect) return;
 
     const selectedProductId = productSelect.value;
     const productsToRender = selectedProductId === 'all'
@@ -29,27 +28,34 @@ if (!container || !productSelect) {
 
     if (productsToRender.length === 0) {
         container.innerHTML = '<p>沒有找到符合條件的房型。</p>';
-        console.log("[RenderGrid] No products to render.");
         return;
     }
     if (displayedDates.length === 0) {
         container.innerHTML = '<p>請先選擇有效的日期範圍。</p>';
-        console.log("[RenderGrid] No dates selected.");
         return;
     }
 
+    // --- 準備資料：判斷過往日期與收集售完資料 ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 歸零時分秒以便比較
+    const soldOutData = {}; // { date: [productName, ...] }
 
     // --- 表格 HTML 生成 ---
     let tableHtml = '<table class="rav-table" style="width: 100%; border-collapse: collapse;">';
 
-    // 表頭 (固定日期)
-    tableHtml += '<thead><tr><th style="min-width: 150px; position: sticky; left: 0; background: var(--color-sidebar-bg, #FFF); z-index: 1;">房型</th>';
+    // 表頭
+    tableHtml += '<thead><tr><th style="min-width: 150px; position: sticky; left: 0; background: var(--color-sidebar-bg, #FFF); z-index: 2;">房型</th>';
     displayedDates.forEach(dateStr => {
         const date = new Date(dateStr + 'T00:00:00');
         const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
         const dayOfWeek = weekdayShort[date.getDay()];
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        tableHtml += `<th style="min-width: 110px; text-align: center; ${isWeekend ? 'color: var(--color-primary, blue);' : ''}">${monthDay}<br>${dayOfWeek}</th>`;
+        
+        // 判斷是否為過去日期 (用來標示表頭顏色，可選)
+        const isPast = date < today;
+        const headerStyle = isPast ? 'color: #999; background: #f0f0f0;' : (isWeekend ? 'color: var(--color-primary, blue);' : '');
+
+        tableHtml += `<th style="min-width: 110px; text-align: center; ${headerStyle}">${monthDay}<br>${dayOfWeek}</th>`;
     });
     tableHtml += '</tr></thead>';
 
@@ -57,26 +63,46 @@ if (!container || !productSelect) {
     tableHtml += '<tbody>';
     productsToRender.forEach(product => {
         tableHtml += `<tr>`;
-        // 固定房型名稱列
         tableHtml += `<td style="font-weight: bold; position: sticky; left: 0; background: var(--color-sidebar-bg, #FFF); z-index: 1; border-right: 1px solid var(--color-border, #CCC);">${product.name}</td>`;
 
         displayedDates.forEach(dateStr => {
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            const isPast = dateObj < today;
+
             const inventory = currentInventoryData[product.product_id]?.[dateStr];
             const status = inventory?.status || 'Closed';
             const quantity = inventory?.quantity_available ?? 0;
             const price = inventory?.base_price;
             const priceText = (price === null || price === undefined) ? '' : String(price);
 
-            // --- 根據規則計算視覺樣式和提示 ---
-            const visuals = calculateCellVisuals(status, quantity, price); // 使用更新後的 calculateCellVisuals
+            // 計算視覺樣式
+            let visuals = calculateCellVisuals(status, quantity, price);
 
-            // --- 生成單元格 HTML ---
+            // 【修改】如果是過去日期，強制覆蓋為「已過」樣式
+            if (isPast) {
+                visuals = {
+                    bgColor: '#eeeeee',
+                    tooltip: '日期已過',
+                    iconHtml: '',
+                    inputsDisabled: true,
+                    buttonBgColor: '#ccc',
+                    buttonText: '已過',
+                    buttonTextColor: '#666'
+                };
+            } 
+            // 【新增】如果是未來日期且售完，加入售完清單
+            else if (quantity === 0 && status === 'Open') {
+                if (!soldOutData[dateStr]) soldOutData[dateStr] = [];
+                soldOutData[dateStr].push(product.name);
+            }
+
             tableHtml += `
                 <td style="border: 1px solid var(--color-border, #CCC); padding: 5px; text-align: center; vertical-align: top; background-color: ${visuals.bgColor};"
                     data-product-id="${product.product_id}" data-date="${dateStr}" title="${visuals.tooltip}">
                     <div style="margin-bottom: 3px;">
-                        <button class="status-toggle action-btn ${status === 'Open' ? (quantity > 0 ? 'status-open' : 'status-soldout') : 'status-closed'}" data-status="${status}"
-                                style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};">
+                        <button class="status-toggle action-btn" data-status="${status}"
+                                style="width: 100%; font-size: 0.8em; padding: 2px 4px; background-color: ${visuals.buttonBgColor}; color: ${visuals.buttonTextColor};"
+                                ${isPast ? 'disabled' : ''}>
                             ${visuals.buttonText}
                         </button>
                     </div>
@@ -97,57 +123,82 @@ if (!container || !productSelect) {
 
     container.innerHTML = tableHtml;
     console.log("[RenderGrid] Grid rendering finished.");
-    // bindCellEvents(); // 事件綁定移至 setupEventListeners 或 loadInventoryData 成功後
+
+    // --- 渲染售完清單 ---
+    renderSoldOutSummary(soldOutData, soldOutSection, soldOutList);
+    
+    // 綁定事件
+    bindCellEvents(); 
 }
 
-// --- 輔助：計算單元格視覺樣式 (v5 - 符合新設計) ---
-// public/admin/modules/roomAvailabilityManagement.js
+// --- 輔助：渲染售完清單 ---
+function renderSoldOutSummary(data, sectionEl, listEl) {
+    if (!sectionEl || !listEl) return;
+    
+    listEl.innerHTML = '';
+    const sortedDates = Object.keys(data).sort();
 
-// --- 輔助：計算單元格視覺樣式 (v6 - "售完" 狀態) ---
+    if (sortedDates.length === 0) {
+        sectionEl.style.display = 'none';
+        return;
+    }
+
+    sectionEl.style.display = 'block';
+    
+    sortedDates.forEach(dateStr => {
+        const items = data[dateStr];
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const dayOfWeek = weekdayShort[dateObj.getDay()];
+        
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'sold-out-group';
+        
+        const header = `<div class="sold-out-date-header"><span>📅 ${dateStr} (${dayOfWeek})</span></div>`;
+        const tags = items.map(name => `<span class="sold-out-item">${name}</span>`).join('');
+        
+        groupDiv.innerHTML = header + '<div style="display: flex; flex-wrap: wrap;">' + tags + '</div>';
+        listEl.appendChild(groupDiv);
+    });
+}
+
 function calculateCellVisuals(status, quantity, price) {
-    let bgColor = 'var(--color-sidebar-bg, #FFF)'; // 預設白色
+    let bgColor = 'var(--color-sidebar-bg, #FFF)'; 
     let tooltip = '';
     let iconHtml = '';
     let inputsDisabled = false;
-    // --- 新增：按鈕樣式 ---
     let buttonBgColor = '';
     let buttonText = '';
-    let buttonTextColor = 'white'; // 預設按鈕文字顏色
+    let buttonTextColor = 'white';
 
     if (status === 'Open') {
         const isValidPrice = (price !== null && price !== undefined && price > 0);
 
-        if (quantity > 0) { // --- 數量 > 0 ---
-            if (isValidPrice) { // 價格有效 -> 可預訂
+        if (quantity > 0) { 
+            if (isValidPrice) { 
                 tooltip = `可預訂 (${quantity} 間, $${price})`;
                 buttonBgColor = 'var(--color-success, green)';
                 buttonText = '開啟';
-                // bgColor 保持預設白色
-            } else { // 價格未定或為零 -> 價格問題
+            } else { 
                 const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
                 tooltip = `${reason} (${quantity} 間可用)`;
                 iconHtml = `<span class="price-warning-icon" style="color: red; font-weight: bold; margin-left: 2px; cursor: help;" title="${reason}">!</span>`;
-                bgColor = '#fff3cd'; // 黃色背景
-                buttonBgColor = 'var(--color-success, green)'; // 按鈕仍是綠色
+                bgColor = '#fff3cd'; 
+                buttonBgColor = 'var(--color-success, green)'; 
                 buttonText = '開啟';
             }
-        } else { // --- 數量 = 0 -> 售完 ---
+        } else { // 售完
             tooltip = '已售罄';
-            // bgColor 保持預設白色
-            buttonBgColor = 'var(--color-warning, #ffc107)'; // 按鈕變黃色
+            buttonBgColor = 'var(--color-warning, #ffc107)'; 
             buttonText = '售完';
-            buttonTextColor = 'var(--color-text-dark, #212529)'; // 黃色背景配深色文字較清楚
-
-            // 如果同時價格也有問題，也要顯示驚嘆號
+            buttonTextColor = 'var(--color-text-dark, #212529)';
             if (!isValidPrice) {
                  const reason = (price === null || price === undefined) ? '價格未定' : '價格為零';
-                 tooltip += ` (${reason})`; // 在售罄提示後追加原因
+                 tooltip += ` (${reason})`;
                  iconHtml = `<span class="price-warning-icon" style="color: red; font-weight: bold; margin-left: 2px; cursor: help;" title="${reason}">!</span>`;
-                 // 背景也變黃色，因為價格問題優先級更高
                  bgColor = '#fff3cd';
             }
         }
-    } else { // status === 'Closed' -> 房間關閉
+    } else { // Closed
         tooltip = '房間關閉';
         bgColor = '#f8d7da'; // 紅色背景
         inputsDisabled = true;
@@ -155,169 +206,127 @@ function calculateCellVisuals(status, quantity, price) {
         buttonText = '關閉';
     }
 
-    return {
-        bgColor,
-        tooltip,
-        iconHtml,
-        inputsDisabled,
-        buttonBgColor,
-        buttonText,    
-        buttonTextColor 
-    };
+    return { bgColor, tooltip, iconHtml, inputsDisabled, buttonBgColor, buttonText, buttonTextColor };
 }
 
 
 // --- 綁定單元格事件 (v5 - 使用事件委派) ---
 function bindCellEvents() {
     const grid = document.getElementById('rav-grid-container');
-    if (!grid || grid.dataset.eventsBound === 'true') {
-        if (grid && grid.dataset.eventsBound === 'true') {
-            console.log("[BindEvents] Events already bound, skipping.");
-        }
-        return; // 防止重複綁定
-    }
-    console.log("[BindEvents] Binding cell event listeners...");
+    if (!grid || grid.dataset.eventsBound === 'true') return;
 
-    // Click 事件委派 (只處理 status-toggle)
     grid.addEventListener('click', handleCellClick);
+    grid.addEventListener('blur', handleCellBlur, true); 
+    grid.addEventListener('focus', handleCellFocus, true); 
 
-    // Blur 事件委派 (處理 quantity-input 和 price-input)
-    grid.addEventListener('blur', handleCellBlur, true); // 使用捕獲模式確保觸發
-
-    // Focus 事件委派 (記錄原始值)
-    grid.addEventListener('focus', handleCellFocus, true); // 使用捕獲模式確保觸發
-
-    grid.dataset.eventsBound = 'true'; // 標記已綁定
-    console.log("[BindEvents] Cell event listeners bound.");
+    grid.dataset.eventsBound = 'true';
 }
 
 // --- Click 事件處理 (v5 - 只處理狀態按鈕) ---
 async function handleCellClick(e) {
     const target = e.target;
-    // 只處理狀態按鈕的點擊
-    if (!target.matches('.status-toggle')) return;
+    if (!target.matches('.status-toggle') || target.disabled) return; // 確保 disabled 的按鈕不觸發
 
-    console.log("[HandleClick] Status toggle clicked.");
     const cell = target.closest('td[data-product-id][data-date]');
-    if (!cell) {
-        console.error("[HandleClick] Could not find parent cell.");
-        return;
-    }
+    if (!cell) return;
     const productId = cell.dataset.productId;
     const date = cell.dataset.date;
     const currentStatus = target.dataset.status;
     const newStatus = currentStatus === 'Open' ? 'Closed' : 'Open';
 
-    target.disabled = true; // 防止重複點擊
-    target.textContent = '...'; // 提示處理中
+    target.disabled = true; 
+    target.textContent = '...'; 
 
     try {
         const payload = { updates: [{ productId, date, status: newStatus }] };
-        console.log("[HandleClick] Sending API update:", JSON.stringify(payload));
         await api.updateRoomInventory(payload);
 
-        // 更新按鈕狀態和文字
-        target.dataset.status = newStatus;
-        target.textContent = newStatus === 'Open' ? '開啟' : '關閉';
-        target.classList.toggle('status-open', newStatus === 'Open');
-        target.classList.toggle('status-closed', newStatus === 'Closed');
-        target.style.backgroundColor = newStatus === 'Open' ? 'var(--color-success, green)' : 'var(--color-danger, red)';
+        // 更新本地快取
+        if (!currentInventoryData[productId]) currentInventoryData[productId] = {};
+        if (!currentInventoryData[productId][date]) currentInventoryData[productId][date] = {};
+        currentInventoryData[productId][date].status = newStatus;
 
-        // 更新單元格視覺 (背景色、輸入框狀態、驚嘆號)
+        // 重新渲染該單元格 (不重繪整個表格)
         updateCellVisuals(cell);
         ui.toast.success('狀態更新成功');
-        console.log(`[HandleClick] Status updated successfully for ${productId} on ${date} to ${newStatus}.`);
-
     } catch (error) {
-         console.error("[HandleClick] API update failed:", error);
-         ui.toast.error(`狀態更新失敗: ${error.message}`);
-         // API 失敗，恢復按鈕原始狀態
+         console.error("API update failed:", error);
+         ui.toast.error(`更新失敗: ${error.message}`);
          target.textContent = currentStatus === 'Open' ? '開啟' : '關閉';
     } finally {
-         target.disabled = false; // 無論成功或失敗都恢復按鈕
+         target.disabled = false; 
     }
 }
 
 // --- Blur 事件處理 (v5 - 驗證與 API 呼叫) ---
 async function handleCellBlur(e) {
     const target = e.target;
-    // 只處理數量和價格輸入框的 blur 事件，且輸入框未被禁用
     if (!target.matches('.quantity-input, .price-input') || target.disabled) return;
 
     const cell = target.closest('td[data-product-id][data-date]');
-    if (!cell) {
-        console.error("[HandleBlur] Could not find parent cell.");
-        return;
-    }
+    if (!cell) return;
 
     const productId = cell.dataset.productId;
     const date = cell.dataset.date;
-    const originalValueStr = target.dataset.originalValue || ''; // 獲取 focus 時記錄的值
+    const originalValueStr = target.dataset.originalValue || ''; 
     const currentValueStr = target.value.trim();
 
-    // 檢查值是否有變更
-    if (currentValueStr === originalValueStr) {
-        // console.log("[HandleBlur] Value not changed, skipping API call.");
-        return; // 值未變更，不執行任何動作
-    }
-    console.log(`[HandleBlur] Value changed from "${originalValueStr}" to "${currentValueStr}" for ${target.className}`);
+    if (currentValueStr === originalValueStr) return;
 
     const updateData = { productId, date };
     let isValid = true;
     let newValue;
 
-    // --- 驗證並準備 API 資料 ---
     if (target.matches('.quantity-input')) {
         newValue = parseInt(currentValueStr, 10);
         if (isNaN(newValue) || newValue < 0) {
              ui.toast.error('數量必須是非負整數');
              isValid = false;
         } else {
-             updateData.quantity = newValue; // API 需要 quantity
+             updateData.quantity = newValue;
         }
     } else if (target.matches('.price-input')) {
-        if (currentValueStr === '') { // 允許清空價格，表示使用預設價
+        if (currentValueStr === '') { 
              newValue = null;
-             updateData.price = null; // API 需要 price, null 表示預設
+             updateData.price = null; 
         } else {
              newValue = parseInt(currentValueStr, 10);
              if (isNaN(newValue) || newValue < 0) {
                   ui.toast.error('價格必須是非負數字或留空');
                   isValid = false;
              } else {
-                  updateData.price = newValue; // API 需要 price
+                  updateData.price = newValue; 
              }
         }
     }
 
-    // --- 處理驗證失敗 ---
     if (!isValid) {
-        target.value = originalValueStr; // 恢復原始值
-        target.style.borderColor = 'red'; // 標示錯誤
-        console.warn(`[HandleBlur] Invalid input for ${target.className}. Reverted to original value.`);
-        // 短暫標紅後恢復
+        target.value = originalValueStr; 
+        target.style.borderColor = 'red'; 
         setTimeout(() => { target.style.borderColor = ''; }, 1500);
         return;
     }
 
-    // --- 呼叫 API ---
-    target.style.borderColor = 'orange'; // 提示正在儲存
-    console.log("[HandleBlur] Preparing to send API update:", JSON.stringify({ updates: [updateData] }));
+    target.style.borderColor = 'orange'; 
 
     try {
         await api.updateRoomInventory({ updates: [updateData] });
-        console.log(`[HandleBlur] API update successful for ${productId} on ${date}.`);
-        target.dataset.originalValue = currentValueStr; // API 成功後，更新原始值記錄
-        target.style.borderColor = ''; // 清除儲存提示
-        updateCellVisuals(cell); // 更新單元格視覺 (可能影響背景色或驚嘆號)
-        // 不需要 toast 成功訊息，避免過多干擾
+        target.dataset.originalValue = currentValueStr; 
+        target.style.borderColor = ''; 
+        
+        // 更新本地快取
+        if (!currentInventoryData[productId]) currentInventoryData[productId] = {};
+        if (!currentInventoryData[productId][date]) currentInventoryData[productId][date] = {};
+        if (updateData.quantity !== undefined) currentInventoryData[productId][date].quantity_available = updateData.quantity;
+        if (updateData.price !== undefined) currentInventoryData[productId][date].base_price = updateData.price;
+
+        updateCellVisuals(cell); 
 
     } catch (error) {
-         console.error("[HandleBlur] API update failed:", error);
+         console.error("API update failed:", error);
          ui.toast.error(`更新失敗: ${error.message}`);
-         target.value = originalValueStr; // API 失敗，恢復原始值
-         target.style.borderColor = 'red'; // 標示錯誤
-         // 嘗試恢復視覺狀態 (可能因為 API 失敗導致狀態不一致)
+         target.value = originalValueStr; 
+         target.style.borderColor = 'red'; 
          updateCellVisuals(cell);
          setTimeout(() => { target.style.borderColor = ''; }, 1500);
     }
@@ -327,9 +336,7 @@ async function handleCellBlur(e) {
 function handleCellFocus(e) {
     const target = e.target;
     if (target.matches('.quantity-input, .price-input')) {
-         // 記錄當前值，以便 blur 時比較
          target.dataset.originalValue = target.value.trim();
-         // console.log(`[HandleFocus] Stored original value for ${target.className}: "${target.dataset.originalValue}"`);
     }
 }
 
@@ -341,39 +348,35 @@ function updateCellVisuals(cell) {
     const qtyInput = cell.querySelector('.quantity-input');
     const priceInput = cell.querySelector('.price-input');
 
-    if (!statusBtn || !qtyInput || !priceInput) {
-        console.warn("[UpdateVisuals] Cell is missing expected elements.");
-        return;
-    }
+    if (!statusBtn || !qtyInput || !priceInput) return;
 
-    const status = statusBtn.dataset.status;
-    const quantity = parseInt(qtyInput.value, 10); // 從 input 讀取當前值
-    const priceStr = priceInput.value.trim();
-    const price = (priceStr === '') ? null : parseInt(priceStr, 10); // 從 input 讀取當前值
+    // 從快取讀取最新狀態 (因為 handleCellClick 已經更新了快取)
+    const productId = cell.dataset.productId;
+    const dateStr = cell.dataset.date;
+    const inventory = currentInventoryData[productId]?.[dateStr];
+    
+    // 再次檢查是否過期 (因為可能在頁面停留很久)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const dateObj = new Date(dateStr + 'T00:00:00');
+    const isPast = dateObj < today;
 
-    // --- 重新計算視覺樣式 ---
+    if (isPast) return; // 過去日期不需更新視覺，保持 disabled
+
+    const status = inventory?.status || 'Closed'; // 使用 inventory 的狀態，而不是 DOM 的
+    const quantity = inventory?.quantity_available !== undefined ? inventory.quantity_available : parseInt(qtyInput.value, 10);
+    const price = inventory?.base_price !== undefined ? inventory.base_price : (priceInput.value.trim() === '' ? null : parseInt(priceInput.value, 10));
+
     const visuals = calculateCellVisuals(status, quantity, price);
 
-    // --- 應用樣式 ---
-    cell.style.backgroundColor = visuals.bgColor; // 更新格子背景
-    cell.title = visuals.tooltip;                 // 更新 tooltip
+    cell.style.backgroundColor = visuals.bgColor; 
+    cell.title = visuals.tooltip;                 
 
-    // --- 更新按鈕 ---
     statusBtn.style.backgroundColor = visuals.buttonBgColor;
     statusBtn.style.color = visuals.buttonTextColor;
     statusBtn.textContent = visuals.buttonText;
-    // 更新按鈕的 class (可選，用於 CSS)
-    statusBtn.classList.remove('status-open', 'status-soldout', 'status-closed');
-    if (status === 'Closed') {
-        statusBtn.classList.add('status-closed');
-    } else if (quantity > 0) {
-        statusBtn.classList.add('status-open');
-    } else {
-        statusBtn.classList.add('status-soldout');
-    }
+    statusBtn.dataset.status = status; // 確保 dataset 同步
 
-
-    // 更新或移除驚嘆號 icon
     let iconSpan = cell.querySelector('.price-warning-icon');
     if (visuals.iconHtml) {
         if (!iconSpan) {
@@ -381,21 +384,13 @@ function updateCellVisuals(cell) {
             iconSpan.className = 'price-warning-icon';
             priceInput.parentNode.insertBefore(iconSpan, priceInput.nextSibling);
         }
-        // 直接設置 innerHTML，因為 visuals.iconHtml 包含完整的 span 元素
         iconSpan.outerHTML = visuals.iconHtml;
-         // outerHTML 替換後需要重新獲取 iconSpan (雖然下面沒再用到，但以防萬一)
-         // iconSpan = cell.querySelector('.price-warning-icon');
-         // if(iconSpan) iconSpan.style.display = 'inline'; // 確保顯示 (如果 innerHTML 沒包含 style)
-
     } else if (iconSpan) {
-        iconSpan.remove(); // 直接移除元素
+        iconSpan.remove(); 
     }
 
-    // 更新輸入框禁用狀態
     qtyInput.disabled = visuals.inputsDisabled;
     priceInput.disabled = visuals.inputsDisabled;
-
-    // console.log(`[UpdateVisuals] Updated visuals for cell ${cell.dataset.productId}/${cell.dataset.date}:`, visuals);
 }
 
 
@@ -403,27 +398,17 @@ function updateCellVisuals(cell) {
 async function loadInventoryData() {
     console.log("[LoadData] Attempting to load inventory data...");
     const productSelect = document.getElementById('rav-product-select');
-    // 使用主日期選擇器 dateRangePicker
     const dateRange = dateRangePicker ? dateRangePicker.selectedDates : [];
 
-    if (!productSelect) {
-         console.error("[LoadData] Error: Product select element not found.");
-         ui.toast.error('發生錯誤：找不到房型選擇器');
-         return;
-    }
-    if (dateRange.length < 2) {
-        ui.toast.info('請先選擇有效的日期範圍'); // 改用 info 提示
-        console.log("[LoadData] Date range not selected or invalid.");
-        document.getElementById('rav-grid-container').innerHTML = '<p>請選擇有效的日期範圍以載入資料。</p>';
+    if (!productSelect || dateRange.length < 2) {
+        ui.toast.info('請先選擇有效的日期範圍');
         return;
     }
 
     const selectedProductId = productSelect.value;
     const startDate = flatpickr.formatDate(dateRange[0], "Y-m-d");
     const endDate = flatpickr.formatDate(dateRange[1], "Y-m-d");
-    console.log(`[LoadData] Selected range: ${startDate} to ${endDate}, Product ID: ${selectedProductId}`);
 
-    // 計算日期範圍天數
     displayedDates = [];
     let tempDate = new Date(dateRange[0]);
     const end = new Date(dateRange[1]);
@@ -432,44 +417,31 @@ async function loadInventoryData() {
         tempDate.setDate(tempDate.getDate() + 1);
     }
 
-    // 限制最大查詢範圍 (例如 90 天)
     const MAX_DAYS = 90;
     if (displayedDates.length > MAX_DAYS) {
          ui.toast.error(`日期範圍過大 (最多 ${MAX_DAYS} 天)，請縮小範圍`);
-         console.warn(`[LoadData] Date range too large: ${displayedDates.length} days.`);
-         displayedDates = []; // 清空日期
-         document.getElementById('rav-grid-container').innerHTML = `<p style="color:red;">日期範圍過大 (最多 ${MAX_DAYS} 天)，請重新選擇。</p>`;
          return;
     }
 
-    // --- 顯示載入狀態 ---
     const gridContainer = document.getElementById('rav-grid-container');
     gridContainer.innerHTML = '<p>正在載入資料...</p>';
     const loadingBtn = document.getElementById('rav-apply-filter-btn');
     if(loadingBtn) loadingBtn.disabled = true;
 
-    // --- 呼叫 API ---
     try {
         const params = new URLSearchParams({ startDate, endDate });
         if (selectedProductId !== 'all') {
             params.append('productId', selectedProductId);
         }
-        console.log(`[LoadData] Calling API: /api/admin/get-room-inventory?${params.toString()}`);
         currentInventoryData = await api.getRoomInventory(params);
-        console.log("[LoadData] API call successful, rendering grid...");
-        renderAvailabilityGrid(); // 渲染表格
-        // API 成功後才綁定事件 (如果尚未綁定)
-        bindCellEvents();
+        renderAvailabilityGrid(); 
     } catch (error) {
-        console.error("[LoadData] API call failed:", error);
+        console.error("API call failed:", error);
         ui.toast.error(`載入資料失敗: ${error.message}`);
         gridContainer.innerHTML = `<p style="color:red;">載入失敗: ${error.message}</p>`;
-        // 清空數據以防顯示舊資料
         currentInventoryData = {};
-        displayedDates = [];
     } finally {
-         if(loadingBtn) loadingBtn.disabled = false; // 恢復按鈕
-         console.log("[LoadData] Loading process finished.");
+         if(loadingBtn) loadingBtn.disabled = false; 
     }
 }
 
@@ -657,151 +629,80 @@ async function handleBulkEditSubmit(event) {
 // --- 事件綁定 (v5 - 確保只綁定一次) ---
 function setupEventListeners() {
     const page = document.getElementById('page-room-availability');
-    // 防止重複綁定
-    if (!page || page.dataset.initialized === 'true') {
-        if (page?.dataset.initialized === 'true') console.log("[SetupEvents] Listeners already initialized.");
-        return;
-    }
-    console.log("[SetupEvents] Initializing event listeners...");
+    if (!page || page.dataset.initialized === 'true') return;
 
-    // 綁定按鈕事件
     const applyBtn = document.getElementById('rav-apply-filter-btn');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', loadInventoryData);
-        console.log("[SetupEvents] Apply button listener attached.");
-    } else console.warn("[SetupEvents] Apply button not found.");
+    if (applyBtn) applyBtn.addEventListener('click', loadInventoryData);
 
     const bulkEditBtn = document.getElementById('rav-bulk-edit-all-btn');
-    if (bulkEditBtn) {
-        bulkEditBtn.addEventListener('click', openBulkEditModal);
-        console.log("[SetupEvents] Bulk edit button listener attached.");
-    } else console.warn("[SetupEvents] Bulk edit button not found.");
+    if (bulkEditBtn) bulkEditBtn.addEventListener('click', openBulkEditModal); // 這裡需要上面的 openBulkEditModal
 
     const bulkEditForm = document.getElementById('rav-bulk-edit-form');
-    if (bulkEditForm) {
-        bulkEditForm.addEventListener('submit', handleBulkEditSubmit);
-        console.log("[SetupEvents] Bulk edit form submit listener attached.");
-    } else console.warn("[SetupEvents] Bulk edit form not found.");
+    if (bulkEditForm) bulkEditForm.addEventListener('submit', handleBulkEditSubmit); // 這裡需要上面的 handleBulkEditSubmit
 
-    // 填充房型下拉選單 (如果尚未填充)
+    // 填充房型選單
     const productSelect = document.getElementById('rav-product-select');
     if (productSelect && currentProducts.length > 0 && productSelect.options.length <= 1) {
-         productSelect.innerHTML = '<option value="all">所有房型</option>'; // 清空並加回預設
+         productSelect.innerHTML = '<option value="all">所有房型</option>';
          currentProducts.forEach(product => {
-             // 確保 product 有 name 和 product_id
              if (product.name && product.product_id) {
                  productSelect.add(new Option(product.name, product.product_id));
-             } else {
-                 console.warn("[SetupEvents] Product missing name or id:", product);
              }
          });
-         console.log("[SetupEvents] Product dropdown populated.");
-    } else if (productSelect && currentProducts.length === 0) {
-         console.warn("[SetupEvents] Product dropdown not populated: currentProducts is empty.");
-    } else if (!productSelect) {
-         console.warn("[SetupEvents] Product dropdown element not found.");
     }
 
-    // 標記已初始化
     page.dataset.initialized = 'true';
-    console.log("[SetupEvents] Event listeners setup complete.");
 }
 
 // --- 初始化日期選擇器的獨立函數 (v5 - 保持獨立) ---
 export function initializeDatePickers() {
-     if (isDatePickerInitialized) {
-          console.log("[InitPickers] Date pickers already initialized, skipping.");
-          return;
-     }
+     if (isDatePickerInitialized) return;
      console.log("[InitPickers] Initializing date pickers...");
      const dateRangeInput = document.getElementById('rav-date-range');
      if (dateRangeInput) {
-          console.log("[InitPickers] Found #rav-date-range, initializing main picker...");
           try {
+              // 【修改】預設為今天到未來 30 天
+              const today = new Date();
+              const nextMonth = new Date();
+              nextMonth.setDate(today.getDate() + 30);
+
               dateRangePicker = flatpickr(dateRangeInput, {
                   mode: "range",
                   dateFormat: "Y-m-d",
                   locale: "zh_tw",
-                  // 預設選取當月第一天到最後一天
-                  defaultDate: [
-                       new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                       new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-                  ],
+                  defaultDate: [ today, nextMonth ],
                   onReady: function(selectedDates, dateStr, instance) {
-                       console.log("[InitPickers] Main picker onReady.");
                        if (Array.isArray(selectedDates) && selectedDates.length === 2) {
-                            console.log("[InitPickers] Main picker onReady: Dates selected, triggering loadInventoryData...");
                             loadInventoryData(); // 初始載入
-                       } else {
-                            console.warn("[InitPickers] Main picker onReady: Initial date range invalid.");
                        }
-                  },
-                  onError: function(error) { // 增加錯誤處理
-                      console.error("[InitPickers] Main picker Flatpickr Error:", error);
-                      ui.toast.error("初始化主日期選擇器失敗: " + error.message);
                   }
               });
-              if(dateRangeInput._flatpickr) {
-                  console.log("[InitPickers] Main picker initialized successfully.");
-                  isDatePickerInitialized = true; // 標記成功
-              } else {
-                   console.error("[InitPickers] Main picker failed to attach instance!");
-                   ui.toast.error("主日期選擇器實例附加失敗");
-              }
+              isDatePickerInitialized = true;
           } catch(e) {
-               console.error("[InitPickers] Error initializing main picker:", e);
-               ui.toast.error(`初始化主日期選擇器異常: ${e.message}`);
+               console.error("Error initializing picker:", e);
           }
-     } else {
-          console.error("[InitPickers] Error: Main date range input #rav-date-range not found!");
-          ui.toast.error("無法初始化主日期選擇器 (找不到元素)。");
      }
-     // 批次修改的日期選擇器在 openBulkEditModal 中處理
-     console.log("[InitPickers] Date picker initialization process finished.");
 }
 
 
 // --- 模組初始化函式 (init v5 - 載入產品並綁定事件) ---
 export const init = async () => {
-    console.log("[Init] Room Availability Management init started...");
     const page = document.getElementById('page-room-availability');
-    if (!page) {
-         console.error("[Init] Error: Page element #page-room-availability not found!");
-         return;
-    }
+    if (!page) return;
     const gridContainer = document.getElementById('rav-grid-container');
-    if (gridContainer) {
-         gridContainer.innerHTML = '<p>請先選擇房型和日期範圍，然後點擊「載入資料」。</p>';
-    } else console.warn("[Init] Grid container not found.");
+    if (gridContainer) gridContainer.innerHTML = '<p>請先選擇房型和日期範圍，然後點擊「載入資料」。</p>';
 
-    isDatePickerInitialized = false; // 重置初始化標記
+    isDatePickerInitialized = false; 
 
     try {
-        // 確保房型資料已載入
         if (currentProducts.length === 0) {
-            console.log("[Init] Products cache empty, fetching from API...");
-            // 確保 getProducts API 正確
             const allProds = await api.getProducts();
-            // 過濾掉沒有 product_id 或 name 的項目
             currentProducts = allProds.filter(p => p && p.product_id && p.name);
-            console.log(`[Init] Loaded and filtered ${currentProducts.length} products.`);
-            if (allProds.length !== currentProducts.length) {
-                console.warn("[Init] Some products were filtered out due to missing id or name.");
-            }
-        } else {
-             console.log(`[Init] Using cached ${currentProducts.length} products.`);
         }
-
-        // 綁定非 Flatpickr 的事件
         setupEventListeners();
-
-        // **重要**: init 函數不再負責初始化 Flatpickr 或載入初始數據
-        // 這將由 app.js 在正確的時機觸發 initializeDatePickers 來完成
-
+        // 請注意：initializeDatePickers 會在 app.js 中透過 RAF 呼叫
     } catch (error) {
-        console.error("[Init] Error during initialization:", error);
-        ui.toast.error(`初始化房量控管頁面失敗: ${error.message}`);
-        if (page) page.innerHTML = `<p style="color:red;">頁面初始化失敗: ${error.message}</p>`;
+        console.error("Error during initialization:", error);
+        ui.toast.error(`初始化失敗: ${error.message}`);
     }
-    console.log("[Init] Room Availability Management init finished.");
 };

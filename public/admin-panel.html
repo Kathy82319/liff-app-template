@@ -919,6 +919,40 @@
         padding-top: 15px;
         margin-top: 0;
     }
+
+    /* =========================================
+   房量控管 - 售完清單樣式
+   ========================================= */
+.sold-out-group {
+    background-color: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+}
+
+.sold-out-date-header {
+    font-weight: bold;
+    color: var(--color-text-primary);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed #eee;
+    display: flex;
+    justify-content: space-between;
+}
+
+.sold-out-item {
+    display: inline-block;
+    background-color: #fff8e1; /* 淡黃色背景 */
+    color: #856404;            /* 深黃色文字 */
+    border: 1px solid #ffeeba;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
 </style>
 
 </head>
@@ -1204,6 +1238,15 @@
             </form>
         </div>
     </div>
+
+    <div id="rav-sold-out-section" style="margin-top: 30px; display: none;">
+                    <h3 style="color: var(--color-warning); border-left: 4px solid var(--color-warning); padding-left: 10px; margin-bottom: 15px;">
+                        📉 滿房 / 售完清單
+                    </h3>
+                    <div id="rav-sold-out-list"></div>
+                </div>
+
+                <div id="rav-bulk-edit-modal" class="modal-overlay">...</div>
 
 </div>    
 

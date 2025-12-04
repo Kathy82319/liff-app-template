@@ -25,7 +25,7 @@ let flatpickrInstance = null;
 // 1. 初始化預約頁面 (Entry Point)
 // =================================================================
 export async function init() {
-    console.log("初始化預約頁面 (Config-Driven v13)");
+    console.log("初始化預約頁面 (Config-Driven v13.1 - Fix Export)");
     
     // 1. 讀取設定
     const clientConfig = state.activeTemplate?.client_config?.booking || {};
@@ -74,7 +74,6 @@ export async function init() {
     // 6. 綁定確認預約按鈕
     const confirmBtn = document.getElementById('confirm-booking-btn');
     if (confirmBtn) {
-        // 重置按鈕狀態 (避免切換頁面回來後還在 disable)
         confirmBtn.disabled = false;
         confirmBtn.textContent = '確認預約'; 
         
@@ -88,8 +87,7 @@ export async function init() {
 
     // 8. 根據模式初始化
     const bookingMode = clientConfig.mode || 'range'; // 預設 range (民宿)
-    console.log(`[Booking Init] Mode: ${bookingMode}`);
-
+    
     // 清理舊狀態
     const timeSlotContainer = document.getElementById('booking-time-slot-container');
     const form = document.getElementById('booking-details-form');
@@ -107,33 +105,13 @@ export async function init() {
 function applyFieldToggles(toggles = {}) {
     const setDisplay = (selector, isVisible) => {
         const el = document.querySelector(selector);
-        // 隱藏整組 form-group
         if (el) {
             const group = el.closest('.form-group') || el.parentElement;
             if (group) group.style.display = isVisible ? '' : 'none';
         }
     };
-
-    // 預設 true
-    const showPeople = toggles.people !== false;
-    const showQuantity = toggles.quantity !== false; // 注意：如果是民宿模式，這個通常由程式碼控制，這裡主要針對工作室
     const showNotes = toggles.notes !== false;
-
-    // 工作室模式下隱藏數量選擇 (因為通常選了項目就有數量)
-    // 但如果是民宿模式，數量選擇是在房型列表裡，這裡的 quantity toggle 通常指總體數量或額外欄位
-    // 這裡我們針對 ID 控制
-    
-    // 針對單日模式的 "預約項目" 區塊內的數量，通常不隱藏，但如果客戶想隱藏：
-    // CSS class 控制可能比較複雜，這裡先針對通用欄位
-    
-    // 備註欄位
     setDisplay('#booking-notes-input', showNotes);
-    
-    // 如果是單日模式，可能會用到人數欄位 (如果不是自動帶入1)
-    // 這裡假設 HTML 有一個 id="booking-people-input" (目前 HTML 似乎沒有這個通用欄位，是在 modal 裡)
-    // 在 create-booking-modal 裡有，但前端頁面目前是用 .room-qty-select (民宿) 或 .booking-item-qty (工作室)
-    
-    // 我們稍後在 render 時會再次用到這些設定
 }
 
 // =================================================================
@@ -195,7 +173,6 @@ async function initializeRangeMode(config) {
     
     if (!pickerEl || !roomContainer || !form) return;
 
-    // 自訂標籤
     const labels = config.labels || {};
     const labelEl = document.querySelector('label[for="booking-date-range-picker"]');
     if (labelEl) labelEl.textContent = `${labels.checkin || '入住'} / ${labels.checkout || '退房'} 日期:`;
@@ -205,7 +182,6 @@ async function initializeRangeMode(config) {
     
     form.style.display = 'block';
     
-    // 隱藏非此模式的元素
     const timeSlotContainer = document.getElementById('booking-time-slot-container');
     if (timeSlotContainer) timeSlotContainer.style.display = 'none';
     const itemsContainer = document.getElementById('booking-items-container');
@@ -269,7 +245,6 @@ function renderRoomList(availabilityData) {
         return;
     }
 
-    // 讀取是否顯示價格 (Client Config)
     const showPrice = state.activeTemplate?.client_config?.products?.show_price !== false;
 
     let hasBookable = false;
@@ -361,7 +336,6 @@ async function initializeSingleDateMode(config) {
     
     if (!pageDiv || !detailsForm || !pickerInput) return;
 
-    // 1. 更新介面文字
     const sectionTitle = pageDiv.querySelector('.details-section h3');
     if (sectionTitle) sectionTitle.textContent = '1. 選擇日期與時段';
     
@@ -370,12 +344,10 @@ async function initializeSingleDateMode(config) {
     
     pickerInput.placeholder = "請點擊選擇預約日期";
 
-    // 2. 隱藏民宿的房型選擇器
     const roomContainer = document.getElementById('room-selection-container');
     if (roomContainer) roomContainer.style.display = 'none';
 
     // 3. 處理時段 (Studio Settings)
-    // 【核心】讀取 studio_settings
     const studioSettings = config.studio_settings || { enable_time_slots: false };
     
     let timeSlotContainer = pageDiv.querySelector('#booking-time-slot-container');
@@ -399,8 +371,7 @@ async function initializeSingleDateMode(config) {
         }
     }
 
-    // 根據設定決定是否顯示時段
-    timeSlotContainer.style.display = 'none'; // 預設隱藏
+    timeSlotContainer.style.display = 'none'; 
 
     // 4. 動態建立/顯示項目容器
     let itemsContainer = detailsForm.querySelector('#booking-items-container');
@@ -428,9 +399,9 @@ async function initializeSingleDateMode(config) {
     if (addBookingItemBtn) {
         const newBtn = addBookingItemBtn.cloneNode(true);
         addBookingItemBtn.parentNode.replaceChild(newBtn, addBookingItemBtn);
-        newBtn.addEventListener('click', () => addBookingItemRow(config)); // 傳入 config
+        newBtn.addEventListener('click', () => addBookingItemRow(config)); 
     }
-    if (itemsContainer) addBookingItemRow(config); // 預設新增一行
+    if (itemsContainer) addBookingItemRow(config); 
 
     // 5. 初始化 Flatpickr (Single Mode)
     try {
@@ -447,14 +418,11 @@ async function initializeSingleDateMode(config) {
                 bookingData.date = dateStr;
                 
                 if (dateStr) {
-                    // 根據設定決定下一步
                     if (studioSettings.enable_time_slots) {
                         timeSlotContainer.style.display = 'block';
-                        // 傳入時間設定
                         renderDynamicTimeSlots(dateStr, studioSettings.time_slot_config);
-                        detailsForm.style.display = 'none'; // 隱藏表單，強迫選時段
+                        detailsForm.style.display = 'none'; 
                     } else {
-                        // 如果沒啟用時段，直接顯示表單
                         timeSlotContainer.style.display = 'none';
                         detailsForm.style.display = 'block';
                     }
@@ -477,7 +445,6 @@ async function initializeSingleDateMode(config) {
     }
 }
 
-// 【核心新增】根據 Config 動態渲染時段按鈕
 function renderDynamicTimeSlots(dateStr, timeConfig) {
     const container = document.getElementById('time-slot-buttons-container');
     const hiddenInput = document.getElementById('time-slot-select');
@@ -492,7 +459,6 @@ function renderDynamicTimeSlots(dateStr, timeConfig) {
     const selectedDate = new Date(dateStr + 'T00:00:00');
     const isToday = now.toDateString() === selectedDate.toDateString();
     
-    // 解析設定 (預設值防呆)
     const conf = timeConfig || {};
     const startTimeStr = conf.start || "09:00";
     const endTimeStr = conf.end || "21:00";
@@ -501,15 +467,11 @@ function renderDynamicTimeSlots(dateStr, timeConfig) {
     const startMinutes = parseTimeToMinutes(startTimeStr);
     const endMinutes = parseTimeToMinutes(endTimeStr);
     
-    // 產生時段
     for (let m = startMinutes; m < endMinutes; m += intervalMinutes) {
         const timeString = formatMinutesToTime(m);
-        
-        // 檢查是否過期
         let isDisabled = false;
         if (isToday) {
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            // 簡單防呆：預約需提前至少 30 分鐘 (可依需求調整)
             if (m <= currentMinutes + 30) isDisabled = true;
         }
 
@@ -535,7 +497,6 @@ function renderDynamicTimeSlots(dateStr, timeConfig) {
             btn.style.cursor = 'not-allowed';
         } else {
             btn.onclick = () => {
-                // 視覺回饋
                 container.querySelectorAll('.time-slot-btn').forEach(b => {
                     b.style.backgroundColor = '#fff';
                     b.style.color = 'var(--color-text-primary);';
@@ -558,13 +519,12 @@ function renderDynamicTimeSlots(dateStr, timeConfig) {
     }
 }
 
-// 輔助：時間字串轉分鐘
 function parseTimeToMinutes(timeStr) {
     if(!timeStr) return 0;
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
 }
-// 輔助：分鐘轉時間字串
+
 function formatMinutesToTime(minutes) {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
@@ -575,7 +535,6 @@ function addBookingItemRow(config) {
     const container = document.getElementById('booking-items-container');
     if (!container || container.children.length >= 5) return; 
 
-    // 檢查欄位顯示設定
     const toggles = config?.field_toggles || {};
     const showQuantity = toggles.quantity !== false;
 
@@ -598,7 +557,6 @@ function addBookingItemRow(config) {
     qtyInput.value = 1;
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
-    // 依設定隱藏
     if (!showQuantity) qtyInput.style.display = 'none';
 
     const priceInputHidden = document.createElement('input');
@@ -610,7 +568,6 @@ function addBookingItemRow(config) {
     priceDisplay.style.fontSize = '0.8rem';
     priceDisplay.style.color = '#666';
     
-    // 如果不顯示價格，也可以隱藏 hint
     if (state.activeTemplate?.client_config?.products?.show_price === false) {
         priceDisplay.style.display = 'none';
     }
@@ -751,7 +708,6 @@ async function handleBookingConfirmation(e) {
         contactName: name,
         contactPhone: phone,
         useStoredValue: useStoredValue,
-        // 備註欄位可能被隱藏，但我們會嘗試讀取
         notes: document.getElementById('booking-notes-input') ? document.getElementById('booking-notes-input').value.trim() : null
     };
 
@@ -783,7 +739,6 @@ async function handleBookingConfirmation(e) {
             
             if (select) {
                 const name = select.value;
-                // 若隱藏，預設 1
                 const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
                 if(name && qty > 0) items.push({ name, quantity: qty });
             }
@@ -793,7 +748,7 @@ async function handleBookingConfirmation(e) {
 
         payload.bookingDate = date;
         payload.timeSlot = time; 
-        payload.numOfPeople = 1; // 簡化邏輯，若需支援人數選擇，需讀取 toggles.people
+        payload.numOfPeople = 1; 
         payload.items = items;
         payload.bookingType = 'studio';
     }
@@ -801,7 +756,6 @@ async function handleBookingConfirmation(e) {
     try {
         const res = await api.createBooking(payload);
         
-        // 只有當伺服器回傳的 confirmationMessage 不是空的時候才發送 LINE
         if (res.confirmationMessage) {
              api.sendMessage(state.userProfile.userId, res.confirmationMessage).catch(err => console.error("發送 LINE 失敗", err));
         }
@@ -827,4 +781,110 @@ function resetButton(btn) {
     btn.disabled = false;
     btn.textContent = '確認預約';
     isSubmitting = false;
+}
+
+// =================================================================
+// 6. [FIX] 補回預約詳情渲染函式
+// =================================================================
+export async function renderBookingDetails(bookingId) {
+    if (!bookingId) return;
+
+    const container = document.getElementById('booking-details-content-container');
+    const loadingEl = document.getElementById('booking-details-loading');
+    const elId = document.getElementById('details-booking-id');
+    const elCheckIn = document.getElementById('details-check-in-date');
+    const elCheckOut = document.getElementById('details-check-out-date');
+    const elNights = document.getElementById('details-nights');
+    const elItemsList = document.getElementById('details-items-list');
+    const elTotal = document.getElementById('details-total-amount');
+    const elPolicy = document.getElementById('details-cancellation-policy');
+    const elInstructions = document.getElementById('details-check-in-instructions');
+    const cancelBtn = document.getElementById('details-cancel-booking-btn');
+
+    if (!container || !loadingEl) return;
+
+    container.style.display = 'none';
+    loadingEl.style.display = 'block';
+
+    try {
+        const [bookingList, policyData] = await Promise.all([
+            api.getBookingById(state.userProfile.userId, bookingId), 
+            api.getBookingPolicy()
+        ]);
+
+        const booking = bookingList[0];
+        if (!booking) throw new Error("找不到該筆預約資料");
+
+        if(elId) elId.textContent = `#${String(booking.booking_id).padStart(5, '0')}`;
+        if(elCheckIn) elCheckIn.textContent = booking.booking_date;
+        
+        // 根據模式決定顯示欄位
+        const mode = state.activeTemplate?.client_config?.booking?.mode || 'range';
+        const isGuesthouse = mode === 'range';
+
+        if (isGuesthouse && booking.check_out_date) {
+            if(elCheckOut) elCheckOut.parentElement.style.display = 'block';
+            if(elCheckOut) elCheckOut.textContent = booking.check_out_date;
+            
+            const start = new Date(booking.booking_date);
+            const end = new Date(booking.check_out_date);
+            const nights = Math.round((end - start) / 86400000);
+            if(elNights) {
+                elNights.textContent = nights > 0 ? nights : '-';
+                elNights.parentElement.style.display = 'block';
+            }
+        } else {
+            if(elCheckOut) elCheckOut.parentElement.style.display = 'none';
+            if(elNights) elNights.parentElement.style.display = 'none';
+            // 如果是工作室模式，顯示時段
+            if(booking.time_slot && elCheckIn) elCheckIn.textContent += ` ${booking.time_slot}`;
+        }
+
+        if(elItemsList) {
+            elItemsList.innerHTML = (booking.items || []).map(item => `
+                <div class="room-item-row" style="display:flex; justify-content:space-between; border-bottom:1px dashed #eee; padding:5px 0;">
+                    <span>${item.item_name} x ${item.quantity}</span>
+                    <span>$${item.price || '-'}</span>
+                </div>
+            `).join('');
+        }
+
+        if(elTotal) elTotal.textContent = booking.total_amount ? `$${booking.total_amount}` : '-';
+        if(elPolicy) elPolicy.textContent = policyData.cancellationPolicy || '無取消政策資料';
+        if(elInstructions) elInstructions.textContent = policyData.checkInInstructions || '無入住須知資料';
+
+        if (cancelBtn) {
+            // 只有 confirmed 狀態才能取消
+            if (booking.status === 'confirmed') {
+                cancelBtn.style.display = 'block';
+                // 移除舊監聽器
+                const newCancelBtn = cancelBtn.cloneNode(true);
+                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                
+                newCancelBtn.addEventListener('click', async () => {
+                    if (confirm('確定要取消此預約嗎？')) {
+                        try {
+                            newCancelBtn.disabled = true;
+                            newCancelBtn.textContent = '取消中...';
+                            await api.cancelBooking(booking.booking_id, state.userProfile.userId);
+                            ui.toast('預約已取消', 'success');
+                            router.navigate('page-my-records');
+                        } catch (err) {
+                            ui.toast(`取消失敗: ${err.message}`, 'error');
+                            newCancelBtn.disabled = false;
+                            newCancelBtn.textContent = '取消預約';
+                        }
+                    }
+                });
+            } else {
+                cancelBtn.style.display = 'none';
+            }
+        }
+
+        loadingEl.style.display = 'none';
+        container.style.display = 'block';
+
+    } catch (e) {
+        loadingEl.innerHTML = `<p style="color:red;">載入失敗: ${e.message}</p>`;
+    }
 }

@@ -7,20 +7,26 @@ let productView = { layout: 'grid', sort: 'default' };
 let activeFilters = { keyword: '', filter_1: null, filter_2: null, filter_3: null };
 
 export async function init() {
-    productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
+    // 1. 讀取設定
+    const productConfig = state.activeTemplate?.client_config?.products || {};
+    const terms = state.activeTemplate?.terms || {};
+    
+    // 2. 設定預設檢視模式 (LocalStorage 優先，其次是 Config)
+    productView.layout = localStorage.getItem('product_layout_preference') || productConfig.view_mode || 'grid';
     productView.sort = localStorage.getItem('product_sort_preference') || 'default';
 
     const container = document.getElementById('product-list-container');
     if (!container) return;
     container.innerHTML = `<p>載入中...</p>`; 
 
-    const terms = state.activeTemplate?.terms || {};
-    const features = state.activeTemplate?.features || {};
+    // 3. 設定頁面標題
     const pageTitle = document.querySelector('#page-products .page-main-title'); 
-    if(pageTitle && terms.PRODUCT_CATALOG_TITLE) { 
-        pageTitle.textContent = terms.PRODUCT_CATALOG_TITLE;
+    if(pageTitle) { 
+        // 優先使用 Config 設定的標題，若無則使用 Terms
+        pageTitle.textContent = productConfig.title || terms.PRODUCT_CATALOG_TITLE || '產品型錄';
     }
 
+    const features = state.activeTemplate?.features || {};
     setupUIControls(features, terms);
 
     try {
@@ -200,15 +206,32 @@ function renderProducts() {
         return;
     }
 
-    // 【核心新增】讀取 client_config，決定是否顯示價格 (目前預設顯示)
+    // 1. 讀取 Config
     const productConfig = state.activeTemplate?.client_config?.products || {};
-    // 若未設定 show_price，預設為 true
     const showPrice = productConfig.show_price !== false; 
+    const showStock = productConfig.show_stock !== false; // 預設顯示庫存
 
     container.innerHTML = filtered.map(product => {
         let priceDisplay = '';
         if (showPrice) {
             priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
+        }
+
+        // 2. 庫存顯示邏輯
+        let stockHtml = '';
+        if (showStock) {
+            // 如果是 Quantity 模式，顯示數字
+            if (product.inventory_management_type === 'quantity') {
+                const qty = product.stock_quantity || 0;
+                stockHtml = qty > 0 
+                    ? `<span style="font-size:0.8rem; color: #28a745; background: #e6f4ea; padding: 2px 6px; border-radius: 4px;">剩餘 ${qty}</span>`
+                    : `<span style="font-size:0.8rem; color: #dc3545; background: #ffebee; padding: 2px 6px; border-radius: 4px;">已售完</span>`;
+            } 
+            // 如果是 Status 模式，顯示文字
+            else if (product.inventory_management_type === 'status') {
+                stockHtml = `<span style="font-size:0.8rem; color: #17a2b8; background: #e0f7fa; padding: 2px 6px; border-radius: 4px;">${product.stock_status || '在庫'}</span>`;
+            }
+            // 如果是 DateBased 模式 (民宿)，通常不直接顯示庫存，因為要選日期
         }
 
         const isList = productView.layout === 'list';
@@ -223,7 +246,11 @@ function renderProducts() {
                         <h3 class="product-title" style="margin:0;">${product.name}</h3>
                         ${showPrice ? `<span style="color:var(--color-primary); font-weight:bold; font-size:1rem;">${priceDisplay}</span>` : ''}
                     </div>
-                    ${isList ? `<p style="font-size:0.85rem; color:#888; margin:5px 0 0 0;">${product.description ? product.description.substring(0, 40) + '...' : ''}</p>` : ''}
+                    
+                    <div style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+                        ${isList ? `<p style="font-size:0.85rem; color:#888; margin:0;">${product.description ? product.description.substring(0, 40) + '...' : ''}</p>` : '<span></span>'}
+                        ${stockHtml}
+                    </div>
                 </div>
             </div>
         `;
@@ -268,20 +295,29 @@ export function renderDetails(product) {
         }
     } catch(e) { gallery.style.display = 'none'; }
 
-    // 【核心新增】讀取 Config 決定價格顯示
+    // 1. 讀取 Config 決定價格顯示
     const productConfig = state.activeTemplate?.client_config?.products || {};
     const showPrice = productConfig.show_price !== false;
 
     if (showPrice) {
         const priceSection = document.createElement('div');
         priceSection.className = 'detail-field-section product-price-details';
-        priceSection.innerHTML = `
-            <h3>價格</h3>
-            <p>
-                平日: ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
-                週五: ${product.price_friday !== null ? '$' + product.price_friday : '洽詢'}<br>
-                週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '洽詢'}
-            </p>`;
+        // 判斷是否為複雜價格 (Complex) - 用 price_weekday/friday/saturday 判斷
+        const hasWeekendPrice = product.price_friday !== null || product.price_saturday !== null;
+        
+        let priceHtml = '';
+        if (hasWeekendPrice) {
+            priceHtml = `
+                <p>
+                    平日: ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
+                    週五: ${product.price_friday !== null ? '$' + product.price_friday : '洽詢'}<br>
+                    週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '洽詢'}
+                </p>`;
+        } else {
+            priceHtml = `<p class="product-price" style="font-size:1.5rem; color:var(--color-primary); font-weight:bold;">${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}</p>`;
+        }
+
+        priceSection.innerHTML = `<h3>價格</h3>${priceHtml}`;
         contentContainer.appendChild(priceSection);
     }
 
@@ -312,4 +348,4 @@ export function renderDetails(product) {
             }
         });
     }
-} 
+}

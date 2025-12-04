@@ -1,9 +1,9 @@
-// public/admin/modules/bookingManagement.js (v12.6 - 房型顯示修正與即時搜尋版)
+// public/admin/modules/bookingManagement.js
 import { api } from '../api.js';
 import { ui } from '../ui.js';
 import { escapeHtml } from '../../utils.js';
 
-// 防抖動函式：避免輸入時頻繁呼叫 API
+// 防抖動函式
 function debounce(func, delay) {
     let timer;
     return function(...args) {
@@ -23,6 +23,7 @@ let currentBookingInModal = null;
 let currentStatusMenu = null;
 let bookingListDateRangePicker = null; 
 let activeTemplate = null;
+
 /**
  * 安全地獲取物件的巢狀屬性
  */
@@ -36,13 +37,14 @@ function getProperty(obj, path, defaultValue = 'N/A') {
     return result;
 }
 
-// --- [v12.4 新增] 狀態翻譯輔助函式 ---
 function translateStatus(status) {
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    // 根據設定檔判斷 "checked-in" 的顯示文字
+    const isGuesthouse = activeTemplate?.client_config?.booking?.mode === 'range';
     const checkInText = isGuesthouse ? '已入住' : '已報到';
 
     switch (status) {
         case 'confirmed': return '已確認';
+        case 'checked-in': return checkInText;
         case 'cancelled': return '已取消';
         case 'no-show': return '未到';
         default: return status || '未知';
@@ -60,7 +62,7 @@ function bindTbodyClickListener(tbodyElement) {
      const tbodyClickListener = async (e) => {
          const target = e.target;
 
-         // --- 處理 "標記" 按鈕 ---
+         // "標記" 按鈕
          const markStatusBtn = target.closest('.btn-mark-status');
          if (markStatusBtn && !markStatusBtn.disabled) {
              e.stopPropagation();
@@ -69,7 +71,7 @@ function bindTbodyClickListener(tbodyElement) {
              return;
          }
 
-         // --- 處理 "快速取消" 按鈕 ---
+         // "快速取消" 按鈕
          const quickCancelBtn = target.closest('.btn-quick-cancel');
          if (quickCancelBtn) {
              e.stopPropagation();
@@ -91,7 +93,7 @@ function bindTbodyClickListener(tbodyElement) {
              return;
          }
 
-         // --- 處理點擊 "行" (開啟 Modal) ---
+         // 點擊 "行" (開啟 Modal)
          const bookingRow = target.closest('tr[data-booking-id]');
          if (bookingRow && !target.closest('.action-btn')) {
              const bookingId = bookingRow.dataset.bookingId;
@@ -129,6 +131,7 @@ function getPriceForDate(dateString, product) {
     }
 }
 
+// --- [Phase 3] 詳情 Modal 適配 ---
 async function renderBookingDetails(booking, userProfile, isEditing = false) {
     const contentEl = document.getElementById('booking-details-content');
     const modalContent = document.getElementById('booking-details-modal')?.querySelector('.modal-content');
@@ -137,12 +140,14 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
     modalContent.style.maxHeight = '';
     modalContent.style.overflowY = '';
     let html = '';
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    
+    // 讀取設定
+    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
+    const isGuesthouse = bookingMode === 'range';
 
     if (!isEditing) { // --- VIEW MODE ---
         html = `<h4>顧客資訊</h4>`;
         if (userProfile) {
-            // 【安全修正】使用 escapeHtml 包覆所有變數
             const safeName = escapeHtml(userProfile.line_display_name);
             const safeRealName = escapeHtml(userProfile.real_name);
             const safePhone = escapeHtml(userProfile.phone);
@@ -150,7 +155,6 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             const safeTag = escapeHtml(userProfile.tag);
             const safeNotes = escapeHtml(userProfile.notes);
             
-            // 組合顯示名稱
             const displayName = userProfile.real_name ? `${safeRealName} (${safeName})` : safeName;
 
             html += `
@@ -169,11 +173,14 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             html += `<p>(臨時顧客)</p>`;
         }
         
-        // --- 2. 預約資訊 ---
+        // --- 2. 預約資訊 (動態顯示) ---
         const bookingIdDisplay = `#${String(booking.booking_id).padStart(5, '0')}`;
         
         html += `<h4>預約資訊</h4>`;
-        if (isGuesthouse) { // 民宿樣板
+        html += `<div class="details-grid-container">`;
+        html += `<div><strong>預約單號:</strong> ${bookingIdDisplay}</div>`;
+        
+        if (isGuesthouse) { 
             const startDate = booking.booking_date || '';
             const endDate = booking.check_out_date || '';
             let nights = '-';
@@ -182,31 +189,25 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                     const start = new Date(startDate + 'T00:00:00');
                     const end = new Date(endDate + 'T00:00:00');
                     nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                } catch(e) { /* ignore */ }
+                } catch(e) {}
             }
-            html += `
-                <div class="details-grid-container">
-                    <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
-                    <div><strong>入住日期:</strong> ${startDate}</div>
-                    <div><strong>退房日期:</strong> ${endDate}</div>
-                    <div><strong>住宿晚數:</strong> ${nights} 晚</div>
-                    <div><strong>訂單狀態:</strong> ${translateStatus(booking.status)}</div>
-                </div>
-            `;
-        } else { // 工作室或其他樣板
-            html += `
-                <div class="details-grid-container">
-                    <div><strong>預約單號:</strong> ${bookingIdDisplay}</div>
-                    <div><strong>預約日期:</strong> ${booking.booking_date}</div>
-                    <div><strong>預約時段:</strong> ${escapeHtml(booking.time_slot)}</div>
-                    <div><strong>總人數:</strong> ${booking.num_of_people} 人</div>
-                    <div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>
-                    <div><strong>聯絡電話:</strong> ${escapeHtml(booking.contact_phone) || '未提供'}</div>
-                    <div><strong>訂單狀態:</strong> ${translateStatus(booking.status)}</div>
-                </div>
-            `;
+            html += `<div><strong>入住日期:</strong> ${startDate}</div>`;
+            html += `<div><strong>退房日期:</strong> ${endDate}</div>`;
+            html += `<div><strong>住宿晚數:</strong> ${nights} 晚</div>`;
+        } else { // Studio
+            html += `<div><strong>預約日期:</strong> ${booking.booking_date}</div>`;
+            // 只有啟用時段才顯示
+            if (activeTemplate?.client_config?.booking?.studio_settings?.enable_time_slots !== false) {
+                html += `<div><strong>預約時段:</strong> ${escapeHtml(booking.time_slot)}</div>`;
+            }
+            html += `<div><strong>總人數:</strong> ${booking.num_of_people} 人</div>`;
         }
-        // 【安全修正】備註內容消毒
+        
+        html += `<div><strong>預估總金額:</strong> ${booking.total_amount !== null ? '$' + booking.total_amount : '未設定'}</div>`;
+        html += `<div><strong>聯絡電話:</strong> ${escapeHtml(booking.contact_phone) || '未提供'}</div>`;
+        html += `<div><strong>訂單狀態:</strong> ${translateStatus(booking.status)}</div>`;
+        html += `</div>`;
+        
         html += `<div class="details-notes"><strong>內部備註:</strong> <pre>${escapeHtml(booking.notes) || '無'}</pre></div>`;
         
         // --- 3. 預約項目 ---
@@ -222,7 +223,6 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 const subtotal = price * quantity;
                 calculatedTotal += subtotal;
                 
-                // 【安全修正】項目名稱消毒
                 html += `<tr>`;
                 html += `<td>${escapeHtml(item.item_name)}</td>`;
                 html += `<td>${quantity}</td>`;
@@ -252,14 +252,15 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 </div>
             `;
         } else {
-            // 【安全修正】time_slot 消毒
-            dateInputsHtml = `
-                <div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>
-                <div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${escapeHtml(booking.time_slot)}"></div>
-            `;
+            dateInputsHtml = `<div><label>預約日期:</label><input type="text" id="edit-booking-date" value="${booking.booking_date}"></div>`;
+            if (activeTemplate?.client_config?.booking?.studio_settings?.enable_time_slots !== false) {
+                dateInputsHtml += `<div><label>預約時段:</label><input type="text" id="edit-booking-slot" value="${escapeHtml(booking.time_slot)}"></div>`;
+            } else {
+                // 即使隱藏也要有欄位以防 JS 報錯，設為 hidden
+                dateInputsHtml += `<input type="hidden" id="edit-booking-slot" value="">`;
+            }
         }
 
-        // 【安全修正】input value 使用 escapeHtml 防止引號截斷攻擊
         contentEl.innerHTML = `
             <h4>預約資訊 (編輯中)</h4>
             <div id="booking-edit-form" class="details-grid-container">
@@ -285,7 +286,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             addEditItemRow(container);
         }
 
-        // 綁定新增按鈕 (注意：這裡使用 cloneNode 或檢查是否已綁定，以防重複)
+        // 綁定新增按鈕
         const addBtn = document.getElementById('btn-add-edit-item');
         if(addBtn) {
              addBtn.replaceWith(addBtn.cloneNode(true));
@@ -304,10 +305,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                         const startStr = flatpickr.formatDate(selectedDates[0], "Y-m-d");
                         document.getElementById('edit-booking-date').value = startStr;
                         document.getElementById('edit-checkout-date').value = flatpickr.formatDate(selectedDates[1], "Y-m-d");
-                        
-                        document.querySelectorAll('.edit-item-row').forEach(row => {
-                            updateEditItemPrice(row, startStr);
-                        });
+                        document.querySelectorAll('.edit-item-row').forEach(row => { updateEditItemPrice(row, startStr); });
                         updateEditTotalAmount();
                     }
                 }
@@ -316,9 +314,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
             flatpickr("#edit-booking-date", { 
                 dateFormat: "Y-m-d",
                 onChange: (selectedDates, dateStr) => {
-                    document.querySelectorAll('.edit-item-row').forEach(row => {
-                        updateEditItemPrice(row, dateStr);
-                    });
+                    document.querySelectorAll('.edit-item-row').forEach(row => { updateEditItemPrice(row, dateStr); });
                     updateEditTotalAmount();
                 }
             });
@@ -326,13 +322,11 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
     }
 }
 
-// --- [v12.4 新增] 動態新增編輯項目列 ---
 function addEditItemRow(container, item = null) {
     const row = document.createElement('div');
     row.className = 'edit-item-row';
     row.style.cssText = 'display: grid; grid-template-columns: 1fr 80px 100px 40px; gap: 10px; margin-bottom: 10px; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 4px; background: #fafafa;';
 
-    // 產品選單
     const select = document.createElement('select');
     select.className = 'edit-item-select';
     select.innerHTML = '<option value="">-- 選擇項目 --</option>';
@@ -345,14 +339,12 @@ function addEditItemRow(container, item = null) {
     });
     select.add(new Option('其他 (手動輸入)', 'other'));
 
-    // 手動輸入名稱欄位
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.className = 'edit-item-name-manual';
     nameInput.placeholder = '品項名稱';
     nameInput.style.display = 'none';
 
-    // 數量
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
     qtyInput.className = 'edit-item-qty';
@@ -360,7 +352,6 @@ function addEditItemRow(container, item = null) {
     qtyInput.min = 1;
     qtyInput.placeholder = '數量';
 
-    // 價格
     const priceInput = document.createElement('input');
     priceInput.type = 'number';
     priceInput.className = 'edit-item-price';
@@ -368,40 +359,24 @@ function addEditItemRow(container, item = null) {
     priceInput.min = 0;
     priceInput.placeholder = '單價';
 
-    // 刪除按鈕
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.textContent = '-';
     removeBtn.className = 'action-btn';
     removeBtn.style.backgroundColor = 'var(--color-danger)';
-    removeBtn.onclick = () => {
-        row.remove();
-        updateEditTotalAmount();
-    };
+    removeBtn.onclick = () => { row.remove(); updateEditTotalAmount(); };
 
-    // --- 邏輯綁定 ---
-    // 1. 預填資料
     if (item) {
-        // 嘗試在選單中找到對應項目
         const matchedOption = Array.from(select.options).find(opt => opt.value === item.item_name);
-        if (matchedOption) {
-            select.value = item.item_name;
-        } else {
-            // 找不到 (可能是手動輸入的或已下架)，切換到 Other
-            select.value = 'other';
-            nameInput.style.display = 'block';
-            nameInput.value = item.item_name;
-        }
+        if (matchedOption) { select.value = item.item_name; } 
+        else { select.value = 'other'; nameInput.style.display = 'block'; nameInput.value = item.item_name; }
     }
 
-    // 2. 選單變更事件
     select.addEventListener('change', () => {
         if (select.value === 'other') {
-            nameInput.style.display = 'block';
-            priceInput.value = ''; // 手動輸入不清空，讓使用者自己填
+            nameInput.style.display = 'block'; priceInput.value = '';
         } else {
             nameInput.style.display = 'none';
-            // 自動帶入價格
             const dateStr = document.getElementById('edit-booking-date').value;
             updateEditItemPrice(row, dateStr);
         }
@@ -423,7 +398,6 @@ function addEditItemRow(container, item = null) {
     container.appendChild(row);
 }
 
-// --- [v12.4 新增] 更新編輯項目的價格 ---
 function updateEditItemPrice(row, dateStr) {
     const select = row.querySelector('.edit-item-select');
     const priceInput = row.querySelector('.edit-item-price');
@@ -431,13 +405,10 @@ function updateEditItemPrice(row, dateStr) {
     if (select.value && select.value !== 'other') {
         const product = allProducts.find(p => p.name === select.value);
         const price = getPriceForDate(dateStr, product);
-        if (price !== null) {
-            priceInput.value = price;
-        }
+        if (price !== null) { priceInput.value = price; }
     }
 }
 
-// --- [v12.4 新增] 更新總金額 ---
 function updateEditTotalAmount() {
     let total = 0;
     document.querySelectorAll('.edit-item-row').forEach(row => {
@@ -450,7 +421,8 @@ function updateEditTotalAmount() {
 }
 
 async function handleSaveBookingChanges(bookingId) {
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
+    const isGuesthouse = bookingMode === 'range';
     const originalNumOfPeople = currentBookingInModal ? currentBookingInModal.num_of_people : 1; 
 
     const payload = {
@@ -467,38 +439,27 @@ async function handleSaveBookingChanges(bookingId) {
         payload.numOfPeople = originalNumOfPeople; 
         payload.totalAmount = parseFloat(document.getElementById('edit-booking-amount').value) || null; 
     } else {
-        payload.timeSlot = document.getElementById('edit-booking-slot').value.trim() || '';
+        const slotInput = document.getElementById('edit-booking-slot');
+        payload.timeSlot = slotInput ? slotInput.value.trim() : '';
         payload.numOfPeople = parseInt(document.getElementById('edit-booking-people').value, 10) || originalNumOfPeople; 
         payload.totalAmount = parseFloat(document.getElementById('edit-booking-amount').value) || null;
         payload.check_out_date = null; 
     }
 
-    // [v12.4] 修改：從新的動態項目列讀取資料
     const itemRows = document.querySelectorAll('.edit-item-row');
-    if (itemRows.length === 0) {
-        ui.toast.error('請至少保留一個預約項目！');
-        return;
-    }
+    if (itemRows.length === 0) { ui.toast.error('請至少保留一個預約項目！'); return; }
 
     for (const row of itemRows) {
         const select = row.querySelector('.edit-item-select');
         let name = select.value;
-        if (name === 'other') {
-            name = row.querySelector('.edit-item-name-manual').value.trim();
-        }
+        if (name === 'other') { name = row.querySelector('.edit-item-name-manual').value.trim(); }
         const qty = parseInt(row.querySelector('.edit-item-qty').value, 10);
         const price = parseFloat(row.querySelector('.edit-item-price').value);
 
         if (!name) { ui.toast.error('請輸入項目名稱'); return; }
         if (isNaN(qty) || qty <= 0) { ui.toast.error('數量必須大於 0'); return; }
         
-        payload.items.push({
-            name: name,
-            qty: qty,
-            price: isNaN(price) ? null : price,
-            // 編輯模式下暫不支援 productId 的更新 (因涉及複雜庫存回補)，先傳 name 即可
-            // 若後端需要 productId 來扣庫存，則需在此處抓取 dataset.productId
-        });
+        payload.items.push({ name: name, qty: qty, price: isNaN(price) ? null : price });
     }
 
     if (!payload.bookingDate) { ui.toast.error('預約/入住日期為必填！'); return; }
@@ -528,7 +489,6 @@ function updateItemsSubtotal() {
     if (totalAmountInput) totalAmountInput.value = subtotal > 0 ? subtotal : ''; 
 }
 
-// --- 新增項目列 (修改：加入 productId) ---
 function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     const container = document.getElementById('admin-booking-items-container');
     if (!container || container.children.length >= 5) return;
@@ -545,7 +505,6 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
     allProducts.filter(p => p.is_visible).forEach(p => {
         const priceText = p.price_weekday !== null ? `$${p.price_weekday} 起` : '洽詢';
         const option = new Option(`${p.name} - ${priceText}`, p.name);
-        // 【關鍵】將 productId 存入 dataset
         option.dataset.productId = p.product_id; 
         select.add(option);
     });
@@ -585,7 +544,6 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
 
     select.addEventListener('change', () => {
         nameInput.style.display = select.value === 'other' ? 'block' : 'none';
-        // 處理 guesthouse 的日期範圍
         const bookingDateInput = document.getElementById('booking-date-input');
         let bookingDate = null;
         if (bookingDateInput && bookingDateInput._flatpickr && bookingDateInput._flatpickr.selectedDates.length > 0) {
@@ -599,7 +557,6 @@ function addAdminBookingItemRow(name = '', qty = 1, price = '') {
 
     select.value = name;
     if (name && name !== 'other') {
-        // 嘗試獲取初始日期
         const bookingDateInput = document.getElementById('booking-date-input');
         let initialDate = null;
         if (bookingDateInput && bookingDateInput._flatpickr && bookingDateInput._flatpickr.selectedDates.length > 0) {
@@ -657,7 +614,6 @@ function resetCreateBookingModal() {
         submitButton.textContent = '確認建立';
     }
     
-    // 清除 Flatpickr 選擇
     if (createBookingDatepicker) createBookingDatepicker.clear();
 }
 
@@ -666,45 +622,47 @@ async function initializeCreateBookingModal() {
     if (!userSearchInput) return;
 
     if (allProducts.length === 0) {
-        try {
-            allProducts = await api.getProducts(); 
-        } catch (e) {
-            console.error("強制獲取產品失敗", e);
-        }
+        try { allProducts = await api.getProducts(); } catch (e) { console.error("強制獲取產品失敗", e); }
     }
 
-    // --- 步驟 2: 初始化日期選擇器 (修正版) ---
+    // 1. 根據模式設定日期選擇器
     if (createBookingDatepicker) createBookingDatepicker.destroy();
     
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
-    const mode = isGuesthouse ? 'range' : 'single';
+    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
+    const isGuesthouse = bookingMode === 'range';
+    const fpMode = isGuesthouse ? 'range' : 'single';
     
     createBookingDatepicker = flatpickr("#booking-date-input", {
         dateFormat: "Y-m-d",
-        mode: mode, // 根據樣板決定模式
+        mode: fpMode,
         onChange: function(selectedDates, dateStr, instance) {
-            // 如果是 range mode，我們取開始日期來計算單價
             const startDateStr = selectedDates.length > 0 ? flatpickr.formatDate(selectedDates[0], "Y-m-d") : null;
-            document.querySelectorAll('.admin-booking-item-row').forEach(row => {
-                updateItemPrice(row, startDateStr);
-            });
+            document.querySelectorAll('.admin-booking-item-row').forEach(row => { updateItemPrice(row, startDateStr); });
             updateItemsSubtotal();
         }
     });
 
-    // --- 步驟 3: 初始化時段下拉選單 ---
-    const slotSelect = document.getElementById('booking-slot-select');
-    if (slotSelect && slotSelect.options.length <= 1) {
-        slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
-        for (let hour = 8; hour <= 22; hour++) {
-            ['00', '30'].forEach(minute => {
-                const time = `${String(hour).padStart(2, '0')}:${minute}`;
-                slotSelect.add(new Option(time, time));
-            });
+    // 2. 處理時段 (Studio Mode)
+    const slotGroup = document.getElementById('booking-slot-group');
+    const enableTimeSlots = activeTemplate?.client_config?.booking?.studio_settings?.enable_time_slots !== false;
+
+    if (!isGuesthouse && enableTimeSlots) {
+        if (slotGroup) slotGroup.style.display = 'block';
+        const slotSelect = document.getElementById('booking-slot-select');
+        if (slotSelect && slotSelect.options.length <= 1) {
+            slotSelect.innerHTML = '<option value="">-- 請選擇時段 --</option>';
+            for (let hour = 8; hour <= 22; hour++) {
+                ['00', '30'].forEach(minute => {
+                    const time = `${String(hour).padStart(2, '0')}:${minute}`;
+                    slotSelect.add(new Option(time, time));
+                });
+            }
         }
+    } else {
+        if (slotGroup) slotGroup.style.display = 'none';
     }
 
-    // --- 步驟 4: 處理使用者搜尋 (顯示優化) ---
+    // 3. 使用者搜尋
     const userSelect = document.getElementById('booking-user-select');
     if (!userSearchInput.dataset.inputListenerAttached) {
         userSearchInput.addEventListener('input', async (e) => {
@@ -723,13 +681,11 @@ async function initializeCreateBookingModal() {
                 if (users.length > 0) {
                     userSelectElement.add(new Option('-- 請選擇顧客 --', ''));
                     users.forEach(user => {
-                        // 【優化】顯示格式：LINE名稱 (真實姓名) | 電話
                         const realNameStr = user.real_name ? `(${user.real_name})` : '';
                         const phoneStr = user.phone ? ` | ${user.phone}` : '';
                         const displayLabel = `${user.line_display_name} ${realNameStr}${phoneStr}`;
-                        
                         const option = new Option(displayLabel, user.user_id);
-                        option.dataset.userName = user.line_display_name; // 簡短名稱用於顯示
+                        option.dataset.userName = user.line_display_name;
                         userSelectElement.add(option);
                     });
                     userSelectElement.style.display = 'block';
@@ -797,7 +753,7 @@ async function initializeCreateBookingModal() {
           changeUserBtn.dataset.clickListenerAttached = 'true';
      }
 
-    // --- 步驟 5: 清空並新增第一行 ---
+    // 4. 清空並新增第一行
     const itemsContainer = document.getElementById('admin-booking-items-container');
     if (itemsContainer) {
         itemsContainer.innerHTML = '';
@@ -806,7 +762,7 @@ async function initializeCreateBookingModal() {
         if (addBtn) addBtn.style.display = 'block';
     }
 
-    // --- 步驟 6: 綁定 "+新增項目" ---
+    // 5. 綁定 "+新增項目"
     const addBtn = document.getElementById('admin-add-booking-item-btn');
     if (addBtn && !addBtn.dataset.listenerAttached) {
         addBtn.addEventListener('click', () => addAdminBookingItemRow());
@@ -833,7 +789,8 @@ function updateItemPrice(itemRowElement, selectedDateString) {
 
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
+    const isGuesthouse = bookingMode === 'range';
 
     let finalUserId = document.getElementById('booking-selected-user-id').value;
     let finalContactName = '';
@@ -862,12 +819,11 @@ async function handleCreateBookingSubmit(e) {
 
         const select = row.querySelector('.booking-item-select');
         let name = select.value;
-        // 【關鍵】獲取 productId
         let productId = select.options[select.selectedIndex]?.dataset.productId || null;
 
         if (name === 'other') {
             name = row.querySelector('.booking-item-name-other').value.trim();
-            productId = null; // 手動輸入沒有 productId
+            productId = null; 
         }
         const qtyInput = row.querySelector('.booking-item-qty');
         const priceInput = row.querySelector('.booking-item-price');
@@ -881,7 +837,6 @@ async function handleCreateBookingSubmit(e) {
                 itemsValid = false;
                 return;
             }
-            // 【關鍵】傳送 productId 給後端
             items.push({ name, qty, price, productId });
             calculatedTotalAmount += qty * price;
         } else if (name && (isNaN(qty) || qty <= 0)) {
@@ -895,7 +850,7 @@ async function handleCreateBookingSubmit(e) {
         return;
     }
 
-    // --- 日期處理 ---
+    // 日期處理
     let bookingDate = '';
     let checkOutDate = null;
     
@@ -906,7 +861,6 @@ async function handleCreateBookingSubmit(e) {
             return;
         }
         bookingDate = flatpickr.formatDate(dates[0], "Y-m-d");
-        // 暫時解法：將 range 的第二個日期放入 checkOutDate
         checkOutDate = flatpickr.formatDate(dates[1], "Y-m-d");
     } else {
         bookingDate = document.getElementById('booking-date-input').value;
@@ -932,25 +886,21 @@ async function handleCreateBookingSubmit(e) {
         return;
     }
     
-    // --- 【修改】電話防呆確認 (非阻擋) ---
     if (!contactPhone) {
         const confirmed = await ui.confirm("尚未填寫連絡電話，確定要繼續嗎？");
-        if (!confirmed) return; // 使用者取消
+        if (!confirmed) return; 
     } else if (!/^09\d{8}$/.test(contactPhone)) {
          ui.toast.error('請輸入正確的 10 位手機號碼 (09開頭)，或留空。');
          return;
     }
 
-    // --- [v12.2 新增] 庫存不足防呆檢查 ---
+    // 庫存防呆 (民宿)
     if (isGuesthouse && bookingDate && checkOutDate && items.length > 0) {
         try {
-            // 1. 呼叫 API 查詢該區間庫存
             const params = new URLSearchParams({ startDate: bookingDate, endDate: checkOutDate });
             const inventoryData = await api.getRoomInventory(params);
-            
             const warnings = [];
 
-            // 2. 遍歷預約項目與日期進行檢查
             for (const item of items) {
                 if (!item.productId) continue;
                 const productInv = inventoryData[item.productId];
@@ -964,7 +914,6 @@ async function handleCreateBookingSubmit(e) {
                     const dayInv = productInv ? productInv[dateStr] : null;
                     const currentQty = (dayInv && dayInv.quantity_available !== null) ? dayInv.quantity_available : 0;
                     
-                    // 檢查：若 (現有庫存 - 預訂量) < 0 則警告
                     if (currentQty - item.qty < 0) {
                         const newQty = currentQty - item.qty;
                         const newQtyHtml = `<span style="color: var(--color-danger, red); font-weight: bold;">${newQty}</span>`;
@@ -974,7 +923,6 @@ async function handleCreateBookingSubmit(e) {
                 }
             }
 
-            // 3. 若有警告，彈出確認視窗
             if (warnings.length > 0) {
                 const warningListHtml = warnings.slice(0, 5).join('<br>');
                 const moreHtml = warnings.length > 5 ? '<br>...' : '';
@@ -985,11 +933,9 @@ async function handleCreateBookingSubmit(e) {
                     <div style="text-align: left; display: inline-block;">${warningListHtml}${moreHtml}</div>
                     <br><br>確定要繼續嗎？
                 `;
-                
                 const confirmed = await ui.confirm(msgHtml);
                 if (!confirmed) return; 
             }
-
         } catch (e) {
             console.warn("[Inventory Check] 庫存檢查失敗，跳過防呆:", e);
         }
@@ -1173,6 +1119,7 @@ async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMe
     }
 }
 
+// --- [Phase 3] 列表渲染 (動態過濾欄位) ---
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const bookingListTheadTr = document.querySelector('#list-view-container thead tr'); 
@@ -1185,16 +1132,27 @@ function renderBookingList(bookings) {
     }
     
     const columns = activeTemplate.logic.adminBookingColumns.filter(col => col.enabled);
-    const isGuesthouse = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE === 'guesthouse_template';
+    const bookingMode = activeTemplate.client_config?.booking?.mode || 'range';
+    const isGuesthouse = bookingMode === 'range';
+    const enableTimeSlots = activeTemplate.client_config?.booking?.studio_settings?.enable_time_slots !== false;
+
+    // 1. 動態過濾欄位
+    const finalColumns = columns.filter(col => {
+        // 若是工作室，隱藏退房日期
+        if (col.key === 'check_out_date' && !isGuesthouse) return false;
+        // 若是民宿，或工作室但未啟用時段，隱藏時段 (或包含在 datetime_summary 中處理)
+        // 注意：如果使用 datetime_summary，可能需要更細緻的處理
+        return true; 
+    });
 
     let headerHTML = '';
-    columns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
+    finalColumns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
     headerHTML += '<th>操作</th>';
     bookingListTheadTr.innerHTML = headerHTML;
 
     bookingListTbody.innerHTML = '';
     if (!bookings || bookings.length === 0) {
-        bookingListTbody.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
+        bookingListTbody.innerHTML = `<tr><td colspan="${finalColumns.length + 1}" style="text-align: center;">找不到符合條件的預約。</td></tr>`;
         return;
     }
 
@@ -1203,20 +1161,18 @@ function renderBookingList(bookings) {
         row.dataset.bookingId = booking.booking_id;
         row.style.cursor = 'pointer';
 
-        columns.forEach(col => {
+        finalColumns.forEach(col => {
             const cell = row.insertCell();
             let cellContent;
             
             if (col.key === 'item_summary' || col.key === 'items' || col.key === 'product_name') {
                 if (booking.items && booking.items.length > 0) {
-                    // 【安全修正】項目名稱消毒
                     cellContent = booking.items.map(item => `${escapeHtml(item.item_name)} x${item.quantity}`).join(', ');
                 } else {
                     cellContent = '<span style="color:#ccc">無項目</span>';
                 }
             } 
             else if (col.key === 'contact_name') {
-                 // 【安全修正】姓名與電話消毒
                  const safeContact = escapeHtml(booking.contact_name);
                  const safeRealName = escapeHtml(booking.real_name);
                  const safePhone = escapeHtml(booking.contact_phone);
@@ -1237,8 +1193,13 @@ function renderBookingList(bookings) {
                  cellContent = booking.check_out_date || '-';
             }
             else if (col.key === 'datetime_summary') {
-                 // 【安全修正】時段消毒
-                 cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${escapeHtml(booking.time_slot) || booking.check_out_date || ''}</div>`;
+                 // 智慧判斷顯示內容
+                 if (isGuesthouse) {
+                     cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">退房: ${booking.check_out_date || '-'}</div>`;
+                 } else {
+                     const timeInfo = (enableTimeSlots && booking.time_slot) ? booking.time_slot : '';
+                     cellContent = `<div class="main-info">${booking.booking_date}</div><div class="sub-info">${escapeHtml(timeInfo)}</div>`;
+                 }
             }
             else if (col.key === 'total_amount') {
                  cellContent = booking.total_amount !== null ? '$' + booking.total_amount : 'N/A';
@@ -1252,7 +1213,6 @@ function renderBookingList(bookings) {
                 if (booking.status === 'no-show') statusClass = 'status-noshow';
                 cellContent = `<span class="status-tag ${statusClass}">${translatedStatus}</span>`;
             } else {
-                // 【安全修正】其他所有欄位預設消毒
                 const rawValue = getProperty(booking, col.key, 'N/A');
                 cellContent = escapeHtml(rawValue);
             }
@@ -1276,9 +1236,12 @@ function createStatusMenu(targetButton) {
     menu.className = 'status-menu'; 
     menu.style.cssText = `position: absolute; background-color: #FFF; border: 1px solid #CCC; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; min-width: 100px; padding: 5px 0;`;
 
-    // [v12.5] 更新選單：移除入住，加入已確認
+    const isGuesthouse = activeTemplate?.client_config?.booking?.mode === 'range';
+    const checkInText = isGuesthouse ? '已入住' : '已報到';
+
     const options = [
         { text: '已確認', value: 'confirmed', style: 'color: var(--color-success);' },
+        { text: checkInText, value: 'checked-in', style: 'color: var(--color-info);' }, // 加入報到選項
         { text: '未到', value: 'no-show', style: 'color: var(--color-warning);' },
         { text: '取消預約', value: 'cancelled', style: 'color: var(--color-danger);' }
     ];
@@ -1295,7 +1258,6 @@ function createStatusMenu(targetButton) {
         optionEl.addEventListener('click', async (e) => {
             e.stopPropagation(); 
             closeStatusMenu();
-            // [v12.5] 修改提示文字
             const confirmed = await ui.confirm(`確定要將此預約標記為「${opt.text}」嗎？`);
             if (confirmed) {
                 const feedbackTarget = { textContent: targetButton.textContent, disabled: false };
@@ -1396,7 +1358,6 @@ function updateCalendar() {
             if (b.status === 'checked-in') statusClass = 'status-checked-in';
             if (b.status === 'no-show') statusClass = 'status-noshow';
             
-            // 【安全修正】時段與名稱消毒
             const timeDisplay = b.time_slot ? `${escapeHtml(b.time_slot)} ` : '';
             const safeName = escapeHtml(b.contact_name);
 
@@ -1439,7 +1400,6 @@ async function fetchDataAndRender(filter = null) {
 
         if (!isCalendarView) { 
             if (activeFilterValue && activeFilterValue !== 'all') params.append('status', activeFilterValue);
-             // 讀取搜尋框的值
              if (searchInput && searchInput.value.trim()) params.append('search', searchInput.value.trim());
              if (startDate && endDate) {
                  params.append('startDate', startDate);
@@ -1568,18 +1528,16 @@ function setupEventListeners() {
              return;
          }
     });
-    // --- 【新增】即時搜尋監聽 ---
+    
     const searchInput = document.getElementById('booking-search-input');
     if (searchInput && !searchInput.dataset.inputListener) {
         searchInput.addEventListener('input', debounce(() => {
-            fetchDataAndRender(); // 防抖動後執行查詢
-        }, 500)); // 延遲 500ms
+            fetchDataAndRender(); 
+        }, 500)); 
         searchInput.dataset.inputListener = 'true';
     }
 
     page.dataset.staticListenersAttached = 'true';
-
-
 
     const createBookingForm = document.getElementById('create-booking-form');
     if (createBookingForm && !createBookingForm.dataset.submitListenerAttached) {

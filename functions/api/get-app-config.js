@@ -1,10 +1,13 @@
-// functions/api/get-app-config.js
-
+/**
+ * GET /api/get-app-config
+ * v12.1 - 讀取客戶端設定 + 環境變數 (ENV) + 邏輯設定 (LOGIC)
+ */
 export async function onRequestGet(context) {
-  const db = context.env.DB;
+  const { env } = context; // 這裡可以取得環境變數 (如 LIFF_ID)
+  const db = env.DB;
 
   try {
-    // 1. 擴充查詢範圍：加入 LOGIC 相關的 Key
+    // 1. 查詢設定 (包含 LOGIC 相關 Key)
     const stmt = await db.prepare(`
       SELECT key, value 
       FROM AppSettings 
@@ -18,7 +21,7 @@ export async function onRequestGet(context) {
     `);
     const { results } = await stmt.all();
 
-    // 2. 將結果轉換為 Map 以便存取
+    // 2. 將結果轉換為 Map
     const settingsMap = {};
     if (results) {
         results.forEach(row => {
@@ -26,36 +29,39 @@ export async function onRequestGet(context) {
         });
     }
 
-    // 3. 解析 JSON 資料 (加入防呆機制)
+    // 3. 解析 JSON
     const clientConfig = settingsMap['client_config'] ? JSON.parse(settingsMap['client_config']) : {};
     const termsConfig = settingsMap['terms_config'] ? JSON.parse(settingsMap['terms_config']) : {};
     
-    // 【關鍵修正】建構 LOGIC 物件，滿足 app.js 的檢查需求
+    // 建構 LOGIC 物件 (這是您上一步修正的重點)
     const logicConfig = {
         ACTIVE_INDUSTRY_TEMPLATE: settingsMap['LOGIC_ACTIVE_INDUSTRY_TEMPLATE'] || settingsMap['active_template_id'] || 'unknown',
         INDUSTRY_TEMPLATE_DEFINITIONS: settingsMap['LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS'] ? JSON.parse(settingsMap['LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS']) : {}
     };
 
-    // 4. 組裝回傳結構
+    // 4. 組裝回傳結構 (【關鍵修正】：加入 ENV 區塊)
     const responseData = {
       client_config: clientConfig,
       terms: termsConfig,
-      LOGIC: logicConfig, // <--- 這裡補上了前端需要的 LOGIC 區塊
+      LOGIC: logicConfig,
+      ENV: {
+        LIFF_ID: env.LIFF_ID,             // 將環境變數傳給前端
+        OWNER_LIFF_ID: env.OWNER_LIFF_ID  // 同時傳送老闆端 ID (若有)
+      },
       meta: {
         template_id: logicConfig.ACTIVE_INDUSTRY_TEMPLATE,
-        version: 'v12.0'
+        version: 'v12.1'
       }
     };
 
     return new Response(JSON.stringify(responseData), {
       headers: { 
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60" // 簡單快取
+        "Cache-Control": "public, max-age=60"
       }
     });
 
   } catch (err) {
-    console.error("[get-app-config] Error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }

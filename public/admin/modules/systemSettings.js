@@ -1,55 +1,69 @@
 /**
- * System Settings Module - v12.0 (Schema-Driven UI)
+ * System Settings Module - v12.2 (Database Integrated)
  * 負責渲染基於 JSON Template 的系統設定介面
  */
 
 const systemSettings = {
     // 狀態存儲
     state: {
-        definitions: null, // 對應 DB: LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS
-        currentConfig: null, // 當前編輯中的完整設定物件
-        activeTemplateKey: '' // 當前選擇的樣板 Key (e.g., 'studio_template')
+        definitions: null, // 從 API 取得
+        currentConfig: null, // 當前編輯中的設定
+        activeTemplateKey: '' // 當前選擇的樣板 Key
     },
 
-    // 初始化
-    async init() {
-        console.log('System Settings Module Initialized');
-        await this.loadData();
-        this.render();
+    // 初始化 - 給內部使用，實際對外入口是下方的 export init
+    async start() {
+        console.log('System Settings Module Starting...');
+        const success = await this.loadData();
+        if (success) {
+            this.render();
+        }
     },
 
-    // 載入資料 (模擬 API)
+    // 載入資料 (真正從資料庫抓)
     async loadData() {
         try {
-            // 在實際串接時，這裡會呼叫 GET /api/admin/settings
-            // 這裡假設 app.js 或全域變數已經載入了 appSettings
-            // 為了演示，我們假設從全域變數取得，實際請替換為 fetch
+            const response = await fetch('/api/admin/get-templates');
             
-            // 模擬從資料庫取得的 Definitions (即您提供的 JSON)
-            // 這裡不寫死 JSON，而是預期它已經存在於環境中
-            // const response = await fetch('/api/admin/settings/definitions');
-            // this.state.definitions = await response.json();
-            
-            // ⚠️ 開發測試用：請確保後端 API 有回傳您提供的 JSON 結構
-            // 這裡假設 window.TEMP_DB_DEFINITIONS 是您剛才提供的 JSON
-            if (window.TEMP_DB_DEFINITIONS) {
-                this.state.definitions = window.TEMP_DB_DEFINITIONS;
-            } else {
-                console.warn('找不到樣板定義檔，請確認資料庫連線');
-                this.state.definitions = {}; 
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
             }
 
-            // 預設選中第一個樣板或讀取當前設定
+            const data = await response.json();
+            
+            // 檢查資料是否為空
+            if (!data || Object.keys(data).length === 0) {
+                alert('資料庫中找不到樣板定義 (LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS)。\n請先執行 SQL 初始化。');
+                return false;
+            }
+
+            this.state.definitions = data;
+
+            // 預設選中第一個樣板
             const keys = Object.keys(this.state.definitions);
             if (keys.length > 0) {
+                // 優先選擇工作室，或預設第一個
                 this.state.activeTemplateKey = keys.includes('studio_template') ? 'studio_template' : keys[0];
+                
                 // 深拷貝一份作為當前編輯對象
                 this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[this.state.activeTemplateKey]));
             }
+            return true;
 
         } catch (error) {
             console.error('Failed to load settings:', error);
-            alert('設定載入失敗');
+            document.getElementById('module-content').innerHTML = `
+                <div style="padding:20px; color:red;">
+                    <h3>無法讀取設定檔</h3>
+                    <p>請確認以下事項：</p>
+                    <ul>
+                        <li>資料庫是否已執行 SQL 初始化？</li>
+                        <li>API /api/admin/get-templates 是否存在？</li>
+                        <li>錯誤訊息：${error.message}</li>
+                    </ul>
+                </div>
+            `;
+            return false;
         }
     },
 
@@ -61,7 +75,7 @@ const systemSettings = {
         // 注入 CSS 樣式
         const styles = `
             <style>
-                .settings-container { max-width: 1000px; margin: 0 auto; }
+                .settings-container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
                 .template-selector { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
                 .accordion-item { background: #fff; border-radius: 8px; margin-bottom: 10px; border: 1px solid #eee; overflow: hidden; }
                 .accordion-header { 
@@ -103,7 +117,7 @@ const systemSettings = {
                 input:checked + .slider { background-color: #2196F3; }
                 input:checked + .slider:before { transform: translateX(18px); }
 
-                .save-bar { position: sticky; bottom: 20px; background: rgba(255,255,255,0.9); padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); border-radius: 8px; display: flex; justify-content: flex-end; backdrop-filter: blur(5px); margin-top: 20px; }
+                .save-bar { position: sticky; bottom: 20px; background: rgba(255,255,255,0.9); padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); border-radius: 8px; display: flex; justify-content: flex-end; backdrop-filter: blur(5px); margin-top: 20px; z-index: 100; }
                 .btn-primary { background: #007bff; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; font-size: 1rem; }
                 .btn-primary:hover { background: #0056b3; }
 
@@ -124,9 +138,6 @@ const systemSettings = {
                     <select id="templateSelect" class="form-control" style="width: 100%; margin-top: 10px;">
                         ${templateOptions}
                     </select>
-                    <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                        ${this.state.definitions[this.state.activeTemplateKey]?.description || ''}
-                    </p>
                 </div>
 
                 <div id="settingsAccordion">
@@ -180,7 +191,7 @@ const systemSettings = {
 
         // Booking
         const bookingFields = [
-            this.createDisplayOnly('核心模式', config.booking.mode === 'guesthouse' ? '民宿模式 (Guesthouse)' : '工作室模式 (Studio)'),
+            this.createDisplayOnly('核心模式', config.booking.mode === 'guesthouse' ? '民宿模式' : '工作室模式'),
             this.createInput('入住/預約文字', 'client_config.booking.labels.checkin', config.booking.labels.checkin),
             this.createInput('退房/結束文字', 'client_config.booking.labels.checkout', config.booking.labels.checkout)
         ];
@@ -245,13 +256,14 @@ const systemSettings = {
 
         // Helper to render columns array
         const renderColumns = (path, columnsArray) => {
-            if (!Array.isArray(columnsArray)) return ''; // Handle object based columns if needed, but JSON uses array for inventory/bookings
-            
-            // 如果是 Object (如 users.columns)
-            if (!Array.isArray(columnsArray) && typeof columnsArray === 'object') {
-                 return Object.keys(columnsArray).map(key => 
-                    this.createToggle(`顯示 ${key}`, `${path}.${key}`, columnsArray[key])
-                ).join('');
+            if (!Array.isArray(columnsArray)) {
+                 // 如果是 Object (如 users.columns)
+                 if (typeof columnsArray === 'object') {
+                     return Object.keys(columnsArray).map(key => 
+                        this.createToggle(`顯示 ${key}`, `${path}.${key}`, columnsArray[key])
+                    ).join('');
+                 }
+                 return '';
             }
 
             // 如果是 Array (如 inventory.columns)
@@ -428,12 +440,10 @@ const systemSettings = {
         const content = item.querySelector('.accordion-content');
         const header = item.querySelector('.accordion-header');
         
-        // 簡單的 Toggle 邏輯
         if (content.classList.contains('show')) {
             content.classList.remove('show');
             header.classList.remove('active');
         } else {
-            // 若要開啟手風琴效果 (開啟一個自動關閉其他)，可以在這裡處理
             content.classList.add('show');
             header.classList.add('active');
         }
@@ -446,23 +456,21 @@ const systemSettings = {
                 const key = e.target.value;
                 if (confirm('切換樣板將會重置當前未儲存的設定，確定要切換嗎？')) {
                     this.state.activeTemplateKey = key;
-                    // 重置 currentConfig 為所選樣板的預設值
                     this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[key]));
-                    this.render(); // 重新渲染
+                    this.render(); 
                 } else {
-                    e.target.value = this.state.activeTemplateKey; // 還原選擇
+                    e.target.value = this.state.activeTemplateKey; 
                 }
             });
         }
     },
 
-    // 更新數值 (支援巢狀路徑字串 'client_config.global.brand_name')
+    // 更新數值 (支援巢狀路徑)
     updateValue(path, value) {
-        const keys = path.split(/[\.\[\]]+/).filter(k => k); // 分割路徑並移除空字串
+        const keys = path.split(/[\.\[\]]+/).filter(k => k); 
         let target = this.state.currentConfig;
         
         for (let i = 0; i < keys.length - 1; i++) {
-            // 如果遇到數字，說明是陣列索引
             const key = isNaN(keys[i]) ? keys[i] : parseInt(keys[i]);
             target = target[key];
         }
@@ -471,11 +479,10 @@ const systemSettings = {
         target[isNaN(lastKey) ? lastKey : parseInt(lastKey)] = value;
         
         console.log(`Updated [${path}] to:`, value);
-        // 不需重新 render，因為 input 狀態已經改變，減少閃爍
     },
 
     async saveSettings() {
-        // 這裡實作儲存邏輯
+        // 儲存邏輯 (這裡需要實作 API)
         const payload = {
             template_id: this.state.activeTemplateKey,
             settings: this.state.currentConfig
@@ -484,16 +491,15 @@ const systemSettings = {
         console.log('Saving settings...', payload);
         
         try {
-            // 模擬 API 呼叫
-            // const res = await fetch('/api/admin/settings', { 
+            // 這裡請實作 POST /api/admin/save-settings
+            // const res = await fetch('/api/admin/save-settings', { 
             //    method: 'POST', 
             //    headers: {'Content-Type': 'application/json'},
             //    body: JSON.stringify(payload) 
             // });
             
-            // 模擬成功
             await new Promise(r => setTimeout(r, 500));
-            alert('設定已成功儲存並套用！');
+            alert('設定已成功儲存並套用！(模擬成功)');
             
         } catch (e) {
             console.error(e);
@@ -502,5 +508,10 @@ const systemSettings = {
     }
 };
 
-// 啟動模組
-systemSettings.init();
+// 強制將 systemSettings 掛載到 window，讓 HTML 中的 onclick 可以存取
+window.systemSettings = systemSettings;
+
+// 匯出 init 函式供 app.js 呼叫
+export async function init() {
+    await systemSettings.start();
+}

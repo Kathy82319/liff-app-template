@@ -5,10 +5,9 @@ import { escapeHtml } from '../../utils.js';
 
 let allProducts = [];
 let sortableProducts = null;
-let activeTemplate = null; 
+let activeTemplate = null; //用來存放當前啟用的樣板藍圖
 
-
-// --- 圖片上傳 (保留空殼或實作) ---
+// 【新增】圖片上傳核心邏輯 (目前為停用狀態)
 async function handleImageUpload(file, inputElement, buttonElement) {
     ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
     // 以下為未來啟用時的程式碼，暫時註解
@@ -41,358 +40,886 @@ async function handleImageUpload(file, inputElement, buttonElement) {
 // 建立一個可以從外部呼叫的函式來隱藏工具列
 export function hideBatchToolbar() {
     const toolbar = document.getElementById('batch-actions-toolbar');
-    if (toolbar) toolbar.classList.remove('visible');
+    if (toolbar) {
+        toolbar.classList.remove('visible');
+    }
+    // 同時取消全選的勾選狀態
     const selectAllCheckbox = document.getElementById('select-all-products');
-    if (selectAllCheckbox) { selectAllCheckbox.checked = false; selectAllCheckbox.indeterminate = false; }
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
 }
 
-// --- 【核心修改】動態欄位生成 ---
+// 根據藍圖生成表單欄位 (新版)
 function createFormField(field) {
-    // 排除特殊欄位 (由外部獨立處理)
-    if (field.key === 'price' || field.key === 'images') return null;
-
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
-    
     const label = document.createElement('label');
-    label.textContent = field.label || field.key;
     label.htmlFor = `edit-product-${field.key}`;
-    if (field.required) label.textContent += ' (必填)';
+    label.textContent = field.label + (field.required ? ' (必填)' : '');
     formGroup.appendChild(label);
 
-    let inputEl;
-
-    // 根據類型建立輸入元件
-    if (field.type === 'boolean') {
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = `<label class="switch"><input type="checkbox" id="edit-product-${field.key}" name="${field.key}"><span class="slider"></span></label>`;
-        formGroup.appendChild(wrapper);
-        return formGroup; // Boolean 處理完畢直接回傳
-    } else if (field.type === 'textarea') {
-        inputEl = document.createElement('textarea');
-        inputEl.rows = 4;
-    } else if (field.type === 'select' && Array.isArray(field.options)) {
-        inputEl = document.createElement('select');
-        field.options.forEach(opt => {
-            inputEl.add(new Option(opt, opt));
-        });
-    } else {
-        inputEl = document.createElement('input');
-        inputEl.type = field.type === 'number' ? 'number' : 'text';
+// --- 價格欄位處理 (保持不變) ---
+    if (field.key === 'price') {
+        return null;
     }
 
-    // 設定通用屬性
-    inputEl.id = `edit-product-${field.key}`;
-    inputEl.name = field.key;
-    if (field.placeholder) inputEl.placeholder = field.placeholder;
-    if (field.required) inputEl.required = true;
-    if (field.min !== undefined) inputEl.min = field.min;
+    // --- 【修正】排除 images 欄位，它由動態區塊處理 ---
+    if (field.key === 'images') {
+         // 這個欄位由 #edit-product-image-section 動態區塊處理
+         // 我們不應該在這裡為它建立一個單獨的輸入框
+         return null; 
+    }
 
-    formGroup.appendChild(inputEl);
+    if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
+        const inputElement = document.createElement('input');
+        inputElement.type = 'number';
+        inputElement.step = 'any';
+        inputElement.min = '0';
+        inputElement.placeholder = field.placeholder || '請輸入金額';
+        inputElement.id = `edit-product-${field.key}`;
+        inputElement.name = field.key;
+        formGroup.appendChild(inputElement);
+        return formGroup; // <--- 直接返回
+    }
+
+// --- 圖片欄位處理 (保持不變) ---
+    if (field.type === 'image_url') {
+        const fileInputId = `image-upload-${field.key}-${Date.now()}`;
+        const imageGroup = document.createElement('div');
+        imageGroup.className = 'dynamic-input-group';
+        imageGroup.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+        imageGroup.innerHTML = `
+            <input type="url" id="edit-product-${field.key}" name="${field.key}" placeholder="請貼上網址或點擊右側上傳" style="flex-grow: 1;">
+            <input type="file" id="${fileInputId}" accept="image/*" style="display: none;">
+            <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
+        `;
+        const fileInput = imageGroup.querySelector('input[type="file"]');
+        const urlInput = imageGroup.querySelector('input[type="url"]');
+        const uploadButton = imageGroup.querySelector('.btn-upload-image');
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
+        });
+        formGroup.appendChild(imageGroup);
+        // --- 注意：圖片欄位不需要後續的 inputElement 處理，直接返回 ---
+        return formGroup; // <--- 直接返回
+    }
+// --- 其他欄位類型處理 (修正後) ---
+    let inputElement; // 在這裡宣告
+
+    switch (field.type) {
+        case 'textarea':
+            inputElement = document.createElement('textarea');
+            inputElement.rows = 5;
+            break; // <--- textarea 也要有 break
+
+        case 'boolean':
+            // boolean 比較特殊，input 在 label 裡面
+            const switchWrapper = document.createElement('div');
+            switchWrapper.style.marginTop = '10px';
+            // inputElement 在這裡被賦值
+            inputElement = document.createElement('input');
+            inputElement.type = 'checkbox';
+            inputElement.id = `edit-product-${field.key}`; // <--- ID 和 name 在這裡設定
+            inputElement.name = field.key;
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            const slider = document.createElement('span');
+            slider.className = 'slider';
+            switchLabel.append(inputElement, slider);
+            switchWrapper.appendChild(switchLabel);
+            formGroup.appendChild(switchWrapper); // 直接把 wrapper 加進去
+            // --- boolean 處理完畢，直接返回，不走後面的 appendChild 和 id/name 設定 ---
+             return formGroup; // <--- 直接返回
+
+        case 'select': // 新增：處理下拉選單
+             inputElement = document.createElement('select');
+             if (Array.isArray(field.options)) {
+                  field.options.forEach(opt => {
+                      inputElement.add(new Option(opt, opt)); // 假設選項文字和值相同
+                  });
+             }
+             if (field.defaultValue) {
+                  inputElement.value = field.defaultValue;
+             }
+             break; // <--- select 也要有 break
+
+        default: // 包含 text, number, email, tel 等
+            inputElement = document.createElement('input');
+            // 根據 field.type 設定 input 的 type
+            inputElement.type = field.type === 'number' ? 'number' : (field.type || 'text'); // 如果沒給 type 預設 text
+            if (inputElement.type === 'number') {
+                inputElement.step = 'any'; // 允許小數
+                inputElement.min = '0';    // 預設最小值
+            }
+            if (field.placeholder) inputElement.placeholder = field.placeholder;
+            if (field.defaultValue) inputElement.value = field.defaultValue; // 加入預設值
+            break; // <--- default 也要有 break
+    }
+
+    // --- 將創建好的 inputElement (非 boolean) 加入 formGroup ---
+    // (這段現在只對 textarea, select, default 創建的 input 有效)
+    if (inputElement) { // 確保 inputElement 被成功創建
+        formGroup.appendChild(inputElement);
+        // --- ID 和 Name 在這裡統一設定 (除了 boolean) ---
+        inputElement.id = `edit-product-${field.key}`;
+        inputElement.name = field.key;
+    } else {
+        console.error(`無法為欄位 ${field.key} (類型 ${field.type}) 創建輸入元素`);
+    }
+
     return formGroup;
 }
 
-// ... (addImageInputField, addSpecInputField, updateDynamicButtonsState 保持不變) ...
+// 動態欄位輔助函式 (升級版)
 function addImageInputField(container, value = '') {
-    if (container.children.length >= 5) return;
-    const div = document.createElement('div');
-    div.className = 'dynamic-input-group';
-    div.innerHTML = `
-        <input type="url" name="images" placeholder="圖片網址" value="${value}" style="flex-grow:1;">
-        <button type="button" class="btn-remove-input">⊖</button>
+    const count = container.children.length;
+    if (count >= 5) return;
+    const newGroup = document.createElement('div');
+    newGroup.className = 'dynamic-input-group';
+    newGroup.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 8px;';
+    const fileInputId = `image-upload-input-${Date.now()}`;
+    newGroup.innerHTML = `
+        <input type="url" name="images" placeholder="${count + 1}. 請貼上網址或點擊右側上傳" value="${value}" style="flex-grow: 1;">
+        <input type="file" id="${fileInputId}" class="image-upload-input" accept="image/*" style="display: none;">
+        <label for="${fileInputId}" class="action-btn btn-upload-image" style="background-color: var(--color-info); cursor: pointer; flex-shrink: 0;">上傳</label>
+        <button type="button" class="btn-remove-input" style="flex-shrink: 0;">⊖</button>
     `;
-    div.querySelector('button').onclick = () => div.remove();
-    container.appendChild(div);
-}
-
-function setupSpecSection(product) {
-    const container = document.getElementById('edit-product-spec-inputs');
-    if (!container) return;
-    container.innerHTML = '';
-    
-    // 總是產生 1 個空的或填入現有的
-    let hasSpec = false;
-    for (let i = 1; i <= 5; i++) {
-        const name = product ? product[`spec_${i}_name`] : '';
-        const val = product ? product[`spec_${i}_value`] : '';
-        if (name || val) {
-            addSpecInputField(container, name, val);
-            hasSpec = true;
-        }
-    }
-    if (!hasSpec) addSpecInputField(container);
-}
-function addSpecInputField(container, name = '', value = '') {
-    if (container.children.length >= 5) return;
-    const div = document.createElement('div');
-    div.className = 'spec-input-group dynamic-input-group';
-    div.innerHTML = `
-        <input type="text" name="spec_name" placeholder="規格名稱" value="${name}">
-        <textarea name="spec_value" placeholder="內容" rows="1">${value}</textarea>
-        <button type="button" class="btn-remove-input">⊖</button>
-    `;
-    div.querySelector('button').onclick = () => div.remove();
-    container.appendChild(div);
-}
-function updateDynamicButtonsState() {
-    const img = document.getElementById('edit-product-image-inputs');
-    const spec = document.getElementById('edit-product-spec-inputs');
-    if(img) document.getElementById('add-image-input-btn').style.display = (img.children.length < 5) ? 'block' : 'none';
-    if(spec) document.getElementById('add-spec-input-btn').style.display = (spec.children.length < 5) ? 'block' : 'none';
-}
-
-function renderProductList(products) {
-    const tbody = document.getElementById('product-list-tbody');
-    const theadTr = document.querySelector('#page-inventory thead tr');
-    if (!tbody || !theadTr || !activeTemplate) return;
-
-    // 1. 處理表頭
-    let headerHTML = `<th style="width:40px;"><input type="checkbox" id="select-all-products"></th><th style="width:50px;">順序</th>`;
-    
-    // 根據 booking mode 決定價格欄位顯示
-    const config = activeTemplate?.client_config?.booking || {};
-    const mode = config.mode || 'range'; // default range (guesthouse)
-
-    activeTemplate.logic.adminColumns.forEach(col => {
-        if (!col.enabled) return;
-        // 如果是 price，根據模式調整標題
-        if (col.key === 'price') {
-            headerHTML += `<th>${mode === 'single' ? '價格' : '價格(平日/五/六)'}</th>`;
-        } else {
-            headerHTML += `<th>${col.label}</th>`;
-        }
+    container.appendChild(newGroup);
+    const fileInput = newGroup.querySelector('.image-upload-input');
+    const urlInput = newGroup.querySelector('input[name="images"]');
+    const uploadButton = newGroup.querySelector('.btn-upload-image');
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) handleImageUpload(e.target.files[0], urlInput, uploadButton);
     });
-    headerHTML += `<th style="width:80px;">上架</th><th style="width:80px;">操作</th>`;
-    theadTr.innerHTML = headerHTML;
+    updateDynamicButtonsState();
+}
 
-    // 2. 處理內容
-    tbody.innerHTML = '';
+// --- 【修改】規格欄位改用 textarea ---
+function addSpecInputField(container, name = '', value = '') {
+    const count = container.children.length;
+    if (count >= 5) return;
+    const newGroup = document.createElement('div');
+    newGroup.className = 'spec-input-group dynamic-input-group';
+    // --- 【修改】將 spec_value 改為 textarea ---
+    newGroup.innerHTML = `
+        <input type="text" name="spec_name" placeholder="規格${count + 1}名稱" value="${name}">
+        <textarea name="spec_value" placeholder="規格${count + 1}內容" rows="3">${value}</textarea>
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    container.appendChild(newGroup);
+    updateDynamicButtonsState();
+}
+
+function updateDynamicButtonsState() {
+    const imageContainer = document.getElementById('edit-product-image-inputs');
+    if (imageContainer) {
+        document.getElementById('add-image-input-btn').style.display = (imageContainer.children.length < 5) ? 'block' : 'none';
+    }
+    const specContainer = document.getElementById('edit-product-spec-inputs');
+    if (specContainer) {
+       document.getElementById('add-spec-input-btn').style.display = (specContainer.children.length < 5) ? 'block' : 'none';
+    }
+}
+
+// 渲染列表函式 (保持不變)
+function renderProductList(products) {
+     const productListTbody = document.getElementById('product-list-tbody');
+     const productListThead = document.querySelector('#page-inventory thead tr');
+     if (!productListTbody || !productListThead || !activeTemplate || !activeTemplate.logic || !activeTemplate.logic.adminColumns) {
+          return;
+     }
+
+     let priceColumnIndex = -1;
+     const headers = [ 
+         { key: '__checkbox__' },
+         { key: '__order__' },
+         ...activeTemplate.logic.adminColumns,
+         { key: '__visible__' },
+         { key: '__actions__' }
+     ];
+     priceColumnIndex = headers.findIndex(col => col.key === 'price');
+
+     let headerHTML = `
+        <th style="width: 40px;"><input type="checkbox" id="select-all-products"></th>
+        <th style="width: 50px;">順序</th>
+    `;
+     activeTemplate.logic.adminColumns.forEach(col => {
+         const label = (col.key === 'price') ? '價格(平日/五/六)' : col.label;
+         headerHTML += `<th>${label}</th>`;
+     });
+     headerHTML += `
+        <th style="width: 80px;">上架</th>
+        <th style="width: 80px;">操作</th>
+    `;
+     productListThead.innerHTML = headerHTML;
+
+    productListTbody.innerHTML = '';
     products.forEach(p => {
-        const row = tbody.insertRow();
+        const row = productListTbody.insertRow();
+        row.className = 'draggable-row';
         row.dataset.productId = p.product_id;
-        row.className = 'draggable-row'; // 支援拖曳
+        let cells = []; 
 
-        let html = `<td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>
-                    <td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>`;
-        
+        cells.push(`<td><input type="checkbox" class="product-checkbox" data-product-id="${p.product_id}"></td>`);
+        cells.push(`<td class="drag-handle-cell"><span class="drag-handle">⠿</span> ${p.display_order}</td>`);
+
         activeTemplate.logic.adminColumns.forEach(col => {
-            if (!col.enabled) return;
-            
-            let val = 'N/A';
+            let cellContent = 'N/A';
             if (col.key === 'price') {
-                if (mode === 'single') {
-                    val = `$${p.price_weekday || '-'}`;
-                } else {
-                    val = `${p.price_weekday||'-'}/${p.price_friday||'-'}/${p.price_saturday||'-'}`;
-                }
-            } else {
-                val = escapeHtml(p[col.key] || '');
-                if (val.length > 50) val = val.substring(0, 47) + '...';
+                 cellContent = `${p.price_weekday || '-'}/${p.price_friday || '-'}/${p.price_saturday || '-'}`;
+            } else if (p.hasOwnProperty(col.key)) {
+                 // 【安全修正】產品名稱、描述等所有動態欄位消毒
+                 const rawValue = p[col.key] || 'N/A';
+                 let safeValue = escapeHtml(rawValue); // <--- 這裡使用了 escapeHtml
+                 
+                 // 截斷處理
+                 if (typeof safeValue === 'string' && safeValue.length > 50) {
+                      safeValue = safeValue.substring(0, 47) + '...';
+                 }
+                 cellContent = safeValue;
             }
-            html += `<td>${val}</td>`;
+            cells.push(`<td>${cellContent}</td>`);
         });
 
-        html += `<td><label class="switch"><input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}><span class="slider"></span></label></td>`;
-        html += `<td class="actions-cell"><button class="action-btn btn-edit-product" data-productid="${p.product_id}" style="background-color: var(--color-warning); color: #000;">編輯</button></td>`;
-        
-        row.innerHTML = html;
+        cells.push(`<td><label class="switch"><input type="checkbox" class="visibility-toggle" data-product-id="${p.product_id}" ${p.is_visible ? 'checked' : ''}><span class="slider"></span></label></td>`);
+        cells.push(`<td class="actions-cell"><button class="action-btn btn-edit-product" data-productid="${p.product_id}" style="background-color: var(--color-warning); color: #000;">編輯</button></td>`);
+
+        row.innerHTML = cells.join('');
     });
 }
 
+function applyProductFiltersAndRender() {
+    const searchInput = document.getElementById('product-search-input');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // 【新增】獲取當前啟用的篩選器狀態
+    const visibilityFilter = document.querySelector('#inventory-visibility-filter .active')?.dataset.filter || 'all';
+    const stockFilter = document.querySelector('#inventory-stock-filter .active')?.dataset.filter || 'all';
+
+    let filtered = [...allProducts]; // 從所有產品開始篩選
+
+    // 【新增】套用「上架狀態」篩選
+    if (visibilityFilter === 'visible') {
+        filtered = filtered.filter(p => p.is_visible);
+    } else if (visibilityFilter === 'hidden') {
+        filtered = filtered.filter(p => !p.is_visible);
+    }
+
+    // 【新增】套用「庫存狀態」篩選 (根據您的邏जिक)
+    if (stockFilter === 'in_stock') {
+        // 庫存數量不是 0 的所有項目 (包含 null 或 > 0)
+        filtered = filtered.filter(p => p.stock_quantity !== 0);
+    } else if (stockFilter === 'out_of_stock') {
+        // 庫存數量明確為 0 的項目
+        filtered = filtered.filter(p => p.stock_quantity === 0);
+    }
+
+    // 【修改】最後才套用「關鍵字搜尋」
+    if (searchTerm) {
+        filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
+    }
+
+    renderProductList(filtered);
+}
+
+function initializeProductDragAndDrop() {
+    const tbody = document.getElementById('product-list-tbody');
+    if (sortableProducts) sortableProducts.destroy();
+    if (tbody) {
+        sortableProducts = new Sortable(tbody, {
+            animation: 150, handle: '.drag-handle',
+            onEnd: async (evt) => {
+                const orderedIds = Array.from(tbody.children).map(row => row.dataset.productId);
+                try {
+                    await api.updateProductOrder(orderedIds);
+                    orderedIds.forEach((id, index) => {
+                       const product = allProducts.find(p => p.product_id === id);
+                       if(product) product.display_order = index + 1;
+                    });
+                    allProducts.sort((a, b) => a.display_order - b.display_order);
+                    applyProductFiltersAndRender();
+                } catch (error) { ui.toast.error(error.message); init(); }
+            }
+        });
+    }
+}
+
+// --- CSV 相關功能 ---
+function handleDownloadCsvTemplate() {
+    const headers = ["產品名稱", "分類", "價格", "詳細介紹", "標籤(逗號分隔)", "是否上架(TRUE/FALSE)"];
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "product_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function handleCsvUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+        if (lines.length < 2) return ui.toast.error('CSV 檔案中沒有可匯入的資料。');
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const data = lines.slice(1).map(line => {
+            // Improved CSV parsing to handle commas within quoted fields
+            const values = [];
+            let currentVal = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, '')); // Add the last value
+
+            const obj = {};
+            headers.forEach((header, index) => {
+                obj[header] = values[index] ? values[index].trim().replace(/"/g, '') : "";
+            });
+            return obj;
+        });
+
+
+        if (!confirm(`您準備從 CSV 檔案匯入 ${data.length} 筆產品資料，確定嗎？`)) {
+            event.target.value = '';
+            return;
+        }
+        try {
+            await api.bulkCreateProducts({ products: data });
+            ui.toast.success('匯入成功！');
+            await init();
+        } catch (error) {
+            ui.toast.error(`匯入失敗：${error.message}`);
+        } finally {
+             event.target.value = '';
+        }
+    };
+    reader.readAsText(file, 'UTF-8'); // Ensure correct encoding
+}
+
+// --- 【大幅修改】Modal (彈窗) 相關函式 ---
 function openProductModal(product = null) {
-    const formBody = document.getElementById('edit-product-form-body');
-    const form = document.getElementById('edit-product-form');
-    const modalTitle = document.getElementById('modal-product-title');
-    
-    if (!formBody || !form) return;
-    
-    // A. 讀取設定
-    const activeKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-    const config = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey]?.admin_config?.products || {};
-    const priceMode = config.price_mode || 'simple'; // simple | complex
-    const inventoryMode = config.inventory_mode || 'quantity'; // quantity | date_based | none
-    const enableImage = config.enable_image_upload !== false;
+    // ========== ▼▼▼ 【關鍵修正 1】讀取 logic 中的名稱 ▼▼▼ ==========
+    const entityName = activeTemplate.logic.adminEntityName || "產品";
+    const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
+    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
 
-    // B. 清空並重置表單
-    form.reset();
-    formBody.innerHTML = '';
-    
-    // C. 動態生成欄位
-    // C-1. 基本資訊
-    formBody.appendChild(createFormField('name', '名稱', 'text', product?.name, { required: true }));
-    formBody.appendChild(createFormField('category', '分類', 'text', product?.category));
-    formBody.appendChild(createFormField('description', '詳細介紹', 'textarea', product?.description));
-    
-    // C-2. 價格欄位 (根據模式)
-    if (priceMode === 'complex') {
-        const row = document.createElement('div');
-        row.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;';
-        row.appendChild(createFormField('price_weekday', '平日價格', 'number', product?.price_weekday, { min: 0 }));
-        row.appendChild(createFormField('price_friday', '週五價格', 'number', product?.price_friday, { min: 0 }));
-        row.appendChild(createFormField('price_saturday', '週六價格', 'number', product?.price_saturday, { min: 0 }));
-        formBody.appendChild(row);
-    } else {
-        // Simple Mode: 只顯示一個「價格」欄位，對應後端的 price_weekday
-        formBody.appendChild(createFormField('price_weekday', '價格', 'number', product?.price_weekday, { min: 0, required: true }));
-    }
+     const formBody = document.getElementById('edit-product-form-body');
+     const form = document.getElementById('edit-product-form');
+     if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) {
+        // ... (error handling remains the same) ...
+         return;
+     }
+     form.reset();
+     formBody.innerHTML = '';
 
-    // C-3. 庫存欄位 (根據模式)
-    if (inventoryMode === 'quantity') {
-        formBody.appendChild(createFormField('stock_quantity', '庫存數量', 'number', product?.stock_quantity, { min: 0 }));
-    } else if (inventoryMode === 'date_based') {
-        const hint = document.createElement('p');
-        hint.style.cssText = 'color: #666; font-size: 0.9em; background: #f0f0f0; padding: 8px; border-radius: 4px;';
-        hint.textContent = '此模式採用「日期制房況」，請至「房量控管」頁面設定每日庫存。';
-        formBody.appendChild(hint);
-    }
-    // none 模式則不顯示任何庫存欄位
+    // 1. Generate main form based on blueprint
+    activeTemplate.fields.forEach(field => {
+        // --- Skip old 'price' field ---
+        if (field.key === 'price') return;
+        // --- 【修正】排除 images 欄位 ---
+        if (field.key === 'images') return; 
+        
+        // --- Generate fields for new prices ---
+        if (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') {
+             const priceField = createFormField({ // Create definitions on the fly
+                 key: field.key,
+                 label: field.label || `價格 (${field.key.split('_')[1]})`, // Auto-generate label
+                 type: 'number',
+                 required: false, // Assuming prices might not always be required
+                 placeholder: '請輸入金額'
+             });
+              if (priceField) formBody.appendChild(priceField);
+        } else {
+             // --- Render other fields as before ---
+             const formField = createFormField(field);
+             if (formField) formBody.appendChild(formField); // Check if field was created (e.g., old price is null)
+        }
+    });
 
-    // C-4. 狀態開關
-    formBody.appendChild(createFormField('is_visible', '是否上架', 'boolean', product?.is_visible));
+    // ... (rest of the logic for imageSection, specSection, modalTitle remains the same) ...
+     const imageSection = document.getElementById('edit-product-image-section');
+     const specSection = document.getElementById('edit-product-spec-section');
+     const imageInputs = document.getElementById('edit-product-image-inputs');
+     const specInputs = document.getElementById('edit-product-spec-inputs');
+     if (imageInputs) imageInputs.innerHTML = '';
+     if (specInputs) specInputs.innerHTML = '';
+     
+     // --- 【修正】hasImages 檢查方式 ---
+     const hasImages = activeTemplate.fields.some(f => f.key === 'images');
+     if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none';
+     
+     // --- 【修正】不再檢查 hasSpecs，永遠顯示規格區塊 ---
+     if (specSection) { specSection.style.display = 'block'; }  
+     
+     const modalTitle = document.getElementById('modal-product-title');
+     const pageTitle = document.querySelector('#page-inventory .page-header h2');
+     
+     // --- 【修改】使用新的 entityNamePlural 變數 ---
+     if (pageTitle) pageTitle.textContent = `${entityNamePlural}管理`;
 
-    // C-5. 圖片 (固定顯示，但根據設定決定是否允許上傳)
-    // 這裡我們沿用舊的動態圖片欄位邏輯，但放在 formBody 之外的 dedicated section
-    setupImageSection(product, enableImage);
 
-    // C-6. 規格 (固定顯示 5 組)
-    setupSpecSection(product);
-
-    // 設定 ID 與標題
-    let idInput = form.querySelector('input[name="product_id"]');
-    if (!idInput) {
-        idInput = document.createElement('input');
-        idInput.type = 'hidden'; idInput.name = 'product_id';
-        form.appendChild(idInput);
-    }
-    
+    // 4. Populate data (Edit mode)
     if (product) {
-        modalTitle.textContent = `編輯：${product.name}`;
-        idInput.value = product.product_id;
+        // --- 【修改】使用新的 entityName 變數 ---
+        if (modalTitle && activeTemplate) { 
+            modalTitle.textContent = `編輯${entityName}：${product.name}`; 
+        }
+
+        // Populate main fields (excluding special ones)
+        activeTemplate.fields.forEach(field => {
+            // --- Skip special fields handled separately ---
+            if (field.key === 'price' || field.key === 'images' || field.key.startsWith('spec_') || field.key.startsWith('price_')) return;
+
+            const input = document.getElementById(`edit-product-${field.key}`);
+            if (input) {
+                if (field.type === 'boolean') {
+                    input.checked = !!product[field.key];
+                } else {
+                    input.value = product[field.key] || '';
+                }
+            }
+        });
+
+        // --- Populate NEW price fields ---
+        document.getElementById('edit-product-price_weekday').value = product.price_weekday || '';
+        document.getElementById('edit-product-price_friday').value = product.price_friday || '';
+        document.getElementById('edit-product-price_saturday').value = product.price_saturday || '';
+
+
+        // ... (rest of the logic for populating images, product_id remains the same) ...
+         if (hasImages && imageInputs) {
+            try {
+                const images = JSON.parse(product.images || '[]');
+                if (images.length === 0) { addImageInputField(imageInputs); }
+                else { images.forEach(imgUrl => addImageInputField(imageInputs, imgUrl)); }
+            } catch (e) { addImageInputField(imageInputs); }
+        }
+        
+        // --- 【修正】移除 hasSpecs 檢查，永遠填入規格 ---
+         if (specInputs) {
+            let specAdded = false;
+            for (let i = 1; i <= 5; i++) {
+                if (product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
+                    // --- 【修改】傳入空字串而不是 null ---
+                    addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
+                    specAdded = true;
+                }
+            }
+            if (!specAdded) addSpecInputField(specInputs);
+        }
+        
+         let idInput = form.querySelector('input[name="product_id"]');
+         if (!idInput) {
+             idInput = document.createElement('input');
+             idInput.type = 'hidden'; idInput.name = 'product_id';
+             form.appendChild(idInput);
+         }
+         idInput.value = product.product_id;
+
     } else {
-        modalTitle.textContent = '新增產品/服務';
-        idInput.value = '';
+        // --- 【修改】使用新的 entityName 變數 ---
+        if (modalTitle && activeTemplate) { 
+            modalTitle.textContent = `新增${entityName}`; 
+        }
+         if (hasImages && imageInputs) addImageInputField(imageInputs);
+         // --- 【修正】移除 hasSpecs 檢查 ---
+         if (specInputs) addSpecInputField(specInputs);
+         
+        const idInput = form.querySelector('input[name="product_id"]');
+        if (idInput) idInput.remove();
     }
 
+    updateDynamicButtonsState();
     ui.showModal('#edit-product-modal');
 }
 
-// 4. 輔助區塊渲染 (圖片與規格)
-function setupImageSection(product, enableUpload) {
-    const container = document.getElementById('edit-product-image-inputs');
-    if (!container) return;
-    container.innerHTML = '';
-    
-    // 如果 config 關閉上傳，隱藏按鈕 (這裡簡單處理，實際可隱藏整個區塊)
-    const addBtn = document.getElementById('add-image-input-btn');
-    if (addBtn) addBtn.style.display = enableUpload ? 'block' : 'none';
-
-    // 填入現有圖片
-    try {
-        const images = JSON.parse(product?.images || '[]');
-        if (images.length === 0) addImageInputField(container, '');
-        else images.forEach(url => addImageInputField(container, url));
-    } catch { addImageInputField(container, ''); }
-}
-
+// 【大幅修改】處理表單提交 (前端直接更新版本)
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
+    const data = {};
 
-    // 處理特殊欄位
-    data.is_visible = form.querySelector('[name="is_visible"]').checked;
-    
-    // 處理圖片 JSON
-    const images = Array.from(document.querySelectorAll('[name="images"]')).map(i => i.value.trim()).filter(Boolean);
-    data.images = JSON.stringify(images);
+    // 1. 讀取表單資料 (這部分邏輯不變)
+    activeTemplate.fields.forEach(field => {
+        // --- Skip special fields ---
+        if (field.key === 'price' || field.key === 'images' || field.key.startsWith('spec_') || field.key.startsWith('price_')) return;
 
-    // 處理規格
-    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
-        const i = index + 1;
-        data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim();
-        data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim();
-    });
-
-    // 處理價格與庫存的空值 (轉為 null 以符合 DB)
-    ['price_weekday', 'price_friday', 'price_saturday', 'stock_quantity'].forEach(k => {
-        if (data[k] === '') data[k] = null;
-        else data[k] = Number(data[k]);
-    });
-
-    // 如果是 Simple 模式，將 weekday 價格視為主要價格 (後端邏輯相容)
-    // 這裡不做額外轉換，直接送出即可，因為 create-product API 會接收所有欄位
-
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.disabled = true; submitBtn.textContent = '儲存中...';
-
-    try {
-        if (data.product_id) {
-            await api.updateProductDetails(data);
-        } else {
-            await api.createProduct(data);
+        const input = form.querySelector(`[name="${field.key}"]`);
+        if (input) {
+            if (field.type === 'boolean') {
+                data[field.key] = input.checked;
+            } else {
+                 data[field.key] = (input.type === 'number')
+                    ? (input.value === '' ? null : parseFloat(input.value))
+                    : input.value;
+            }
         }
-        ui.toast.success('儲存成功！');
+    });
+     data.price_weekday = parseFloat(form.querySelector('[name="price_weekday"]').value) || null;
+     data.price_friday = parseFloat(form.querySelector('[name="price_friday"]').value) || null;
+     data.price_saturday = parseFloat(form.querySelector('[name="price_saturday"]').value) || null;
+     const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
+     data.images = JSON.stringify(images);
+     
+     // --- 【修改】讀取 textarea 並儲存空字串 '' ---
+     document.querySelectorAll('.spec-input-group').forEach((group, index) => {
+         const i = index + 1;
+         data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim() || ''; // 存 ''
+         data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || ''; // 存 ''
+     });
+
+    // 2. 檢查必填欄位 (這部分邏輯不變)
+     for (const field of activeTemplate.fields) {
+          if (field.key === 'price') continue;
+          if ( (field.key === 'price_weekday' || field.key === 'price_friday' || field.key === 'price_saturday') && field.required && data[field.key] === null) {
+              ui.toast.error(`「${field.label}」為必填欄位！`); return;
+          }
+          if (field.required && (!data.hasOwnProperty(field.key) || (typeof data[field.key] === 'string' && data[field.key].trim() === '') || data[field.key] === null) && !field.key.startsWith('price_')) {
+             ui.toast.error(`「${field.label}」為必填欄位！`); return;
+         }
+     }
+
+    // 3. 判斷是新增還是編輯 (這部分邏輯不變)
+     const idInput = form.querySelector('input[name="product_id"]');
+     const isCreating = !idInput;
+     if (!isCreating) { data.product_id = idInput.value; }
+
+
+    // 4. 呼叫 API 並處理回應
+    try {
+        let responseData; // 用來接收 API 回應
+        if (isCreating) {
+            // 假設 createProduct API 會回傳 { success: true, product: newProductData }
+            responseData = await api.createProduct(data);
+            if (!responseData || !responseData.product) {
+                 throw new Error("API 未回傳新增的產品資料。");
+            }
+            // 將新產品加入 allProducts 陣列
+            allProducts.push(responseData.product);
+            console.log("新增產品成功，已加入 allProducts:", responseData.product);
+        } else {
+            // 假設 updateProductDetails API 會回傳 { success: true, readBack: updatedProductData }
+            responseData = await api.updateProductDetails(data);
+            if (!responseData || !responseData.readBack) {
+                 throw new Error("API 未回傳更新後的產品資料 (readBack)。");
+            }
+            // 更新 allProducts 陣列中對應的產品
+            const index = allProducts.findIndex(p => p.product_id === data.product_id);
+            if (index > -1) {
+                // 直接用 API 回傳的 readBack 資料覆蓋舊資料
+                allProducts[index] = responseData.readBack;
+                console.log("更新產品成功，已更新 allProducts:", allProducts[index]);
+            } else {
+                 console.warn(`找不到要更新的產品 ID (${data.product_id})，可能列表已過期，建議重新載入。`);
+                 // 或者可以選擇將 readBack 資料加入 allProducts，雖然理論上不該發生
+                 // allProducts.push(responseData.readBack);
+            }
+        }
+
         ui.hideModal('#edit-product-modal');
-        await init(); // 重新載入列表
-    } catch (e) {
-        ui.toast.error(`儲存失敗: ${e.message}`);
-    } finally {
-        submitBtn.disabled = false; submitBtn.textContent = '儲存';
+
+        // --- 取代 await init(); ---
+        // 5. 根據目前的篩選條件，使用更新後的 allProducts 重新渲染列表
+        allProducts.sort((a, b) => a.display_order - b.display_order); // 保持排序
+        applyProductFiltersAndRender();
+        // --- 修改結束 ---
+
+        ui.toast.success('儲存成功！');
+
+    } catch (error) {
+        ui.toast.error(`儲存失敗：${error.message}`);
+        console.error("處理表單提交失敗:", error); // 保留錯誤日誌
     }
 }
 
-function setupEventListeners() {
-    const page = document.getElementById('page-inventory');
-    if (!page || page.dataset.initialized === 'true') return;
-
-    document.addEventListener('click', e => {
-        if (e.target.id === 'add-product-btn') openProductModal();
-        if (e.target.closest('.btn-edit-product')) {
-            const pid = e.target.closest('.btn-edit-product').dataset.productid;
-            const p = allProducts.find(x => x.product_id === pid);
-            if (p) openProductModal(p);
+// --- 批次操作 ---
+function updateBatchToolbarState() {
+    const toolbar = document.getElementById('batch-actions-toolbar');
+    const countSpan = document.getElementById('batch-selected-count');
+    const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+    if (toolbar && countSpan) {
+        if (selectedCheckboxes.length > 0) {
+            toolbar.classList.add('visible');
+            countSpan.textContent = `已選取 ${selectedCheckboxes.length} 項`;
+        } else {
+            toolbar.classList.remove('visible');
         }
-        if (e.target.id === 'add-image-input-btn') addImageInputField(document.getElementById('edit-product-image-inputs'));
-        if (e.target.id === 'add-spec-input-btn') addSpecInputField(document.getElementById('edit-product-spec-inputs'));
+    }
+}
+
+async function handleBatchUpdate(isVisible) {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
+    try {
+        await api.batchUpdateProducts(selectedIds, isVisible);
+        ui.toast.success(`成功更新 ${selectedIds.length} 個項目！`);
+        await init();
+    } catch (error) { ui.toast.error(`錯誤：${error.message}`); }
+}
+
+async function handleBatchSetStock() {
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！');
+
+    const statusText = prompt('請輸入要為所有選取項目設定的庫存狀態文字：\n(例如：可預約、熱銷中、已售罄)', '可預約');
+
+    if (statusText === null || statusText.trim() === '') {
+        return;
+    }
+
+    // Use ui.confirm which returns a Promise
+    const confirmed = await ui.confirm(`確定要將 ${selectedIds.length} 個項目的庫存狀態設定為「${statusText}」嗎？`);
+    if (!confirmed) return;
+
+
+    try {
+        await api.batchUpdateStockStatus(selectedIds, statusText.trim());
+        ui.toast.success(`成功更新 ${selectedIds.length} 個項目！`);
+        await init();
+    } catch (error) {
+        ui.toast.error(`錯誤：${error.message}`);
+    }
+}
+
+async function handleBatchDelete() {
+    // 【修正】確保 selectedIds 在此 scope 可用
+    const selectedIds = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.productId);
+    if (selectedIds.length === 0) return ui.toast.error('請至少選取一個項目！'); // Check again here
+
+    const confirmed = await ui.confirm(`確定要刪除選取的 ${selectedIds.length} 個項目嗎？此操作無法復原。`);
+    if (!confirmed) return;
+
+    try {
+        await api.deleteProducts(selectedIds);
+        ui.toast.success('刪除成功！');
+        await init();
+    } catch (error) {
+        ui.toast.error(`錯誤：${error.message}`);
+    }
+}
+
+function updateSelectAllCheckboxState() {
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    const allProductCheckboxes = document.querySelectorAll('.product-checkbox');
+    if (!selectAllCheckbox || allProductCheckboxes.length === 0) return;
+
+    const allChecked = Array.from(allProductCheckboxes).every(checkbox => checkbox.checked);
+    const someChecked = Array.from(allProductCheckboxes).some(checkbox => checkbox.checked);
+
+    if (allChecked) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (someChecked) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+// 事件監聽器 (最終修正版)
+// --- 事件監聽器 ---
+function setupEventListeners() {
+     const page = document.getElementById('page-inventory');
+     if (!page || page.dataset.initialized === 'true') {
+         // console.log("[ProductManagement setupEventListeners - Reverted] Skipping, already initialized or page not found.");
+         return;
+     }
+     console.log("[ProductManagement setupEventListeners - Reverted] Binding listeners...");
+
+     document.addEventListener('click', e => {
+        // ... Modal 內點擊事件 ...
+        const modal = document.getElementById('edit-product-modal');
+        if (modal && modal.contains(e.target)) {
+            if (e.target.id === 'add-image-input-btn') { addImageInputField(document.getElementById('edit-product-image-inputs')); }
+            else if (e.target.id === 'add-spec-input-btn') { addSpecInputField(document.getElementById('edit-product-spec-inputs')); }
+            else if (e.target.classList.contains('btn-remove-input')) {
+                e.target.closest('.dynamic-input-group')?.remove();
+                updateDynamicButtonsState();
+            }
+        }
+        // 頁面點擊事件
+        if (page.contains(e.target)) {
+             if (e.target.id === 'add-product-btn') {
+                 openProductModal(); // 隱式使用模組級 activeTemplate
+             } else if (e.target.closest('.btn-edit-product')) {
+                const button = e.target.closest('.btn-edit-product');
+                if (button && button.dataset.productid) {
+                     const product = allProducts.find(p => p.product_id === button.dataset.productid);
+                     if (product) openProductModal(product); // 隱式使用模組級 activeTemplate
+                }
+             }
+             // ... 其他頁面點擊處理 ...
+             else if (e.target.id === 'download-csv-template-btn') { handleDownloadCsvTemplate(); }
+        }
     });
 
-    const form = document.getElementById('edit-product-form');
-    if (form) form.addEventListener('submit', handleFormSubmit);
+    // 其他不涉及點擊的事件監聽器 (保持原樣)
+    function addFilterGroupListener(groupId) {
+        const filterGroup = document.getElementById(groupId);
+        if (filterGroup) {
+            filterGroup.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    filterGroup.querySelector('.active')?.classList.remove('active');
+                    e.target.classList.add('active');
+                    applyProductFiltersAndRender();
+                }
+            });
+        }
+    }
+    addFilterGroupListener('inventory-stock-filter');
+    addFilterGroupListener('inventory-visibility-filter');
 
-    // ... (保留原有的列表拖曳、篩選等監聽器) ...
+    document.getElementById('batch-publish-btn')?.addEventListener('click', () => handleBatchUpdate(true));
+    document.getElementById('batch-unpublish-btn')?.addEventListener('click', () => handleBatchUpdate(false));
+    document.getElementById('batch-set-stock-btn')?.addEventListener('click', handleBatchSetStock);
+    document.getElementById('batch-delete-btn')?.addEventListener('click', handleBatchDelete);
+
+    const tbody = document.getElementById('product-list-tbody');
+    if (tbody) {
+        tbody.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('product-checkbox')) {
+                updateBatchToolbarState();
+                updateSelectAllCheckboxState();
+            } else if (e.target.classList.contains('visibility-toggle')) {
+                const productId = e.target.dataset.productId;
+                const isVisible = e.target.checked;
+                e.target.disabled = true;
+                try {
+                    await api.toggleProductVisibility(productId, isVisible);
+                    const product = allProducts.find(p => p.product_id === productId);
+                    if (product) product.is_visible = isVisible ? 1 : 0;
+                     // Optional: Re-apply filters if visibility changed
+                    // applyProductFiltersAndRender();
+                } catch (error) {
+                    ui.toast.error(`更新失敗: ${error.message}`);
+                    e.target.checked = !isVisible; // Revert checkbox on error
+                } finally {
+                    e.target.disabled = false;
+                }
+            }
+        });
+    }
+
+    document.getElementById('select-all-products')?.addEventListener('change', (e) => {
+        document.querySelectorAll('.product-checkbox').forEach(checkbox => checkbox.checked = e.target.checked);
+        updateBatchToolbarState();
+    });
+
+    document.getElementById('product-search-input')?.addEventListener('input', applyProductFiltersAndRender);
+    document.getElementById('csv-upload-input')?.addEventListener('change', handleCsvUpload);
+
+    // Attach submit listener to the form itself
+    const editForm = document.getElementById('edit-product-form');
+     // Prevent multiple attachments using a dataset attribute
+     if (editForm && !editForm.dataset.listenerAttached) {
+         editForm.addEventListener('submit', handleFormSubmit);
+         editForm.dataset.listenerAttached = 'true';
+     }
+
+
     page.dataset.initialized = 'true';
 }
 
 
 export const init = async () => {
+    console.log("[ProductManagement Init] Init called.");
+
+
+    console.log("[ProductManagement Init] window.CONFIG is guaranteed by app.js. Proceeding...");
+
+    // Now proceed with the original logic
     try {
-        if (!window.CONFIG) throw new Error("Config not loaded");
-        const key = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
-        activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[key];
-        
-        allProducts = await api.getProducts();
-        setupEventListeners();
-        
-        // 渲染列表
-        renderProductList(allProducts);
-        
-        // 綁定事件 (只綁一次)
-        const page = document.getElementById('page-inventory');
-        if (page && !page.dataset.initialized) {
-            document.addEventListener('click', e => {
-                if (e.target.id === 'add-product-btn') openProductModal();
-                if (e.target.matches('.btn-edit-product')) {
-                    const p = allProducts.find(x => x.product_id === e.target.dataset.productid);
-                    if (p) openProductModal(p);
-                }
-                // ... 其他事件
-            });
-            document.getElementById('edit-product-form')?.addEventListener('submit', handleFormSubmit);
-            page.dataset.initialized = 'true';
+        const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
+        // Assign to the module-level variable
+        const currentActiveTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
+        activeTemplate = currentActiveTemplate; // Assign to module-level variable
+
+        if (!currentActiveTemplate) {
+            throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
 
+        // (移除 DEBUG Log)
+
+        // --- Corrected Check for adminColumns with added log inside ---
+        if (!currentActiveTemplate.logic || !Array.isArray(currentActiveTemplate.logic.adminColumns)) {
+            console.error("!!!! Entering the IF block for adminColumns check !!!!"); 
+            console.error("[ProductManagement Internal Wait] logic object or adminColumns check failed!", currentActiveTemplate);
+            throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'logic.adminColumns' 陣列設定。`); 
+        }
+        // --- Check End ---
+
+        // *** ADDED CHECK FOR FIELDS ***
+        if (!Array.isArray(currentActiveTemplate.fields)) {
+             console.error("!!!! Check for fields failed !!!!"); 
+             console.error("[ProductManagement Internal Wait] fields check failed!", currentActiveTemplate);
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少有效的 'fields' 陣列設定。`); 
+        }
+        // *** FIELDS CHECK END ***
+
+
+        console.log("[ProductManagement Internal Wait] Template, fields, and adminColumns checks passed."); 
+
     } catch (e) {
-        console.error("Product Init Error", e);
+        console.error("讀取商業樣板失敗:", e);
+        const inventoryPage = document.getElementById('page-inventory');
+        if (inventoryPage) {
+            inventoryPage.innerHTML = `<p style="color:red;">讀取商業樣板設定失敗: ${e.message}，請檢查系統設定。</p>`;
+        }
+        return; // Stop if template reading fails
+    }
+
+    // --- The rest of the init function ---
+    const tbody = document.getElementById('product-list-tbody');
+    if (!tbody) {
+        console.error("初始化產品頁失敗: 無法找到 'product-list-tbody' 元素。");
+        return;
+    }
+    // Use the module-level activeTemplate (assigned above)
+    // ========== ▼▼▼ 【關鍵修正 2】讀取 logic 中的名稱 ▼▼▼ ==========
+    const entityName = activeTemplate.logic.adminEntityName || "產品";
+    const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
+    // ========== ▲▲▲ 修正結束 ▲▲▲ ==========
+
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">正在載入${entityNamePlural}...</td></tr>`;
+
+    const pageTitle = document.querySelector('#page-inventory .page-header h2');
+    if (pageTitle && activeTemplate) { 
+            // --- 【修改】使用新的 entityNamePlural 變數 ---
+            pageTitle.textContent = `${entityNamePlural}管理`; 
+        }
+    if (pageTitle) {
+        // --- 【修改】使用新的 entityNamePlural 變數 ---
+        pageTitle.textContent = `${entityNamePlural}管理`;
+    }
+
+    try {
+        allProducts = await api.getProducts();
+        applyProductFiltersAndRender(); // Uses module-level activeTemplate implicitly
+        initializeProductDragAndDrop();
+        setupEventListeners(); // Uses module-level activeTemplate implicitly
+        console.log("[ProductManagement Internal Wait] Init completed successfully.");
+    } catch (error) {
+        console.error('初始化產品頁面的產品列表失敗:', error);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="7" style="color: red; text-align:center;">讀取產品資料失敗: ${error.message}</td></tr>`;
+        }
     }
 };

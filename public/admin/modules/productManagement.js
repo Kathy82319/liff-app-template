@@ -7,6 +7,7 @@ let allProducts = [];
 let sortableProducts = null;
 let activeTemplate = null; 
 
+
 // --- 圖片上傳 (保留空殼或實作) ---
 async function handleImageUpload(file, inputElement, buttonElement) {
     ui.toast.error('圖片上傳服務尚未設定，請聯繫系統管理員。');
@@ -41,8 +42,47 @@ async function handleImageUpload(file, inputElement, buttonElement) {
 export function hideBatchToolbar() {
     const toolbar = document.getElementById('batch-actions-toolbar');
     if (toolbar) toolbar.classList.remove('visible');
-    const cb = document.getElementById('select-all-products');
-    if (cb) { cb.checked = false; cb.indeterminate = false; }
+    const selectAllCheckbox = document.getElementById('select-all-products');
+    if (selectAllCheckbox) { selectAllCheckbox.checked = false; selectAllCheckbox.indeterminate = false; }
+}
+
+// 2. 表單欄位生成器 (Dynamic Form Builder)
+function createFormField(key, label, type = 'text', value = '', options = {}) {
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+    
+    // 標籤
+    const labelEl = document.createElement('label');
+    labelEl.textContent = label;
+    labelEl.htmlFor = `edit-product-${key}`;
+    formGroup.appendChild(labelEl);
+
+    // 輸入控制項
+    let inputEl;
+    if (type === 'textarea') {
+        inputEl = document.createElement('textarea');
+        inputEl.rows = 4;
+        inputEl.textContent = value || '';
+    } else if (type === 'boolean') {
+        // Toggle Switch
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `<label class="switch"><input type="checkbox" id="edit-product-${key}" name="${key}" ${value ? 'checked' : ''}><span class="slider"></span></label>`;
+        formGroup.appendChild(wrapper);
+        return formGroup;
+    } else {
+        inputEl = document.createElement('input');
+        inputEl.type = type;
+        inputEl.value = (value === null || value === undefined) ? '' : value;
+    }
+
+    inputEl.id = `edit-product-${key}`;
+    inputEl.name = key;
+    if (options.placeholder) inputEl.placeholder = options.placeholder;
+    if (options.required) inputEl.required = true;
+    if (options.min !== undefined) inputEl.min = options.min;
+    
+    formGroup.appendChild(inputEl);
+    return formGroup;
 }
 
 // --- 【核心修改】動態欄位生成 ---
@@ -127,17 +167,42 @@ function addImageInputField(container, value = '') {
     if (container.children.length >= 5) return;
     const div = document.createElement('div');
     div.className = 'dynamic-input-group';
-    div.innerHTML = `<input type="url" name="images" placeholder="圖片網址" value="${value}"><button type="button" class="btn-remove-input">⊖</button>`;
+    div.innerHTML = `
+        <input type="url" name="images" placeholder="圖片網址" value="${value}" style="flex-grow:1;">
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    div.querySelector('button').onclick = () => div.remove();
     container.appendChild(div);
-    updateDynamicButtonsState();
+}
+
+function setupSpecSection(product) {
+    const container = document.getElementById('edit-product-spec-inputs');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    // 總是產生 1 個空的或填入現有的
+    let hasSpec = false;
+    for (let i = 1; i <= 5; i++) {
+        const name = product ? product[`spec_${i}_name`] : '';
+        const val = product ? product[`spec_${i}_value`] : '';
+        if (name || val) {
+            addSpecInputField(container, name, val);
+            hasSpec = true;
+        }
+    }
+    if (!hasSpec) addSpecInputField(container);
 }
 function addSpecInputField(container, name = '', value = '') {
     if (container.children.length >= 5) return;
     const div = document.createElement('div');
     div.className = 'spec-input-group dynamic-input-group';
-    div.innerHTML = `<input type="text" name="spec_name" placeholder="規格名" value="${name}"><textarea name="spec_value" placeholder="內容" rows="2">${value}</textarea><button type="button" class="btn-remove-input">⊖</button>`;
+    div.innerHTML = `
+        <input type="text" name="spec_name" placeholder="規格名稱" value="${name}">
+        <textarea name="spec_value" placeholder="內容" rows="1">${value}</textarea>
+        <button type="button" class="btn-remove-input">⊖</button>
+    `;
+    div.querySelector('button').onclick = () => div.remove();
     container.appendChild(div);
-    updateDynamicButtonsState();
 }
 function updateDynamicButtonsState() {
     const img = document.getElementById('edit-product-image-inputs');
@@ -207,126 +272,168 @@ function renderProductList(products) {
 function openProductModal(product = null) {
     const formBody = document.getElementById('edit-product-form-body');
     const form = document.getElementById('edit-product-form');
+    const modalTitle = document.getElementById('modal-product-title');
+    
     if (!formBody || !form) return;
+    
+    // A. 讀取設定
+    const activeKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+    const config = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey]?.admin_config?.products || {};
+    const priceMode = config.price_mode || 'simple'; // simple | complex
+    const inventoryMode = config.inventory_mode || 'quantity'; // quantity | date_based | none
+    const enableImage = config.enable_image_upload !== false;
 
+    // B. 清空並重置表單
     form.reset();
     formBody.innerHTML = '';
-
-    const config = activeTemplate?.client_config?.booking || {};
-    const mode = config.mode || 'range';
-    const entityName = activeTemplate.logic.adminEntityName || "產品";
     
-    document.getElementById('modal-product-title').textContent = product ? `編輯${entityName}` : `新增${entityName}`;
-
-    // 生成欄位
-    activeTemplate.fields.forEach(field => {
-        // [關鍵] 傳入 mode，讓 createFormField 決定顯示與否
-        const fieldEl = createFormField(field, mode);
-        if (fieldEl) formBody.appendChild(fieldEl);
-    });
-
-    // 處理特殊區塊
-    const imgSection = document.getElementById('edit-product-image-section');
-    const specSection = document.getElementById('edit-product-spec-section');
-    const imgInputs = document.getElementById('edit-product-image-inputs');
-    const specInputs = document.getElementById('edit-product-spec-inputs');
+    // C. 動態生成欄位
+    // C-1. 基本資訊
+    formBody.appendChild(createFormField('name', '名稱', 'text', product?.name, { required: true }));
+    formBody.appendChild(createFormField('category', '分類', 'text', product?.category));
+    formBody.appendChild(createFormField('description', '詳細介紹', 'textarea', product?.description));
     
-    if(imgInputs) imgInputs.innerHTML = '';
-    if(specInputs) specInputs.innerHTML = '';
-    
-    if (imgSection) imgSection.style.display = 'block'; 
-    if (specSection) specSection.style.display = 'block';
-
-    // 填值 (Edit Mode)
-    if (product) {
-        // ID
-        let idInput = form.querySelector('input[name="product_id"]');
-        if (!idInput) {
-             idInput = document.createElement('input');
-             idInput.type = 'hidden'; idInput.name = 'product_id';
-             form.appendChild(idInput);
-        }
-        idInput.value = product.product_id;
-
-        // 一般欄位
-        activeTemplate.fields.forEach(field => {
-            const input = document.getElementById(`edit-product-${field.key}`);
-            if (input) {
-                if (field.type === 'boolean') input.checked = !!product[field.key];
-                else input.value = product[field.key] || '';
-            }
-        });
-
-        // 圖片
-        try {
-            const images = JSON.parse(product.images || '[]');
-            if (images.length === 0) addImageInputField(imgInputs);
-            else images.forEach(url => addImageInputField(imgInputs, url));
-        } catch(e) { addImageInputField(imgInputs); }
-
-        // 規格
-        let specAdded = false;
-        for(let i=1; i<=5; i++) {
-            if(product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
-                addSpecInputField(specInputs, product[`spec_${i}_name`], product[`spec_${i}_value`]);
-                specAdded = true;
-            }
-        }
-        if (!specAdded) addSpecInputField(specInputs);
-
+    // C-2. 價格欄位 (根據模式)
+    if (priceMode === 'complex') {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;';
+        row.appendChild(createFormField('price_weekday', '平日價格', 'number', product?.price_weekday, { min: 0 }));
+        row.appendChild(createFormField('price_friday', '週五價格', 'number', product?.price_friday, { min: 0 }));
+        row.appendChild(createFormField('price_saturday', '週六價格', 'number', product?.price_saturday, { min: 0 }));
+        formBody.appendChild(row);
     } else {
-        // Create Mode
-        const idInput = form.querySelector('input[name="product_id"]');
-        if (idInput) idInput.remove();
-        
-        addImageInputField(imgInputs);
-        addSpecInputField(specInputs);
+        // Simple Mode: 只顯示一個「價格」欄位，對應後端的 price_weekday
+        formBody.appendChild(createFormField('price_weekday', '價格', 'number', product?.price_weekday, { min: 0, required: true }));
     }
 
-    updateDynamicButtonsState();
+    // C-3. 庫存欄位 (根據模式)
+    if (inventoryMode === 'quantity') {
+        formBody.appendChild(createFormField('stock_quantity', '庫存數量', 'number', product?.stock_quantity, { min: 0 }));
+    } else if (inventoryMode === 'date_based') {
+        const hint = document.createElement('p');
+        hint.style.cssText = 'color: #666; font-size: 0.9em; background: #f0f0f0; padding: 8px; border-radius: 4px;';
+        hint.textContent = '此模式採用「日期制房況」，請至「房量控管」頁面設定每日庫存。';
+        formBody.appendChild(hint);
+    }
+    // none 模式則不顯示任何庫存欄位
+
+    // C-4. 狀態開關
+    formBody.appendChild(createFormField('is_visible', '是否上架', 'boolean', product?.is_visible));
+
+    // C-5. 圖片 (固定顯示，但根據設定決定是否允許上傳)
+    // 這裡我們沿用舊的動態圖片欄位邏輯，但放在 formBody 之外的 dedicated section
+    setupImageSection(product, enableImage);
+
+    // C-6. 規格 (固定顯示 5 組)
+    setupSpecSection(product);
+
+    // 設定 ID 與標題
+    let idInput = form.querySelector('input[name="product_id"]');
+    if (!idInput) {
+        idInput = document.createElement('input');
+        idInput.type = 'hidden'; idInput.name = 'product_id';
+        form.appendChild(idInput);
+    }
+    
+    if (product) {
+        modalTitle.textContent = `編輯：${product.name}`;
+        idInput.value = product.product_id;
+    } else {
+        modalTitle.textContent = '新增產品/服務';
+        idInput.value = '';
+    }
+
     ui.showModal('#edit-product-modal');
+}
+
+// 4. 輔助區塊渲染 (圖片與規格)
+function setupImageSection(product, enableUpload) {
+    const container = document.getElementById('edit-product-image-inputs');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    // 如果 config 關閉上傳，隱藏按鈕 (這裡簡單處理，實際可隱藏整個區塊)
+    const addBtn = document.getElementById('add-image-input-btn');
+    if (addBtn) addBtn.style.display = enableUpload ? 'block' : 'none';
+
+    // 填入現有圖片
+    try {
+        const images = JSON.parse(product?.images || '[]');
+        if (images.length === 0) addImageInputField(container, '');
+        else images.forEach(url => addImageInputField(container, url));
+    } catch { addImageInputField(container, ''); }
 }
 
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
-    const data = {};
-    
-    // 1. 收集動態欄位
-    activeTemplate.fields.forEach(field => {
-        const input = form.querySelector(`[name="${field.key}"]`);
-        if (input) {
-            if (field.type === 'boolean') data[field.key] = input.checked;
-            else data[field.key] = (input.type === 'number' && input.value !== '') ? parseFloat(input.value) : input.value;
-        }
-    });
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
 
-    // 2. 收集特殊欄位
+    // 處理特殊欄位
+    data.is_visible = form.querySelector('[name="is_visible"]').checked;
+    
+    // 處理圖片 JSON
     const images = Array.from(document.querySelectorAll('[name="images"]')).map(i => i.value.trim()).filter(Boolean);
     data.images = JSON.stringify(images);
-    
-    document.querySelectorAll('.spec-input-group').forEach((group, i) => {
-        data[`spec_${i+1}_name`] = group.querySelector('[name="spec_name"]').value.trim();
-        data[`spec_${i+1}_value`] = group.querySelector('[name="spec_value"]').value.trim();
+
+    // 處理規格
+    document.querySelectorAll('.spec-input-group').forEach((group, index) => {
+        const i = index + 1;
+        data[`spec_${i}_name`] = group.querySelector('[name="spec_name"]').value.trim();
+        data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim();
     });
 
-    const idInput = form.querySelector('input[name="product_id"]');
-    if (idInput) data.product_id = idInput.value;
+    // 處理價格與庫存的空值 (轉為 null 以符合 DB)
+    ['price_weekday', 'price_friday', 'price_saturday', 'stock_quantity'].forEach(k => {
+        if (data[k] === '') data[k] = null;
+        else data[k] = Number(data[k]);
+    });
 
-    // 3. 提交
+    // 如果是 Simple 模式，將 weekday 價格視為主要價格 (後端邏輯相容)
+    // 這裡不做額外轉換，直接送出即可，因為 create-product API 會接收所有欄位
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true; submitBtn.textContent = '儲存中...';
+
     try {
-        if (data.product_id) await api.updateProductDetails(data);
-        else await api.createProduct(data);
-        
-        ui.toast.success('儲存成功');
+        if (data.product_id) {
+            await api.updateProductDetails(data);
+        } else {
+            await api.createProduct(data);
+        }
+        ui.toast.success('儲存成功！');
         ui.hideModal('#edit-product-modal');
-        await init(); // 重整列表
-    } catch(e) {
-        ui.toast.error(e.message);
+        await init(); // 重新載入列表
+    } catch (e) {
+        ui.toast.error(`儲存失敗: ${e.message}`);
+    } finally {
+        submitBtn.disabled = false; submitBtn.textContent = '儲存';
     }
 }
 
-// ... (setupEventListeners, applyProductFiltersAndRender 保持原樣或微調) ...
+function setupEventListeners() {
+    const page = document.getElementById('page-inventory');
+    if (!page || page.dataset.initialized === 'true') return;
+
+    document.addEventListener('click', e => {
+        if (e.target.id === 'add-product-btn') openProductModal();
+        if (e.target.closest('.btn-edit-product')) {
+            const pid = e.target.closest('.btn-edit-product').dataset.productid;
+            const p = allProducts.find(x => x.product_id === pid);
+            if (p) openProductModal(p);
+        }
+        if (e.target.id === 'add-image-input-btn') addImageInputField(document.getElementById('edit-product-image-inputs'));
+        if (e.target.id === 'add-spec-input-btn') addSpecInputField(document.getElementById('edit-product-spec-inputs'));
+    });
+
+    const form = document.getElementById('edit-product-form');
+    if (form) form.addEventListener('submit', handleFormSubmit);
+
+    // ... (保留原有的列表拖曳、篩選等監聽器) ...
+    page.dataset.initialized = 'true';
+}
+
 
 export const init = async () => {
     try {
@@ -335,6 +442,7 @@ export const init = async () => {
         activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[key];
         
         allProducts = await api.getProducts();
+        setupEventListeners();
         
         // 渲染列表
         renderProductList(allProducts);

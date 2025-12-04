@@ -4,17 +4,28 @@ import { state } from '../state.js';
 import { router } from '../router.js';
 
 export async function init() {
+    // 1. 讀取設定
+    const homeConfig = state.activeTemplate?.client_config?.home || {};
     const terms = state.activeTemplate?.terms || {};
     
-    // 設定首頁標題
+    // 2. 設定首頁標題
     const pageTitle = document.querySelector('#page-home .page-main-title');
-    if (pageTitle) pageTitle.textContent = terms.NEWS_PAGE_TITLE || '最新情報';
+    if (pageTitle) {
+        // 優先使用 Config 設定的標題，若無則使用 Terms
+        pageTitle.textContent = homeConfig.title || terms.NEWS_PAGE_TITLE || '最新情報';
+    }
 
-    // 綁定懸浮按鈕 (FAB)
+    // 3. 綁定並控制懸浮按鈕 (FAB)
     const rallyFab = document.getElementById('rally-fab-btn');
-    if (rallyFab && !rallyFab.dataset.bound) {
-        rallyFab.addEventListener('click', () => router.navigate('page-rally'));
-        rallyFab.dataset.bound = 'true';
+    if (rallyFab) {
+        // 根據設定決定顯示與否 (預設 true)
+        const showFab = homeConfig.show_rally_fab !== false;
+        rallyFab.style.display = showFab ? 'flex' : 'none';
+
+        if (!rallyFab.dataset.bound) {
+            rallyFab.addEventListener('click', () => router.navigate('page-rally'));
+            rallyFab.dataset.bound = 'true';
+        }
     }
 
     const container = document.getElementById('news-list-container');

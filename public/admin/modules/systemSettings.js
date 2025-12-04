@@ -562,9 +562,11 @@ const systemSettings = {
 
     // 修正後的 updateValue：加上防呆檢查
     updateValue(path, value) {
+        // 1. 顯示「未儲存」提示
         const indicator = document.getElementById('settings-unsaved-indicator');
         if (indicator) indicator.style.display = 'inline';
 
+        // 2. 更新記憶體中的設定值 (Deep Update)
         const keys = path.split(/[\.\[\]]+/).filter(k => k);
         let target = this.state.currentConfig;
         for (let i = 0; i < keys.length - 1; i++) {
@@ -573,11 +575,10 @@ const systemSettings = {
         }
         target[keys[keys.length - 1]] = value;
 
-        if (path === 'client_config.booking.mode' || 
-            path === 'admin_config.inventory.enabled' || 
-            path === 'admin_config.store_info.enabled' ||
-            path === 'admin_config.dashboard.enabled' ||
-            path.includes('form_settings')) {
+        // 3. 【關鍵修正】只有在「會改變介面結構」的重大設定變更時，才重新渲染
+        // 例如：切換「預約模式」會導致下方的欄位完全不同，這時才需要重繪
+        // 一般的 enabled 開關不需要重繪
+        if (path === 'client_config.booking.mode') {
             this.render();
         }
     },
@@ -603,77 +604,56 @@ const systemSettings = {
     async saveSettings() {
         const btn = document.getElementById('settings-save-btn');
         btn.disabled = true;
-        btn.textContent = '處理資料中...';
+        btn.textContent = '儲存與同步中...';
 
         try {
-            // --- 【關鍵修復 Step 1】強制同步 visible_modules ---
-            // 這一步確保 "總表" 與 "細項開關" 絕對一致，解決 JSON 矛盾問題
+            // 1. 強制同步 visible_modules (解決設定矛盾問題)
             const current = this.state.currentConfig;
             
             if (current.admin_config) {
                 const ac = current.admin_config;
-                
-                // 重新建構 visible_modules，覆蓋掉舊的髒資料
                 ac.visible_modules = {
-                    'dashboard': ac.dashboard?.enabled,       // 讀取儀表板開關
-                    'users': ac.users?.enabled,               // 讀取顧客管理開關
-                    'products': ac.inventory?.enabled,        // 讀取產品管理開關 (對應 inventory)
-                    'room_control': ac.room_control?.enabled, // 讀取房況管理開關
-                    'bookings': ac.bookings?.enabled,         // 讀取訂單管理開關
-                    'news': ac.news?.enabled,                 // 讀取情報管理開關
-                    'store_info': ac.store_info?.enabled,     // 讀取店家資訊開關
-                    // others 區塊
-                    'finance': ac.others?.reports,            // 報表
-                    'coupons': ac.others?.vouchers,           // 優惠券
-                    'rally': ac.others?.rally,                // 集點
-                    'points': ac.others?.points,              // 點數
-                    'drafts': ac.others?.drafts               // 草稿
+                    'dashboard': ac.dashboard?.enabled,
+                    'users': ac.users?.enabled,
+                    'products': ac.inventory?.enabled,
+                    'room_control': ac.room_control?.enabled,
+                    'bookings': ac.bookings?.enabled,
+                    'news': ac.news?.enabled,
+                    'store_info': ac.store_info?.enabled,
+                    'finance': ac.others?.reports,
+                    'coupons': ac.others?.vouchers,
+                    'rally': ac.others?.rally,
+                    'points': ac.others?.points,
+                    'drafts': ac.others?.drafts
                 };
-                
-                console.log("[Auto-Sync] visible_modules rebuilt:", ac.visible_modules);
             }
-            // --- 同步結束 ---
 
-            // 1. 更新記憶體中的定義檔 (Blueprint)
+            // 2. 更新記憶體中的藍圖
             this.state.definitions[this.state.activeTemplateKey] = current;
             
-            // 2. 準備要寫入資料庫的設定陣列
+            // 3. 準備寫入資料庫 (包含藍圖與獨立欄位)
             const settingsToUpdate = [
                 { key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS', value: JSON.stringify(this.state.definitions), type: 'json' },
                 { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey, type: 'string' },
-                // 同步舊的 ID 指標
                 { key: 'active_template_id', value: this.state.activeTemplateKey, type: 'string' }
             ];
 
-            // 3. 將當前樣板的設定「發布」到獨立欄位
-            if (current.client_config) {
-                settingsToUpdate.push({ key: 'client_config', value: JSON.stringify(current.client_config), type: 'json' });
-            }
-            if (current.admin_config) {
-                settingsToUpdate.push({ key: 'admin_config', value: JSON.stringify(current.admin_config), type: 'json' });
-            }
-            if (current.owner_config) {
-                settingsToUpdate.push({ key: 'owner_config', value: JSON.stringify(current.owner_config), type: 'json' });
-            }
-            if (current.terms) {
-                settingsToUpdate.push({ key: 'terms_config', value: JSON.stringify(current.terms), type: 'json' });
-            }
+            if (current.client_config) settingsToUpdate.push({ key: 'client_config', value: JSON.stringify(current.client_config), type: 'json' });
+            if (current.admin_config) settingsToUpdate.push({ key: 'admin_config', value: JSON.stringify(current.admin_config), type: 'json' });
+            if (current.owner_config) settingsToUpdate.push({ key: 'owner_config', value: JSON.stringify(current.owner_config), type: 'json' });
+            if (current.terms) settingsToUpdate.push({ key: 'terms_config', value: JSON.stringify(current.terms), type: 'json' });
 
-            // 4. 發送一次性請求
+            // 4. 發送請求
             await api.updateSettings(settingsToUpdate);
             
-            ui.toast.success('系統設定已修正並同步！');
-            
-            const indicator = document.getElementById('settings-unsaved-indicator');
-            if (indicator) indicator.style.display = 'none';
-            
-            this.state.systemActiveKey = this.state.activeTemplateKey;
-            this.render(); 
+            // 5. 【關鍵修正】強制重整網頁
+            // 這樣 app.js 才會重新執行 init()，讀取到最新的 visible_modules
+            alert('設定已儲存成功！\n系統將自動重新整理以套用變更。');
+            window.location.reload(); 
 
         } catch (error) {
             console.error(error);
             ui.toast.error('儲存失敗：' + error.message);
-        } finally {
             btn.disabled = false;
             btn.textContent = '儲存並套用設定';
         }

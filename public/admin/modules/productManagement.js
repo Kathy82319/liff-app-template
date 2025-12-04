@@ -236,13 +236,16 @@ function renderProductList(products) {
      const productListThead = document.querySelector('#page-inventory thead tr');
      
      if (!productListTbody || !productListThead) return;
-     if (!activeTemplate || !activeTemplate.logic || !activeTemplate.logic.adminColumns) {
+     
+     // 修正：讀取 admin_config.inventory.columns
+     const inventoryConfig = activeTemplate?.admin_config?.inventory;
+     if (!inventoryConfig || !Array.isArray(inventoryConfig.columns)) {
           console.error("Admin columns definition missing.");
           return;
      }
 
      // 1. 過濾啟用的欄位
-     const columns = activeTemplate.logic.adminColumns.filter(col => col.enabled);
+     const columns = inventoryConfig.columns.filter(col => col.enabled);
 
      // 2. 生成表頭
      let headerHTML = `
@@ -280,15 +283,9 @@ function renderProductList(products) {
             
             // 特殊欄位處理
             if (col.key === 'price') {
-                 // 根據是否有設定平假日價格來決定顯示
                  const isComplex = (p.price_friday !== null || p.price_saturday !== null);
                  if (isComplex) {
-                     cellContent = `
-                        <div style="font-size:0.85em;">
-                            平: $${p.price_weekday}<br>
-                            五: $${p.price_friday}<br>
-                            六: $${p.price_saturday}
-                        </div>`;
+                     cellContent = `<div style="font-size:0.85em;">平:$${p.price_weekday}<br>假:$${p.price_saturday}</div>`;
                  } else {
                      cellContent = `$${p.price_weekday}`;
                  }
@@ -299,12 +296,11 @@ function renderProductList(products) {
                     if (imgs.length > 0) {
                         cellContent = `<img src="${imgs[0]}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">`;
                     } else {
-                        cellContent = '<span style="color:#ccc; font-size:0.8em;">無圖片</span>';
+                        cellContent = '<span style="color:#ccc; font-size:0.8em;">無圖</span>';
                     }
                 } catch(e) { cellContent = 'Error'; }
             }
             else if (col.key === 'stock_status') {
-                 // 根據庫存模式顯示
                  if (p.inventory_management_type === 'quantity') {
                      const qty = p.stock_quantity !== null ? p.stock_quantity : '∞';
                      const color = qty > 0 || qty === '∞' ? 'green' : 'red';
@@ -318,7 +314,6 @@ function renderProductList(products) {
             else if (p.hasOwnProperty(col.key)) {
                  const rawValue = p[col.key] || '';
                  let safeValue = escapeHtml(String(rawValue));
-                 // 截斷
                  if (safeValue.length > 50) safeValue = safeValue.substring(0, 47) + '...';
                  cellContent = safeValue;
             }
@@ -455,37 +450,41 @@ function handleCsvUpload(event) {
 function openProductModal(product = null) {
      const formBody = document.getElementById('edit-product-form-body');
      const form = document.getElementById('edit-product-form');
-     if (!formBody || !form || !activeTemplate || !Array.isArray(activeTemplate.fields)) return;
+     // 修正：讀取 form_settings
+     const formSettings = activeTemplate?.admin_config?.inventory?.form_settings || {};
+     
+     if (!formBody || !form) return;
      
      form.reset();
      formBody.innerHTML = '';
 
-     // 1. 讀取邏輯名稱
-     const entityName = activeTemplate.logic.adminEntityName || "產品";
-     const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品";
+     const entityName = activeTemplate.terms?.PRODUCT_NAME || "產品";
 
-    // 2. 根據 Fields 生成表單
-    activeTemplate.fields.forEach(field => {
-        // 排除已由動態區塊處理的欄位
-        if (field.key === 'price' || field.key === 'images') return;
-        
-        // 新版價格欄位
-        if (['price_weekday', 'price_friday', 'price_saturday'].includes(field.key)) {
-             const priceField = createFormField({
-                 key: field.key,
-                 label: field.label || `價格`,
-                 type: 'number',
-                 required: false,
-                 placeholder: '請輸入金額'
-             });
-             if (priceField) formBody.appendChild(priceField);
-        } else {
-             const formField = createFormField(field);
-             if (formField) formBody.appendChild(formField);
-        }
-    });
+    // --- 1. 建立基本欄位 (固定) ---
+    formBody.appendChild(createFormField({ key: 'name', label: `${entityName}名稱`, required: true }));
+    formBody.appendChild(createFormField({ key: 'category', label: '分類', required: true }));
+    formBody.appendChild(createFormField({ key: 'description', label: '詳細介紹', type: 'textarea' }));
 
-     // 3. 處理動態區塊 (圖片/規格)
+    // --- 2. 價格欄位 (依 price_mode 決定) ---
+    if (formSettings.price_mode === 'complex') {
+        formBody.appendChild(createFormField({ key: 'price_weekday', label: '平日價格', type: 'number', required: true }));
+        formBody.appendChild(createFormField({ key: 'price_friday', label: '週五價格', type: 'number' }));
+        formBody.appendChild(createFormField({ key: 'price_saturday', label: '週六/假日價格', type: 'number' }));
+    } else {
+        // simple mode
+        formBody.appendChild(createFormField({ key: 'price_weekday', label: '價格', type: 'number', required: true }));
+    }
+
+    // --- 3. 庫存欄位 (依 stock_mode 決定) ---
+    if (formSettings.stock_mode === 'quantity') {
+        formBody.appendChild(createFormField({ key: 'stock_quantity', label: '庫存數量', type: 'number' }));
+    } else if (formSettings.stock_mode === 'status') {
+        // 簡單的狀態輸入
+        formBody.appendChild(createFormField({ key: 'stock_status', label: '庫存狀態文字 (如: 有現貨)' }));
+    }
+    // date_based (民宿) 通常不在此設定庫存，而是在房況管理
+
+     // --- 4. 處理圖片與規格區塊 ---
      const imageSection = document.getElementById('edit-product-image-section');
      const specSection = document.getElementById('edit-product-spec-section');
      const imageInputs = document.getElementById('edit-product-image-inputs');
@@ -494,39 +493,34 @@ function openProductModal(product = null) {
      if (imageInputs) imageInputs.innerHTML = '';
      if (specInputs) specInputs.innerHTML = '';
      
-     // 檢查是否啟用
-     const hasImages = activeTemplate.fields.some(f => f.key === 'images');
-     if (imageSection) imageSection.style.display = hasImages ? 'block' : 'none';
-     // 規格預設總是顯示
+     // 圖片開關
+     if (imageSection) imageSection.style.display = (formSettings.allow_image_upload !== false) ? 'block' : 'none';
+     // 規格區塊
      if (specSection) specSection.style.display = 'block';
 
      const modalTitle = document.getElementById('modal-product-title');
      
-    // 4. 填入資料 (編輯模式)
+    // --- 5. 填入資料 (編輯模式) ---
     if (product) {
         if (modalTitle) modalTitle.textContent = `編輯${entityName}：${product.name}`;
 
-        activeTemplate.fields.forEach(field => {
-            if (['price', 'images'].includes(field.key) || field.key.startsWith('spec_')) return;
-            
-            const input = document.getElementById(`edit-product-${field.key}`);
-            if (input) {
-                if (field.type === 'boolean') input.checked = !!product[field.key];
-                else input.value = product[field.key] || '';
-            }
-        });
-        
-        // 填入價格
-        const setPrice = (k) => {
+        // 填入基本欄位
+        const setVal = (k) => {
             const el = document.getElementById(`edit-product-${k}`);
-            if(el) el.value = product[k] !== null ? product[k] : '';
+            if(el) el.value = product[k] || '';
         };
-        setPrice('price_weekday');
-        setPrice('price_friday');
-        setPrice('price_saturday');
+        setVal('name'); setVal('category'); setVal('description');
+        setVal('stock_status');
+
+        // 填入價格
+        setVal('price_weekday'); setVal('price_friday'); setVal('price_saturday');
+        
+        // 填入庫存
+        const stockEl = document.getElementById('edit-product-stock_quantity');
+        if(stockEl) stockEl.value = product.stock_quantity !== null ? product.stock_quantity : '';
 
         // 填入圖片
-         if (hasImages && imageInputs) {
+         if (formSettings.allow_image_upload !== false && imageInputs) {
             try {
                 const images = JSON.parse(product.images || '[]');
                 if (images.length === 0) addImageInputField(imageInputs);
@@ -534,16 +528,13 @@ function openProductModal(product = null) {
             } catch (e) { addImageInputField(imageInputs); }
         }
         
-        // 填入規格
+        // 填入規格 (依 specs_count 決定顯示數量，或動態)
          if (specInputs) {
-            let specAdded = false;
-            for (let i = 1; i <= 5; i++) {
-                if (product[`spec_${i}_name`] || product[`spec_${i}_value`]) {
-                    addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
-                    specAdded = true;
-                }
+            const count = formSettings.specs_count || 3; 
+            for (let i = 1; i <= count; i++) {
+                // 即使是空的也顯示欄位，方便編輯
+                addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
             }
-            if (!specAdded) addSpecInputField(specInputs);
         }
         
          let idInput = form.querySelector('input[name="product_id"]');
@@ -557,8 +548,13 @@ function openProductModal(product = null) {
     } else {
         // 新增模式
         if (modalTitle) modalTitle.textContent = `新增${entityName}`;
-        if (hasImages && imageInputs) addImageInputField(imageInputs);
-        if (specInputs) addSpecInputField(specInputs);
+        if (formSettings.allow_image_upload !== false && imageInputs) addImageInputField(imageInputs);
+        
+        // 預設顯示 N 個規格欄位
+        if (specInputs) {
+            const count = formSettings.specs_count || 3;
+            for(let i=0; i<count; i++) addSpecInputField(specInputs);
+        }
          
         const idInput = form.querySelector('input[name="product_id"]');
         if (idInput) idInput.remove();
@@ -572,29 +568,38 @@ async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
     const data = {};
+    
+    // 讀取設定
+    const formSettings = activeTemplate?.admin_config?.inventory?.form_settings || {};
 
     // 1. 收集基本欄位
-    activeTemplate.fields.forEach(field => {
-        if (['price', 'images'].includes(field.key) || field.key.startsWith('spec_')) return;
+    const getVal = (name) => {
+        const el = form.querySelector(`[name="${name}"]`);
+        return el ? el.value : null;
+    };
 
-        const input = form.querySelector(`[name="${field.key}"]`);
-        if (input) {
-            if (field.type === 'boolean') {
-                data[field.key] = input.checked;
-            } else {
-                 // 數值轉換
-                 data[field.key] = (input.type === 'number')
-                    ? (input.value === '' ? null : parseFloat(input.value))
-                    : input.value;
-            }
-        }
-    });
+    data.name = getVal('name');
+    data.category = getVal('category');
+    data.description = getVal('description');
     
-    // 2. 收集特殊欄位
-     data.price_weekday = parseFloat(form.querySelector('[name="price_weekday"]')?.value) || null;
-     data.price_friday = parseFloat(form.querySelector('[name="price_friday"]')?.value) || null;
-     data.price_saturday = parseFloat(form.querySelector('[name="price_saturday"]')?.value) || null;
+    // 2. 收集價格
+    data.price_weekday = parseFloat(getVal('price_weekday')) || null;
+    data.price_friday = parseFloat(getVal('price_friday')) || null;
+    data.price_saturday = parseFloat(getVal('price_saturday')) || null;
+
+    // 3. 收集庫存
+    if (formSettings.stock_mode === 'quantity') {
+        const qty = getVal('stock_quantity');
+        data.stock_quantity = (qty === '' || qty === null) ? null : parseFloat(qty);
+        data.inventory_management_type = 'quantity';
+    } else if (formSettings.stock_mode === 'status') {
+        data.stock_status = getVal('stock_status');
+        data.inventory_management_type = 'status';
+    } else {
+        data.inventory_management_type = 'none'; // 或 date_based
+    }
      
+    // 4. 收集圖片與規格
      const images = Array.from(document.querySelectorAll('[name="images"]')).map(input => input.value.trim()).filter(Boolean);
      data.images = JSON.stringify(images);
      
@@ -604,24 +609,11 @@ async function handleFormSubmit(event) {
          data[`spec_${i}_value`] = group.querySelector('[name="spec_value"]').value.trim() || '';
      });
 
-    // 3. 必填檢查
-     for (const field of activeTemplate.fields) {
-          if (field.required) {
-               // 價格檢查
-               if (field.key.startsWith('price_')) {
-                    if (data[field.key] === null) { ui.toast.error(`「${field.label}」為必填欄位！`); return; }
-               }
-               // 一般欄位檢查
-               else if (field.key !== 'price' && field.key !== 'images' && !field.key.startsWith('spec_')) {
-                   const val = data[field.key];
-                   if (val === null || val === undefined || (typeof val === 'string' && val.trim() === '')) {
-                       ui.toast.error(`「${field.label}」為必填欄位！`); return;
-                   }
-               }
-         }
-     }
+    // 5. 必填檢查
+    if (!data.name) { ui.toast.error('名稱為必填！'); return; }
+    if (data.price_weekday === null) { ui.toast.error('基本價格為必填！'); return; }
 
-    // 4. 判斷新增或編輯
+    // 6. 判斷新增或編輯
      const idInput = form.querySelector('input[name="product_id"]');
      if (idInput) { data.product_id = idInput.value; }
      const isCreating = !idInput;
@@ -811,17 +803,20 @@ function setupEventListeners() {
 
 export const init = async () => {
     try {
+        // 1. 取得樣板設定
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
         activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey];
 
-        if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminColumns) || !Array.isArray(activeTemplate.fields)) {
-            throw new Error(`樣板設定不完整，請檢查 system settings。`); 
+        // 修正檢查路徑：改為檢查 admin_config.inventory
+        if (!activeTemplate || !activeTemplate.admin_config || !activeTemplate.admin_config.inventory) {
+            throw new Error(`樣板 "${activeTemplateKey}" 缺少 'admin_config.inventory' 設定。`); 
         }
         
         // 更新頁面標題
-        const entityNamePlural = activeTemplate.logic.adminEntityNamePlural || "產品/服務";
+        // 從 terms 讀取名稱，例如 "房型管理" 或 "服務管理"
+        const entityName = activeTemplate.terms?.PRODUCT_NAME || "產品";
         const pageTitle = document.querySelector('#page-inventory .page-header h2');
-        if (pageTitle) pageTitle.textContent = `${entityNamePlural}管理`;
+        if (pageTitle) pageTitle.textContent = `${entityName}管理`;
 
     } catch (e) {
         console.error("初始化失敗:", e);

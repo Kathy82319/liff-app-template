@@ -591,25 +591,49 @@ const systemSettings = {
     async saveSettings() {
         const btn = document.getElementById('settings-save-btn');
         btn.disabled = true;
-        btn.textContent = '儲存與同步中...';
+        btn.textContent = '處理資料中...';
 
         try {
+            // --- 【關鍵修復 Step 1】強制同步 visible_modules ---
+            // 這一步確保 "總表" 與 "細項開關" 絕對一致，解決 JSON 矛盾問題
+            const current = this.state.currentConfig;
+            
+            if (current.admin_config) {
+                const ac = current.admin_config;
+                
+                // 重新建構 visible_modules，覆蓋掉舊的髒資料
+                ac.visible_modules = {
+                    'dashboard': ac.dashboard?.enabled,       // 讀取儀表板開關
+                    'users': ac.users?.enabled,               // 讀取顧客管理開關
+                    'products': ac.inventory?.enabled,        // 讀取產品管理開關 (對應 inventory)
+                    'room_control': ac.room_control?.enabled, // 讀取房況管理開關
+                    'bookings': ac.bookings?.enabled,         // 讀取訂單管理開關
+                    'news': ac.news?.enabled,                 // 讀取情報管理開關
+                    'store_info': ac.store_info?.enabled,     // 讀取店家資訊開關
+                    // others 區塊
+                    'finance': ac.others?.reports,            // 報表
+                    'coupons': ac.others?.vouchers,           // 優惠券
+                    'rally': ac.others?.rally,                // 集點
+                    'points': ac.others?.points,              // 點數
+                    'drafts': ac.others?.drafts               // 草稿
+                };
+                
+                console.log("[Auto-Sync] visible_modules rebuilt:", ac.visible_modules);
+            }
+            // --- 同步結束 ---
+
             // 1. 更新記憶體中的定義檔 (Blueprint)
-            this.state.definitions[this.state.activeTemplateKey] = this.state.currentConfig;
+            this.state.definitions[this.state.activeTemplateKey] = current;
             
             // 2. 準備要寫入資料庫的設定陣列
-            // 這些是「核心邏輯」設定
             const settingsToUpdate = [
                 { key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS', value: JSON.stringify(this.state.definitions), type: 'json' },
                 { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey, type: 'string' },
-                // 同步舊的 ID 指標，確保相容性
+                // 同步舊的 ID 指標
                 { key: 'active_template_id', value: this.state.activeTemplateKey, type: 'string' }
             ];
 
-            // 3. 【關鍵修復】將當前樣板的設定「發布」到獨立欄位 (Individual Rows)
-            // 這樣做是為了讓 get-app-config API 能直接讀取到最新的設定
-            const current = this.state.currentConfig;
-
+            // 3. 將當前樣板的設定「發布」到獨立欄位
             if (current.client_config) {
                 settingsToUpdate.push({ key: 'client_config', value: JSON.stringify(current.client_config), type: 'json' });
             }
@@ -623,22 +647,16 @@ const systemSettings = {
                 settingsToUpdate.push({ key: 'terms_config', value: JSON.stringify(current.terms), type: 'json' });
             }
 
-            // 4. 發送一次性請求更新所有欄位
+            // 4. 發送一次性請求
             await api.updateSettings(settingsToUpdate);
             
-            ui.toast.success('系統設定已儲存，並同步至所有模組！');
+            ui.toast.success('系統設定已修正並同步！');
             
             const indicator = document.getElementById('settings-unsaved-indicator');
             if (indicator) indicator.style.display = 'none';
             
-            // 更新本地狀態
             this.state.systemActiveKey = this.state.activeTemplateKey;
-            
-            // 5. 重新渲染畫面以反映最新狀態
             this.render(); 
-
-            // (選用) 為了讓當前頁面的導覽列立即生效，可以 reload 或觸發全域更新
-            window.location.reload(); 
 
         } catch (error) {
             console.error(error);
@@ -648,7 +666,6 @@ const systemSettings = {
             btn.textContent = '儲存並套用設定';
         }
     }
-};
 
 window.systemSettings = systemSettings;
 export const init = () => systemSettings.init();

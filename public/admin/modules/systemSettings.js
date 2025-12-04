@@ -591,22 +591,55 @@ const systemSettings = {
     async saveSettings() {
         const btn = document.getElementById('settings-save-btn');
         btn.disabled = true;
-        btn.textContent = '儲存中...';
+        btn.textContent = '儲存與同步中...';
 
         try {
+            // 1. 更新記憶體中的定義檔 (Blueprint)
             this.state.definitions[this.state.activeTemplateKey] = this.state.currentConfig;
+            
+            // 2. 準備要寫入資料庫的設定陣列
+            // 這些是「核心邏輯」設定
             const settingsToUpdate = [
-                { key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS', value: JSON.stringify(this.state.definitions) },
-                { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey }
+                { key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS', value: JSON.stringify(this.state.definitions), type: 'json' },
+                { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey, type: 'string' },
+                // 同步舊的 ID 指標，確保相容性
+                { key: 'active_template_id', value: this.state.activeTemplateKey, type: 'string' }
             ];
+
+            // 3. 【關鍵修復】將當前樣板的設定「發布」到獨立欄位 (Individual Rows)
+            // 這樣做是為了讓 get-app-config API 能直接讀取到最新的設定
+            const current = this.state.currentConfig;
+
+            if (current.client_config) {
+                settingsToUpdate.push({ key: 'client_config', value: JSON.stringify(current.client_config), type: 'json' });
+            }
+            if (current.admin_config) {
+                settingsToUpdate.push({ key: 'admin_config', value: JSON.stringify(current.admin_config), type: 'json' });
+            }
+            if (current.owner_config) {
+                settingsToUpdate.push({ key: 'owner_config', value: JSON.stringify(current.owner_config), type: 'json' });
+            }
+            if (current.terms) {
+                settingsToUpdate.push({ key: 'terms_config', value: JSON.stringify(current.terms), type: 'json' });
+            }
+
+            // 4. 發送一次性請求更新所有欄位
             await api.updateSettings(settingsToUpdate);
             
-            ui.toast.success('系統設定已更新並套用！');
+            ui.toast.success('系統設定已儲存，並同步至所有模組！');
+            
             const indicator = document.getElementById('settings-unsaved-indicator');
             if (indicator) indicator.style.display = 'none';
             
+            // 更新本地狀態
             this.state.systemActiveKey = this.state.activeTemplateKey;
+            
+            // 5. 重新渲染畫面以反映最新狀態
             this.render(); 
+
+            // (選用) 為了讓當前頁面的導覽列立即生效，可以 reload 或觸發全域更新
+            window.location.reload(); 
+
         } catch (error) {
             console.error(error);
             ui.toast.error('儲存失敗：' + error.message);

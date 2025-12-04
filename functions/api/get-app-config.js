@@ -50,14 +50,18 @@ export async function onRequestGet(context) {
       },
       meta: {
         template_id: logicConfig.ACTIVE_INDUSTRY_TEMPLATE,
-        version: 'v12.1'
+        version: 'v12.2'
       }
     };
 
     return new Response(JSON.stringify(responseData), {
       headers: { 
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60"
+        // 【關鍵修正】原本是 public, max-age=60，導致 1 分鐘延遲
+        // 改成 no-store，強迫瀏覽器每次都要拿最新資料
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
       }
     });
 

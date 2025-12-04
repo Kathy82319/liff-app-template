@@ -1,7 +1,6 @@
 /**
- * System Settings Module - v15.0 (Complete Admin Config UI)
- * 負責渲染基於 JSON Template 的系統設定介面，支援動態欄位與連動邏輯。
- * 包含 Sidebar, Dashboard, Users (CRM), Inventory (Form Logic), Bookings, Store Info 等完整設定。
+ * System Settings Module - v15.1 (Fix Render Loop & Null Pointer)
+ * 修正：將資料初始化邏輯 (ensureDefaults) 與渲染邏輯分離，避免無限迴圈與 DOM 存取錯誤。
  */
 import { api } from '../api.js';
 import { ui } from '../ui.js';
@@ -98,12 +97,79 @@ const systemSettings = {
                 this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[this.state.activeTemplateKey]));
             }
 
+            // 【修正】先確保資料結構完整，再進行渲染
+            this.ensureDefaults();
             this.render();
 
         } catch (error) {
             console.error('Failed to load settings:', error);
             container.innerHTML = `<p style="color:red; text-align:center;">設定載入失敗: ${error.message}</p>`;
         }
+    },
+
+    // 【新功能】資料初始化與預設值填補 (不觸發 UI 更新)
+    ensureDefaults() {
+        const config = this.state.currentConfig;
+        if (!config) return;
+
+        // 確保 admin_config 結構存在
+        if (!config.admin_config) config.admin_config = {};
+        
+        const ac = config.admin_config;
+
+        // 1. Sidebar
+        if (!ac.visible_modules) {
+            ac.visible_modules = {
+                dashboard: ac.dashboard?.enabled,
+                users: ac.users?.enabled,
+                products: ac.inventory?.enabled,
+                room_control: ac.room_control?.enabled,
+                bookings: ac.bookings?.enabled,
+                news: ac.news?.enabled,
+                store_info: ac.store_info?.enabled,
+                finance: ac.others?.reports,
+                coupons: ac.others?.vouchers
+            };
+        }
+
+        // 2. Dashboard Widgets
+        if (!ac.dashboard) ac.dashboard = { enabled: true };
+        if (!ac.dashboard.widgets) {
+            ac.dashboard.widgets = { today_orders: true, revenue: true, pending: true, hot_items: true };
+        }
+
+        // 3. Users CRM
+        if (!ac.users) ac.users = { enabled: true };
+        if (!ac.users.crm_view) {
+            ac.users.crm_view = { show_stored_value: true, show_vouchers: true, show_rally: true, show_tags: true };
+        }
+
+        // 4. Inventory Features & Settings
+        if (!ac.inventory) ac.inventory = { enabled: true };
+        if (!ac.inventory.features) {
+            ac.inventory.features = { add_single: true, import_export: true };
+        }
+        if (!ac.inventory.form_settings) {
+            ac.inventory.form_settings = { price_mode: 'simple', stock_mode: 'quantity', specs_count: 3, allow_image_upload: true };
+        }
+
+        // 5. Store Info
+        if (!ac.store_info) ac.store_info = { enabled: true };
+        if (!ac.store_info.policy_fields) {
+            ac.store_info.policy_fields = { show_cancellation: true, show_instructions: true };
+        }
+        if (!ac.store_info.policy_labels) {
+            ac.store_info.policy_labels = { cancellation: "取消政策", instructions: "入住須知" };
+        }
+
+        // 6. Client Config - Studio Settings
+        if (config.client_config && config.client_config.booking) {
+            if (!config.client_config.booking.studio_settings) {
+                config.client_config.booking.studio_settings = { enable_time_slots: false, time_slot_config: { start: "09:00", end: "18:00", interval: 60 } };
+            }
+        }
+        
+        // 注意：這裡直接修改記憶體中的 state，不呼叫 updateValue 以避免副作用
     },
 
     // 主渲染函式
@@ -178,10 +244,8 @@ const systemSettings = {
         bookingContent += this.buildSettingRow('退房/結束 標籤', this.buildInput('client_config.booking.labels.checkout', config.booking.labels.checkout));
 
         if (config.booking.mode === 'studio') {
-            const studioSettings = config.booking.studio_settings || { enable_time_slots: false, time_slot_config: { start: "09:00", end: "18:00", interval: 60 } };
-            if(!this.state.currentConfig.client_config.booking.studio_settings) {
-                this.updateValue('client_config.booking.studio_settings', studioSettings); 
-            }
+            const studioSettings = config.booking.studio_settings; // ensureDefaults 已確保存在
+            
             bookingContent += `<div class="sub-settings-box">`;
             bookingContent += `<h5 class="sub-settings-title">🕐 工作室時段設定</h5>`;
             bookingContent += this.buildSettingRow('啟用時段選擇', this.buildToggle('client_config.booking.studio_settings.enable_time_slots', studioSettings.enable_time_slots));
@@ -229,30 +293,15 @@ const systemSettings = {
         return this.buildAccordionItem('clientConfig', '客戶端 (LIFF App) 設定', content);
     },
 
-    // 2. 商家後台設定 (Admin Panel) - 【完整實作版】
+    // 2. 商家後台設定 (Admin Panel)
     renderAdminConfig() {
         const config = this.state.currentConfig?.admin_config;
         if (!config) return '';
 
         let content = '';
 
-        // 1. Sidebar (側邊選單顯示) - 集中管理
-        if (!this.state.currentConfig.admin_config.visible_modules) {
-             // 若無舊設定，則依據各模組的 enabled 狀態初始化
-             this.state.currentConfig.admin_config.visible_modules = {
-                 dashboard: config.dashboard?.enabled,
-                 users: config.users?.enabled,
-                 products: config.inventory?.enabled,
-                 room_control: config.room_control?.enabled,
-                 bookings: config.bookings?.enabled,
-                 news: config.news?.enabled,
-                 store_info: config.store_info?.enabled,
-                 finance: config.others?.reports,
-                 coupons: config.others?.vouchers
-             };
-        }
-        const visible = config.visible_modules || {};
-        
+        // 1. Sidebar
+        const visible = config.visible_modules || {}; // ensureDefaults 已確保存在
         let sidebarContent = '';
         sidebarContent += this.buildSettingRow('儀表板', this.buildToggle('admin_config.visible_modules.dashboard', visible.dashboard));
         sidebarContent += this.buildSettingRow('顧客管理', this.buildToggle('admin_config.visible_modules.users', visible.users));
@@ -264,29 +313,17 @@ const systemSettings = {
         sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.visible_modules.finance', visible.finance));
         sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.visible_modules.coupons', visible.coupons));
         
-        // 同步更新舊有的 enabled 欄位以維持相容性 (Optional, but recommended)
-        // 這裡我們透過 updateValue 的連動機制，當 toggle 改變時，可以順便更新舊值 (若需要)
-        // 暫時讓 visible_modules 作為主要控制來源
-
         content += this.buildNestedSection('側邊選單顯示 (Sidebar)', sidebarContent);
 
-
-        // 2. Dashboard (小工具)
-        if (!this.state.currentConfig.admin_config.dashboard.widgets) {
-             this.updateValue('admin_config.dashboard.widgets', { today_orders: true, revenue: true });
-        }
+        // 2. Dashboard
         const widgets = config.dashboard.widgets || {};
         let dashContent = '';
         dashContent += this.buildSettingRow('今日訂單/訪客', this.buildToggle('admin_config.dashboard.widgets.today_orders', widgets.today_orders));
         dashContent += this.buildSettingRow('營收統計', this.buildToggle('admin_config.dashboard.widgets.revenue', widgets.revenue));
         content += this.buildNestedSection('儀表板設定 (Dashboard)', dashContent);
 
-        // 3. Users (顧客列表與 CRM)
+        // 3. Users
         let usersContent = '';
-        // CRM 設定
-        if (!this.state.currentConfig.admin_config.users.crm_view) {
-             this.updateValue('admin_config.users.crm_view', { show_stored_value: true, show_vouchers: true, show_rally: true, show_tags: true });
-        }
         const crm = config.users.crm_view || {};
         usersContent += `<div class="sub-settings-box">`;
         usersContent += `<h5 class="sub-settings-title">顧客詳情 (CRM) 顯示</h5>`;
@@ -301,14 +338,10 @@ const systemSettings = {
         usersContent += `</div>`;
         content += this.buildNestedSection('顧客管理設定 (Users)', usersContent);
 
-        // 4. Products (功能與表單)
+        // 4. Products
         let invContent = '';
-        const features = config.inventory.features || { add_single: true, import_export: true };
-        const formSettings = config.inventory.form_settings || { price_mode: 'simple', stock_mode: 'quantity', specs_count: 3, allow_image_upload: true };
-        
-        // 確保物件存在
-        if(!this.state.currentConfig.admin_config.inventory.features) this.updateValue('admin_config.inventory.features', features);
-        if(!this.state.currentConfig.admin_config.inventory.form_settings) this.updateValue('admin_config.inventory.form_settings', formSettings);
+        const features = config.inventory.features || {};
+        const formSettings = config.inventory.form_settings || {};
 
         invContent += `<div class="sub-settings-box">`;
         invContent += `<h5 class="sub-settings-title">功能按鈕</h5>`;
@@ -344,30 +377,18 @@ const systemSettings = {
         bookingContent += `</div>`;
         content += this.buildNestedSection('訂單管理設定 (Bookings)', bookingContent);
         
-        // 6. Store Info (政策顯示)
+        // 6. Store Info
         let storeContent = '';
-        // 確保物件存在
-        if (!this.state.currentConfig.admin_config.store_info.policy_fields) {
-             this.updateValue('admin_config.store_info.policy_fields', { show_cancellation: true, show_instructions: true });
-        }
-        if (!this.state.currentConfig.admin_config.store_info.policy_labels) {
-             this.updateValue('admin_config.store_info.policy_labels', { cancellation: "取消政策", instructions: "入住須知" });
-        }
-        
         const policyFields = config.store_info.policy_fields || {};
         const policyLabels = config.store_info.policy_labels || {};
         
         storeContent += `<div class="sub-settings-box">`;
         storeContent += `<h5 class="sub-settings-title">政策顯示與標題</h5>`;
-        
         storeContent += this.buildSettingRow('顯示「取消政策」', this.buildToggle('admin_config.store_info.policy_fields.show_cancellation', policyFields.show_cancellation));
         storeContent += this.buildSettingRow('自訂標題', this.buildInput('admin_config.store_info.policy_labels.cancellation', policyLabels.cancellation));
-        
         storeContent += `<hr style="margin:10px 0; border-color:#eee;">`;
-        
         storeContent += this.buildSettingRow('顯示「須知事項」', this.buildToggle('admin_config.store_info.policy_fields.show_instructions', policyFields.show_instructions));
         storeContent += this.buildSettingRow('自訂標題', this.buildInput('admin_config.store_info.policy_labels.instructions', policyLabels.instructions));
-        
         storeContent += `</div>`;
         content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
@@ -492,6 +513,7 @@ const systemSettings = {
                 if (confirm('切換樣板將遺失未儲存的變更，確定嗎？')) {
                     this.state.activeTemplateKey = e.target.value;
                     this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[this.state.activeTemplateKey]));
+                    this.ensureDefaults(); // 確保新樣板也有預設值
                     this.render(); 
                 } else {
                     e.target.value = this.state.activeTemplateKey;
@@ -526,18 +548,19 @@ const systemSettings = {
         });
     },
 
+    // 修正後的 updateValue：加上防呆檢查
     updateValue(path, value) {
-        document.getElementById('settings-unsaved-indicator').style.display = 'inline';
+        const indicator = document.getElementById('settings-unsaved-indicator');
+        if (indicator) indicator.style.display = 'inline';
+
         const keys = path.split(/[\.\[\]]+/).filter(k => k);
         let target = this.state.currentConfig;
         for (let i = 0; i < keys.length - 1; i++) {
-            // 修正：如果路徑中間的物件不存在，自動建立
             if (!target[keys[i]]) target[keys[i]] = {}; 
             target = target[keys[i]];
         }
         target[keys[keys.length - 1]] = value;
 
-        // 需要重繪 UI 的設定變更
         if (path === 'client_config.booking.mode' || 
             path === 'admin_config.inventory.enabled' || 
             path === 'admin_config.store_info.enabled' ||
@@ -579,7 +602,8 @@ const systemSettings = {
             await api.updateSettings(settingsToUpdate);
             
             ui.toast.success('系統設定已更新並套用！');
-            document.getElementById('settings-unsaved-indicator').style.display = 'none';
+            const indicator = document.getElementById('settings-unsaved-indicator');
+            if (indicator) indicator.style.display = 'none';
             
             this.state.systemActiveKey = this.state.activeTemplateKey;
             this.render(); 

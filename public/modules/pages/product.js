@@ -312,4 +312,4 @@ export function renderDetails(product) {
             }
         });
     }
-}
+} 

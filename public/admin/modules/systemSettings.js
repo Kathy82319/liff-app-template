@@ -300,23 +300,35 @@ const systemSettings = {
 
         let content = '';
 
-        // 1. Sidebar
-        const visible = config.visible_modules || {}; // ensureDefaults 已確保存在
+        // 1. Sidebar (頂部選單顯示) - 修正：綁定到各模組的 Source of Truth (enabled/others)
+        // 這樣 saveSettings 的同步邏輯才能正確運作
+        const ac = config; // alias
+        const others = ac.others || {}; 
+
         let sidebarContent = '';
-        sidebarContent += this.buildSettingRow('儀表板', this.buildToggle('admin_config.visible_modules.dashboard', visible.dashboard));
-        sidebarContent += this.buildSettingRow('顧客管理', this.buildToggle('admin_config.visible_modules.users', visible.users));
-        sidebarContent += this.buildSettingRow('產品/服務管理', this.buildToggle('admin_config.visible_modules.products', visible.products));
-        sidebarContent += this.buildSettingRow('房況控管 (民宿)', this.buildToggle('admin_config.visible_modules.room_control', visible.room_control));
-        sidebarContent += this.buildSettingRow('訂單管理', this.buildToggle('admin_config.visible_modules.bookings', visible.bookings));
-        sidebarContent += this.buildSettingRow('最新消息', this.buildToggle('admin_config.visible_modules.news', visible.news));
-        sidebarContent += this.buildSettingRow('店家資訊', this.buildToggle('admin_config.visible_modules.store_info', visible.store_info));
-        sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.visible_modules.finance', visible.finance));
-        sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.visible_modules.coupons', visible.coupons));
+        // 儀表板 -> admin_config.dashboard.enabled
+        sidebarContent += this.buildSettingRow('儀表板', this.buildToggle('admin_config.dashboard.enabled', ac.dashboard?.enabled));
+        // 顧客管理 -> admin_config.users.enabled
+        sidebarContent += this.buildSettingRow('顧客管理', this.buildToggle('admin_config.users.enabled', ac.users?.enabled));
+        // 產品管理 -> admin_config.inventory.enabled
+        sidebarContent += this.buildSettingRow('產品/服務管理', this.buildToggle('admin_config.inventory.enabled', ac.inventory?.enabled));
+        // 房況管理 -> admin_config.room_control.enabled
+        sidebarContent += this.buildSettingRow('房況控管 (民宿)', this.buildToggle('admin_config.room_control.enabled', ac.room_control?.enabled));
+        // 訂單管理 -> admin_config.bookings.enabled
+        sidebarContent += this.buildSettingRow('訂單管理', this.buildToggle('admin_config.bookings.enabled', ac.bookings?.enabled));
+        // 最新消息 -> admin_config.news.enabled
+        sidebarContent += this.buildSettingRow('最新消息', this.buildToggle('admin_config.news.enabled', ac.news?.enabled));
+        // 店家資訊 -> admin_config.store_info.enabled
+        sidebarContent += this.buildSettingRow('店家資訊', this.buildToggle('admin_config.store_info.enabled', ac.store_info?.enabled));
+        // 財務報表 -> admin_config.others.reports
+        sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.others.reports', others.reports));
+        // 優惠券 -> admin_config.others.vouchers
+        sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.others.vouchers', others.vouchers));
         
         content += this.buildNestedSection('頂部選單顯示 (Navigation)', sidebarContent);
 
-        // 2. Dashboard
-        const widgets = config.dashboard.widgets || {};
+        // 2. Dashboard Widgets
+        const widgets = config.dashboard?.widgets || {};
         let dashContent = '';
         dashContent += this.buildSettingRow('今日訂單/訪客', this.buildToggle('admin_config.dashboard.widgets.today_orders', widgets.today_orders));
         dashContent += this.buildSettingRow('營收統計', this.buildToggle('admin_config.dashboard.widgets.revenue', widgets.revenue));
@@ -324,7 +336,7 @@ const systemSettings = {
 
         // 3. Users
         let usersContent = '';
-        const crm = config.users.crm_view || {};
+        const crm = config.users?.crm_view || {};
         usersContent += `<div class="sub-settings-box">`;
         usersContent += `<h5 class="sub-settings-title">顧客詳情 (CRM) 顯示</h5>`;
         usersContent += this.buildSettingRow('儲值金紀錄', this.buildToggle('admin_config.users.crm_view.show_stored_value', crm.show_stored_value));
@@ -334,14 +346,14 @@ const systemSettings = {
         usersContent += `</div>`;
 
         usersContent += `<div style="margin-top:10px;"><label class="setting-label">顧客列表欄位：</label>`;
-        usersContent += this.buildColumnSorter('admin_config.users.columns', config.users.columns);
+        usersContent += this.buildColumnSorter('admin_config.users.columns', config.users?.columns);
         usersContent += `</div>`;
         content += this.buildNestedSection('顧客管理設定 (Users)', usersContent);
 
         // 4. Products
         let invContent = '';
-        const features = config.inventory.features || {};
-        const formSettings = config.inventory.form_settings || {};
+        const features = config.inventory?.features || {};
+        const formSettings = config.inventory?.form_settings || {};
 
         invContent += `<div class="sub-settings-box">`;
         invContent += `<h5 class="sub-settings-title">功能按鈕</h5>`;
@@ -366,21 +378,21 @@ const systemSettings = {
         invContent += `</div>`;
 
         invContent += `<div style="margin-top:10px;"><label class="setting-label">產品列表欄位：</label>`;
-        invContent += this.buildColumnSorter('admin_config.inventory.columns', config.inventory.columns);
+        invContent += this.buildColumnSorter('admin_config.inventory.columns', config.inventory?.columns);
         invContent += `</div>`;
         content += this.buildNestedSection('產品管理設定 (Products)', invContent);
 
         // 5. Bookings
         let bookingContent = '';
         bookingContent += `<div style="margin-top:10px;"><label class="setting-label">訂單列表欄位：</label>`;
-        bookingContent += this.buildColumnSorter('admin_config.bookings.columns', config.bookings.columns);
+        bookingContent += this.buildColumnSorter('admin_config.bookings.columns', config.bookings?.columns);
         bookingContent += `</div>`;
         content += this.buildNestedSection('訂單管理設定 (Bookings)', bookingContent);
         
         // 6. Store Info
         let storeContent = '';
-        const policyFields = config.store_info.policy_fields || {};
-        const policyLabels = config.store_info.policy_labels || {};
+        const policyFields = config.store_info?.policy_fields || {};
+        const policyLabels = config.store_info?.policy_labels || {};
         
         storeContent += `<div class="sub-settings-box">`;
         storeContent += `<h5 class="sub-settings-title">政策顯示與標題</h5>`;
@@ -393,7 +405,7 @@ const systemSettings = {
         content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
         return this.buildAccordionItem('adminConfig', '商家後台 (Admin Panel) 設定', content);
-    },
+    }
 
     // 3. 手機版後台設定 (Owner)
     renderOwnerConfig() {

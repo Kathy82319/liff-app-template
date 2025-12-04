@@ -46,119 +46,49 @@ export function hideBatchToolbar() {
     if (selectAllCheckbox) { selectAllCheckbox.checked = false; selectAllCheckbox.indeterminate = false; }
 }
 
-// 2. 表單欄位生成器 (Dynamic Form Builder)
-function createFormField(key, label, type = 'text', value = '', options = {}) {
-    const formGroup = document.createElement('div');
-    formGroup.className = 'form-group';
-    
-    // 標籤
-    const labelEl = document.createElement('label');
-    labelEl.textContent = label;
-    labelEl.htmlFor = `edit-product-${key}`;
-    formGroup.appendChild(labelEl);
-
-    // 輸入控制項
-    let inputEl;
-    if (type === 'textarea') {
-        inputEl = document.createElement('textarea');
-        inputEl.rows = 4;
-        inputEl.textContent = value || '';
-    } else if (type === 'boolean') {
-        // Toggle Switch
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = `<label class="switch"><input type="checkbox" id="edit-product-${key}" name="${key}" ${value ? 'checked' : ''}><span class="slider"></span></label>`;
-        formGroup.appendChild(wrapper);
-        return formGroup;
-    } else {
-        inputEl = document.createElement('input');
-        inputEl.type = type;
-        inputEl.value = (value === null || value === undefined) ? '' : value;
-    }
-
-    inputEl.id = `edit-product-${key}`;
-    inputEl.name = key;
-    if (options.placeholder) inputEl.placeholder = options.placeholder;
-    if (options.required) inputEl.required = true;
-    if (options.min !== undefined) inputEl.min = options.min;
-    
-    formGroup.appendChild(inputEl);
-    return formGroup;
-}
-
 // --- 【核心修改】動態欄位生成 ---
-function createFormField(field, mode) {
-    // 1. 特殊欄位跳過
-    if (['images', 'price'].includes(field.key)) return null;
-
-    // 2. 價格欄位判斷
-    const isPriceField = ['price_weekday', 'price_friday', 'price_saturday'].includes(field.key);
-    if (isPriceField) {
-        // 如果是 Single 模式，只顯示 price_weekday (作為單一價格)
-        if (mode === 'single') {
-            if (field.key !== 'price_weekday') return null; // 隱藏週五週六價
-        }
-        // 如果是 Range 模式，顯示所有 (除非欄位設定本身被停用，但在這裡我們假設藍圖有定義)
-    }
+function createFormField(field) {
+    // 排除特殊欄位 (由外部獨立處理)
+    if (field.key === 'price' || field.key === 'images') return null;
 
     const formGroup = document.createElement('div');
     formGroup.className = 'form-group';
-    
-    // 標籤文字調整
-    let labelText = field.label;
-    if (mode === 'single' && field.key === 'price_weekday') {
-        labelText = '價格'; // 單一模式下改名為「價格」
-    }
     
     const label = document.createElement('label');
+    label.textContent = field.label || field.key;
     label.htmlFor = `edit-product-${field.key}`;
-    label.textContent = labelText + (field.required ? ' (必填)' : '');
+    if (field.required) label.textContent += ' (必填)';
     formGroup.appendChild(label);
 
-    // 3. 輸入框生成
-    if (field.type === 'image_url') {
-        // ... (圖片上傳 UI 保持不變) ...
-        const fileInputId = `image-upload-${field.key}-${Date.now()}`;
-        formGroup.innerHTML += `
-            <div class="dynamic-input-group" style="display:flex; gap:10px;">
-                <input type="url" id="edit-product-${field.key}" name="${field.key}" placeholder="圖片網址" style="flex-grow:1;">
-                <input type="file" id="${fileInputId}" accept="image/*" style="display:none;">
-                <label for="${fileInputId}" class="action-btn" style="background:#17a2b8; cursor:pointer;">上傳</label>
-            </div>`;
-        const fileInput = formGroup.querySelector('input[type="file"]');
-        fileInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], formGroup.querySelector('input[type="url"]'), formGroup.querySelector('label')));
-        return formGroup;
-    }
+    let inputEl;
 
-    let inputElement;
-    if (field.type === 'textarea') {
-        inputElement = document.createElement('textarea');
-        inputElement.rows = 5;
-    } else if (field.type === 'boolean') {
-        inputElement = document.createElement('input');
-        inputElement.type = 'checkbox';
-        // boolean 的結構比較特殊 (Switch)
-        formGroup.innerHTML = ''; // 清空
-        formGroup.appendChild(label); // 加回 label
+    // 根據類型建立輸入元件
+    if (field.type === 'boolean') {
         const wrapper = document.createElement('div');
         wrapper.innerHTML = `<label class="switch"><input type="checkbox" id="edit-product-${field.key}" name="${field.key}"><span class="slider"></span></label>`;
         formGroup.appendChild(wrapper);
-        return formGroup;
-    } else if (field.type === 'select') {
-        inputElement = document.createElement('select');
-        (field.options || []).forEach(opt => inputElement.add(new Option(opt, opt)));
+        return formGroup; // Boolean 處理完畢直接回傳
+    } else if (field.type === 'textarea') {
+        inputEl = document.createElement('textarea');
+        inputEl.rows = 4;
+    } else if (field.type === 'select' && Array.isArray(field.options)) {
+        inputEl = document.createElement('select');
+        field.options.forEach(opt => {
+            inputEl.add(new Option(opt, opt));
+        });
     } else {
-        inputElement = document.createElement('input');
-        inputElement.type = (field.type === 'number' || isPriceField) ? 'number' : 'text';
-        if (inputElement.type === 'number') {
-            inputElement.step = 'any'; inputElement.min = '0';
-        }
+        inputEl = document.createElement('input');
+        inputEl.type = field.type === 'number' ? 'number' : 'text';
     }
 
-    inputElement.id = `edit-product-${field.key}`;
-    inputElement.name = field.key;
-    if (field.placeholder) inputElement.placeholder = field.placeholder;
-    
-    formGroup.appendChild(inputElement);
+    // 設定通用屬性
+    inputEl.id = `edit-product-${field.key}`;
+    inputEl.name = field.key;
+    if (field.placeholder) inputEl.placeholder = field.placeholder;
+    if (field.required) inputEl.required = true;
+    if (field.min !== undefined) inputEl.min = field.min;
+
+    formGroup.appendChild(inputEl);
     return formGroup;
 }
 

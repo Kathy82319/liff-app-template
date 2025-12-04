@@ -173,7 +173,7 @@ const systemSettings = {
     // ------------------------------------------------------------------
 
     // 1. 客戶端設定 (LIFF)
-    renderClientConfig() {
+renderClientConfig() {
         const config = this.state.currentConfig?.client_config;
         if (!config) return '';
 
@@ -183,7 +183,7 @@ const systemSettings = {
         content += this.buildSettingRow('品牌名稱', this.buildInput('client_config.global.brand_name', config.global.brand_name));
         content += this.buildSettingRow('主色調 (Hex)', this.buildColorInput('client_config.global.primary_color', config.global.primary_color));
 
-        // Booking Logic (核心)
+        // Booking Logic
         let bookingContent = '';
         bookingContent += this.buildSettingRow('預約模式 (Mode)', 
             this.buildSelect('client_config.booking.mode', config.booking.mode, [
@@ -194,15 +194,11 @@ const systemSettings = {
         bookingContent += this.buildSettingRow('入住/預約 標籤', this.buildInput('client_config.booking.labels.checkin', config.booking.labels.checkin));
         bookingContent += this.buildSettingRow('退房/結束 標籤', this.buildInput('client_config.booking.labels.checkout', config.booking.labels.checkout));
 
-        // 條件式渲染：工作室時段設定
         if (config.booking.mode === 'studio') {
             const studioSettings = config.booking.studio_settings || { enable_time_slots: false, time_slot_config: { start: "09:00", end: "18:00", interval: 60 } };
-            
-            // 確保物件存在 (防呆)
             if(!this.state.currentConfig.client_config.booking.studio_settings) {
                 this.updateValue('client_config.booking.studio_settings', studioSettings); 
             }
-
             bookingContent += `<div style="background:#f0f8ff; padding:15px; border-radius:6px; margin:10px 0;">`;
             bookingContent += `<h5 style="margin:0 0 10px 0; color:var(--color-primary);">🕐 工作室時段設定</h5>`;
             bookingContent += this.buildSettingRow('啟用時段選擇', this.buildToggle('client_config.booking.studio_settings.enable_time_slots', studioSettings.enable_time_slots));
@@ -215,7 +211,6 @@ const systemSettings = {
             bookingContent += `</div>`;
         }
 
-        // 欄位開關
         bookingContent += `<h5 style="margin:15px 0 5px 0;">表單欄位開關</h5>`;
         bookingContent += this.buildSettingRow('顯示人數選擇', this.buildToggle('client_config.booking.field_toggles.people', config.booking.field_toggles.people));
         bookingContent += this.buildSettingRow('顯示數量/間數', this.buildToggle('client_config.booking.field_toggles.quantity', config.booking.field_toggles.quantity));
@@ -223,12 +218,10 @@ const systemSettings = {
 
         content += this.buildNestedSection('線上預約 (Booking)', bookingContent);
 
-        // Products
+        // Products - 【修正重點：移除舊設定，加入 show_search】
         let prodContent = '';
         prodContent += this.buildSettingRow('頁面標題', this.buildInput('client_config.products.title', config.products.title));
-        prodContent += this.buildSettingRow('顯示價格', this.buildToggle('client_config.products.show_price', config.products.show_price));
-        prodContent += this.buildSettingRow('顯示庫存/名額', this.buildToggle('client_config.products.show_stock', config.products.show_stock));
-        prodContent += this.buildSettingRow('檢視模式', this.buildSelect('client_config.products.view_mode', config.products.view_mode, [{value:'grid',label:'網格'}, {value:'list',label:'列表'}]));
+        prodContent += this.buildSettingRow('顯示搜尋欄位', this.buildToggle('client_config.products.show_search', config.products.show_search !== false));
         content += this.buildNestedSection('產品型錄 (Products)', prodContent);
 
         // Profile
@@ -253,6 +246,11 @@ const systemSettings = {
         return this.buildAccordionItem('clientConfig', '客戶端 (LIFF App) 設定', content);
     },
 
+    // ... (其餘函式 renderAdminConfig, renderOwnerConfig, renderTermsConfig, builders, events 保持不變) ...
+    
+    // (請確保將上述 renderClientConfig 函式替換回 systemSettings 物件中，並保留其他部分)
+    // 為了完整性，若您需要完整程式碼請告知，否則只需更新此函式即可。
+// ------------------------------------------------------------------
     // 2. 商家後台設定 (Admin Panel)
     renderAdminConfig() {
         const config = this.state.currentConfig?.admin_config;

@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (!liff.isLoggedIn()) {
             const destUrl = new URL(window.location.href);
-            // 清理 LINE Login 參數，避免汙染 URL
             ['code', 'state', 'liffClientId', 'liffRedirectUri'].forEach(p => destUrl.searchParams.delete(p));
             liff.login({ redirectUri: destUrl.toString() });
             return;
@@ -35,14 +34,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupGlobalModalClosers();
         window.addEventListener('popstate', (e) => router.handlePopState(e));
         
-        // 綁定全域返回按鈕
         document.body.addEventListener('click', (e) => {
             if (e.target.closest('.details-back-button')) {
                 history.back();
             }
         });
         
-        // 綁定 Tab Bar 點擊事件
         document.getElementById('tab-bar').addEventListener('click', (e) => {
             const btn = e.target.closest('.tab-button');
             if (btn && btn.dataset.target) {
@@ -50,14 +47,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // 4. 處理 URL 參數 (領券/重置)
+        // 4. 處理 URL 參數
         const urlParams = new URLSearchParams(window.location.search);
         const voucherCode = urlParams.get('voucher_code');
         
         if (voucherCode) {
             await handleVoucherClaim(voucherCode);
         } else {
-            // 正常啟動路由
             const hash = window.location.hash.substring(1);
             router.navigate(hash ? `page-${hash}` : 'page-home');
         }
@@ -80,40 +76,31 @@ function applyGlobalConfig() {
     if (!state.activeTemplate) return;
 
     const terms = state.activeTemplate.terms || {};
-    const logic = state.activeTemplate.logic || {};
-    const navBarConfig = logic.navBar || []; 
-
+    const clientConfig = state.activeTemplate.client_config || {};
+    
     // 1. 更新網頁標題
-    document.title = terms.BUSINESS_NAME || '店務管理系統';
+    document.title = clientConfig.global?.brand_name || terms.BUSINESS_NAME || '店務管理系統';
 
     // 2. 更新導覽列 (Tab Bar)
-    const tabButtons = document.querySelectorAll('.tab-button');
-    
-    tabButtons.forEach(tab => {
-        const targetPage = tab.dataset.target; // 例如 'page-booking'
-        
-        // 在設定中尋找對應的設定項
-        const configItem = navBarConfig.find(item => item.target === targetPage);
+    const tabMapping = {
+        'page-home': { label: clientConfig.home?.title || '最新情報' },
+        'page-products': { label: clientConfig.products?.title || '產品型錄' },
+        'page-profile': { label: '會員中心' }, // 這個通常固定
+        'page-booking': { label: clientConfig.booking?.labels?.checkin ? '線上預約' : (terms.BOOKING_NAME || '線上預約') },
+        'page-info': { label: '店家資訊' }
+    };
 
-        if (configItem) {
-            // 判斷是否啟用
-            if (configItem.enabled === false) {
-                tab.style.display = 'none';
-            } else {
-                tab.style.display = ''; // 恢復顯示
-                
-                // 更新按鈕文字 (支援自動換行排版)
-                const label = configItem.label || '未命名'; 
-                // 如果文字超過 2 個字，嘗試在第 2 個字後換行 (配合 CSS 樣式)
-                if (label.length > 2) {
-                    tab.innerHTML = label.substring(0, 2) + '<br>' + label.substring(2);
-                } else {
-                    tab.innerHTML = label;
-                }
+    document.querySelectorAll('.tab-button').forEach(tab => {
+        const targetPage = tab.dataset.target;
+        const config = tabMapping[targetPage];
+
+        if (config) {
+            // 更新文字 (自動換行處理)
+            let label = config.label;
+            if (label.length > 2) {
+                label = label.substring(0, 2) + '<br>' + label.substring(2);
             }
-        } else {
-            // 如果設定檔中沒有此頁面的設定，預設顯示
-            tab.style.display = ''; 
+            tab.innerHTML = label;
         }
     });
     
@@ -126,11 +113,9 @@ async function handleVoucherClaim(code) {
         const res = await api.claimVoucher({ userId: state.userProfile.userId, public_claim_code: code });
         alert(`✅ ${res.message}`);
     } catch (e) {
-        // 409 Conflict 也是一種狀態 (已領過)，不一定要報紅字錯誤
         if(e.status === 409) alert(e.data.error);
         else alert(`❌ 領取失敗: ${e.message}`);
     }
-    // 清除參數並跳轉
     history.replaceState(null, '', window.location.pathname);
     router.navigate('page-my-vouchers');
 }

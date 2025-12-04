@@ -25,23 +25,32 @@ let flatpickrInstance = null;
 // 1. 初始化預約頁面 (Entry Point)
 // =================================================================
 export async function init() {
-    console.log("初始化預約頁面 (Config-Driven v13.1 - Fix Export)");
+    console.log("初始化預約頁面 (Config-Driven v14 - Fix Mode & Toggles)");
     
     // 1. 讀取設定
     const clientConfig = state.activeTemplate?.client_config?.booking || {};
+    const profileConfig = state.activeTemplate?.client_config?.profile || {};
     const terms = state.activeTemplate?.terms || {};
     
     // 2. 設定頁面標題
     const pageTitle = document.querySelector('#page-booking .page-main-title');
     if (pageTitle) pageTitle.textContent = terms.BOOKING_PAGE_TITLE || '線上預約';
     
-    // 3. 綁定「查看我的預約」按鈕
+    // 3. 綁定「查看我的預約」按鈕 (【修正】連動 "我的紀錄" 開關)
     const viewBtn = document.getElementById('view-my-bookings-btn');
     if (viewBtn) {
-        viewBtn.textContent = (terms.PROFILE_BOOKINGS_BTN_LABEL || '查看我的預約');
-        const newBtn = viewBtn.cloneNode(true);
-        viewBtn.parentNode.replaceChild(newBtn, viewBtn);
-        newBtn.addEventListener('click', () => router.navigate('page-my-records'));
+        // 檢查會員中心設定，若關閉「我的紀錄」，這裡也要隱藏
+        const showRecords = profileConfig.btn_toggles?.records !== false;
+        
+        if (showRecords) {
+            viewBtn.style.display = 'block';
+            viewBtn.textContent = (terms.PROFILE_BOOKINGS_BTN_LABEL || '查看我的預約');
+            const newBtn = viewBtn.cloneNode(true);
+            viewBtn.parentNode.replaceChild(newBtn, viewBtn);
+            newBtn.addEventListener('click', () => router.navigate('page-my-records'));
+        } else {
+            viewBtn.style.display = 'none';
+        }
     }
 
     // 4. 確保產品資料已載入
@@ -76,7 +85,6 @@ export async function init() {
     if (confirmBtn) {
         confirmBtn.disabled = false;
         confirmBtn.textContent = '確認預約'; 
-        
         const newBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
         newBtn.addEventListener('click', handleBookingConfirmation);
@@ -87,14 +95,16 @@ export async function init() {
 
     // 8. 根據模式初始化
     const bookingMode = clientConfig.mode || 'range'; // 預設 range (民宿)
-    
+    console.log(`[Booking Init] Mode: ${bookingMode}`);
+
     // 清理舊狀態
     const timeSlotContainer = document.getElementById('booking-time-slot-container');
     const form = document.getElementById('booking-details-form');
     if (timeSlotContainer) timeSlotContainer.style.display = 'none';
     if (form) form.style.display = 'none'; 
 
-    if (bookingMode === 'single') {
+    // 【修正】判斷 'studio' 而不是 'single'
+    if (bookingMode === 'studio') {
         await initializeSingleDateMode(clientConfig);
     } else {
         await initializeRangeMode(clientConfig);
@@ -106,12 +116,19 @@ function applyFieldToggles(toggles = {}) {
     const setDisplay = (selector, isVisible) => {
         const el = document.querySelector(selector);
         if (el) {
+            // 嘗試隱藏整組 form-group
             const group = el.closest('.form-group') || el.parentElement;
             if (group) group.style.display = isVisible ? '' : 'none';
         }
     };
+
     const showNotes = toggles.notes !== false;
     setDisplay('#booking-notes-input', showNotes);
+    
+    // 【新增】控制人數輸入框 (僅在工作室模式的 Modal 或特定欄位有效，視 HTML 結構而定)
+    // 假設 HTML 中有人數輸入框 id="booking-people-input" (通常在 Quick Booking Modal 或 動態生成)
+    // 若是頁面上固定的，需確認 ID。目前 booking.html 並無人數欄位(除了 modal)，
+    // 若需要在頁面上顯示，需動態生成。此處先針對備註欄位。
 }
 
 // =================================================================
@@ -173,6 +190,7 @@ async function initializeRangeMode(config) {
     
     if (!pickerEl || !roomContainer || !form) return;
 
+    // 自訂標籤
     const labels = config.labels || {};
     const labelEl = document.querySelector('label[for="booking-date-range-picker"]');
     if (labelEl) labelEl.textContent = `${labels.checkin || '入住'} / ${labels.checkout || '退房'} 日期:`;
@@ -182,6 +200,7 @@ async function initializeRangeMode(config) {
     
     form.style.display = 'block';
     
+    // 隱藏非此模式的元素
     const timeSlotContainer = document.getElementById('booking-time-slot-container');
     if (timeSlotContainer) timeSlotContainer.style.display = 'none';
     const itemsContainer = document.getElementById('booking-items-container');
@@ -445,6 +464,7 @@ async function initializeSingleDateMode(config) {
     }
 }
 
+// 【核心新增】根據 Config 動態渲染時段按鈕
 function renderDynamicTimeSlots(dateStr, timeConfig) {
     const container = document.getElementById('time-slot-buttons-container');
     const hiddenInput = document.getElementById('time-slot-select');
@@ -535,8 +555,9 @@ function addBookingItemRow(config) {
     const container = document.getElementById('booking-items-container');
     if (!container || container.children.length >= 5) return; 
 
+    // 【修正】確保 toggles 物件存在
     const toggles = config?.field_toggles || {};
-    const showQuantity = toggles.quantity !== false;
+    const showQuantity = toggles.quantity !== false; // 預設顯示
 
     const itemRow = document.createElement('div');
     itemRow.className = 'booking-item-row';
@@ -557,7 +578,11 @@ function addBookingItemRow(config) {
     qtyInput.value = 1;
     qtyInput.min = 1;
     qtyInput.style.width = '70px';
-    if (!showQuantity) qtyInput.style.display = 'none';
+    
+    // 【修正】根據設定隱藏數量
+    if (!showQuantity) {
+        qtyInput.style.display = 'none';
+    }
 
     const priceInputHidden = document.createElement('input');
     priceInputHidden.type = 'hidden';
@@ -784,7 +809,7 @@ function resetButton(btn) {
 }
 
 // =================================================================
-// 6. [FIX] 補回預約詳情渲染函式
+// 6. [FIX] 補回預約詳情渲染函式 (上版遺漏)
 // =================================================================
 export async function renderBookingDetails(bookingId) {
     if (!bookingId) return;
@@ -854,13 +879,10 @@ export async function renderBookingDetails(bookingId) {
         if(elInstructions) elInstructions.textContent = policyData.checkInInstructions || '無入住須知資料';
 
         if (cancelBtn) {
-            // 只有 confirmed 狀態才能取消
             if (booking.status === 'confirmed') {
                 cancelBtn.style.display = 'block';
-                // 移除舊監聽器
                 const newCancelBtn = cancelBtn.cloneNode(true);
                 cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-                
                 newCancelBtn.addEventListener('click', async () => {
                     if (confirm('確定要取消此預約嗎？')) {
                         try {

@@ -1120,18 +1120,22 @@ async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMe
 }
 
 // --- [Phase 3] 列表渲染 (動態過濾欄位) ---
+// --- [Phase 3] 列表渲染 (動態過濾欄位) ---
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const bookingListTheadTr = document.querySelector('#list-view-container thead tr'); 
     if (!bookingListTbody || !bookingListTheadTr) return;
     
-    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminBookingColumns)) {
+    // 【修正】改為讀取 admin_config.bookings.columns
+    const bookingsConfig = activeTemplate?.admin_config?.bookings;
+
+    if (!bookingsConfig || !Array.isArray(bookingsConfig.columns)) {
         bookingListTheadTr.innerHTML = '<th>錯誤</th>';
-        bookingListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：訂單列表欄位設定未載入。</td></tr>';
+        bookingListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：訂單列表欄位設定未載入 (admin_config.bookings.columns)。</td></tr>';
         return;
     }
     
-    const columns = activeTemplate.logic.adminBookingColumns.filter(col => col.enabled);
+    const columns = bookingsConfig.columns.filter(col => col.enabled);
     const bookingMode = activeTemplate.client_config?.booking?.mode || 'range';
     const isGuesthouse = bookingMode === 'range';
     const enableTimeSlots = activeTemplate.client_config?.booking?.studio_settings?.enable_time_slots !== false;
@@ -1141,7 +1145,6 @@ function renderBookingList(bookings) {
         // 若是工作室，隱藏退房日期
         if (col.key === 'check_out_date' && !isGuesthouse) return false;
         // 若是民宿，或工作室但未啟用時段，隱藏時段 (或包含在 datetime_summary 中處理)
-        // 注意：如果使用 datetime_summary，可能需要更細緻的處理
         return true; 
     });
 
@@ -1226,6 +1229,7 @@ function renderBookingList(bookings) {
 
     bindTbodyClickListener(bookingListTbody);
 }
+
 
 function createStatusMenu(targetButton) {
     closeStatusMenu();
@@ -1574,7 +1578,8 @@ function clearAdvancedFilters() {
 
 export const init = async () => {
     try {
-        if (!window.CONFIG || !window.CONFIG.LOGIC || !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE || !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS) {
+        // 1. 取得核心設定
+        if (!window.CONFIG || !window.CONFIG.LOGIC) {
              throw new Error("核心設定尚未載入。");
         }
         
@@ -1584,8 +1589,10 @@ export const init = async () => {
         if (!activeTemplate) {
             throw new Error(`在設定中找不到名為 "${activeTemplateKey}" 的商業樣板。`);
         }
-        if (!activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminBookingColumns)) {
-             throw new Error(`樣板 "${activeTemplateKey}" 缺少 'logic.adminBookingColumns' 陣列設定。`);
+
+        // 【修正】檢查 admin_config.bookings.columns 是否存在
+        if (!activeTemplate.admin_config || !activeTemplate.admin_config.bookings || !Array.isArray(activeTemplate.admin_config.bookings.columns)) {
+             throw new Error(`樣板 "${activeTemplateKey}" 缺少 'admin_config.bookings.columns' 陣列設定。`);
         }
         
         if (allProducts.length === 0) {

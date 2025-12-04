@@ -4,28 +4,57 @@ import { ui } from '../ui.js';
 
 // 渲染儀表板數據
 const renderStats = (stats) => {
-    // 輔助函式，用於安全地更新 DOM 內容
-    const updateText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
+    // 1. 讀取設定
+    let widgets = { today_orders: true, pending: true, revenue: true, hot_items: true };
+    try {
+        const activeKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+        const template = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeKey];
+        if (template?.admin_config?.dashboard?.widgets) {
+            widgets = template.admin_config.dashboard.widgets;
+        }
+    } catch (e) { console.warn("Dashboard config read failed", e); }
+
+    // 2. 輔助函式：更新內容並控制顯示
+    const updateCard = (elementId, value, widgetKey, cardIndex) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        
+        el.textContent = value;
+        
+        // 找到外層的 card 容器
+        const card = el.closest('.stat-card');
+        if (card) {
+            // 檢查設定是否啟用
+            if (widgets[widgetKey] === false) {
+                card.style.display = 'none';
+            } else {
+                card.style.display = '';
+            }
+        }
     };
 
-    updateText('stat-today-guests', stats.today_total_guests || 0);
-    updateText('stat-pending-bookings', stats.pending_bookings || 0);
+    // 3. 更新各區塊
+    updateCard('stat-today-guests', stats.today_total_guests || 0, 'today_orders');
+    updateCard('stat-pending-bookings', stats.pending_bookings || 0, 'pending');
     
-    // 格式化為貨幣
     const formattedRevenue = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(stats.monthly_revenue || 0);
-    updateText('stat-monthly-revenue', formattedRevenue);
+    updateCard('stat-monthly-revenue', formattedRevenue, 'revenue');
 
-    // 渲染熱門服務列表
+    // 熱門服務列表 (對應 hot_items)
     const topServicesEl = document.getElementById('stat-top-services');
     if (topServicesEl) {
-        if (stats.top_services && stats.top_services.length > 0) {
-            topServicesEl.innerHTML = stats.top_services
-                .map(service => `<li>${service.item_name} (${service.total_quantity} 次)</li>`)
-                .join('');
+        const card = topServicesEl.closest('.stat-card');
+        if (widgets.hot_items === false && card) {
+            card.style.display = 'none';
         } else {
-            topServicesEl.innerHTML = '<li>本月尚無服務紀錄</li>';
+            if (card) card.style.display = '';
+            if (stats.top_services && stats.top_services.length > 0) {
+                topServicesEl.innerHTML = stats.top_services
+                    .map(service => `<li>${service.item_name} (${service.total_quantity} 次)</li>`)
+                    .join('');
+            } else {
+                topServicesEl.innerHTML = '<li>本月尚無服務紀錄</li>';
+            }
         }
     }
 };
@@ -53,7 +82,6 @@ async function loadAndRenderActivities() {
                 </div>
             `).join('');
 
-            // 為核取方塊綁定事件監聽 (邏輯不變)
             container.querySelectorAll('.mark-activity-read').forEach(checkbox => {
                 checkbox.addEventListener('change', async (e) => {
                     const item = e.target.closest('.activity-item');
@@ -82,52 +110,43 @@ async function loadAndRenderActivities() {
     }
 }
 
-// 綁定儀表板頁面上的事件監聽器
 const setupEventListeners = () => {
-    // 重設展示資料按鈕的監聽
     const resetDemoDataBtn = document.getElementById('reset-demo-data-btn');
-    if (resetDemoDataBtn) {
-        if (!resetDemoDataBtn.dataset.listenerAttached) {
-            resetDemoDataBtn.addEventListener('click', async () => {
-                const confirmed = await ui.confirm('【警告】您真的確定要清空所有展示資料嗎？\n\n此操作將會刪除所有預約和消費紀錄，且無法復原！');
-                if (!confirmed) return;
-                
-                try {
-                    resetDemoDataBtn.textContent = '正在清空中...';
-                    resetDemoDataBtn.disabled = true;
-                    await api.resetDemoData();
-                    ui.toast.success('展示資料已成功清空！');
-                    await init(); // 重新載入數據
-                } catch (error) {
-                    ui.toast.error(`錯誤：${error.message}`);
-                } finally {
-                    resetDemoDataBtn.textContent = '清空所有展示資料';
-                    resetDemoDataBtn.disabled = false;
-                }
-            });
-            resetDemoDataBtn.dataset.listenerAttached = 'true';
-        }
+    if (resetDemoDataBtn && !resetDemoDataBtn.dataset.listenerAttached) {
+        resetDemoDataBtn.addEventListener('click', async () => {
+            const confirmed = await ui.confirm('【警告】您真的確定要清空所有展示資料嗎？\n\n此操作將會刪除所有預約和消費紀錄，且無法復原！');
+            if (!confirmed) return;
+            
+            try {
+                resetDemoDataBtn.textContent = '正在清空中...';
+                resetDemoDataBtn.disabled = true;
+                await api.resetDemoData();
+                ui.toast.success('展示資料已成功清空！');
+                await init(); 
+            } catch (error) {
+                ui.toast.error(`錯誤：${error.message}`);
+            } finally {
+                resetDemoDataBtn.textContent = '清空所有展示資料';
+                resetDemoDataBtn.disabled = false;
+            }
+        });
+        resetDemoDataBtn.dataset.listenerAttached = 'true';
     }
 
-    // 【新】為儀表板卡片新增點擊事件
     const dashboardGrid = document.getElementById('dashboard-grid');
     if (dashboardGrid && !dashboardGrid.dataset.listenerAttached) {
         dashboardGrid.addEventListener('click', (e) => {
             const card = e.target.closest('.stat-card');
             if (!card || !card.dataset.target) return;
-
             const targetPage = card.dataset.target;
             if (targetPage === 'bookings') {
-                // 模擬點擊導覽列，跳轉到訂位管理頁面
                 window.location.hash = '#bookings';
             }
-            // 未來可以為其他卡片增加跳轉目標
         });
         dashboardGrid.dataset.listenerAttached = 'true';
     }
 };
 
-// 模組的初始化函式，由 app.js 呼叫
 export const init = async () => {
     const page = document.getElementById('page-dashboard');
     if (!page) return;
@@ -141,7 +160,6 @@ export const init = async () => {
         const stats = await api.getDashboardStats();
         renderStats(stats);
         setupEventListeners();
-        // 【新增】呼叫載入最新動態的函式
         await loadAndRenderActivities(); 
     } catch (error) {
         console.error('獲取儀表板數據失敗:', error);

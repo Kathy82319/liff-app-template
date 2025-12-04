@@ -2,68 +2,67 @@
 import { api } from '../api.js';
 import { ui } from '../ui.js'; 
 
-// 【安全輔助】設定值的函式：先檢查元素是否存在
 function setVal(id, value) {
     const el = document.getElementById(id);
-    if (el) {
-        el.value = value || '';
-    } else {
-        // 如果找不到元素，只在 Console 顯示黃色警告，不中斷程式
-        console.warn(`[storeInfo.js] 警告：找不到 ID 為 '${id}' 的輸入框，略過填值。`);
-    }
+    if (el) el.value = value || '';
 }
 
-// 填充表單資料
 function populateStoreInfoForm(info) {
     const storeInfoForm = document.getElementById('store-info-form');
     if (!storeInfoForm) return;
 
-    if (!info) {
-        console.error("[storeInfo.js] 錯誤：店家資訊物件 (info) 為空。");
-        return;
-    }
+    if (!info) return;
 
-    // 使用安全函式填值
     setVal('info-store-name', info.store_name);
     setVal('info-address', info.address);
     setVal('info-phone', info.phone);
     setVal('info-hours', info.opening_hours);
     setVal('info-desc', info.description);
     
-    // 填充政策欄位
     setVal('info-policy', info.cancellationPolicy);
     setVal('info-instructions', info.checkInInstructions);
 }
 
-// 應用文字設定 (標題客製化)
-function applyTermSettings() {
-    // 確保 CONFIG 已載入
+// --- 【核心修正】應用設定 (Policy Fields & Labels) ---
+function applyConfigSettings() {
     const config = window.CONFIG;
     if (!config || !config.LOGIC || !config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE) return;
 
     const activeKey = config.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
     const template = config.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeKey];
-    const terms = template?.terms || {};
+    
+    const storeConfig = template?.admin_config?.store_info || {};
+    const policyFields = storeConfig.policy_fields || { show_cancellation: true, show_instructions: true };
+    const policyLabels = storeConfig.policy_labels || {};
+    const terms = template?.terms || {}; // Fallback
 
-    // 更新區塊標題 (需確認 HTML 有加上 id="store-policy-section-title")
-    const sectionTitle = document.getElementById('store-policy-section-title');
-    if (sectionTitle && terms.ADMIN_POLICY_SECTION_TITLE) {
-        sectionTitle.textContent = terms.ADMIN_POLICY_SECTION_TITLE;
+    // 1. 控制顯示/隱藏
+    const policyInput = document.getElementById('info-policy');
+    if (policyInput) {
+        // 找到外層 form-group 隱藏
+        const group = policyInput.closest('.form-group');
+        if (group) group.style.display = policyFields.show_cancellation !== false ? '' : 'none';
     }
 
-    // 更新欄位標籤
+    const instrInput = document.getElementById('info-instructions');
+    if (instrInput) {
+        const group = instrInput.closest('.form-group');
+        if (group) group.style.display = policyFields.show_instructions !== false ? '' : 'none';
+    }
+
+    // 2. 更新標題文字
+    // 優先使用 policy_labels，其次使用 terms (相容舊版)
     const policyLabel = document.querySelector('label[for="info-policy"]');
-    if (policyLabel && terms.ADMIN_CANCELLATION_POLICY_LABEL) {
-        policyLabel.textContent = terms.ADMIN_CANCELLATION_POLICY_LABEL;
+    if (policyLabel) {
+        policyLabel.textContent = policyLabels.cancellation || terms.ADMIN_CANCELLATION_POLICY_LABEL || '取消政策';
     }
 
     const instructionsLabel = document.querySelector('label[for="info-instructions"]');
-    if (instructionsLabel && terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL) {
-        instructionsLabel.textContent = terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL;
+    if (instructionsLabel) {
+        instructionsLabel.textContent = policyLabels.instructions || terms.ADMIN_CHECKIN_INSTRUCTIONS_LABEL || '入住須知';
     }
 }
 
-// 綁定事件監聽器
 function setupEventListeners() {
     const storeInfoForm = document.getElementById('store-info-form');
     if (storeInfoForm) {
@@ -71,7 +70,6 @@ function setupEventListeners() {
             e.preventDefault();
             const submitButton = storeInfoForm.querySelector('button[type="submit"]');
             
-            // 收集資料時也使用 Optional Chaining (?.) 避免錯誤
             const formData = {
                 store_name: document.getElementById('info-store-name')?.value,
                 address: document.getElementById('info-address')?.value,
@@ -97,13 +95,12 @@ function setupEventListeners() {
     }
 }
 
-// 模組初始化函式
 export const init = async () => {
     const storeInfoForm = document.getElementById('store-info-form');
     if (!storeInfoForm) return;
 
-    // 1. 先應用文字設定
-    applyTermSettings();
+    // 應用設定
+    applyConfigSettings();
 
     try {
         const info = await api.getStoreInfo();
@@ -114,8 +111,6 @@ export const init = async () => {
             storeInfoForm.dataset.initialized = 'true';
         }
     } catch (error) {
-        // 顯示更友善的錯誤訊息
         ui.toast.error(`載入店家資訊失敗: ${error.message}`);
-        console.error('載入店家資訊失敗:', error);
     }
 };

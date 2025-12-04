@@ -1,5 +1,4 @@
-// public/admin/app.js (FIX for Race Condition + Dynamic Tab Names)
-
+// public/admin/app.js
 import { api } from './api.js';
 import { ui } from './ui.js';
 import { hideBatchToolbar } from './modules/productManagement.js';
@@ -22,188 +21,124 @@ const App = {
     },
     configPromise: null, 
 
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    async handleRouteChange() {
+        // 等待設定載入
+        try { await this.configPromise; } catch (e) { return; }
+
+        const pageId = window.location.hash.substring(1) || 'dashboard';
+        
+        // --- 【核心修正】讀取 Sidebar 顯示設定與 Terms ---
+        let visibleModules = {};
+        let terms = {};
+        
+        try {
+            const activeTemplateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
+            const activeTemplate = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeTemplateKey];
+            
+            if (activeTemplate) {
+                visibleModules = activeTemplate.admin_config?.visible_modules || {};
+                terms = activeTemplate.terms || {};
+            }
+
+            const navTabs = document.querySelector('.nav-tabs');
+            if (navTabs) {
+                 navTabs.querySelectorAll('a').forEach(tabLink => {
+                     const href = tabLink.getAttribute('href')?.substring(1);
+                     
+                     // 1. 控制顯示/隱藏
+                     // 對照表：href -> visible_modules key
+                     const moduleMap = {
+                         'dashboard': 'dashboard',
+                         'users': 'users',
+                         'inventory': 'products',      // 注意 key 對應
+                         'room-availability': 'room_control', // 注意 key 對應
+                         'bookings': 'bookings',
+                         'news': 'news',
+                         'store-info': 'store_info',
+                         'reports': 'finance',         // 注意 key 對應
+                         'vouchers': 'coupons',        // 注意 key 對應
+                         'rally': 'coupons',           // 集點通常歸類在行銷/coupons
+                         'points': 'coupons',          // 點數通常歸類在行銷/coupons
+                         'drafts': 'news',             // 草稿歸類在消息
+                         'settings': 'always_show'     // 設定頁永遠顯示
+                     };
+                     
+                     const configKey = moduleMap[href];
+                     if (configKey && configKey !== 'always_show') {
+                         // 如果設定為 false，則隱藏
+                         if (visibleModules[configKey] === false) {
+                             tabLink.style.display = 'none';
+                         } else {
+                             tabLink.style.display = ''; 
+                         }
+                     }
+
+                     // 2. 動態更新 Tab 名稱 (Terms)
+                     if (href === 'inventory' && terms.PRODUCT_NAME) {
+                         tabLink.textContent = `${terms.PRODUCT_NAME}管理`;
+                     }
+                     if (href === 'bookings' && terms.BOOKING_NAME) {
+                         tabLink.textContent = `${terms.BOOKING_NAME}管理`;
+                     }
+                 });
+            }
+        } catch (e) {
+             console.error("[App.js] Config apply error:", e);
+        }
+        // --- 修正結束 ---
+
+        try { hideBatchToolbar(); } catch(e) {}
+
+        ui.setActiveNav(pageId);
+        ui.showPage(pageId);
+
+        const modulePath = this.router[pageId];
+        if (modulePath) {
+            try {
+                const pageModule = await import(modulePath);
+                if (pageModule.init) {
+                    await pageModule.init();
+                    
+                    // Room Availability 特殊處理
+                    if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
+                        requestAnimationFrame(() => {
+                             requestAnimationFrame(() => {
+                                try { pageModule.initializeDatePickers(); } catch (e) {}
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                 console.error(`載入模組 ${modulePath} 失敗:`, error);
+                 const pageElement = document.getElementById(`page-${pageId}`);
+                 if (pageElement) pageElement.innerHTML = `<p style="color:red;">載入失敗: ${error.message}</p>`;
+            }
+        }
     },
 
-async handleRouteChange() {
-    console.log(`[App.js HandleRouteChange] Hash changed to: ${window.location.hash}`);
-    
-    // 強制*永遠*等待 configPromise。
-    console.log("[App.js HandleRouteChange] Awaiting config promise...");
-    try {
-        await this.configPromise; 
-        console.log("[App.js HandleRouteChange] Config promise resolved.");
-    } catch (error) {
-        console.error("[App.js HandleRouteChange] Config promise failed:", error);
-        ui.showPage('error');
-        const errorPage = document.getElementById('page-error');
-        if(errorPage) errorPage.innerHTML = `<p style="color:red;">系統設定檔載入失敗，無法繼續。</p>`;
-        return; 
-    }
-
-    const pageId = window.location.hash.substring(1) || 'dashboard';
-    console.log(`[App.js HandleRouteChange] Determined pageId: ${pageId}`);
-
-    // --- 【關鍵修改】在這裡讀取設定，並更新 Tab 名稱 ---
-    let adminPagesConfig = {}; 
-    let adminEntityNamePlural = "產品/服務管理"; // 預設的後備名稱
-
-    try {
-        const activeTemplateKey = window.CONFIG?.LOGIC?.ACTIVE_INDUSTRY_TEMPLATE;
-        const activeTemplate = window.CONFIG?.LOGIC?.INDUSTRY_TEMPLATE_DEFINITIONS?.[activeTemplateKey];
-        
-        if (activeTemplate && activeTemplate.logic) {
-            if (activeTemplate.logic.adminPagesEnabled) {
-                adminPagesConfig = activeTemplate.logic.adminPagesEnabled;
-            }
-            if (activeTemplate.logic.adminEntityNamePlural) {
-                adminEntityNamePlural = activeTemplate.logic.adminEntityNamePlural;
-            }
-        } else {
-            console.warn(`[App.js] Could not find logic in active template '${activeTemplateKey}'.`);
-        }
-        
-        const navTabs = document.querySelector('.nav-tabs');
-        if (navTabs) {
-             navTabs.querySelectorAll('a').forEach(tabLink => {
-                 const targetPage = tabLink.getAttribute('href')?.substring(1);
-                 if (targetPage) {
-                     // 1. 舊有邏輯：根據設定決定是否顯示 Tab
-                     if (adminPagesConfig.hasOwnProperty(targetPage) && adminPagesConfig[targetPage] === false) {
-                         tabLink.style.display = 'none';
-                     } else {
-                         tabLink.style.display = ''; 
-                     }
-
-                     // --- ▼▼▼ 新增邏輯：更新 "inventory" Tab 的文字 ▼▼▼ ---
-                     if (targetPage === 'inventory') {
-                         tabLink.textContent = adminEntityNamePlural; // 動態更新 Tab 名稱
-                     }
-                     // --- ▲▲▲ 新增結束 ▲▲▲ ---
-                 }
-             });
-             console.log("[App.js HandleRouteChange] Applied adminPagesEnabled config and dynamic names to nav tabs.");
-        } else {
-            console.warn("[App.js HandleRouteChange] Could not find .nav-tabs to apply enablement config.");
-        }
-    } catch (e) {
-         console.error("[App.js HandleRouteChange] Error applying adminPagesEnabled config:", e);
-    }
-    // --- 【修改結束】 ---
-
-
-    try {
-        console.log("[App.js HandleRouteChange] Attempting to hide batch toolbar...");
-        hideBatchToolbar();
-    } catch(e) {
-        console.warn("[App.js HandleRouteChange] Error hiding batch toolbar:", e);
-    }
-
-    console.log(`[App.js HandleRouteChange] Setting active nav for: ${pageId}`);
-    ui.setActiveNav(pageId);
-
-    console.log(`[App.js HandleRouteChange] About to call ui.showPage('${pageId}')`);
-    ui.showPage(pageId);
-    console.log(`[App.js HandleRouteChange] ui.showPage('${pageId}') finished.`);
-
-    const modulePath = this.router[pageId];
-    console.log(`[App.js HandleRouteChange] Module path for ${pageId}: ${modulePath || 'None'}`);
-
-    if (modulePath) {
-        try {
-            // (檢查頁面是否被禁用的邏輯)
-            if (adminPagesConfig.hasOwnProperty(pageId) && adminPagesConfig[pageId] === false) {
-                 console.warn(`[App.js HandleRouteChange] Access denied: Page '${pageId}' is disabled in template settings.`);
-                 const pageElement = document.getElementById(`page-${pageId}`);
-                 if(pageElement) pageElement.innerHTML = `<p style="color:orange; text-align: center;">此頁面 (${pageId}) 在目前的樣板設定中已被停用。</p>`;
-                 return; 
-            }
-
-            console.log(`[App.js HandleRouteChange] Importing module: ${modulePath}`);
-            const pageModule = await import(modulePath);
-            console.log(`[App.js HandleRouteChange] Module ${modulePath} imported successfully.`);
-
-            if (pageModule.init) {
-                console.log(`[App.js HandleRouteChange] Calling init() for ${modulePath}`);
-                await pageModule.init();
-                console.log(`[App.js HandleRouteChange] init() for ${modulePath} finished.`);
-
-                // (room-availability 的 RAF 邏輯)
-                if (pageId === 'room-availability' && pageModule.initializeDatePickers) {
-                    console.log(`[App.js HandleRouteChange] Page is room-availability, scheduling initializeDatePickers via RAF...`);
-                    requestAnimationFrame(() => {
-                         requestAnimationFrame(() => {
-                            console.log("%c[App.js HandleRouteChange] Inside RAF, calling initializeDatePickers NOW...", "color: orange;");
-                            try {
-                                pageModule.initializeDatePickers();
-                            } catch (pickerError) {
-                                console.error("[App.js HandleRouteChange] Error calling initializeDatePickers from RAF:", pickerError);
-                                ui.toast.error(`初始化日期選擇器失敗: ${pickerError.message}`);
-                            }
-                        });
-                    });
-                } else {
-                     console.log(`[App.js HandleRouteChange] Not calling initializeDatePickers for ${pageId}.`);
-                }
-            } else {
-                 console.warn(`[App.js HandleRouteChange] Module ${modulePath} has no init function.`);
-            }
-        } catch (error) {
-             console.error(`載入或初始化模組 ${modulePath} 失敗:`, error);
-             const pageElement = document.getElementById(`page-${pageId}`);
-             if (pageElement) {
-                  pageElement.innerHTML = `<p style="color:red;">載入頁面功能 (${pageId}) 時發生錯誤: ${error.message}</p>`;
-             }
-        }
-    } else {
-         console.warn(`[App.js HandleRouteChange] No module found for pageId: ${pageId}`);
-    }
-    console.log(`[App.js HandleRouteChange] Finished handling route for ${pageId}.`);
-},
-
-async init() {
-        console.log("[App Init] Starting initialization...");
+    async init() {
+        console.log("[App Init] Starting...");
         ui.initSharedEventListeners();
 
-        // --- ▼▼▼ 【安全修正區塊】強制驗證登入狀態 ▼▼▼ ---
         try {
-            const authStatus = await api.checkAuthStatus(); // 呼叫 /api/admin/auth/status
-            
-            // 如果驗證失敗 (可能是 401 或 API 回傳 loggedIn: false)
+            const authStatus = await api.checkAuthStatus();
             if (!authStatus || !authStatus.loggedIn) {
-                console.log("[App Init] Auth check failed, redirecting to login.");
-                // 強制跳轉到登入頁
                 window.location.href = '/admin-login.html';
                 return; 
             }
-             console.log("[App Init] Auth check passed.");
         } catch (authError) {
-             console.log("[App Init] Critical Auth Error (API failed), redirecting to login:", authError);
-             // 即使 API 呼叫失敗 (例如網路錯誤或伺服器問題)，也視為未登入
              window.location.href = '/admin-login.html';
              return; 
         }
-        // --- ▲▲▲ 【安全修正區塊】結束 ▲▲▲ ---
         
-        // 原始的 configPromise 和初始化流程
         this.configPromise = (async () => {
-            console.log("[App Init] Starting config fetch...");
             try {
-                // 由於此 API 不是 Admin 專用，不需要 JWT，所以可以放在這裡
                 window.CONFIG = await api.getAppConfig(); 
-                if (!window.CONFIG || typeof window.CONFIG !== 'object' ||
-                    !window.CONFIG.LOGIC || typeof window.CONFIG.LOGIC !== 'object' ||
-                    !window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE ||
-                    !window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS || typeof window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS !== 'object') {
-                    console.error("[App Init] Invalid config structure received:", window.CONFIG);
-                    throw new Error('獲取到的設定檔格式不正確或缺少必要內容。');
+                if (!window.CONFIG || !window.CONFIG.LOGIC) {
+                    throw new Error('設定檔格式錯誤');
                 }
-                console.log("[App Init] Config fetched and seems valid:", window.CONFIG);
             } catch (error) {
-                console.error("[App Init] Config fetch failed:", error);
-                const loadingView = document.getElementById('loading-view');
-                if (loadingView) loadingView.innerHTML = `<p style="color:red;">讀取核心設定失敗: ${error.message}</p>`;
+                console.error("Config fetch failed:", error);
                 throw error; 
             }
         })();
@@ -216,27 +151,13 @@ async init() {
                 if (event.target.tagName === 'A') {
                     event.preventDefault();
                     const newHash = event.target.getAttribute('href');
-                    if (window.location.hash !== newHash) {
-                        window.location.hash = newHash; 
-                    }
+                    if (window.location.hash !== newHash) window.location.hash = newHash; 
                 }
             });
-        } else {
-            console.error("[App Init] '.nav-tabs' element not found. Navigation might not work.");
         }
 
-        console.log("[App Init] Triggering initial handleRouteChange...");
-        try {
-             await this.handleRouteChange();
-             console.log("[App Init] Initial route handled.");
-        } catch (initialRouteError) {
-             console.error("[App Init] Error during initial route handling:", initialRouteError);
-        }
-        console.log("[App Init] Initialization finished.");
+        try { await this.handleRouteChange(); } catch (e) {}
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-     console.log('[DOMContentLoaded] Initializing App...');
-     App.init(); 
-});
+document.addEventListener('DOMContentLoaded', () => { App.init(); });

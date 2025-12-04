@@ -533,7 +533,10 @@ function openProductModal(product = null) {
             const count = formSettings.specs_count || 3; 
             for (let i = 1; i <= count; i++) {
                 // 即使是空的也顯示欄位，方便編輯
-                addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
+            const specName = product ? (product[`spec_${i}_name`] || '') : '';
+            const specValue = product ? (product[`spec_${i}_value`] || '') : '';
+            
+            addSpecInputField(specInputs, product[`spec_${i}_name`] || '', product[`spec_${i}_value`] || '');
             }
         }
         
@@ -817,6 +820,13 @@ export const init = async () => {
         const entityName = activeTemplate.terms?.PRODUCT_NAME || "產品";
         const pageTitle = document.querySelector('#page-inventory .page-header h2');
         if (pageTitle) pageTitle.textContent = `${entityName}管理`;
+
+        const features = activeTemplate.admin_config.inventory.features || {};
+        const addBtn = document.getElementById('add-product-btn');
+        const csvBtns = document.querySelectorAll('#download-csv-template-btn, label[for="csv-upload-input"]');
+        
+        if (addBtn) addBtn.style.display = features.add_single !== false ? '' : 'none';
+        csvBtns.forEach(btn => btn.style.display = features.import_export !== false ? '' : 'none');
 
     } catch (e) {
         console.error("初始化失敗:", e);

@@ -1140,7 +1140,7 @@ function renderBookingList(bookings) {
     const isGuesthouse = bookingMode === 'range';
     const enableTimeSlots = activeTemplate.client_config?.booking?.studio_settings?.enable_time_slots !== false;
 
-    // 1. 動態過濾欄位
+    // 1. 動態過濾欄位 (這段是新的邏輯)
     const finalColumns = columns.filter(col => {
         // 若是工作室，隱藏退房日期
         if (col.key === 'check_out_date' && !isGuesthouse) return false;

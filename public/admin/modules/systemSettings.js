@@ -313,7 +313,7 @@ const systemSettings = {
         sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.visible_modules.finance', visible.finance));
         sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.visible_modules.coupons', visible.coupons));
         
-        content += this.buildNestedSection('側邊選單顯示 (Sidebar)', sidebarContent);
+        content += this.buildNestedSection('頂部選單顯示 (Navigation)', sidebarContent);
 
         // 2. Dashboard
         const widgets = config.dashboard.widgets || {};

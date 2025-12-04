@@ -666,6 +666,6 @@ const systemSettings = {
             btn.textContent = '儲存並套用設定';
         }
     }
-
+}
 window.systemSettings = systemSettings;
 export const init = () => systemSettings.init();

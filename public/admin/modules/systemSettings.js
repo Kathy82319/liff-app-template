@@ -405,7 +405,7 @@ const systemSettings = {
         content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
         return this.buildAccordionItem('adminConfig', '商家後台 (Admin Panel) 設定', content);
-    }
+    },
 
     // 3. 手機版後台設定 (Owner)
     renderOwnerConfig() {

@@ -1,6 +1,7 @@
 /**
- * System Settings Module - v13.0 (Schema-Driven UI Implementation)
+ * System Settings Module - v15.0 (Complete Admin Config UI)
  * 負責渲染基於 JSON Template 的系統設定介面，支援動態欄位與連動邏輯。
+ * 包含 Sidebar, Dashboard, Users (CRM), Inventory (Form Logic), Bookings, Store Info 等完整設定。
  */
 import { api } from '../api.js';
 import { ui } from '../ui.js';
@@ -8,10 +9,10 @@ import { ui } from '../ui.js';
 const systemSettings = {
     // 狀態存儲
     state: {
-        definitions: null, // 對應 DB: LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS (所有樣板)
-        currentConfig: null, // 當前「正在編輯」的樣板完整設定物件
-        activeTemplateKey: '', // 當前選擇編輯的樣板 Key (e.g., 'studio_template')
-        systemActiveKey: ''    // 系統目前真正啟用的樣板 Key (用於標示)
+        definitions: null,
+        currentConfig: null,
+        activeTemplateKey: '',
+        systemActiveKey: ''
     },
 
     // 初始化
@@ -20,7 +21,6 @@ const systemSettings = {
         const container = document.getElementById('page-settings');
         if (!container) return;
         
-        // 注入 CSS (只注入一次)
         if (!document.getElementById('settings-dynamic-styles')) {
             this.injectStyles();
         }
@@ -36,37 +36,35 @@ const systemSettings = {
             .settings-container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
             .template-selector-box { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--color-primary); }
             
-            /* Accordion */
             .accordion-item { background: #fff; border-radius: 8px; margin-bottom: 10px; border: 1px solid #eee; overflow: hidden; }
             .accordion-header { padding: 15px 20px; cursor: pointer; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; font-weight: 600; transition: background 0.2s; }
             .accordion-header:hover { background: #e9ecef; }
             .accordion-content { display: none; padding: 20px; border-top: 1px solid #eee; }
             .accordion-content.show { display: block; animation: fadeIn 0.3s ease; }
 
-            /* Nested Accordion */
             .nested-section { margin-top: 15px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
             .nested-header { padding: 10px 15px; background: #f1f3f5; font-size: 0.95rem; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
             .nested-content { padding: 15px; display: none; background: #fff; }
             .nested-content.show { display: block; }
 
-            /* Forms */
             .setting-row { display: grid; grid-template-columns: 200px 1fr; gap: 15px; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
             .setting-row:last-child { border-bottom: none; }
             .setting-label { font-weight: 500; color: #333; }
             .setting-desc { font-size: 0.85em; color: #888; display: block; margin-top: 2px; }
             
-            /* Inputs */
             .form-control { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
             .form-control:focus { border-color: var(--color-primary); outline: none; }
             
-            /* Sortable Lists */
             .sortable-list { list-style: none; padding: 0; margin: 0; border: 1px solid #eee; border-radius: 4px; }
             .sortable-item { display: grid; grid-template-columns: 30px 40px 150px 1fr; align-items: center; gap: 10px; padding: 10px; background: #fff; border-bottom: 1px solid #eee; }
             .sortable-item:last-child { border-bottom: none; }
             .sortable-handle { cursor: grab; color: #aaa; text-align: center; }
             
-            /* Save Bar */
             .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 15px 40px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: flex-end; align-items: center; gap: 15px; backdrop-filter: blur(5px); z-index: 999; }
+            
+            /* 內部區塊樣式 */
+            .sub-settings-box { background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 10px; border: 1px solid #eee; }
+            .sub-settings-title { margin: 0 0 10px 0; font-size: 0.95rem; color: var(--color-primary); border-bottom: 2px solid #e9ecef; padding-bottom: 5px; display: inline-block;}
             
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         `;
@@ -76,26 +74,19 @@ const systemSettings = {
     // 載入資料
     async loadData() {
         const container = document.getElementById('page-settings');
-        // container.innerHTML = '<p style="text-align:center; padding:20px;">正在載入系統設定...</p>';
-
         try {
             const settings = await api.getSettings();
             
-            // 1. 讀取定義檔 (LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS)
             const defsRow = settings.find(s => s.key === 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS');
             if (defsRow && defsRow.value) {
                 this.state.definitions = JSON.parse(defsRow.value);
             } else {
-                // 如果 DB 是空的，給予預設值 (防呆)
-                console.warn('DB 缺少 LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS，使用預設空物件。');
                 this.state.definitions = {}; 
             }
 
-            // 2. 讀取當前啟用的樣板 ID (LOGIC_ACTIVE_INDUSTRY_TEMPLATE)
             const activeRow = settings.find(s => s.key === 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE');
             this.state.systemActiveKey = activeRow ? activeRow.value : '';
             
-            // 預設編輯當前啟用的樣板，如果沒有則選第一個
             const keys = Object.keys(this.state.definitions);
             if (!this.state.activeTemplateKey) {
                 this.state.activeTemplateKey = this.state.systemActiveKey && keys.includes(this.state.systemActiveKey) 
@@ -103,7 +94,6 @@ const systemSettings = {
                     : (keys[0] || '');
             }
 
-            // 3. 深拷貝當前要編輯的設定，避免直接修改原始資料
             if (this.state.activeTemplateKey) {
                 this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[this.state.activeTemplateKey]));
             }
@@ -121,7 +111,6 @@ const systemSettings = {
         const container = document.getElementById('page-settings');
         if (!container) return;
 
-        // 樣板選擇器選項
         const keys = Object.keys(this.state.definitions);
         let templateOptions = keys.map(key => 
             `<option value="${key}" ${this.state.activeTemplateKey === key ? 'selected' : ''}>
@@ -163,17 +152,11 @@ const systemSettings = {
 
         container.innerHTML = html;
         this.bindEvents();
-        
-        // 如果使用了 SortableJS，初始化它
         this.initSortables();
     },
 
-    // ------------------------------------------------------------------
-    // 渲染區塊 (Renderers)
-    // ------------------------------------------------------------------
-
     // 1. 客戶端設定 (LIFF)
-renderClientConfig() {
+    renderClientConfig() {
         const config = this.state.currentConfig?.client_config;
         if (!config) return '';
 
@@ -199,8 +182,8 @@ renderClientConfig() {
             if(!this.state.currentConfig.client_config.booking.studio_settings) {
                 this.updateValue('client_config.booking.studio_settings', studioSettings); 
             }
-            bookingContent += `<div style="background:#f0f8ff; padding:15px; border-radius:6px; margin:10px 0;">`;
-            bookingContent += `<h5 style="margin:0 0 10px 0; color:var(--color-primary);">🕐 工作室時段設定</h5>`;
+            bookingContent += `<div class="sub-settings-box">`;
+            bookingContent += `<h5 class="sub-settings-title">🕐 工作室時段設定</h5>`;
             bookingContent += this.buildSettingRow('啟用時段選擇', this.buildToggle('client_config.booking.studio_settings.enable_time_slots', studioSettings.enable_time_slots));
             
             if (studioSettings.enable_time_slots) {
@@ -218,7 +201,7 @@ renderClientConfig() {
 
         content += this.buildNestedSection('線上預約 (Booking)', bookingContent);
 
-        // Products - 【修正重點：移除舊設定，加入 show_search】
+        // Products
         let prodContent = '';
         prodContent += this.buildSettingRow('頁面標題', this.buildInput('client_config.products.title', config.products.title));
         prodContent += this.buildSettingRow('顯示搜尋欄位', this.buildToggle('client_config.products.show_search', config.products.show_search !== false));
@@ -246,45 +229,147 @@ renderClientConfig() {
         return this.buildAccordionItem('clientConfig', '客戶端 (LIFF App) 設定', content);
     },
 
-    // ... (其餘函式 renderAdminConfig, renderOwnerConfig, renderTermsConfig, builders, events 保持不變) ...
-    
-    // (請確保將上述 renderClientConfig 函式替換回 systemSettings 物件中，並保留其他部分)
-    // 為了完整性，若您需要完整程式碼請告知，否則只需更新此函式即可。
-// ------------------------------------------------------------------
-    // 2. 商家後台設定 (Admin Panel)
+    // 2. 商家後台設定 (Admin Panel) - 【完整實作版】
     renderAdminConfig() {
         const config = this.state.currentConfig?.admin_config;
         if (!config) return '';
 
         let content = '';
 
-        // Dashboard
-        content += this.buildNestedSection('儀表板 (Dashboard)', 
-            this.buildSettingRow('啟用模組', this.buildToggle('admin_config.dashboard.enabled', config.dashboard.enabled))
-        );
+        // 1. Sidebar (側邊選單顯示) - 集中管理
+        if (!this.state.currentConfig.admin_config.visible_modules) {
+             // 若無舊設定，則依據各模組的 enabled 狀態初始化
+             this.state.currentConfig.admin_config.visible_modules = {
+                 dashboard: config.dashboard?.enabled,
+                 users: config.users?.enabled,
+                 products: config.inventory?.enabled,
+                 room_control: config.room_control?.enabled,
+                 bookings: config.bookings?.enabled,
+                 news: config.news?.enabled,
+                 store_info: config.store_info?.enabled,
+                 finance: config.others?.reports,
+                 coupons: config.others?.vouchers
+             };
+        }
+        const visible = config.visible_modules || {};
+        
+        let sidebarContent = '';
+        sidebarContent += this.buildSettingRow('儀表板', this.buildToggle('admin_config.visible_modules.dashboard', visible.dashboard));
+        sidebarContent += this.buildSettingRow('顧客管理', this.buildToggle('admin_config.visible_modules.users', visible.users));
+        sidebarContent += this.buildSettingRow('產品/服務管理', this.buildToggle('admin_config.visible_modules.products', visible.products));
+        sidebarContent += this.buildSettingRow('房況控管 (民宿)', this.buildToggle('admin_config.visible_modules.room_control', visible.room_control));
+        sidebarContent += this.buildSettingRow('訂單管理', this.buildToggle('admin_config.visible_modules.bookings', visible.bookings));
+        sidebarContent += this.buildSettingRow('最新消息', this.buildToggle('admin_config.visible_modules.news', visible.news));
+        sidebarContent += this.buildSettingRow('店家資訊', this.buildToggle('admin_config.visible_modules.store_info', visible.store_info));
+        sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.visible_modules.finance', visible.finance));
+        sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.visible_modules.coupons', visible.coupons));
+        
+        // 同步更新舊有的 enabled 欄位以維持相容性 (Optional, but recommended)
+        // 這裡我們透過 updateValue 的連動機制，當 toggle 改變時，可以順便更新舊值 (若需要)
+        // 暫時讓 visible_modules 作為主要控制來源
 
-        // Inventory (Columns Sorting)
-        let invContent = this.buildSettingRow('啟用模組', this.buildToggle('admin_config.inventory.enabled', config.inventory.enabled));
-        invContent += `<div style="margin-top:10px;"><label class="setting-label">產品列表欄位排序與顯示：</label>`;
+        content += this.buildNestedSection('側邊選單顯示 (Sidebar)', sidebarContent);
+
+
+        // 2. Dashboard (小工具)
+        if (!this.state.currentConfig.admin_config.dashboard.widgets) {
+             this.updateValue('admin_config.dashboard.widgets', { today_orders: true, revenue: true });
+        }
+        const widgets = config.dashboard.widgets || {};
+        let dashContent = '';
+        dashContent += this.buildSettingRow('今日訂單/訪客', this.buildToggle('admin_config.dashboard.widgets.today_orders', widgets.today_orders));
+        dashContent += this.buildSettingRow('營收統計', this.buildToggle('admin_config.dashboard.widgets.revenue', widgets.revenue));
+        content += this.buildNestedSection('儀表板設定 (Dashboard)', dashContent);
+
+        // 3. Users (顧客列表與 CRM)
+        let usersContent = '';
+        // CRM 設定
+        if (!this.state.currentConfig.admin_config.users.crm_view) {
+             this.updateValue('admin_config.users.crm_view', { show_stored_value: true, show_vouchers: true, show_rally: true, show_tags: true });
+        }
+        const crm = config.users.crm_view || {};
+        usersContent += `<div class="sub-settings-box">`;
+        usersContent += `<h5 class="sub-settings-title">顧客詳情 (CRM) 顯示</h5>`;
+        usersContent += this.buildSettingRow('儲值金紀錄', this.buildToggle('admin_config.users.crm_view.show_stored_value', crm.show_stored_value));
+        usersContent += this.buildSettingRow('持有優惠券', this.buildToggle('admin_config.users.crm_view.show_vouchers', crm.show_vouchers));
+        usersContent += this.buildSettingRow('集點進度', this.buildToggle('admin_config.users.crm_view.show_rally', crm.show_rally));
+        usersContent += this.buildSettingRow('標籤', this.buildToggle('admin_config.users.crm_view.show_tags', crm.show_tags));
+        usersContent += `</div>`;
+
+        usersContent += `<div style="margin-top:10px;"><label class="setting-label">顧客列表欄位：</label>`;
+        usersContent += this.buildColumnSorter('admin_config.users.columns', config.users.columns);
+        usersContent += `</div>`;
+        content += this.buildNestedSection('顧客管理設定 (Users)', usersContent);
+
+        // 4. Products (功能與表單)
+        let invContent = '';
+        const features = config.inventory.features || { add_single: true, import_export: true };
+        const formSettings = config.inventory.form_settings || { price_mode: 'simple', stock_mode: 'quantity', specs_count: 3, allow_image_upload: true };
+        
+        // 確保物件存在
+        if(!this.state.currentConfig.admin_config.inventory.features) this.updateValue('admin_config.inventory.features', features);
+        if(!this.state.currentConfig.admin_config.inventory.form_settings) this.updateValue('admin_config.inventory.form_settings', formSettings);
+
+        invContent += `<div class="sub-settings-box">`;
+        invContent += `<h5 class="sub-settings-title">功能按鈕</h5>`;
+        invContent += this.buildSettingRow('顯示「新增單筆」', this.buildToggle('admin_config.inventory.features.add_single', features.add_single));
+        invContent += this.buildSettingRow('顯示「匯入/匯出」', this.buildToggle('admin_config.inventory.features.import_export', features.import_export));
+        invContent += `</div>`;
+
+        invContent += `<div class="sub-settings-box">`;
+        invContent += `<h5 class="sub-settings-title">新增/編輯表單設定</h5>`;
+        invContent += this.buildSettingRow('價格模式', this.buildSelect('admin_config.inventory.form_settings.price_mode', formSettings.price_mode, [
+            {value: 'simple', label: '單一價格 (適用工作室)'},
+            {value: 'complex', label: '平/假日價格 (適用民宿)'}
+        ]));
+        invContent += this.buildSettingRow('庫存模式', this.buildSelect('admin_config.inventory.form_settings.stock_mode', formSettings.stock_mode, [
+            {value: 'quantity', label: '數量制 (Quantity)'},
+            {value: 'status', label: '狀態制 (Status Only)'},
+            {value: 'date_based', label: '日期制 (Date Based - 民宿用)'},
+            {value: 'none', label: '不管理 (純展示)'}
+        ]));
+        invContent += this.buildSettingRow('規格欄位數量', this.buildInput('admin_config.inventory.form_settings.specs_count', formSettings.specs_count, 'number'));
+        invContent += this.buildSettingRow('允許圖片上傳', this.buildToggle('admin_config.inventory.form_settings.allow_image_upload', formSettings.allow_image_upload));
+        invContent += `</div>`;
+
+        invContent += `<div style="margin-top:10px;"><label class="setting-label">產品列表欄位：</label>`;
         invContent += this.buildColumnSorter('admin_config.inventory.columns', config.inventory.columns);
         invContent += `</div>`;
-        content += this.buildNestedSection('產品管理 (Inventory)', invContent);
+        content += this.buildNestedSection('產品管理設定 (Products)', invContent);
 
-        // Bookings (Columns Sorting)
-        let bookingContent = this.buildSettingRow('啟用模組', this.buildToggle('admin_config.bookings.enabled', config.bookings.enabled));
-        bookingContent += `<div style="margin-top:10px;"><label class="setting-label">訂單列表欄位排序與顯示：</label>`;
+        // 5. Bookings
+        let bookingContent = '';
+        bookingContent += `<div style="margin-top:10px;"><label class="setting-label">訂單列表欄位：</label>`;
         bookingContent += this.buildColumnSorter('admin_config.bookings.columns', config.bookings.columns);
         bookingContent += `</div>`;
-        content += this.buildNestedSection('訂單管理 (Bookings)', bookingContent);
-
-        // Users & Others
-        content += this.buildNestedSection('其他模組開關', 
-            this.buildSettingRow('顧客管理', this.buildToggle('admin_config.users.enabled', config.users.enabled)) +
-            this.buildSettingRow('房量控管 (民宿)', this.buildToggle('admin_config.room_control.enabled', config.room_control?.enabled)) +
-            this.buildSettingRow('優惠券', this.buildToggle('admin_config.others.vouchers', config.others.vouchers)) +
-            this.buildSettingRow('集點活動', this.buildToggle('admin_config.others.rally', config.others.rally)) +
-            this.buildSettingRow('財務報表', this.buildToggle('admin_config.others.reports', config.others.reports))
-        );
+        content += this.buildNestedSection('訂單管理設定 (Bookings)', bookingContent);
+        
+        // 6. Store Info (政策顯示)
+        let storeContent = '';
+        // 確保物件存在
+        if (!this.state.currentConfig.admin_config.store_info.policy_fields) {
+             this.updateValue('admin_config.store_info.policy_fields', { show_cancellation: true, show_instructions: true });
+        }
+        if (!this.state.currentConfig.admin_config.store_info.policy_labels) {
+             this.updateValue('admin_config.store_info.policy_labels', { cancellation: "取消政策", instructions: "入住須知" });
+        }
+        
+        const policyFields = config.store_info.policy_fields || {};
+        const policyLabels = config.store_info.policy_labels || {};
+        
+        storeContent += `<div class="sub-settings-box">`;
+        storeContent += `<h5 class="sub-settings-title">政策顯示與標題</h5>`;
+        
+        storeContent += this.buildSettingRow('顯示「取消政策」', this.buildToggle('admin_config.store_info.policy_fields.show_cancellation', policyFields.show_cancellation));
+        storeContent += this.buildSettingRow('自訂標題', this.buildInput('admin_config.store_info.policy_labels.cancellation', policyLabels.cancellation));
+        
+        storeContent += `<hr style="margin:10px 0; border-color:#eee;">`;
+        
+        storeContent += this.buildSettingRow('顯示「須知事項」', this.buildToggle('admin_config.store_info.policy_fields.show_instructions', policyFields.show_instructions));
+        storeContent += this.buildSettingRow('自訂標題', this.buildInput('admin_config.store_info.policy_labels.instructions', policyLabels.instructions));
+        
+        storeContent += `</div>`;
+        content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
         return this.buildAccordionItem('adminConfig', '商家後台 (Admin Panel) 設定', content);
     },
@@ -319,7 +404,6 @@ renderClientConfig() {
     // ------------------------------------------------------------------
     // UI 元件生成器 (Builders)
     // ------------------------------------------------------------------
-
     buildAccordionItem(id, title, contentHtml) {
         return `
             <div class="accordion-item" id="${id}">
@@ -333,9 +417,7 @@ renderClientConfig() {
             </div>
         `;
     },
-
     buildNestedSection(title, content) {
-        // 隨機 ID 避免衝突
         const id = 'nest_' + Math.random().toString(36).substr(2, 9);
         return `
             <div class="nested-section">
@@ -348,7 +430,6 @@ renderClientConfig() {
             </div>
         `;
     },
-
     buildSettingRow(label, inputHtml, desc = '') {
         return `
             <div class="setting-row">
@@ -360,12 +441,10 @@ renderClientConfig() {
             </div>
         `;
     },
-
     buildInput(path, value, type = 'text') {
         const safeValue = (value === null || value === undefined) ? '' : value;
         return `<input type="${type}" class="form-control" value="${safeValue}" onchange="systemSettings.updateValue('${path}', this.value)">`;
     },
-
     buildColorInput(path, value) {
         const safeValue = value || '#000000';
         return `
@@ -374,7 +453,6 @@ renderClientConfig() {
                 <input type="text" class="form-control" style="width:100px;" value="${safeValue}" onchange="this.previousElementSibling.value = this.value; systemSettings.updateValue('${path}', this.value)">
             </div>`;
     },
-
     buildToggle(path, checked) {
         return `
             <label class="switch">
@@ -383,16 +461,12 @@ renderClientConfig() {
             </label>
         `;
     },
-
     buildSelect(path, value, options) {
         const optsHtml = options.map(opt => `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('');
         return `<select class="form-control" onchange="systemSettings.updateValue('${path}', this.value)">${optsHtml}</select>`;
     },
-
-    // 列表排序器生成
     buildColumnSorter(path, columns) {
         if (!Array.isArray(columns)) return '<p style="color:red;">資料格式錯誤 (非陣列)</p>';
-        
         let html = `<ul class="sortable-list" data-path="${path}">`;
         columns.forEach((col, index) => {
             html += `
@@ -411,55 +485,40 @@ renderClientConfig() {
     // ------------------------------------------------------------------
     // 事件處理與邏輯
     // ------------------------------------------------------------------
-
     bindEvents() {
-        // 樣板切換
         const select = document.getElementById('settings-template-select');
         if (select) {
             select.addEventListener('change', (e) => {
                 if (confirm('切換樣板將遺失未儲存的變更，確定嗎？')) {
                     this.state.activeTemplateKey = e.target.value;
                     this.state.currentConfig = JSON.parse(JSON.stringify(this.state.definitions[this.state.activeTemplateKey]));
-                    this.render(); // 重新渲染整個介面
+                    this.render(); 
                 } else {
                     e.target.value = this.state.activeTemplateKey;
                 }
             });
         }
-
-        // 重置按鈕
         const reloadBtn = document.getElementById('settings-reload-btn');
         if (reloadBtn) reloadBtn.addEventListener('click', () => this.loadData());
-
-        // 儲存按鈕
         const saveBtn = document.getElementById('settings-save-btn');
         if (saveBtn) saveBtn.addEventListener('click', () => this.saveSettings());
     },
 
-    // 初始化拖曳排序 (SortableJS)
     initSortables() {
         if (typeof Sortable === 'undefined') return;
-        
         document.querySelectorAll('.sortable-list').forEach(list => {
             new Sortable(list, {
                 handle: '.sortable-handle',
                 animation: 150,
                 onEnd: (evt) => {
-                    // 重新排序陣列
                     const path = list.dataset.path;
                     const oldIndex = evt.oldIndex;
                     const newIndex = evt.newIndex;
-                    
-                    // 取得陣列參考
                     let arr = this.getValueByPath(path);
                     if (Array.isArray(arr)) {
                         const item = arr.splice(oldIndex, 1)[0];
                         arr.splice(newIndex, 0, item);
-                        this.updateValue(path, arr); // 觸發更新
-                        
-                        // 雖然資料更新了，但 DOM 裡的 data-index 還是舊的
-                        // 簡單起見，重新渲染該區塊，或更新 data-index (這裡選擇不重繪，因操作頻繁)
-                        // 實際上 updateValue 不會重繪，這裡需要手動修正 data-index 以便下次操作
+                        this.updateValue(path, arr);
                         Array.from(list.children).forEach((li, idx) => li.dataset.index = idx);
                     }
                 }
@@ -467,27 +526,27 @@ renderClientConfig() {
         });
     },
 
-    // 通用數值更新
     updateValue(path, value) {
-        // 顯示未儲存提示
         document.getElementById('settings-unsaved-indicator').style.display = 'inline';
-        
-        // 解析路徑並更新物件
         const keys = path.split(/[\.\[\]]+/).filter(k => k);
         let target = this.state.currentConfig;
-        
         for (let i = 0; i < keys.length - 1; i++) {
+            // 修正：如果路徑中間的物件不存在，自動建立
+            if (!target[keys[i]]) target[keys[i]] = {}; 
             target = target[keys[i]];
         }
         target[keys[keys.length - 1]] = value;
 
-        // 如果是更改了 Booking Mode，需要觸發 UI 重繪 (因為有條件顯示)
-        if (path === 'client_config.booking.mode') {
+        // 需要重繪 UI 的設定變更
+        if (path === 'client_config.booking.mode' || 
+            path === 'admin_config.inventory.enabled' || 
+            path === 'admin_config.store_info.enabled' ||
+            path === 'admin_config.dashboard.enabled' ||
+            path.includes('form_settings')) {
             this.render();
         }
     },
 
-    // 欄位屬性更新 (針對陣列中的物件)
     updateColumn(path, index, field, value) {
         const arr = this.getValueByPath(path);
         if (arr && arr[index]) {
@@ -506,31 +565,24 @@ renderClientConfig() {
         return target;
     },
 
-    // 儲存設定到後端
     async saveSettings() {
         const btn = document.getElementById('settings-save-btn');
         btn.disabled = true;
         btn.textContent = '儲存中...';
 
         try {
-            // 1. 更新 definitions 物件
             this.state.definitions[this.state.activeTemplateKey] = this.state.currentConfig;
-
-            // 2. 準備 payload (更新 definitions 與 active key)
             const settingsToUpdate = [
                 { key: 'LOGIC_INDUSTRY_TEMPLATE_DEFINITIONS', value: JSON.stringify(this.state.definitions) },
-                { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey } // 設為當前啟用
+                { key: 'LOGIC_ACTIVE_INDUSTRY_TEMPLATE', value: this.state.activeTemplateKey }
             ];
-
             await api.updateSettings(settingsToUpdate);
             
             ui.toast.success('系統設定已更新並套用！');
             document.getElementById('settings-unsaved-indicator').style.display = 'none';
             
-            // 更新本地狀態
             this.state.systemActiveKey = this.state.activeTemplateKey;
-            this.render(); // 重繪以顯示 (目前啟用) 標籤
-
+            this.render(); 
         } catch (error) {
             console.error(error);
             ui.toast.error('儲存失敗：' + error.message);
@@ -541,7 +593,5 @@ renderClientConfig() {
     }
 };
 
-// 將模組掛載到 window 以便 onclick 存取
 window.systemSettings = systemSettings;
-
 export const init = () => systemSettings.init();

@@ -1,4 +1,4 @@
-// functions/api/bookings-create.js (v15.0 - 安全強化版)
+// functions/api/bookings-create.js (v15.1 - Fix Studio Status & ProductID)
 import { getDateRange, getDayOfWeek } from './utils/date-helpers.js';
 
 const FIXED_DRAFT_IDS = {
@@ -16,11 +16,8 @@ export async function onRequest(context) {
         const body = await context.request.json();
         const { userId } = body;
 
-        // --- 【新增：安全性修正】頻率限制 (Rate Limiting) ---
-        // 防止惡意使用者或系統錯誤導致短時間內大量建立訂單
-        // 限制：檢查該用戶在過去 60 秒內是否已有超過 1 筆「剛建立」的訂單
+        // --- 頻率限制 (Rate Limiting) ---
         if (userId) {
-            // 檢查最近 10 秒內的訂單 (防止連點)
             const duplicateCheck = await db.prepare(
                 "SELECT COUNT(*) as count FROM Bookings WHERE user_id = ? AND created_at > datetime('now', '-10 seconds')"
             ).bind(userId).first();
@@ -30,7 +27,6 @@ export async function onRequest(context) {
                 return new Response(JSON.stringify({ error: '預約處理中，請勿重複點擊。' }), { status: 429 });
             }
         }
-        // --- 修正結束 ---
 
         const useStoredValue = body.useStoredValue === true;
 
@@ -40,13 +36,12 @@ export async function onRequest(context) {
         let bookingDate;
         let productsInfo = [];
         let items = [];
-        let calculatedTotalAmount = 0; // 總金額 (將由後端重新計算)
+        let calculatedTotalAmount = 0; // 總金額 (由後端重新計算)
 
         const operations = []; // 批次操作指令集
 
         // === 步驟 A: 建立預約主檔與項目 (依類型) ===
         if (body.bookingType === 'guesthouse') {
-            // ... (民宿邏輯保持不變，因原本已有庫存與價格檢查) ...
             const { startDate, endDate, items: guesthouseItems } = body;
             contactName = body.contactName;
             bookingDate = startDate;
@@ -181,7 +176,7 @@ export async function onRequest(context) {
             }
 
         } else if (body.bookingType === 'studio' || !body.bookingType) {
-            // --- 【安全性修正 2】工作室模式：強制後端查價 ---
+            // --- 工作室模式邏輯 ---
             const { timeSlot, numOfPeople, items: studioItems } = body;
             contactName = body.contactName;
             bookingDate = body.bookingDate;
@@ -194,45 +189,47 @@ export async function onRequest(context) {
                 return new Response(JSON.stringify({ error: '預約必須至少包含一個項目。' }), { status: 400 });
             }
 
-            // 1. 查詢所有產品以獲取正確價格
-            const { results: allProducts } = await db.prepare("SELECT name, price_weekday, price_friday, price_saturday FROM Products").all();
+            // 1. 查詢所有產品 (【修正】加入 product_id)
+            const { results: allProducts } = await db.prepare("SELECT product_id, name, price_weekday, price_friday, price_saturday FROM Products").all();
 
-            // 2. 建立預約主檔
+            // 2. 建立預約主檔 (【修正】加入 status: 'confirmed')
             const bookingStmt = db.prepare(
-                'INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people) VALUES (?, ?, ?, ?, ?, ?) RETURNING booking_id'
+                `INSERT INTO Bookings (user_id, contact_name, contact_phone, booking_date, time_slot, num_of_people, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, 'confirmed') 
+                 RETURNING booking_id`
             );
             const bookingResult = await bookingStmt.bind(userId, contactName, body.contactPhone, bookingDate, timeSlot, numOfPeople).first();
+            
+            if (!bookingResult || !bookingResult.booking_id) {
+                 throw new Error("預約建立失敗，無法取得新訂單 ID。");
+            }
             booking_id = bookingResult.booking_id;
 
-            // 3. 遍歷項目，強制使用資料庫價格
+            // 3. 遍歷項目
             const insertItemStmt = db.prepare('INSERT INTO BookingItems (booking_id, item_name, quantity, price, product_id) VALUES (?, ?, ?, ?, ?)');
             
             for (const item of items) {
-                // 從資料庫中找到對應產品 (根據名稱)
-                // 注意：若前端傳來的名稱被竄改，這裡會找不到而報錯，這也是一種防護
                 const product = allProducts.find(p => p.name === item.name);
                 
                 if (!product) {
                     throw new Error(`找不到產品 "${item.name}"，無法計算價格。`);
                 }
 
-                // 根據日期計算正確價格 (呼叫共用邏輯)
+                // 根據日期計算正確價格
                 const dayOfWeek = getDayOfWeek(bookingDate); // 0-6
                 let realPrice = product.price_weekday;
                 if (dayOfWeek === 5) realPrice = product.price_friday !== null ? product.price_friday : realPrice;
                 else if (dayOfWeek === 6) realPrice = product.price_saturday !== null ? product.price_saturday : realPrice;
 
-                // 如果資料庫中價格未設定 (null)，則報錯
                 if (realPrice === null) {
                     throw new Error(`產品 "${item.name}" 價格設定不完整，無法結帳。`);
                 }
 
-                // 使用後端查到的 realPrice，忽略前端傳來的 item.price
                 calculatedTotalAmount += (realPrice * item.quantity);
                 
-                operations.push(insertItemStmt.bind(booking_id, item.name, item.quantity, realPrice, null));
+                // 【修正】現在可以正確填入 product_id
+                operations.push(insertItemStmt.bind(booking_id, item.name, item.quantity, realPrice, product.product_id));
             }
-            // --- 修正結束 ---
 
              messageContent = `感謝您的預約！\n\n您的預約資訊如下：\n日期：{{bookingDate}}\n時段：{{timeSlot}}\n項目：{{itemSummary}}\n\n期待您的光臨！`;
              try {
@@ -253,7 +250,7 @@ export async function onRequest(context) {
              return new Response(JSON.stringify({ error: `未知的預約類型: ${body.bookingType}` }), { status: 400 });
         }
 
-        // === 步驟 B: 儲值金扣款邏輯 (使用後端計算的金額) ===
+        // === 步驟 B: 儲值金扣款邏輯 ===
         let paymentStatus = 'unpaid'; 
 
         if (useStoredValue) {
@@ -282,7 +279,7 @@ export async function onRequest(context) {
             paymentStatus = 'paid';
         }
 
-        // === 步驟 C: 更新訂單總金額與付款狀態 (使用後端計算的金額) ===
+        // === 步驟 C: 更新訂單總金額與付款狀態 ===
         const updateTotalAmountStmt = db.prepare("UPDATE Bookings SET total_amount = ?, payment_status = ? WHERE booking_id = ?");
         operations.push(updateTotalAmountStmt.bind(calculatedTotalAmount, paymentStatus, booking_id));
 

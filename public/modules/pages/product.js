@@ -7,7 +7,6 @@ let productView = { layout: 'grid', sort: 'default' };
 let activeFilters = { keyword: '', filter_1: null, filter_2: null, filter_3: null };
 
 export async function init() {
-    // 【關鍵補全】讀取排序偏好
     productView.layout = localStorage.getItem('product_layout_preference') || 'grid';
     productView.sort = localStorage.getItem('product_sort_preference') || 'default';
 
@@ -113,12 +112,10 @@ function setupUIControls(features, terms) {
         if (sortButton && !sortButton.dataset.bound) {
             sortButton.addEventListener('click', () => {
                 const current = productView.sort;
-                // 切換排序邏輯：預設 -> 價格高 -> 價格低
                 if (current === 'default') productView.sort = 'price_desc';
                 else if (current === 'price_desc') productView.sort = 'price_asc';
                 else productView.sort = 'default';
                 
-                // 【關鍵補全】儲存排序偏好
                 localStorage.setItem('product_sort_preference', productView.sort);
                 renderProducts();
             });
@@ -171,7 +168,6 @@ function renderProducts() {
         }
     });
 
-    // 執行排序
     switch (productView.sort) {
         case 'price_desc':
             filtered.sort((a, b) => (b.price_weekday || 0) - (a.price_weekday || 0));
@@ -190,7 +186,6 @@ function renderProducts() {
     
     if(sortButton) {
         sortButton.dataset.sort = productView.sort;
-        // 更新按鈕文字箭頭
         const arrow = sortButton.querySelector('.sort-arrow');
         if(arrow) {
             if (productView.sort === 'price_desc') arrow.textContent = '↓';
@@ -205,8 +200,17 @@ function renderProducts() {
         return;
     }
 
+    // 【核心新增】讀取 client_config，決定是否顯示價格 (目前預設顯示)
+    const productConfig = state.activeTemplate?.client_config?.products || {};
+    // 若未設定 show_price，預設為 true
+    const showPrice = productConfig.show_price !== false; 
+
     container.innerHTML = filtered.map(product => {
-        let priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
+        let priceDisplay = '';
+        if (showPrice) {
+            priceDisplay = product.price_weekday != null ? `$${product.price_weekday}` : '洽詢';
+        }
+
         const isList = productView.layout === 'list';
         const images = JSON.parse(product.images || '[]');
         const imageUrl = images.length > 0 ? images[0] : 'https://placehold.co/400x300/F5F5F5/CCCCCC?text=No+Image';
@@ -217,7 +221,7 @@ function renderProducts() {
                 <div class="product-info">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <h3 class="product-title" style="margin:0;">${product.name}</h3>
-                        <span style="color:var(--color-primary); font-weight:bold; font-size:1rem;">${priceDisplay}</span>
+                        ${showPrice ? `<span style="color:var(--color-primary); font-weight:bold; font-size:1rem;">${priceDisplay}</span>` : ''}
                     </div>
                     ${isList ? `<p style="font-size:0.85rem; color:#888; margin:5px 0 0 0;">${product.description ? product.description.substring(0, 40) + '...' : ''}</p>` : ''}
                 </div>
@@ -264,16 +268,22 @@ export function renderDetails(product) {
         }
     } catch(e) { gallery.style.display = 'none'; }
 
-    const priceSection = document.createElement('div');
-    priceSection.className = 'detail-field-section product-price-details';
-    priceSection.innerHTML = `
-        <h3>價格</h3>
-        <p>
-            平日: ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
-            週五: ${product.price_friday !== null ? '$' + product.price_friday : '洽詢'}<br>
-            週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '洽詢'}
-        </p>`;
-    contentContainer.appendChild(priceSection);
+    // 【核心新增】讀取 Config 決定價格顯示
+    const productConfig = state.activeTemplate?.client_config?.products || {};
+    const showPrice = productConfig.show_price !== false;
+
+    if (showPrice) {
+        const priceSection = document.createElement('div');
+        priceSection.className = 'detail-field-section product-price-details';
+        priceSection.innerHTML = `
+            <h3>價格</h3>
+            <p>
+                平日: ${product.price_weekday !== null ? '$' + product.price_weekday : '洽詢'}<br>
+                週五: ${product.price_friday !== null ? '$' + product.price_friday : '洽詢'}<br>
+                週六: ${product.price_saturday !== null ? '$' + product.price_saturday : '洽詢'}
+            </p>`;
+        contentContainer.appendChild(priceSection);
+    }
 
     if (state.activeTemplate?.fields) {
         state.activeTemplate.fields.forEach(field => {

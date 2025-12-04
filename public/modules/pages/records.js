@@ -5,13 +5,24 @@ import { router } from '../router.js';
 
 export async function init() {
     if (!state.userProfile) return;
+    
+    // 1. 讀取設定以控制 Tabs
+    const infoToggles = state.activeTemplate?.client_config?.profile?.info_toggles || {};
+    const showPoints = infoToggles.points !== false;
+    const showBalance = infoToggles.balance !== false;
 
-    // 1. 綁定 Tab 切換 (包含資料重新載入邏輯)
+    const pointsTabBtn = document.querySelector('button[data-target="tab-points"]');
+    const walletTabBtn = document.querySelector('button[data-target="tab-wallet"]');
+    
+    if(pointsTabBtn) pointsTabBtn.style.display = showPoints ? '' : 'none';
+    if(walletTabBtn) walletTabBtn.style.display = showBalance ? '' : 'none';
+
+    // 2. 綁定 Tab 切換 (包含資料重新載入邏輯)
     const header = document.querySelector('.records-tabs-header');
     if (header && !header.dataset.bound) {
         header.addEventListener('click', (e) => {
             const tab = e.target.closest('.record-tab');
-            if (tab) {
+            if (tab && tab.style.display !== 'none') { // 確保只能點擊可見的 tab
                 // UI 切換
                 header.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
@@ -20,14 +31,14 @@ export async function init() {
                 const targetId = tab.dataset.target;
                 document.getElementById(targetId).classList.add('active');
 
-                // 資料載入 (修正：切換時才載入，確保資料最新)
+                // 資料載入
                 loadDataForTab(targetId);
             }
         });
         header.dataset.bound = 'true';
     }
 
-    // 2. 綁定過往紀錄切換按鈕
+    // 3. 綁定過往紀錄切換按鈕
     const toggleBtn = document.getElementById('toggle-past-bookings-btn');
     if (toggleBtn && !toggleBtn.dataset.bound) {
         toggleBtn.addEventListener('click', () => {
@@ -37,19 +48,17 @@ export async function init() {
             toggleBtn.textContent = isHidden ? '隱藏過往紀錄' : '查看過往/已取消紀錄';
             
             if (isHidden) {
-                // 展開時才載入過往資料
                 loadBookings('past', document.getElementById('past-bookings-list'));
             }
         });
         toggleBtn.dataset.bound = 'true';
     }
 
-    // 3. 初始化：預設載入第一個分頁 (預約紀錄)
-    // 這行確保進入頁面時一定會執行一次查詢
+    // 4. 初始化：載入預約紀錄
     loadDataForTab('tab-bookings');
 }
 
-// 根據 Tab ID 決定要載入什麼資料 (Lazy Load)
+// 根據 Tab ID 決定要載入什麼資料
 function loadDataForTab(tabId) {
     if (tabId === 'tab-bookings') {
         const container = document.getElementById('my-bookings-container');
@@ -72,7 +81,6 @@ async function loadBookings(filter, container) {
         }
         
         const listHtml = bookings.map(b => {
-            // 1. 狀態顏色邏輯
             let statusColor = '#888';
             let statusBg = '#f0f0f0';
             let statusText = b.status_text || b.status;
@@ -84,7 +92,6 @@ async function loadBookings(filter, container) {
                 case 'no-show': statusColor = '#ffc107'; statusBg = '#fff8e1'; statusText = '未到'; break;
             }
 
-            // 2. 住宿期間 / 預約時間
             let period = b.booking_date;
             if (b.check_out_date && b.check_out_date !== b.booking_date) {
                 period = `${b.booking_date} ~ ${b.check_out_date}`; 
@@ -92,12 +99,10 @@ async function loadBookings(filter, container) {
                 period = `${b.booking_date} ${b.time_slot}`;
             }
 
-            // 3. 項目摘要
             const itemsName = b.items && b.items.length > 0 
                 ? b.items.map(i => `${i.item_name} x${i.quantity}`).join(', ') 
                 : '無項目資訊';
 
-            // 4. 卡片 HTML (加入點擊引導)
             return `
             <div class="booking-info-card" onclick="openDetails(${b.booking_id})" style="cursor: pointer; position: relative; padding: 15px; border-left: 5px solid ${statusColor}; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: stretch;">
@@ -127,9 +132,9 @@ async function loadBookings(filter, container) {
             </div>`;
         }).join('');
         
-        container.innerHTML = hintHtml + listHtml;
+        // 【修正】移除未定義的 hintHtml
+        container.innerHTML = listHtml;
         
-        // 確保全域函式存在
         window.openDetails = (id) => router.navigate('page-booking-details', { bookingId: id });
 
     } catch (e) {

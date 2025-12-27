@@ -1,6 +1,6 @@
 /**
- * System Settings Module - v15.1 (Fix Render Loop & Null Pointer)
- * 修正：將資料初始化邏輯 (ensureDefaults) 與渲染邏輯分離，避免無限迴圈與 DOM 存取錯誤。
+ * System Settings Module - v15.2 (Fix Missing Columns & Defaults)
+ * 修正：自動補齊 Users, News, Points 的欄位設定預設值，並提供介面管理。
  */
 import { api } from '../api.js';
 import { ui } from '../ui.js';
@@ -107,7 +107,7 @@ const systemSettings = {
         }
     },
 
-    // 【新功能】資料初始化與預設值填補 (不觸發 UI 更新)
+    // 【核心修正】資料初始化與預設值填補 (補齊缺失的 columns 設定)
     ensureDefaults() {
         const config = this.state.currentConfig;
         if (!config) return;
@@ -117,7 +117,7 @@ const systemSettings = {
         
         const ac = config.admin_config;
 
-        // 1. Sidebar
+        // 1. Sidebar (Visibility) - 初始化預設值
         if (!ac.visible_modules) {
             ac.visible_modules = {
                 dashboard: ac.dashboard?.enabled,
@@ -128,7 +128,8 @@ const systemSettings = {
                 news: ac.news?.enabled,
                 store_info: ac.store_info?.enabled,
                 finance: ac.others?.reports,
-                coupons: ac.others?.vouchers
+                coupons: ac.others?.vouchers,
+                points: ac.points?.enabled, // 新增
             };
         }
 
@@ -142,6 +143,17 @@ const systemSettings = {
         if (!ac.users) ac.users = { enabled: true };
         if (!ac.users.crm_view) {
             ac.users.crm_view = { show_stored_value: true, show_vouchers: true, show_rally: true, show_tags: true };
+        }
+        // 【新增】Users Columns 預設值
+        if (!ac.users.columns) {
+            ac.users.columns = [
+                { key: 'line_display_name', label: '顧客姓名', enabled: true },
+                { key: 'phone', label: '電話', enabled: true },
+                { key: 'level', label: '等級', enabled: true },
+                { key: 'current_exp', label: '目前點數', enabled: true },
+                { key: 'stored_value_balance', label: '儲值金餘額', enabled: true },
+                { key: 'class', label: '會員方案', enabled: true }
+            ];
         }
 
         // 4. Inventory Features & Settings
@@ -169,21 +181,8 @@ const systemSettings = {
             }
         }
         
-        // 注意：這裡直接修改記憶體中的 state，不呼叫 updateValue 以避免副作用
-
-        // 7. Ensure User Columns (補齊顧客列表欄位預設值)
-    if (!ac.users.columns) {
-        ac.users.columns = [
-            { key: 'line_display_name', label: '顧客姓名', enabled: true },
-            { key: 'phone', label: '電話', enabled: true },
-            { key: 'level', label: '等級', enabled: true },
-            { key: 'current_exp', label: '目前點數', enabled: true },
-            { key: 'stored_value_balance', label: '儲值金餘額', enabled: true },
-            { key: 'class', label: '會員方案', enabled: true }
-        ];
-    }
-
-    if (!ac.news) ac.news = { enabled: true };
+        // 【新增】7. News (情報/最新消息) 預設值
+        if (!ac.news) ac.news = { enabled: true };
         if (!ac.news.columns) {
             ac.news.columns = [
                 { key: 'title', label: '標題', enabled: true },
@@ -193,8 +192,8 @@ const systemSettings = {
             ];
         }
 
-        // 8. Points (點數中心) 預設值
-        if (!ac.points) ac.points = {}; // 確保物件存在
+        // 【新增】8. Points (點數中心) 預設值
+        if (!ac.points) ac.points = { enabled: true };
         if (!ac.points.columns) {
             ac.points.columns = [
                 { key: 'created_at', label: '日期', enabled: true },
@@ -203,8 +202,20 @@ const systemSettings = {
                 { key: 'exp_added', label: '點數變動', enabled: true }
             ];
         }
+
+        // 【新增】9. Booking Columns 預設值 (確保完整性)
+        if (!ac.bookings) ac.bookings = { enabled: true };
+        if (!ac.bookings.columns) {
+            ac.bookings.columns = [
+                 { key: 'booking_date', label: '預約日期', enabled: true },
+                 { key: 'time_slot', label: '時段', enabled: true },
+                 { key: 'name', label: '姓名', enabled: true },
+                 { key: 'phone', label: '電話', enabled: true },
+                 { key: 'status', label: '狀態', enabled: true }
+            ];
+        }
         
-    // (函式結束)
+        // 注意：這裡直接修改記憶體中的 state，不呼叫 updateValue 以避免副作用
     },
 
     // 主渲染函式
@@ -335,37 +346,23 @@ const systemSettings = {
 
         let content = '';
 
-        // 1. Sidebar (頂部選單顯示) - 修正：綁定到各模組的 Source of Truth (enabled/others)
-        // 這樣 saveSettings 的同步邏輯才能正確運作
+        // 1. Sidebar (頂部選單顯示)
         const ac = config; // alias
         const others = ac.others || {}; 
 
         let sidebarContent = '';
-        // 儀表板 -> admin_config.dashboard.enabled
         sidebarContent += this.buildSettingRow('儀表板', this.buildToggle('admin_config.dashboard.enabled', ac.dashboard?.enabled));
-        // 顧客管理 -> admin_config.users.enabled
         sidebarContent += this.buildSettingRow('顧客管理', this.buildToggle('admin_config.users.enabled', ac.users?.enabled));
-        // 產品管理 -> admin_config.inventory.enabled
         sidebarContent += this.buildSettingRow('產品/服務管理', this.buildToggle('admin_config.inventory.enabled', ac.inventory?.enabled));
-        // 房況管理 -> admin_config.room_control.enabled
         sidebarContent += this.buildSettingRow('房況控管 (民宿)', this.buildToggle('admin_config.room_control.enabled', ac.room_control?.enabled));
-        // 訂單管理 -> admin_config.bookings.enabled
         sidebarContent += this.buildSettingRow('訂單管理', this.buildToggle('admin_config.bookings.enabled', ac.bookings?.enabled));
-        // 最新消息 -> admin_config.news.enabled
+        // 【修正】使用 ac.news.enabled
         sidebarContent += this.buildSettingRow('最新消息', this.buildToggle('admin_config.news.enabled', ac.news?.enabled));
-        // --- 新增這段以顯示欄位排序器 ---
-        if (ac.news?.enabled) {
-            sidebarContent += `<div style="margin-top:10px; padding-left:10px; border-left:3px solid #eee;">
-                <label class="setting-label">情報列表欄位：</label>
-                ${this.buildColumnSorter('admin_config.news.columns', ac.news.columns)}
-            </div>`;
-        }
-        // 店家資訊 -> admin_config.store_info.enabled
         sidebarContent += this.buildSettingRow('店家資訊', this.buildToggle('admin_config.store_info.enabled', ac.store_info?.enabled));
-        // 財務報表 -> admin_config.others.reports
         sidebarContent += this.buildSettingRow('財務報表', this.buildToggle('admin_config.others.reports', others.reports));
-        // 優惠券 -> admin_config.others.vouchers
         sidebarContent += this.buildSettingRow('優惠券/行銷', this.buildToggle('admin_config.others.vouchers', others.vouchers));
+        // 【新增】點數中心
+        sidebarContent += this.buildSettingRow('點數中心', this.buildToggle('admin_config.points.enabled', ac.points?.enabled));
         
         content += this.buildNestedSection('頂部選單顯示 (Navigation)', sidebarContent);
 
@@ -430,6 +427,21 @@ const systemSettings = {
         bookingContent += this.buildColumnSorter('admin_config.bookings.columns', config.bookings?.columns);
         bookingContent += `</div>`;
         content += this.buildNestedSection('訂單管理設定 (Bookings)', bookingContent);
+
+        // 【新增】News Config (情報管理)
+        let newsContent = '';
+        newsContent += `<div style="margin-top:10px;"><label class="setting-label">情報列表欄位：</label>`;
+        // 確保讀取到 config.news.columns
+        newsContent += this.buildColumnSorter('admin_config.news.columns', config.news?.columns);
+        newsContent += `</div>`;
+        content += this.buildNestedSection('情報管理設定 (News)', newsContent);
+
+        // 【新增】Points Config (點數中心)
+        let pointsContent = '';
+        pointsContent += `<div style="margin-top:10px;"><label class="setting-label">點數紀錄列表欄位：</label>`;
+        pointsContent += this.buildColumnSorter('admin_config.points.columns', config.points?.columns);
+        pointsContent += `</div>`;
+        content += this.buildNestedSection('點數中心設定 (Points)', pointsContent);
         
         // 6. Store Info
         let storeContent = '';
@@ -447,19 +459,6 @@ const systemSettings = {
         content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
         return this.buildAccordionItem('adminConfig', '商家後台 (Admin Panel) 設定', content);
-
-        let newsContent = '';
-        newsContent += `<div style="margin-top:10px;"><label class="setting-label">情報列表欄位：</label>`;
-        newsContent += this.buildColumnSorter('admin_config.news.columns', config.inventory?.news?.columns || this.state.currentConfig.admin_config.news.columns);
-        newsContent += `</div>`;
-        content += this.buildNestedSection('情報管理設定 (News)', newsContent);
-
-        // --- 新增：點數中心設定區塊 ---
-        let pointsContent = '';
-        pointsContent += `<div style="margin-top:10px;"><label class="setting-label">點數紀錄列表欄位：</label>`;
-        pointsContent += this.buildColumnSorter('admin_config.points.columns', this.state.currentConfig.admin_config.points.columns);
-        pointsContent += `</div>`;
-        content += this.buildNestedSection('點數中心設定 (Points)', pointsContent);
     },
 
     // 3. 手機版後台設定 (Owner)
@@ -678,7 +677,8 @@ const systemSettings = {
                     'finance': ac.others?.reports,
                     'coupons': ac.others?.vouchers,
                     'rally': ac.others?.rally,
-                    'points': ac.others?.points,
+                    // 【修正】確保 points 對應到 ac.points (優先) 或 others.points
+                    'points': ac.points?.enabled ?? ac.others?.points,
                     'drafts': ac.others?.drafts
                 };
             }

@@ -136,7 +136,7 @@ const systemSettings = {
         }
         if (!ac.users.crm_view) ac.users.crm_view = { show_stored_value: true, show_vouchers: true, show_rally: true, show_tags: true };
 
-        // 3. News
+        // 3. News (News 自動移除 views)
         if (!ac.news) ac.news = { enabled: true };
         if (!ac.news.columns) {
             ac.news.columns = [
@@ -145,19 +145,31 @@ const systemSettings = {
                 { key: 'published_date', label: '發布日期', enabled: true }
             ];
         } else if (Array.isArray(ac.news.columns)) {
-            // 自動移除 views
             ac.news.columns = ac.news.columns.filter(c => c.key !== 'views');
         }
 
-        // 4. Drafts (核心修正：補齊 Columns 預設值)
+        // 4. Drafts (核心修正：移除 subject 與 last_updated，只保留 title)
         if (!ac.drafts) ac.drafts = { enabled: true };
+        
+        // 定義我們希望的「乾淨」欄位
+        const cleanDraftColumns = [{ key: 'title', label: '標題', enabled: true }];
+
         if (!ac.drafts.columns) {
-            ac.drafts.columns = [
-                { key: 'title', label: '標題', enabled: true },
-                { key: 'subject', label: '主旨/內容摘要', enabled: true },
-                { key: 'last_updated', label: '更新時間', enabled: true }
-            ];
+            // 如果完全沒設定，直接用乾淨版
+            ac.drafts.columns = cleanDraftColumns;
+        } else if (Array.isArray(ac.drafts.columns)) {
+            // 如果已經有設定 (可能包含上次儲存的 subject/last_updated)，則執行過濾
+            const unwanted = ['subject', 'last_updated'];
+            const hasUnwanted = ac.drafts.columns.some(c => unwanted.includes(c.key));
+            
+            if (hasUnwanted) {
+                console.log("[SystemSettings] Auto-removing unwanted Drafts columns...");
+                ac.drafts.columns = ac.drafts.columns.filter(c => !unwanted.includes(c.key));
+            }
         }
+        // 確保 others.drafts 開關存在
+        if (!ac.others) ac.others = {};
+        if (ac.others.drafts === undefined) ac.others.drafts = true;
 
         // 5. Points
         if (!ac.points) ac.points = { enabled: true };
@@ -169,6 +181,7 @@ const systemSettings = {
                 { key: 'exp_added', label: '點數變動', enabled: true }
              ];
         }
+    },
         
         // 6. Others switch
         if (!ac.others) ac.others = {};

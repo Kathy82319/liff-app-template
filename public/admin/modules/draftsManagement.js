@@ -36,17 +36,27 @@ function renderDraftList(drafts) {
 
     if (!draftListTbody || !draftListTheadTr) return;
     
-    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminDraftColumns)) {
-        draftListTheadTr.innerHTML = '<th>錯誤</th>';
-        draftListTbody.innerHTML = '<tr><td style="text-align: center; color: red;">錯誤：草稿列表欄位設定未載入。</td></tr>';
-        return;
+    // --- 修正開始：改讀取 admin_config 並加入防呆 ---
+    const config = (activeTemplate && activeTemplate.admin_config) ? activeTemplate.admin_config : {};
+    
+    // 優先讀取 config，如果沒有則使用預設值
+    let columnsSetting = (config.drafts && config.drafts.columns) ? config.drafts.columns : [];
+
+    // 防呆：如果真的讀不到，給一個安全的預設值
+    // 修正：這裡只保留 'title'，移除多餘的 'subject' 和可能不存在的 'last_updated'
+    if (!Array.isArray(columnsSetting) || columnsSetting.length === 0) {
+        console.warn("[Drafts] Columns config missing, using defaults.");
+        columnsSetting = [
+            { key: 'title', label: '標題', enabled: true }
+        ];
     }
 
-    const columns = activeTemplate.logic.adminDraftColumns.filter(col => col.enabled);
+    const columns = columnsSetting.filter(col => col.enabled);
+    // --- 修正結束 ---
 
     let headerHTML = '';
     columns.forEach(col => { headerHTML += `<th>${col.label}</th>`; });
-    headerHTML += '<th>內容預覽</th><th>操作</th>';
+    headerHTML += '<th>內容預覽</th><th>操作</th>'; // 固定欄位
     draftListTheadTr.innerHTML = headerHTML;
     
     draftListTbody.innerHTML = '';
@@ -59,6 +69,7 @@ function renderDraftList(drafts) {
         const row = draftListTbody.insertRow();
         const isFixed = draft.is_fixed || draft.draft_id === FIXED_DRAFT_IDS.AUTO_CONFIRMATION;
 
+        // 1. 動態欄位 (標題)
         columns.forEach(col => {
             const cell = row.insertCell();
             let rawValue = getProperty(draft, col.key, 'N/A');
@@ -74,10 +85,12 @@ function renderDraftList(drafts) {
             cell.innerHTML = cellContent;
         });
 
+        // 2. 內容預覽 (固定顯示，不需要從 columns 設定讀取)
         let safeContent = escapeHtml(draft.content || '');
         let contentPreview = String(safeContent).substring(0, 50) + (String(safeContent).length > 50 ? '...' : '');
         row.insertCell().innerHTML = contentPreview;
 
+        // 3. 操作按鈕
         const actionCell = row.insertCell();
         actionCell.className = 'actions-cell';
         actionCell.innerHTML = `

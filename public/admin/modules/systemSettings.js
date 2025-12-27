@@ -183,28 +183,28 @@ const systemSettings = {
         ];
     }
 
-    // 8. Ensure News Config & Columns (補齊情報列表欄位預設值)
     if (!ac.news) ac.news = { enabled: true };
-    if (!ac.news.columns) {
-        ac.news.columns = [
-            { key: 'title', label: '標題', enabled: true },
-            { key: 'category', label: '分類', enabled: true },
-            { key: 'published_date', label: '發布日期', enabled: true },
-            { key: 'views', label: '瀏覽數', enabled: false }
-        ];
-    }
-    
-    // 9. Ensure Booking Columns (補齊訂單列表欄位預設值 - 以防萬一)
-    if (!ac.bookings) ac.bookings = { enabled: true };
-    if (!ac.bookings.columns) {
-        ac.bookings.columns = [
-             { key: 'booking_date', label: '預約日期', enabled: true },
-             { key: 'time_slot', label: '時段', enabled: true },
-             { key: 'name', label: '姓名', enabled: true },
-             { key: 'phone', label: '電話', enabled: true },
-             { key: 'status', label: '狀態', enabled: true }
-        ];
-    }
+        if (!ac.news.columns) {
+            ac.news.columns = [
+                { key: 'title', label: '標題', enabled: true },
+                { key: 'category', label: '分類', enabled: true },
+                { key: 'published_date', label: '發布日期', enabled: true },
+                { key: 'views', label: '點閱數', enabled: false }
+            ];
+        }
+
+        // 8. Points (點數中心) 預設值
+        if (!ac.points) ac.points = {}; // 確保物件存在
+        if (!ac.points.columns) {
+            ac.points.columns = [
+                { key: 'created_at', label: '日期', enabled: true },
+                { key: 'user_info', label: '顧客資訊', enabled: true },
+                { key: 'reason', label: '原因', enabled: true },
+                { key: 'exp_added', label: '點數變動', enabled: true }
+            ];
+        }
+        
+    // (函式結束)
     },
 
     // 主渲染函式
@@ -447,6 +447,19 @@ const systemSettings = {
         content += this.buildNestedSection('店家資訊設定 (Store Info)', storeContent);
 
         return this.buildAccordionItem('adminConfig', '商家後台 (Admin Panel) 設定', content);
+
+        let newsContent = '';
+        newsContent += `<div style="margin-top:10px;"><label class="setting-label">情報列表欄位：</label>`;
+        newsContent += this.buildColumnSorter('admin_config.news.columns', config.inventory?.news?.columns || this.state.currentConfig.admin_config.news.columns);
+        newsContent += `</div>`;
+        content += this.buildNestedSection('情報管理設定 (News)', newsContent);
+
+        // --- 新增：點數中心設定區塊 ---
+        let pointsContent = '';
+        pointsContent += `<div style="margin-top:10px;"><label class="setting-label">點數紀錄列表欄位：</label>`;
+        pointsContent += this.buildColumnSorter('admin_config.points.columns', this.state.currentConfig.admin_config.points.columns);
+        pointsContent += `</div>`;
+        content += this.buildNestedSection('點數中心設定 (Points)', pointsContent);
     },
 
     // 3. 手機版後台設定 (Owner)

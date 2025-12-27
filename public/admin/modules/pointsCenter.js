@@ -264,36 +264,41 @@ function renderExpHistoryList(records) {
 
     if (!expHistoryTbody || !expHistoryTheadTr) return;
 
-    // --- 修正開始：安全讀取欄位設定 (優先使用預設值) ---
+    // --- 修正：安全讀取設定 (admin_config 優先，logic 次之，預設值墊底) ---
     let columns = [];
+    
+    // 1. 取得設定檔 (防呆)
+    const adminConfig = (activeTemplate && activeTemplate.admin_config) ? activeTemplate.admin_config : {};
+    const oldLogic = (activeTemplate && activeTemplate.logic) ? activeTemplate.logic : {};
 
-    // 1. 先載入預設值
-    columns = EXP_HISTORY_COLUMNS_DEFINITION.slice();
-
-    // 2. 嘗試讀取新版設定 (admin_config) - 目前 systemSettings 還沒實作 points columns，這裡預留未來擴充
-    if (activeTemplate && activeTemplate.admin_config && activeTemplate.admin_config.points && Array.isArray(activeTemplate.admin_config.points.columns)) {
-         columns = activeTemplate.admin_config.points.columns.filter(col => col.enabled);
-    } 
-    // 3. 嘗試讀取舊版設定 (logic) - 加入安全檢查避免 undefined 錯誤
-    else if (activeTemplate && activeTemplate.logic && Array.isArray(activeTemplate.logic.adminExpHistoryColumns)) {
-         columns = activeTemplate.logic.adminExpHistoryColumns.filter(col => col.enabled);
+    // 2. 判斷使用哪一種設定
+    if (adminConfig.points && Array.isArray(adminConfig.points.columns)) {
+        // 新版設定
+        columns = adminConfig.points.columns.filter(col => col.enabled);
+    } else if (Array.isArray(oldLogic.adminExpHistoryColumns)) {
+        // 舊版設定 (相容性)
+        columns = oldLogic.adminExpHistoryColumns.filter(col => col.enabled);
+    } else {
+        // 完全沒設定，使用預設值
+        console.warn("[PointsCenter] No columns config found, using default.");
+        columns = EXP_HISTORY_COLUMNS_DEFINITION.slice();
     }
     // --- 修正結束 ---
     
-    // 4. 渲染表頭
+    // 渲染表頭
     let headerHTML = '';
     columns.forEach(col => {
         headerHTML += `<th>${col.label}</th>`;
     });
     expHistoryTheadTr.innerHTML = headerHTML;
 
+    // 渲染內容
     expHistoryTbody.innerHTML = '';
     if (!records || records.length === 0) {
         expHistoryTbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align: center;">找不到符合條件的紀錄。</td></tr>`;
         return;
     }
 
-    // 5. 渲染內容
     records.forEach(record => {
         const row = expHistoryTbody.insertRow();
         columns.forEach(col => {
@@ -312,7 +317,6 @@ function renderExpHistoryList(records) {
             else if (col.key === 'user_info') { 
                  const displayName = record.real_name || record.line_display_name || 'N/A';
                  const phoneDisplay = record.phone ? record.phone : '無電話';
-                 // 使用 class 控制樣式，不依賴 inline style
                  cellContent = `<div class="main-info compound-cell">${displayName}</div><div class="sub-info compound-cell">${phoneDisplay}</div>`;
             }
             else {

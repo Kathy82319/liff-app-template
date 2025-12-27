@@ -90,6 +90,7 @@ const systemSettings = {
         }
     },
 
+    // 【核心修正】自動資料遷移與預設值
     ensureDefaults() {
         const config = this.state.currentConfig;
         if (!config) return;
@@ -181,11 +182,6 @@ const systemSettings = {
                 { key: 'exp_added', label: '點數變動', enabled: true }
              ];
         }
-    },
-        
-        // 6. Others switch
-        if (!ac.others) ac.others = {};
-        if (ac.others.drafts === undefined) ac.others.drafts = true; 
     },
 
     render() {

@@ -26,14 +26,29 @@ function renderUserList(users) {
 
     if (!userListTbody || !userListTheadTr) return;
 
-    // 1. 使用藍圖定義的欄位 (支援排序與開關)
-    if (!activeTemplate || !activeTemplate.logic || !Array.isArray(activeTemplate.logic.adminUserColumns)) {
-         console.error("adminUserColumns 未定義");
-         return;
+    // --- 修正開始：改讀取 admin_config 並加入防呆預設值 ---
+    // 1. 確保設定物件存在
+    const config = (activeTemplate && activeTemplate.admin_config) ? activeTemplate.admin_config : {};
+    
+    // 2. 嘗試取得 columns 設定，若無則使用預設陣列 (防止 undefined 錯誤)
+    let columnsSetting = (config.users && config.users.columns) ? config.users.columns : [];
+    
+    if (!Array.isArray(columnsSetting) || columnsSetting.length === 0) {
+         console.warn("User columns config not found, using defaults.");
+         columnsSetting = [
+             { key: 'line_display_name', label: '顧客姓名', enabled: true },
+             { key: 'phone', label: '電話', enabled: true },
+             { key: 'level', label: '等級', enabled: true },
+             { key: 'current_exp', label: '目前點數', enabled: true },
+             { key: 'class', label: '會員方案', enabled: true }
+         ];
     }
-    const columns = activeTemplate.logic.adminUserColumns.filter(col => col.enabled);
 
-    // 2. 渲染表頭
+    // 3. 過濾出啟用的欄位
+    const columns = columnsSetting.filter(col => col.enabled);
+    // --- 修正結束 ---
+
+    // 4. 渲染表頭
     let theadHTML = '';
     columns.forEach(col => {
         theadHTML += `<th>${col.label}</th>`;
@@ -52,7 +67,7 @@ function renderUserList(users) {
         row.dataset.userId = user.user_id;
         row.style.cursor = 'pointer';
         
-        // 3. 渲染自訂欄位
+        // 5. 渲染動態欄位
         columns.forEach(col => {
             const cell = row.insertCell();
             if (col.key === 'stored_value_balance') {
@@ -60,7 +75,7 @@ function renderUserList(users) {
                 const balance = user.stored_value_balance || 0;
                 cell.innerHTML = `<span style="font-weight:bold; color: var(--color-primary);">$${balance}</span>`;
             } else if (col.key === 'line_display_name') {
-                // 【修改 2】使用 escapeHtml 保護變數
+                // 特殊處理姓名與電話的複合顯示 (使用 escapeHtml 保護)
                 const safeName = escapeHtml(user.line_display_name);
                 const safeRealName = escapeHtml(user.real_name);
                 const safePhone = escapeHtml(user.phone);
@@ -68,22 +83,22 @@ function renderUserList(users) {
                 const displayName = user.real_name ? `${safeRealName} (${safeName})` : safeName;
                 const phoneDisplay = user.phone ? safePhone : '<span style="color:#ccc;">未設定電話</span>';
                 
-                // 這裡的 innerHTML 現在是安全的，因為內容已經消毒過
                 cell.innerHTML = `<div class="main-info">${displayName}</div><div class="sub-info">${phoneDisplay}</div>`;
             } else {
-                // 一般欄位也要保護
+                // 一般欄位
                 const rawValue = getProperty(user, col.key, 'N/A');
-                cell.textContent = rawValue; // 【提示】textContent 本身就有防護效果，如果是 innerHTML 才需要 escapeHtml
+                cell.textContent = rawValue; 
             }
         });
 
-        // 4. 渲染固定欄位
+        // 6. 渲染固定欄位
         row.insertCell().innerHTML = `<span class="tag-display">${user.tag || '無'}</span>`;
         const actionCell = row.insertCell();
         actionCell.className = 'actions-cell';
         actionCell.innerHTML = `<button class="action-btn btn-edit-user" data-userid="${user.user_id}" style="background-color: var(--color-warning); color: #000;">編輯</button>`;
     });
 }
+
 
 // ... (其他函式保持不變) ...
 function renderMembershipPlans() {

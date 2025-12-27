@@ -170,6 +170,41 @@ const systemSettings = {
         }
         
         // 注意：這裡直接修改記憶體中的 state，不呼叫 updateValue 以避免副作用
+
+        // 7. Ensure User Columns (補齊顧客列表欄位預設值)
+    if (!ac.users.columns) {
+        ac.users.columns = [
+            { key: 'line_display_name', label: '顧客姓名', enabled: true },
+            { key: 'phone', label: '電話', enabled: true },
+            { key: 'level', label: '等級', enabled: true },
+            { key: 'current_exp', label: '目前點數', enabled: true },
+            { key: 'stored_value_balance', label: '儲值金餘額', enabled: true },
+            { key: 'class', label: '會員方案', enabled: true }
+        ];
+    }
+
+    // 8. Ensure News Config & Columns (補齊情報列表欄位預設值)
+    if (!ac.news) ac.news = { enabled: true };
+    if (!ac.news.columns) {
+        ac.news.columns = [
+            { key: 'title', label: '標題', enabled: true },
+            { key: 'category', label: '分類', enabled: true },
+            { key: 'published_date', label: '發布日期', enabled: true },
+            { key: 'views', label: '瀏覽數', enabled: false }
+        ];
+    }
+    
+    // 9. Ensure Booking Columns (補齊訂單列表欄位預設值 - 以防萬一)
+    if (!ac.bookings) ac.bookings = { enabled: true };
+    if (!ac.bookings.columns) {
+        ac.bookings.columns = [
+             { key: 'booking_date', label: '預約日期', enabled: true },
+             { key: 'time_slot', label: '時段', enabled: true },
+             { key: 'name', label: '姓名', enabled: true },
+             { key: 'phone', label: '電話', enabled: true },
+             { key: 'status', label: '狀態', enabled: true }
+        ];
+    }
     },
 
     // 主渲染函式
@@ -318,6 +353,13 @@ const systemSettings = {
         sidebarContent += this.buildSettingRow('訂單管理', this.buildToggle('admin_config.bookings.enabled', ac.bookings?.enabled));
         // 最新消息 -> admin_config.news.enabled
         sidebarContent += this.buildSettingRow('最新消息', this.buildToggle('admin_config.news.enabled', ac.news?.enabled));
+        // --- 新增這段以顯示欄位排序器 ---
+        if (ac.news?.enabled) {
+            sidebarContent += `<div style="margin-top:10px; padding-left:10px; border-left:3px solid #eee;">
+                <label class="setting-label">情報列表欄位：</label>
+                ${this.buildColumnSorter('admin_config.news.columns', ac.news.columns)}
+            </div>`;
+        }
         // 店家資訊 -> admin_config.store_info.enabled
         sidebarContent += this.buildSettingRow('店家資訊', this.buildToggle('admin_config.store_info.enabled', ac.store_info?.enabled));
         // 財務報表 -> admin_config.others.reports

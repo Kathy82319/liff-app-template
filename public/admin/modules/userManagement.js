@@ -10,73 +10,6 @@ let activeTemplate = null;
 let membershipPlans = []; 
 let allDrafts = []; 
 
-function renderNewsList(newsItems) {
-    const newsListTbody = document.getElementById('news-list-tbody');
-    const newsListTheadTr = document.querySelector('#page-news thead tr');
-
-    if (!newsListTbody || !newsListTheadTr) {
-        console.error("renderNewsList: 找不到 tbody 或 thead tr 元素。");
-        return;
-    }
-
-    // --- 修正開始：改讀取 admin_config.news.columns 並加入防呆 ---
-    const config = (activeTemplate && activeTemplate.admin_config) ? activeTemplate.admin_config : {};
-    
-    // 嘗試取得 columns 設定
-    let columnsSetting = (config.news && config.news.columns) ? config.news.columns : [];
-
-    // 防呆預設值：如果找不到設定，就使用這組預設欄位
-    if (!Array.isArray(columnsSetting) || columnsSetting.length === 0) {
-        console.warn("News columns config not found, using defaults.");
-        columnsSetting = [
-            { key: 'title', label: '標題', enabled: true },
-            { key: 'category', label: '分類', enabled: true },
-            { key: 'published_date', label: '發布日期', enabled: true },
-            { key: 'views', label: '瀏覽數', enabled: false }
-        ];
-    }
-
-    // 過濾啟用欄位
-    const columns = columnsSetting.filter(col => col.enabled);
-    // --- 修正結束 ---
-
-    // 動態渲染表頭
-    let headerHTML = '';
-    columns.forEach(col => {
-        headerHTML += `<th>${col.label}</th>`;
-    });
-    headerHTML += '<th>狀態</th><th>操作</th>'; // 固定欄位
-    newsListTheadTr.innerHTML = headerHTML;
-
-    // 渲染內容
-    newsListTbody.innerHTML = '';
-    if (!newsItems || newsItems.length === 0) {
-        newsListTbody.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align: center;">尚無任何情報。</td></tr>`;
-        return;
-    }
-
-    newsItems.forEach(news => {
-        const row = newsListTbody.insertRow();
-        
-        // 動態欄位
-        columns.forEach(col => {
-            const cell = row.insertCell();
-            let rawValue = getProperty(news, col.key, 'N/A');
-            cell.innerHTML = escapeHtml(rawValue);
-        });
-
-        // 固定欄位：狀態
-        row.insertCell().innerHTML = news.is_published ? '<span style="color: var(--color-success);">已發布</span>' : '草稿';
-        
-        // 固定欄位：操作
-        const actionCell = row.insertCell();
-        actionCell.className = 'actions-cell';
-        actionCell.innerHTML = `
-            <button class="action-btn btn-edit-news" data-news-id="${news.id}" style="background-color: var(--color-warning); color: #000;">編輯</button>
-        `;
-    });
-}
-
 function getProperty(obj, path, defaultValue = 'N/A') {
     const value = path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined && acc[key] !== null) ? acc[key] : undefined, obj);
     const result = (value !== undefined && value !== null && value !== '') ? value : defaultValue;
@@ -100,6 +33,7 @@ function renderUserList(users) {
     // 2. 嘗試取得 columns 設定，若無則使用預設陣列 (防止 undefined 錯誤)
     let columnsSetting = (config.users && config.users.columns) ? config.users.columns : [];
     
+    // 防呆預設值：如果找不到設定，就使用這組預設欄位
     if (!Array.isArray(columnsSetting) || columnsSetting.length === 0) {
          console.warn("User columns config not found, using defaults.");
          columnsSetting = [
@@ -107,6 +41,7 @@ function renderUserList(users) {
              { key: 'phone', label: '電話', enabled: true },
              { key: 'level', label: '等級', enabled: true },
              { key: 'current_exp', label: '目前點數', enabled: true },
+             { key: 'stored_value_balance', label: '儲值金餘額', enabled: true },
              { key: 'class', label: '會員方案', enabled: true }
          ];
     }
@@ -166,8 +101,6 @@ function renderUserList(users) {
     });
 }
 
-
-// ... (其他函式保持不變) ...
 function renderMembershipPlans() {
     const container = document.getElementById('membership-plans-list');
     if (!container) return;
@@ -393,9 +326,16 @@ function renderUserDetails(data) {
 
     const { profile, bookings, exp_history, stored_value_history, vouchers } = data;
     
-    // 1. 讀取【Admin CRM】專屬開關
-    const showStoredValue = activeTemplate?.features?.ADMIN_CRM_SHOW_STORED_VALUE !== false;
-    const showVouchers = activeTemplate?.features?.ADMIN_CRM_SHOW_VOUCHERS !== false;
+    // 1. 讀取 CRM 開關 (優先讀取 admin_config)
+    const crmConfig = activeTemplate?.admin_config?.users?.crm_view || {};
+    // 相容舊版 features 設定，若都沒有則預設為 true
+    const showStoredValue = (crmConfig.show_stored_value !== undefined) 
+        ? crmConfig.show_stored_value 
+        : (activeTemplate?.features?.ADMIN_CRM_SHOW_STORED_VALUE !== false);
+        
+    const showVouchers = (crmConfig.show_vouchers !== undefined)
+        ? crmConfig.show_vouchers
+        : (activeTemplate?.features?.ADMIN_CRM_SHOW_VOUCHERS !== false);
 
     // 2. 動態生成 Tab 按鈕
     let tabsHTML = `
@@ -492,7 +432,6 @@ function renderUserDetails(data) {
     if (actionsContainer) actionsContainer.addEventListener('click', handleModalAction);
 }
 
-// ... (renderCustomerActions, openAdjustStoredValueModal, openIssueVoucherModal, handleModalAction 保持不變) ...
 function renderCustomerActions(profile) {
     const targetName = profile.real_name || profile.line_display_name;
     return `
@@ -780,18 +719,14 @@ function setupEventListeners() {
 }
 
 export const init = async () => {
-    console.log("[NewsManagement Init] Starting...");
-    const newsListTbody = document.getElementById('news-list-tbody');
-    const page = document.getElementById('page-news');
-    if (!newsListTbody || !page) return;
+    console.log("[UserManagement Init] Starting...");
+    const userListTbody = document.getElementById('user-list-tbody');
+    const page = document.getElementById('page-users');
+    if (!userListTbody || !page) return;
     
-    newsListTbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">正在載入情報...</td></tr>';
-    // 同時清除/設定表頭
-    const newsListTheadTr = document.querySelector('#page-news thead tr');
-    if (newsListTheadTr) newsListTheadTr.innerHTML = '<th>載入中...</th>';
+    userListTbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在載入顧客資料...</td></tr>';
 
     try {
-        // 1. 獲取當前啟用的樣板
         if (!window.CONFIG || !window.CONFIG.LOGIC) {
              throw new Error("核心設定尚未載入。");
         }
@@ -799,26 +734,30 @@ export const init = async () => {
         const activeTemplateKey = window.CONFIG.LOGIC.ACTIVE_INDUSTRY_TEMPLATE;
         activeTemplate = window.CONFIG.LOGIC.INDUSTRY_TEMPLATE_DEFINITIONS[activeTemplateKey]; 
 
-        // --- 修正重點：移除原本的 logic.adminNewsColumns 檢查 ---
-        // 只要確保樣板物件存在即可，欄位會在 renderNewsList 裡自動補預設值，不再報錯
-        if (activeTemplate && !activeTemplate.admin_config) {
-            activeTemplate.admin_config = {};
-        }
+        const [users, settings, templates] = await Promise.all([
+            api.getUsers(),
+            allSettings.length > 0 ? Promise.resolve(allSettings) : api.getSettings(),
+            api.getVoucherTemplates()
+        ]);
 
-        // 2. 獲取情報資料
-        allNews = await api.getAllNews();
+        allUsers = users;
+        allSettings = settings;
+        allVoucherTemplates = templates || [];
 
-        // 3. 渲染列表
-        renderNewsList(allNews);
+        const plansSetting = allSettings.find(s => s.key === 'LOGIC_MEMBERSHIP_PLANS');
+        try {
+            membershipPlans = plansSetting && plansSetting.value ? JSON.parse(plansSetting.value) : [];
+        } catch { membershipPlans = []; }
+
+        renderUserList(allUsers);
+        renderMembershipPlans();
         
-        // 4. 綁定事件
-        if (!page.dataset.initialized) {
+        if (page.dataset.initialized !== 'true') {
             setupEventListeners();
             page.dataset.initialized = 'true';
         }
     } catch (error) {
-        console.error('獲取情報列表失敗:', error);
-        if (newsListTheadTr) newsListTheadTr.innerHTML = '<th>錯誤</th>';
-        newsListTbody.innerHTML = `<tr><td colspan="5" style="color: red; text-align: center;">讀取情報失敗: ${error.message}</td></tr>`;
+        console.error('User page init error:', error);
+        userListTbody.innerHTML = `<tr><td colspan="6" style="color: red; text-align: center;">讀取資料失敗: ${error.message}</td></tr>`;
     }
 };

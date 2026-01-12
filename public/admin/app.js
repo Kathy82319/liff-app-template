@@ -2,7 +2,6 @@
 import { api } from './api.js';
 import { ui } from './ui.js';
 import { hideBatchToolbar } from './modules/productManagement.js';
-import { initPasswordModal, openPasswordModal } from './modules/passwordModal.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     initPasswordModal(); // 初始化彈窗 HTML

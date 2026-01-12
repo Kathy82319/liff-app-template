@@ -2,6 +2,22 @@
 import { api } from './api.js';
 import { ui } from './ui.js';
 import { hideBatchToolbar } from './modules/productManagement.js';
+import { initPasswordModal, openPasswordModal } from './modules/passwordModal.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+    initPasswordModal(); // 初始化彈窗 HTML
+
+    // 假設您有一個登出按鈕或其他地方，可以在旁邊加一個「修改密碼」按鈕
+    // 這裡示範動態加入一個按鈕到 header (請依您實際 HTML 結構調整)
+    const header = document.querySelector('header .flex.items-center'); 
+    if (header) {
+        const btn = document.createElement('button');
+        btn.className = "mr-4 text-sm text-gray-600 hover:text-blue-600";
+        btn.innerText = "修改密碼";
+        btn.onclick = openPasswordModal;
+        header.insertBefore(btn, header.firstChild); // 插在登出按鈕前面
+    }
+});
 
 const App = {
     router: {

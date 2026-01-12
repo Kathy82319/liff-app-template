@@ -1,61 +1,68 @@
-// functions/api/admin/auth/login.js
-import * as jose from 'jose';
+import { verifyPassword, generateToken } from '../../utils/auth-helpers';
 
-export async function onRequest(context) {
-    if (context.request.method !== 'POST') {
-        return new Response('Invalid method', { status: 405 });
-    }
+export async function onRequestPost(context) {
+    const { request, env } = context;
+
     try {
-        const { username, password } = await context.request.json();
-        if (!username || !password) {
-            return new Response(JSON.stringify({ error: '缺少帳號或密碼。' }), { status: 400 });
+        // 1. 取得前端傳來的帳號 (email) 與密碼
+        const { email, password } = await request.json();
+
+        if (!email || !password) {
+            return new Response(JSON.stringify({ error: '請輸入帳號與密碼' }), { status: 400 });
         }
 
-        const db = context.env.DB;
-        const user = await db.prepare("SELECT * FROM Users WHERE username = ? AND role = 'admin'").bind(username).first();
+        // 2. 從資料庫尋找使用者
+        // 注意：這裡假設您的資料庫表名為 Users，且 email 欄位唯一
+        const user = await env.DB.prepare('SELECT * FROM Users WHERE email = ?').bind(email).first();
 
         if (!user) {
-             return new Response(JSON.stringify({ error: '帳號不存在或非管理員。' }), { status: 401 });
+            // 為了安全，找不到使用者時也回傳模糊的錯誤訊息
+            return new Response(JSON.stringify({ error: '帳號或密碼錯誤' }), { status: 401 });
         }
 
-        // --- 【重要】請確認您的環境變數 ADMIN_PASSWORD 已正確設定 ---
-        if (!context.env.ADMIN_PASSWORD) {
-             console.error("Login Error: ADMIN_PASSWORD environment variable is not set!");
-             return new Response(JSON.stringify({ error: '伺服器設定錯誤，無法驗證密碼。' }), { status: 500 });
-        }
-        if (password !== context.env.ADMIN_PASSWORD) {
-            return new Response(JSON.stringify({ error: '密碼錯誤。' }), { status: 401 });
+        // 3. 驗證密碼
+        const isValid = await verifyPassword(password, user.password);
+
+        if (!isValid) {
+            return new Response(JSON.stringify({ error: '帳號或密碼錯誤' }), { status: 401 });
         }
 
-        // --- 產生 JWT Token ---
-        // --- 【重要】請確認您的環境變數 JWT_SECRET 已正確設定 ---
-        if (!context.env.JWT_SECRET) {
-            console.error("Login Error: JWT_SECRET environment variable is not set!");
-            return new Response(JSON.stringify({ error: '伺服器設定錯誤，無法產生 Token。' }), { status: 500 });
+        // ==========================================
+        // 🔴 安全修正：檢查是否為管理員 (Admin Check)
+        // ==========================================
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '權限不足：僅限管理員登入' }), { 
+                status: 403,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
-        const secret = new TextEncoder().encode(context.env.JWT_SECRET);
-        const alg = 'HS256';
-        const jwt = await new jose.SignJWT({ userId: user.user_id, role: user.role })
-            .setProtectedHeader({ alg })
-            .setExpirationTime('8h')
-            .setIssuer('urn:tabletop-product:issuer') // 這裡和 middleware 的驗證需要一致
-            .setAudience('urn:tabletop-product:audience') // 這裡和 middleware 的驗證需要一致
-            .sign(secret);
+        // ==========================================
 
-        // --- 設定 Cookie Header ---
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/json');
-        const cookieString = `AuthToken=${jwt}; HttpOnly; Path=/; Max-Age=28800; SameSite=Lax`; 
-        
-        headers.set('Set-Cookie', cookieString);
-        console.log("Login API: Setting debug Cookie:", cookieString); 
+        // 4. 產生 JWT Token
+        // 這裡通常會把使用者 ID 和 Role 放入 Token 中
+        const token = await generateToken({ 
+            id: user.id, 
+            email: user.email, 
+            role: user.role 
+        }, env.JWT_SECRET);
 
-        return new Response(JSON.stringify({ success: true, user: { userId: user.user_id, displayName: user.line_display_name } }), {
+        // 5. 回傳成功與 Token
+        return new Response(JSON.stringify({ 
+            success: true,
+            token: token,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role
+            }
+        }), { 
             status: 200,
-            headers: headers 
+            headers: { 'Content-Type': 'application/json' }
         });
-    } catch (error) {
-        console.error('Login error:', error);
-        return new Response(JSON.stringify({ error: '登入時發生內部錯誤。' }), { status: 500 });
+
+    } catch (err) {
+        console.error('Login Error:', err);
+        return new Response(JSON.stringify({ error: '系統發生錯誤，請稍後再試' }), { status: 500 });
     }
 }

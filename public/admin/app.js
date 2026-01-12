@@ -4,7 +4,6 @@ import { ui } from './ui.js';
 import { hideBatchToolbar } from './modules/productManagement.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    initPasswordModal(); // 初始化彈窗 HTML
 
     // 假設您有一個登出按鈕或其他地方，可以在旁邊加一個「修改密碼」按鈕
     // 這裡示範動態加入一個按鈕到 header (請依您實際 HTML 結構調整)

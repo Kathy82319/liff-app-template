@@ -7,7 +7,8 @@ const isPublicRoute = (pathname) => {
   const publicRoutes = [
     '/api/admin/auth/login',
     '/api/admin/auth/logout',
-    '/api/admin/verify-liff-user' 
+    '/api/admin/verify-liff-user',
+    '/api/admin/auth/forgot-password'
   ];
   return publicRoutes.some(route => pathname.endsWith(route));
 };

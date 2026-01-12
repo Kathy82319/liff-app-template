@@ -1,114 +1,141 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理系統登入</title>
-    <style>
-        :root { --primary-color: #007bff; --danger-color: #dc3545; --light-gray: #f8f9fa; --text-dark: #343a40; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: var(--light-gray); }
-        .login-box { width: 320px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: #fff; border-radius: 8px; }
-        h2 { text-align: center; color: var(--text-dark); }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
-        .form-group input { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; font-size: 1rem; border: none; border-radius: 5px; cursor: pointer; color: white; background-color: var(--primary-color); }
-        button:disabled { background-color: #a0a0a0; }
-        .status-message { text-align: center; color: var(--danger-color); min-height: 1.2em; margin-top: 10px; }
-        /* 日誌區域樣式 */
-        #login-log-output {
-            margin-top: 15px;
-            font-size: 0.8rem;
-            color: #555;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 8px;
-            border-radius: 4px;
-            max-height: 80px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-    </style>
+    <title>管理後台登入</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="login-box">
-        <h2>管理系統登入</h2>
-        <form id="login-form">
-            <div class="form-group">
-                <label for="login-username">管理員帳號</label>
-                <input type="text" id="login-username" required>
+<body class="bg-gray-100 h-screen flex justify-center items-center">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">管理後台</h1>
+            <p class="text-gray-500 text-sm mt-2">請登入以繼續</p>
+        </div>
+        
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="email">
+                    電子郵件
+                </label>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                       id="email" type="email" placeholder="admin@example.com" required>
             </div>
-            <div class="form-group">
-                <label for="login-password">密碼</label>
-                <input type="password" id="login-password" required>
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-gray-700 text-sm font-bold" for="password">密碼</label>
+                    <a href="#" onclick="openForgotModal(event)" class="text-xs text-blue-500 hover:text-blue-800">忘記密碼?</a>
+                </div>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                       id="password" type="password" placeholder="******************" required>
             </div>
-            <button type="submit" id="login-button">登入</button>
-            <p id="login-status" class="status-message"></p>
-            <div id="login-log-output">Login Logs:</div>
+            <div class="flex items-center justify-between">
+                <button class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300" 
+                        type="submit" id="loginBtn">
+                    登入系統
+                </button>
+            </div>
         </form>
     </div>
 
-    <script>
-        console.log('[Admin Panel Load] Checking cookie on page load:', document.cookie);
-        document.addEventListener('DOMContentLoaded', () => {
-            const loginForm = document.getElementById('login-form');
-            const logOutput = document.getElementById('login-log-output'); // 取得日誌區域
+    <div id="forgotModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+            <h3 class="text-lg font-bold mb-4">重置密碼</h3>
+            <p class="text-sm text-gray-600 mb-4">請輸入您的 Email，系統將發送臨時密碼給您。</p>
+            <input type="email" id="forgotEmail" class="w-full border p-2 rounded mb-4" placeholder="請輸入 Email">
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeForgotModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+                <button onclick="submitForgotPassword()" id="btnSendForgot" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">發送</button>
+            </div>
+        </div>
+    </div>
 
-            // 輔助函式：將訊息顯示在畫面上並輸出到 console
-            function logMessage(message) {
-                console.log(message); // 輸出到 console
-                if (logOutput) {
-                    const time = new Date().toLocaleTimeString();
-                    logOutput.textContent += `\n[${time}] ${message}`;
-                    logOutput.scrollTop = logOutput.scrollHeight; // 自動捲動到底部
-                }
+    <script>
+        // 登入邏輯
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            
+            // 簡單驗證
+            if(!email || !password) {
+                alert('請輸入帳號密碼');
+                return;
             }
 
-            if (!loginForm) return;
+            btn.innerText = '登入中...';
+            btn.disabled = true;
 
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const username = document.getElementById('login-username').value.trim();
-                const password = document.getElementById('login-password').value;
-                const loginStatus = document.getElementById('login-status');
-                const loginButton = document.getElementById('login-button');
+            try {
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
 
-                loginStatus.textContent = '';
-                loginButton.disabled = true;
-                loginButton.textContent = '登入中...';
-                logMessage('登入請求已發送...');
+                const data = await response.json();
 
-                try {
-                    const response = await fetch('/api/admin/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password })
-                    });
-                    // **不立即解析 result，先檢查 response.ok**
-                    logMessage(`登入 API 回應狀態: ${response.status}`);
-
-                    if (!response.ok) {
-                        // 如果狀態碼不是 2xx，嘗試解析錯誤訊息
-                        const errorResult = await response.json().catch(() => ({ error: `登入失敗，狀態碼: ${response.status}` }));
-                        throw new Error(errorResult.error || '登入失敗');
-                    }
-
-                    // *** 關鍵修改：只要 API 成功 (status 200)，就直接跳轉 ***
-                    logMessage('✅ 登入 API 成功！準備跳轉...');
+                if (response.ok) {
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminUser', JSON.stringify(data.user));
                     window.location.href = '/admin-panel.html';
-                    // 不再需要 setTimeout 和 document.cookie 檢查
-                    // 也不需要在成功後解析 response.json()，因為要跳轉了
-
-                } catch (error) {
-                    loginStatus.textContent = error.message;
-                    logMessage(`登入失敗: ${error.message}`);
-                    loginButton.disabled = false; // 發生錯誤時重新啟用按鈕
-                    loginButton.textContent = '登入';
+                } else {
+                    alert(data.error || '登入失敗');
                 }
-                // 成功登入後不重新啟用按鈕，因為會跳轉
-            });
+            } catch (error) {
+                console.error(error);
+                alert('系統錯誤，無法連線');
+            } finally {
+                btn.innerText = '登入系統';
+                btn.disabled = false;
+            }
         });
+
+        // 忘記密碼邏輯
+        function openForgotModal(e) {
+            if(e) e.preventDefault();
+            document.getElementById('forgotModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeForgotModal() {
+            document.getElementById('forgotModal').classList.replace('flex', 'hidden');
+        }
+
+        async function submitForgotPassword() {
+            const email = document.getElementById('forgotEmail').value;
+            if (!email) {
+                alert('請輸入 Email');
+                return;
+            }
+
+            const btn = document.getElementById('btnSendForgot');
+            const originalText = btn.innerText;
+            btn.innerText = '發送中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/admin/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    closeForgotModal();
+                } else {
+                    alert(result.error || '發送失敗');
+                }
+            } catch (e) {
+                alert('系統連線錯誤');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>

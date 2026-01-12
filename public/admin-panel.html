@@ -7,6 +7,7 @@
     <title>店務管理系統</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
     :root {
         --color-bg: #f4f6f9; /* 頁面主背景色 - 柔和灰 */
@@ -962,13 +963,20 @@
     <div id="admin-panel">
         <header class="header">
             <h1>店務管理系統</h1>
+            
+    <div class="flex items-center">
+        <button onclick="openPasswordModal()" class="mr-4 text-gray-600 hover:text-blue-600 text-sm font-medium" style="background:none; border:none; cursor:pointer;">
+            <i class="fas fa-key mr-1"></i> 修改密碼
+        </button>
+        
+        <button id="logoutBtn" class="action-btn" style="background-color: var(--color-secondary);">登出</button>
+    </div>        
+
+            
         </header>
 <div class="flex items-center">
     
-    <button onclick="openPasswordModal()" class="mr-4 text-gray-600 hover:text-blue-600 text-sm font-medium">
-        <i class="fas fa-key mr-1"></i> 修改密碼
-    </button>
-    <button id="logoutBtn" class="...">登出</button>
+    
 </div>
         <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>

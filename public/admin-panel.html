@@ -963,7 +963,7 @@
     <div id="admin-panel">
         <header class="header">
             <h1>店務管理系統</h1>
-            
+
     <div class="flex items-center">
         <button onclick="openPasswordModal()" class="mr-4 text-gray-600 hover:text-blue-600 text-sm font-medium" style="background:none; border:none; cursor:pointer;">
             <i class="fas fa-key mr-1"></i> 修改密碼
@@ -2266,14 +2266,25 @@
 <div id="changePasswordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div class="mt-3 text-center">
-            <h3 class="text-lg font-medium text-gray-900">修改密碼</h3>
+            <h3 class="text-lg font-medium text-gray-900">修改帳號與密碼</h3>
             <div class="mt-2 px-7 py-3 space-y-3">
-                <input id="oldPasswordInput" type="password" placeholder="目前密碼" class="px-3 py-2 border rounded w-full"/>
-                <input id="newPasswordInput" type="password" placeholder="新密碼" class="px-3 py-2 border rounded w-full"/>
-                <input id="confirmPasswordInput" type="password" placeholder="確認新密碼" class="px-3 py-2 border rounded w-full"/>
+                <div class="text-left">
+                    <label class="text-xs text-gray-500">新帳號 (留空則不修改)</label>
+                    <input id="newUsernameInput" type="text" placeholder="輸入新帳號" class="px-3 py-2 border rounded w-full"/>
+                </div>
+
+                <div class="text-left">
+                    <label class="text-xs text-gray-500">目前密碼 (必填)</label>
+                    <input id="oldPasswordInput" type="password" placeholder="請輸入目前密碼" class="px-3 py-2 border rounded w-full"/>
+                </div>
+
+                <div class="text-left">
+                    <label class="text-xs text-gray-500">新密碼 (留空則不修改)</label>
+                    <input id="newPasswordInput" type="password" placeholder="輸入新密碼" class="px-3 py-2 border rounded w-full"/>
+                </div>
             </div>
             <div class="items-center px-4 py-3">
-                <button onclick="submitPasswordChange()" class="px-4 py-2 bg-blue-500 text-white rounded w-full mb-2">確認修改</button>
+                <button onclick="submitProfileUpdate()" class="px-4 py-2 bg-blue-500 text-white rounded w-full mb-2">確認修改</button>
                 <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="px-4 py-2 bg-gray-300 rounded w-full">取消</button>
             </div>
         </div>
@@ -2281,29 +2292,29 @@
 </div>
 
 <script>
-function openPasswordModal() {
-    document.getElementById('changePasswordModal').classList.remove('hidden');
-}
-
-async function submitPasswordChange() {
+// 修改原本的 submitPasswordChange 函式
+async function submitProfileUpdate() {
+    const newUsername = document.getElementById('newUsernameInput').value;
     const oldPassword = document.getElementById('oldPasswordInput').value;
     const newPassword = document.getElementById('newPasswordInput').value;
-    const confirmPassword = document.getElementById('confirmPasswordInput').value;
 
-    if (newPassword !== confirmPassword) { alert('新密碼不一致'); return; }
-    if (!oldPassword || !newPassword) { alert('請填寫完整'); return; }
+    if (!oldPassword) { alert('請輸入目前密碼以確認身分'); return; }
 
     try {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('/api/admin/auth/change-password', {
+        const res = await fetch('/api/admin/auth/update-profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ oldPassword, newPassword })
+            body: JSON.stringify({ newUsername, oldPassword, newPassword })
         });
         const data = await res.json();
         if (res.ok) {
-            alert('修改成功');
+            alert(data.message);
             document.getElementById('changePasswordModal').classList.add('hidden');
+            // 如果改了帳號或密碼，通常建議踢出使用者重新登入，這裡視您需求而定
+             if (newUsername || newPassword) {
+                 window.location.href = '/admin-login.html';
+             }
         } else {
             alert(data.error || '修改失敗');
         }

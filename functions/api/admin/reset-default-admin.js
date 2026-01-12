@@ -5,24 +5,30 @@ export async function onRequest(context) {
     const { env } = context;
 
     try {
-        // 1. 設定預設值
         const defaultUser = 'admin';
         const defaultPass = '333221';
         
-        // 2. 計算密碼雜湊 (確保跟登入時的演算法一致)
+        // 計算密碼雜湊
         const hashedPassword = await hashPassword(defaultPass);
 
-        // 3. 執行資料庫操作
-        // 先刪除舊的 admin (如果有的話)，避免衝突
-        await env.DB.prepare("DELETE FROM Users WHERE email = 'admin' OR role = 'admin'").run();
+        // 1. 先檢查帳號是否存在
+        const existingUser = await env.DB.prepare("SELECT id FROM Users WHERE email = ?").bind(defaultUser).first();
 
-        // 插入新的預設管理員
-        // 我們暫時用 'email' 這個欄位來存 'admin' 這個帳號名稱
-        const info = await env.DB.prepare(
-            "INSERT INTO Users (name, email, password, role) VALUES (?, ?, ?, ?)"
-        )
-        .bind('預設管理員', defaultUser, hashedPassword, 'admin')
-        .run();
+        if (existingUser) {
+            // A. 如果存在 -> 執行 UPDATE (更新密碼與權限，不刪除人)
+            await env.DB.prepare(
+                "UPDATE Users SET password = ?, role = 'admin', name = '預設管理員' WHERE email = ?"
+            )
+            .bind(hashedPassword, defaultUser)
+            .run();
+        } else {
+            // B. 如果不存在 -> 執行 INSERT (新增)
+            await env.DB.prepare(
+                "INSERT INTO Users (name, email, password, role) VALUES (?, ?, ?, ?)"
+            )
+            .bind('預設管理員', defaultUser, hashedPassword, 'admin')
+            .run();
+        }
 
         return new Response(JSON.stringify({
             success: true,
@@ -33,6 +39,6 @@ export async function onRequest(context) {
         });
 
     } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: `重置失敗: ${err.message}` }), { status: 500 });
     }
 }

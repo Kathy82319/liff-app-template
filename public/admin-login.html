@@ -43,16 +43,18 @@
     </div>
 
     <div id="forgotModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden justify-center items-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-80">
-            <h3 class="text-lg font-bold mb-4">重置密碼</h3>
-            <p class="text-sm text-gray-600 mb-4">請輸入您的 Email，系統將發送臨時密碼給您。</p>
-            <input type="email" id="forgotEmail" class="w-full border p-2 rounded mb-4" placeholder="請輸入 Email">
-            <div class="flex justify-end space-x-2">
-                <button onclick="closeForgotModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
-                <button onclick="submitForgotPassword()" id="btnSendForgot" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">發送</button>
-            </div>
+    <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+        <h3 class="text-lg font-bold mb-4">重置密碼</h3>
+        <p class="text-sm text-gray-600 mb-4">請輸入您的帳號，系統將透過 LINE 發送臨時密碼給您。</p>
+        
+        <input type="text" id="forgotEmail" class="w-full border p-2 rounded mb-4" placeholder="請輸入帳號">
+        
+        <div class="flex justify-end space-x-2">
+            <button onclick="closeForgotModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">取消</button>
+            <button onclick="submitForgotPassword()" id="btnSendForgot" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">發送 LINE</button>
         </div>
     </div>
+</div>
 
     <script>
         // 登入邏輯

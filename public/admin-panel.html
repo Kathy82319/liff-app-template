@@ -2332,6 +2332,24 @@ async function submitProfileUpdate() {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="/admin/app.js"></script>
+    <script type="module" src="/modules/pages/passwordModal.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 確保登出按鈕有反應
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.onclick = () => {
+                if(confirm('確定要登出嗎？')) {
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    document.cookie = "AuthToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                    window.location.href = '/admin-login.html';
+                }
+            };
+        }
+    });
+</script>
 
 
 </body>

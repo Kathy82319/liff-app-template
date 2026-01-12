@@ -109,38 +109,41 @@
         }
 
         async function submitForgotPassword() {
-            const email = document.getElementById('forgotEmail').value;
-            if (!email) {
-                alert('請輸入 Email');
-                return;
-            }
-
-            const btn = document.getElementById('btnSendForgot');
-            const originalText = btn.innerText;
-            btn.innerText = '發送中...';
-            btn.disabled = true;
-
-            try {
-                const response = await fetch('/api/admin/auth/forgot-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    alert(result.message);
-                    closeForgotModal();
-                } else {
-                    alert(result.error || '發送失敗');
-                }
-            } catch (e) {
-                alert('系統連線錯誤');
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
+        // 這裡抓取輸入框的值 (假設輸入框 id 還是叫 forgotEmail，或者您也可以改成 forgotUsername)
+        const usernameInput = document.getElementById('forgotEmail').value;
+        
+        if (!usernameInput) {
+            alert('請輸入帳號');
+            return;
         }
-    </script>
+
+        const btn = document.getElementById('btnSendForgot');
+        const originalText = btn.innerText;
+        btn.innerText = '發送中...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/admin/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // 🟢 修改點：這裡改用 username 作為 key
+                body: JSON.stringify({ username: usernameInput })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
+                closeForgotModal();
+            } else {
+                alert(result.error || '發送失敗');
+            }
+        } catch (e) {
+            alert('系統連線錯誤');
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+</script>
 </body>
 </html>

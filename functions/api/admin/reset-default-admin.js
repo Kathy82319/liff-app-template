@@ -1,5 +1,5 @@
 // functions/api/admin/reset-default-admin.js
-import { hashPassword } from '../../utils/auth-helpers';
+import { hashPassword } from '../utils/auth-helpers.js';
 
 export async function onRequest(context) {
     const { env } = context;

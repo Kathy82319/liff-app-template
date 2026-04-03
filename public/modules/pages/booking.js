@@ -211,14 +211,20 @@ async function initializeRangeMode(config) {
         dateFormat: "Y-m-d", 
         locale: "zh_tw",
         disableMobile: true,
-        onClose: async (selectedDates) => {
+onClose: async (selectedDates) => {
             if (selectedDates.length === 2) {
+                // ... (保留原本的 if 區塊內容不變) ...
                 const start = selectedDates[0];
                 const end = selectedDates[1];
                 if (start.getTime() === end.getTime()) return;
 
-                guesthouseData.startDate = flatpickr.formatDate(start, "Y-m-d");
-                guesthouseData.endDate = flatpickr.formatDate(end, "Y-m-d");
+                // 建議改用原生 JS 格式化日期，避免 flatpickr 靜態方法遺失
+                const formatDate = (date) => {
+                    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                };
+
+                guesthouseData.startDate = formatDate(start);
+                guesthouseData.endDate = formatDate(end);
                 guesthouseData.numberOfNights = Math.round((end - start) / 86400000);
 
                 roomContainer.style.opacity = '0.5';
@@ -231,7 +237,8 @@ async function initializeRangeMode(config) {
                     console.error(e);
                     ui.toast("查詢房況失敗，請稍後再試", "error");
                 }
-            } else {
+            } else if (selectedDates.length === 0) { 
+                // 【關鍵修正】把原本的 else 改成這樣，避免誤殺
                 guesthouseData.startDate = null; 
                 renderRoomList(null);
                 calculateTotalPrice();

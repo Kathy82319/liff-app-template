@@ -82,10 +82,25 @@ export async function onRequest(context) {
                 let dailyQuantity = 0;
                 let dailyPrice = null;
 
-                if (inventoryRecord) { // 如果有當日特定設定
+                if (inventoryRecord) { 
                     dailyStatus = inventoryRecord.status;
-                    dailyQuantity = inventoryRecord.quantity_available;
-                    dailyPrice = inventoryRecord.base_price; // 可能是數字或 null
+                    dailyQuantity = Number(inventoryRecord.quantity_available);
+                    
+                    // 【關鍵修正】強制轉為數字，並處理空字串
+                    if (inventoryRecord.base_price !== null && inventoryRecord.base_price !== '') {
+                        dailyPrice = Number(inventoryRecord.base_price);
+                    }
+                }
+
+                // 確定當日實際價格
+                if (dailyPrice === null) { 
+                    if (dayOfWeek === 5) { 
+                        dailyPrice = product.price_friday !== null ? Number(product.price_friday) : Number(product.price_weekday);
+                    } else if (dayOfWeek === 6) { 
+                        dailyPrice = product.price_saturday !== null ? Number(product.price_saturday) : Number(product.price_weekday);
+                    } else { 
+                        dailyPrice = Number(product.price_weekday);
+                    }
                 }
                 // else { 如果沒有記錄，維持預設 Closed, 0, null }
 

@@ -258,59 +258,38 @@ async function startScanner(action, campaignId) {
     const qrReaderDiv = document.getElementById('rally-qr-reader');
     const statusMsg = document.getElementById('rally-status-message');
     
-    // 初始化畫面狀態
+    // 初始化畫面狀態：隱藏列表，顯示掃描區塊
     if (listContainer) listContainer.style.display = 'none';
     if (scannerContainer) scannerContainer.style.display = 'block';
     if (qrReaderDiv) qrReaderDiv.innerHTML = '';
     
-    // 設定偵錯訊息面板的樣式
+    // 恢復標準提示文字與置中樣式
     if (statusMsg) {
-        statusMsg.style.color = '#d9534f'; 
-        statusMsg.style.textAlign = 'left';
-        statusMsg.style.fontSize = '0.85rem';
-        statusMsg.style.lineHeight = '1.5';
-        statusMsg.innerHTML = "【系統偵錯日誌】<br>";
+        statusMsg.textContent = (action === 'reset') ? '請掃描店家的「重置 QR Code」...' : '請對準站點 QR Code 進行集點...';
+        statusMsg.style.color = 'var(--color-text-primary)';
+        statusMsg.style.textAlign = 'center';
+        statusMsg.style.fontSize = '1rem';
     }
 
-    // 建立一個可以把文字印到畫面上的小函數
-    const log = (msg) => {
-        console.log(msg);
-        if (statusMsg) statusMsg.innerHTML += msg + "<br>";
-    };
-
-    log("1. 開始檢查環境...");
-
-    try {
-        log(`2. Liff 物件存在: ${typeof liff !== 'undefined'}`);
-        if (typeof liff !== 'undefined') {
-            log(`3. 是否在 LINE App 內運作 (isInClient): ${liff.isInClient()}`);
-            
-            if (liff.isInClient()) {
-                log("4. 準備呼叫 LINE 原生相機 scanCodeV2...");
-                try {
-                    const result = await liff.scanCodeV2();
-                    log("5. 原生相機啟動成功並取得資料！");
-                    if (result && result.value) {
-                        handleScanResult(result.value, action, campaignId);
-                    }
-                    return; 
-                } catch (liffErr) {
-                    // 把 LINE 回報的真實錯誤印出來
-                    log(`[原生相機錯誤]: 代碼 ${liffErr.code || '無'} - ${liffErr.message || JSON.stringify(liffErr)}`);
-                }
-            } else {
-                log("4. 目前使用一般瀏覽器，略過原生相機");
+    // 優先嘗試使用 LINE LIFF 的原生掃碼器
+    if (typeof liff !== 'undefined' && liff.isInClient() && liff.scanCodeV2) {
+        try {
+            const result = await liff.scanCodeV2();
+            if (result && result.value) {
+                // 掃描成功，將結果交給原本的處理邏輯
+                handleScanResult(result.value, action, campaignId);
             }
+            return; // 成功結束後跳出函式
+        } catch (err) {
+            console.log("LIFF 原生掃描取消或失敗，退回網頁版相機", err);
+            // 如果顧客按了取消或發生錯誤，繼續往下執行備用的網頁相機
         }
-    } catch (e) {
-         log(`[環境檢查例外]: ${e.message}`);
     }
 
-    log("------------------------");
-    log("6. 嘗試啟動備用網頁版相機...");
-
+    // --- 以下為原本的 Html5Qrcode 備用邏輯 (適用於用一般瀏覽器開啟時) ---
     if (typeof Html5Qrcode === 'undefined') {
-        log("[錯誤] Html5Qrcode 掃碼套件未載入");
+        alert("掃碼元件載入失敗，請重新整理頁面。");
+        stopScanner();
         return;
     }
 
@@ -323,20 +302,19 @@ async function startScanner(action, campaignId) {
                 await stopScanner(); 
                 handleScanResult(decodedText, action, campaignId);
             },
-            () => {} 
+            (errorMessage) => { 
+                // 忽略持續性的畫面捕捉錯誤，避免干擾效能
+            }
         );
-        log("7. 網頁版相機啟動成功！請對準 QR Code");
-        if (statusMsg) {
-            statusMsg.style.color = 'var(--color-text-primary)';
-            statusMsg.style.textAlign = 'center';
-            statusMsg.innerHTML = '請對準站點 QR Code 進行集點...';
-        }
     } catch (err) {
-        // 把網頁相機的真實錯誤印出來
-        log(`[網頁相機錯誤]: [${err.name}] ${err.message}`);
-        log("建議: 請確認網址為 HTTPS，或檢查上述錯誤。");
+        console.error("啟動相機失敗:", err);
+        if (statusMsg) {
+            statusMsg.textContent = `無法啟動相機。請檢查權限設定或更換瀏覽器。\n(${err.message || err.name})`;
+            statusMsg.style.color = 'var(--color-danger)';
+        }
     }
 }
+
 
 export async function stopScanner() {
     const scannerContainer = document.getElementById('rally-qr-scanner-container');

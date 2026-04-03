@@ -253,6 +253,26 @@ function renderRallyPage() {
 // 4. 掃描器邏輯
 // =================================================================
 async function startScanner(action, campaignId) {
+    // 記錄當前的動作，給手動輸入按鈕使用 (若您有加手動輸入框的話)
+    currentScanAction = action;
+    currentScanCampaignId = campaignId;
+
+    // 🌟 優先嘗試使用 LINE LIFF 的原生掃碼器
+    if (typeof liff !== 'undefined' && liff.isInClient() && liff.scanCodeV2) {
+        try {
+            const result = await liff.scanCodeV2();
+            if (result && result.value) {
+                // 掃描成功，將結果交給原本的處理邏輯
+                handleScanResult(result.value, action, campaignId);
+            }
+            return; // 成功掃描後結束函數
+        } catch (err) {
+            console.log("LIFF 原生掃描取消或失敗，退回網頁版相機", err);
+            // 如果顧客按了「取消」或發生錯誤，我們繼續往下走，退回到網頁版相機
+        }
+    }
+
+    // --- 以下為原本的 Html5Qrcode 備用邏輯 (適用於用一般瀏覽器開啟時) ---
     const scannerContainer = document.getElementById('rally-qr-scanner-container');
     const listContainer = document.getElementById('rally-list-container');
     const qrReaderDiv = document.getElementById('rally-qr-reader');
@@ -287,7 +307,7 @@ async function startScanner(action, campaignId) {
     } catch (err) {
         console.error("啟動相機失敗:", err);
         if (statusMsg) {
-            statusMsg.textContent = `❌ 無法啟動相機。請檢查權限。\n(${err})`;
+            statusMsg.textContent = `❌ 無法啟動相機。\n(${err.message || '可能非 HTTPS 連線'})`;
             statusMsg.style.color = 'var(--color-danger)';
         }
     }

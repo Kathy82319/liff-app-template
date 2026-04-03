@@ -79,7 +79,7 @@ function applyGlobalConfig() {
     const clientConfig = state.activeTemplate.client_config || {};
     
     // 1. 更新網頁標題
-    document.title = clientConfig.global?.brand_name || terms.BUSINESS_NAME || '店務管理系統';
+    document.title = clientConfig.global?.brand_name || terms.BUSINESS_NAME || '鐵絲特飯店';
 
     // 2. 更新導覽列 (Tab Bar)
     const tabMapping = {

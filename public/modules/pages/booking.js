@@ -685,20 +685,20 @@ function calculateCurrentTotal() {
     let total = 0;
     const mode = state.activeTemplate?.client_config?.booking?.mode || 'range';
 
-    if (mode === 'range') {
-if (guesthouseData.numberOfNights > 0) {
-    for (const pid in guesthouseData.selectedRooms) {
-        const qty = guesthouseData.selectedRooms[pid];
-        const info = guesthouseData.roomAvailability[pid];
-        // 【修正】使用 != null 來過濾 undefined，避免 NaN 污染總計
-        if (qty > 0 && info) {
-            const unitPrice = info.totalPrice != null 
-                ? info.totalPrice 
-                : ((info.pricePerNight || 0) * guesthouseData.numberOfNights);
-            total += unitPrice * qty;
+    // 修正：統一判斷邏輯，只要不是 studio (單日模式) 就是區間模式
+    if (mode !== 'studio') {
+        if (guesthouseData.numberOfNights > 0) {
+            for (const pid in guesthouseData.selectedRooms) {
+                const qty = guesthouseData.selectedRooms[pid];
+                const info = guesthouseData.roomAvailability[pid];
+                if (qty > 0 && info) {
+                    const unitPrice = info.totalPrice != null 
+                        ? info.totalPrice 
+                        : ((info.pricePerNight || 0) * guesthouseData.numberOfNights);
+                    total += unitPrice * qty;
+                }
+            }
         }
-    }
-}
     } else {
         document.querySelectorAll('.booking-item-row').forEach(row => {
             const qtyInput = row.querySelector('.booking-item-qty');
@@ -750,7 +750,8 @@ async function handleBookingConfirmation(e) {
         notes: document.getElementById('booking-notes-input') ? document.getElementById('booking-notes-input').value.trim() : null
     };
 
-    if (mode === 'range') {
+    // 修正：將 mode === 'range' 改為 mode !== 'studio'
+    if (mode !== 'studio') {
         if (!guesthouseData.startDate) { ui.toast('請選擇日期', 'error'); resetButton(btn); return; }
         const items = Object.entries(guesthouseData.selectedRooms).map(([pid, qty]) => ({ productId: pid, quantity: qty }));
         if (items.length === 0) { ui.toast('請選擇房型', 'error'); resetButton(btn); return; }
@@ -854,7 +855,8 @@ export async function renderBookingDetails(bookingId) {
         if(elCheckIn) elCheckIn.textContent = booking.booking_date;
         
         const mode = state.activeTemplate?.client_config?.booking?.mode || 'range';
-        const isGuesthouse = mode === 'range';
+        // 修正：將 mode === 'range' 改為 mode !== 'studio'
+        const isGuesthouse = mode !== 'studio';
 
         if (isGuesthouse && booking.check_out_date) {
             if(elCheckOut) elCheckOut.parentElement.style.display = 'block';

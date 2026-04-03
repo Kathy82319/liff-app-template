@@ -212,38 +212,50 @@ async function initializeRangeMode(config) {
         locale: "zh_tw",
         disableMobile: true,
 onClose: async (selectedDates) => {
-            if (selectedDates.length === 2) {
-                // ... (保留原本的 if 區塊內容不變) ...
-                const start = selectedDates[0];
-                const end = selectedDates[1];
-                if (start.getTime() === end.getTime()) return;
-
-                // 建議改用原生 JS 格式化日期，避免 flatpickr 靜態方法遺失
-                const formatDate = (date) => {
-                    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                };
-
-                guesthouseData.startDate = formatDate(start);
-                guesthouseData.endDate = formatDate(end);
-                guesthouseData.numberOfNights = Math.round((end - start) / 86400000);
-
-                roomContainer.style.opacity = '0.5';
-                try {
-                    const data = await api.checkRoomAvailability(guesthouseData.startDate, guesthouseData.endDate);
-                    roomContainer.style.opacity = '1';
-                    renderRoomList(data);
-                } catch (e) {
-                    roomContainer.style.opacity = '1';
-                    console.error(e);
-                    ui.toast("查詢房況失敗，請稍後再試", "error");
-                }
-            } else if (selectedDates.length === 0) { 
-                // 【關鍵修正】把原本的 else 改成這樣，避免誤殺
-                guesthouseData.startDate = null; 
-                renderRoomList(null);
-                calculateTotalPrice();
-            }
+    if (selectedDates.length === 2) {
+        const start = selectedDates[0];
+        const end = selectedDates[1];
+        
+        // 【修正】防止入住退房同一天
+        if (start.getTime() === end.getTime()) {
+            ui.toast("入住與退房不可為同一天", "warning");
+            guesthouseData.startDate = null;
+            renderRoomList(null);
+            calculateTotalPrice();
+            return;
         }
+
+        // 建議改用原生 JS 格式化日期，避免 flatpickr 靜態方法遺失
+        const formatDate = (date) => {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        };
+
+        guesthouseData.startDate = formatDate(start);
+        guesthouseData.endDate = formatDate(end);
+        guesthouseData.numberOfNights = Math.round((end - start) / 86400000);
+
+        roomContainer.style.opacity = '0.5';
+        try {
+            const data = await api.checkRoomAvailability(guesthouseData.startDate, guesthouseData.endDate);
+            roomContainer.style.opacity = '1';
+            renderRoomList(data);
+        } catch (e) {
+            roomContainer.style.opacity = '1';
+            console.error(e);
+            ui.toast("查詢房況失敗，請稍後再試", "error");
+        }
+    } else if (selectedDates.length === 1) {
+        // 【修正】只選了一天的防呆
+        ui.toast("請選擇退房日期", "warning");
+        guesthouseData.startDate = null;
+        renderRoomList(null);
+        calculateTotalPrice();
+    } else if (selectedDates.length === 0) { 
+        guesthouseData.startDate = null; 
+        renderRoomList(null);
+        calculateTotalPrice();
+    }
+}
     });
 }
 
@@ -285,14 +297,12 @@ function renderRoomList(availabilityData) {
                     const avgPrice = info.pricePerNight !== null ? `$${info.pricePerNight}` : '洽詢';
                     const totalPrice = info.totalPrice !== null ? `$${info.totalPrice}` : null;
                     
-                    if (totalPrice) {
-                        priceHtml = `
-                            <div style="font-weight:bold;">${avgPrice} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
-                            <div style="font-size:0.95rem; color:var(--color-primary); font-weight:bold; margin-top:2px;">小計 ${totalPrice}</div>
-                        `;
-                    } else {
-                        priceHtml = `${avgPrice} <span style="font-size:0.8em; color:#888;">/ 晚</span>`;
-                    }
+// 【修正】統一預留動態小計的顯示區塊，避免寫死
+const avgPriceStr = avgPrice !== '洽詢' ? avgPrice : '洽詢';
+priceHtml = `
+    <div style="font-weight:bold;">${avgPriceStr} <span style="font-size:0.8em; color:#888; font-weight:normal;">/ 晚</span></div>
+    <div class="room-subtotal-display" style="font-size:0.95rem; color:var(--color-primary); font-weight:bold; margin-top:2px; display:none;"></div>
+`;
                 }
 
                 isDisabled = false;
@@ -330,15 +340,33 @@ function renderRoomList(availabilityData) {
         </div>`;
     }).join('');
 
-    container.querySelectorAll('.room-qty-select').forEach(sel => {
-        sel.addEventListener('change', (e) => {
-            const qty = parseInt(e.target.value);
-            const pid = e.target.dataset.pid;
-            if (qty > 0) guesthouseData.selectedRooms[pid] = qty;
-            else delete guesthouseData.selectedRooms[pid];
-            calculateTotalPrice();
-        });
+container.querySelectorAll('.room-qty-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+        const qty = parseInt(e.target.value);
+        const pid = e.target.dataset.pid;
+        
+        if (qty > 0) guesthouseData.selectedRooms[pid] = qty;
+        else delete guesthouseData.selectedRooms[pid];
+
+        // 【修正】即時更新該房型的畫面上小計
+        const roomItem = e.target.closest('.room-item');
+        if (roomItem) {
+            const subtotalDisplay = roomItem.querySelector('.room-subtotal-display');
+            if (subtotalDisplay) {
+                if (qty > 0) {
+                    const info = guesthouseData.roomAvailability[pid] || {};
+                    const unitPrice = info.totalPrice != null ? info.totalPrice : ((info.pricePerNight || 0) * guesthouseData.numberOfNights);
+                    subtotalDisplay.innerHTML = `小計 $${unitPrice * qty}`;
+                    subtotalDisplay.style.display = 'block';
+                } else {
+                    subtotalDisplay.style.display = 'none';
+                }
+            }
+        }
+
+        calculateTotalPrice();
     });
+});
 
     if (!isPreview && !hasBookable) container.innerHTML += '<p style="text-align:center; color:var(--color-danger); margin-top:10px;">抱歉，此日期區間已無空房。</p>';
     calculateTotalPrice();
@@ -658,18 +686,19 @@ function calculateCurrentTotal() {
     const mode = state.activeTemplate?.client_config?.booking?.mode || 'range';
 
     if (mode === 'range') {
-        if (guesthouseData.numberOfNights > 0) {
-            for (const pid in guesthouseData.selectedRooms) {
-                const qty = guesthouseData.selectedRooms[pid];
-                const info = guesthouseData.roomAvailability[pid];
-                if (qty > 0 && info && info.pricePerNight !== null) {
-                    const price = info.totalPrice !== null 
-                        ? info.totalPrice 
-                        : (info.pricePerNight * guesthouseData.numberOfNights);
-                    total += price * qty;
-                }
-            }
+if (guesthouseData.numberOfNights > 0) {
+    for (const pid in guesthouseData.selectedRooms) {
+        const qty = guesthouseData.selectedRooms[pid];
+        const info = guesthouseData.roomAvailability[pid];
+        // 【修正】使用 != null 來過濾 undefined，避免 NaN 污染總計
+        if (qty > 0 && info) {
+            const unitPrice = info.totalPrice != null 
+                ? info.totalPrice 
+                : ((info.pricePerNight || 0) * guesthouseData.numberOfNights);
+            total += unitPrice * qty;
         }
+    }
+}
     } else {
         document.querySelectorAll('.booking-item-row').forEach(row => {
             const qtyInput = row.querySelector('.booking-item-qty');

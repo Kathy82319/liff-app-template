@@ -77,7 +77,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    localStorage.setItem('adminToken', data.token);
+                    document.cookie = `adminToken=${data.token}; path=/; max-age=86400; SameSite=Strict`;
                     localStorage.setItem('adminUser', JSON.stringify(data.user));
                     window.location.href = '/admin-panel.html';
                 } else {

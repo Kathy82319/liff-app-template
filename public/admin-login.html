@@ -76,16 +76,15 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
-    // 1. 將 Token 存入 Cookie (這是讓後端 _middleware.js 讀取的關鍵)
-    // 設定有效期限為 1 天 (86400秒)，並加上安全屬性
+if (response.ok) {
+    // 【關鍵修正】手動寫入 Cookie，否則後端 middleware 抓不到身分
     document.cookie = `adminToken=${data.token}; path=/; max-age=86400; SameSite=Strict`;
-
-    // 2. 原有的 localStorage 也可以保留作為前端快照
+    
+    // 原有的 localStorage 保留
     localStorage.setItem('adminToken', data.token);
     localStorage.setItem('adminUser', JSON.stringify(data.user));
-
-    // 3. 跳轉至後台
+    
+    // 執行跳轉
     window.location.href = '/admin-panel.html';
 } else {
                     alert(data.error || '登入失敗');

@@ -2266,21 +2266,17 @@
 <div id="changePasswordModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px;">
         <div class="modal-header">
-            <h3>修改帳號與密碼</h3>
+            <h3>修改密碼</h3>
             <button type="button" id="btn-close-pwd-modal-top" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="form-group">
-                <label>新帳號 (留空則不修改)</label>
-                <input id="newUsernameInput" type="text" placeholder="輸入新帳號">
-            </div>
             <div class="form-group">
                 <label>目前密碼 (必填)</label>
                 <input id="oldPasswordInput" type="password" placeholder="請輸入目前密碼">
             </div>
             <div class="form-group">
-                <label>新密碼 (留空則不修改)</label>
-                <input id="newPasswordInput" type="password" placeholder="輸入新密碼">
+                <label>新密碼 (必填)</label>
+                <input id="newPasswordInput" type="password" placeholder="請輸入新密碼">
             </div>
         </div>
         <div class="form-actions">
@@ -2317,14 +2313,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeBtnBottom) closeBtnBottom.addEventListener('click', closeModal);
 
     // 提交修改
+    // 提交修改
     if (submitBtn) {
         submitBtn.addEventListener('click', async () => {
-            const newUsername = document.getElementById('newUsernameInput').value;
             const oldPassword = document.getElementById('oldPasswordInput').value;
             const newPassword = document.getElementById('newPasswordInput').value;
 
-            if (!oldPassword) { 
-                alert('請輸入目前密碼以確認身分'); 
+            if (!oldPassword || !newPassword) { 
+                alert('請輸入目前密碼與新密碼'); 
                 return; 
             }
 
@@ -2337,7 +2333,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/admin/auth/update-profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ newUsername, oldPassword, newPassword })
+                    // 這裡只傳送密碼資料
+                    body: JSON.stringify({ oldPassword, newPassword })
                 });
                 
                 const data = await res.json();
@@ -2345,10 +2342,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     alert(data.message);
                     closeModal();
-                    // 如果有改帳密，跳轉回登入頁
-                    if (newUsername || newPassword) {
-                        window.location.href = '/admin-login.html';
-                    }
+                    // 密碼修改成功後，強迫登出並導回登入頁
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    document.cookie = "AuthToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                    window.location.href = '/admin-login.html';
                 } else {
                     alert(data.error || '修改失敗');
                 }

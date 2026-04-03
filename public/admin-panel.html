@@ -2263,36 +2263,45 @@
         </div>
     </div>
 
-<div id="changePasswordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3 text-center">
-            <h3 class="text-lg font-medium text-gray-900">修改帳號與密碼</h3>
-            <div class="mt-2 px-7 py-3 space-y-3">
-                <div class="text-left">
-                    <label class="text-xs text-gray-500">新帳號 (留空則不修改)</label>
-                    <input id="newUsernameInput" type="text" placeholder="輸入新帳號" class="px-3 py-2 border rounded w-full"/>
-                </div>
-
-                <div class="text-left">
-                    <label class="text-xs text-gray-500">目前密碼 (必填)</label>
-                    <input id="oldPasswordInput" type="password" placeholder="請輸入目前密碼" class="px-3 py-2 border rounded w-full"/>
-                </div>
-
-                <div class="text-left">
-                    <label class="text-xs text-gray-500">新密碼 (留空則不修改)</label>
-                    <input id="newPasswordInput" type="password" placeholder="輸入新密碼" class="px-3 py-2 border rounded w-full"/>
-                </div>
+<div id="changePasswordModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>修改帳號與密碼</h3>
+            <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>新帳號 (留空則不修改)</label>
+                <input id="newUsernameInput" type="text" placeholder="輸入新帳號">
             </div>
-            <div class="items-center px-4 py-3">
-                <button onclick="submitProfileUpdate()" class="px-4 py-2 bg-blue-500 text-white rounded w-full mb-2">確認修改</button>
-                <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="px-4 py-2 bg-gray-300 rounded w-full">取消</button>
+            <div class="form-group">
+                <label>目前密碼 (必填)</label>
+                <input id="oldPasswordInput" type="password" placeholder="請輸入目前密碼">
             </div>
+            <div class="form-group">
+                <label>新密碼 (留空則不修改)</label>
+                <input id="newPasswordInput" type="password" placeholder="輸入新密碼">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="button" onclick="closePasswordModal()" class="action-btn btn-cancel">取消</button>
+            <button type="button" onclick="submitProfileUpdate()" class="action-btn btn-save">確認修改</button>
         </div>
     </div>
 </div>
 
 <script>
-// 修改原本的 submitPasswordChange 函式
+// 開啟修改密碼彈窗
+function openPasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'flex';
+}
+
+// 關閉修改密碼彈窗
+function closePasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'none';
+}
+
+// 修改原本的 submitProfileUpdate 函式
 async function submitProfileUpdate() {
     const newUsername = document.getElementById('newUsernameInput').value;
     const oldPassword = document.getElementById('oldPasswordInput').value;
@@ -2310,8 +2319,9 @@ async function submitProfileUpdate() {
         const data = await res.json();
         if (res.ok) {
             alert(data.message);
-            document.getElementById('changePasswordModal').classList.add('hidden');
-            // 如果改了帳號或密碼，通常建議踢出使用者重新登入，這裡視您需求而定
+            closePasswordModal(); // 這裡改為呼叫關閉函式
+            
+            // 如果改了帳號或密碼，踢出使用者重新登入
              if (newUsername || newPassword) {
                  window.location.href = '/admin-login.html';
              }

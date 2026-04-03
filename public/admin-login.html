@@ -78,7 +78,7 @@
 
 if (response.ok) {
     // 【關鍵修正】手動寫入 Cookie，否則後端 middleware 抓不到身分
-    document.cookie = `adminToken=${data.token}; path=/; max-age=86400; SameSite=Strict`;
+    document.cookie = `AuthToken=${data.token}; path=/; max-age=86400; SameSite=Strict`; // <--- 這裡改為 AuthToken
     
     // 原有的 localStorage 保留
     localStorage.setItem('adminToken', data.token);

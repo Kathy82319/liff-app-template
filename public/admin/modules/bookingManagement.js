@@ -421,8 +421,7 @@ function updateEditTotalAmount() {
 }
 
 async function handleSaveBookingChanges(bookingId) {
-    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
-    const isGuesthouse = bookingMode === 'range';
+    const isGuesthouse = true;
     const originalNumOfPeople = currentBookingInModal ? currentBookingInModal.num_of_people : 1; 
 
     const payload = {
@@ -787,8 +786,7 @@ function updateItemPrice(itemRowElement, selectedDateString) {
 
 async function handleCreateBookingSubmit(e) {
     e.preventDefault();
-    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
-    const isGuesthouse = bookingMode === 'range';
+    const isGuesthouse = true;
 
     let finalUserId = document.getElementById('booking-selected-user-id').value;
     let finalContactName = '';

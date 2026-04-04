@@ -142,7 +142,7 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
     let html = '';
     
     // 讀取設定
-    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
+    const bookingMode = 'range';
     const isGuesthouse = bookingMode === 'range';
 
     if (!isEditing) { // --- VIEW MODE ---
@@ -1119,8 +1119,7 @@ async function handleStatusUpdate(buttonElement, bookingId, newStatus, successMe
     }
 }
 
-// --- [Phase 3] 列表渲染 (動態過濾欄位) ---
-// --- [Phase 3] 列表渲染 (動態過濾欄位) ---
+
 function renderBookingList(bookings) {
     const bookingListTbody = document.getElementById('booking-list-tbody');
     const bookingListTheadTr = document.querySelector('#list-view-container thead tr'); 
@@ -1240,7 +1239,7 @@ function createStatusMenu(targetButton) {
     menu.className = 'status-menu'; 
     menu.style.cssText = `position: absolute; background-color: #FFF; border: 1px solid #CCC; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 1001; min-width: 100px; padding: 5px 0;`;
 
-    const isGuesthouse = activeTemplate?.client_config?.booking?.mode === 'range';
+    const isGuesthouse = true;
     const checkInText = isGuesthouse ? '已入住' : '已報到';
 
     const options = [

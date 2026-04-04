@@ -15,7 +15,11 @@ export async function init() {
         
         const setVal = (id, val) => {
             const el = document.getElementById(id);
-            if (el) el.textContent = val || '未提供';
+            if (el) {
+                el.textContent = val || '未提供';
+                // 加上這行，讓瀏覽器強制保留文字中的 Enter 換行格式
+                el.style.whiteSpace = 'pre-wrap'; 
+            }
         };
 
         setVal('store-name', info.store_name);

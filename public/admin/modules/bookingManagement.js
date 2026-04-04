@@ -192,8 +192,8 @@ async function renderBookingDetails(booking, userProfile, isEditing = false) {
                 } catch(e) {}
             }
             html += `<div><strong>入住日期:</strong> ${startDate}</div>`;
-            html += `<div><strong>退房日期:</strong> ${endDate}</div>`;
             html += `<div><strong>住宿晚數:</strong> ${nights} 晚</div>`;
+            html += `<div><strong>退房日期:</strong> ${endDate}</div>`;
         } else { // Studio
             html += `<div><strong>預約日期:</strong> ${booking.booking_date}</div>`;
             // 只有啟用時段才顯示
@@ -628,13 +628,11 @@ async function initializeCreateBookingModal() {
     // 1. 根據模式設定日期選擇器
     if (createBookingDatepicker) createBookingDatepicker.destroy();
     
-    const bookingMode = activeTemplate?.client_config?.booking?.mode || 'range';
-    const isGuesthouse = bookingMode === 'range';
-    const fpMode = isGuesthouse ? 'range' : 'single';
+    const isGuesthouse = true; // 強制為民宿區間模式
     
     createBookingDatepicker = flatpickr("#booking-date-input", {
         dateFormat: "Y-m-d",
-        mode: fpMode,
+        mode: "range",
         onChange: function(selectedDates, dateStr, instance) {
             const startDateStr = selectedDates.length > 0 ? flatpickr.formatDate(selectedDates[0], "Y-m-d") : null;
             document.querySelectorAll('.admin-booking-item-row').forEach(row => { updateItemPrice(row, startDateStr); });

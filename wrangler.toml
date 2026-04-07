@@ -1,0 +1,11 @@
+compatibility_date = "2026-04-07" 
+name = "liff-app-template"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB" # 程式碼中使用的名稱
+database_name = "liff-template-db"
+database_id = "liff-template-db"
+
+[vars]
+LIFF_ID = "2008032417-3yJQGaO6"

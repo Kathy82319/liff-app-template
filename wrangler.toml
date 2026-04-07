@@ -5,7 +5,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB" # 程式碼中使用的名稱
 database_name = "liff-template-db"
-database_id = "liff-template-db"
+database_id = "0537e45c-8c02-4b35-bde8-05d7fc646296"
 
 [vars]
 LIFF_ID = "2008032417-3yJQGaO6"

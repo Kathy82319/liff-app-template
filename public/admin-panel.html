@@ -320,25 +320,16 @@
         font-size: 0.75rem;
         padding: 2px 4px;
         border-radius: 4px;
-        margin-top: 2px; /* 項目間距 */
+        margin-top: 2px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        display: flex; /* 讓取消按鈕能靠右 */
-        justify-content: space-between; /* 同 calendar-booking 樣式 */
-        align-items: center; /* 同 calendar-booking 樣式 */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
 
-    .calendar-booking {
-        font-size: 0.75rem;
-        padding: 2px 4px;
-        border-radius: 4px;
-        margin-top: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
     .calendar-booking.status-confirmed {
         background-color: var(--color-info);
         color: white;
@@ -417,11 +408,6 @@
 .status-tag.status-cancelled { background-color: var(--color-secondary); opacity: 0.7; }
 
 /* --- 日曆中的快速取消按鈕 --- */
-.calendar-booking {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
 .btn-quick-cancel {
     background: none;
     border: none;
@@ -681,11 +667,6 @@
 }
 
 /* --- 【新增】No-Show Status Tag Style (從 bookingManagement.js 搬過來) --- */
-.status-tag.status-noshow {
-    background-color: var(--color-warning);
-    color: var(--color-text-dark); /* 深色文字搭配黃色背景 */
-    opacity: 0.8;
-}
 
 
 
@@ -976,10 +957,7 @@
 
             
         </header>
-<div class="flex items-center">
-    
-    
-</div>
+
         <nav class="nav-tabs">
             <a href="#dashboard" class="active">儀表板</a>
             <a href="#users">顧客管理</a>
@@ -1033,10 +1011,10 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--danger-color); border-radius: 8px; background-color: #f7b2b2;">
-                    <h4 style="color: var(--danger-color); margin-top: 0;">危險操作區</h4>
+                <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--color-danger); border-radius: 8px; background-color: #f7b2b2;">
+                    <h4 style="color: var(--color-danger); margin-top: 0;">危險操作區</h4>
                     <p>此按鈕將會清空所有預約、租借、消費紀錄等展示資料，讓系統恢復初始狀態。此操作無法復原。</p>
-                    <button id="reset-demo-data-btn" class="action-btn" style="background-color: var(--danger-color);">清空所有展示資料</button>
+                    <button id="reset-demo-data-btn" class="action-btn" style="background-color: var(--color-danger);">清空所有展示資料</button>
                 </div>
             </div>
 
@@ -1081,7 +1059,7 @@
                 <div class="page-header">
                     <h2>產品/服務管理</h2>
                     <div class="filter-group">
-                        <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--info-color); margin-right: 10px;">下載 CSV 模板</button>
+                        <button id="download-csv-template-btn" class="action-btn" style="background-color: var(--color-info); margin-right: 10px;">下載 CSV 模板</button>
                         <label for="csv-upload-input" class="action-btn" style="background-color: #17a2b8; margin-right: 10px;">從 CSV 匯入</label>
                         <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
                         <button id="add-product-btn" style="background-color: #17a2b8;" class="action-btn btn-save">新增單筆產品</button>
@@ -1262,8 +1240,6 @@
                     </h3>
                     <div id="rav-sold-out-list"></div>
                 </div>
-
-                <div id="rav-bulk-edit-modal" class="modal-overlay">...</div>
 
 </div>    
 
@@ -1650,7 +1626,7 @@
                             <ul id="user-search-results"></ul>
                         </div>
                         <div class="points-actions">
-                             <button id="start-scan-btn" class="action-btn" style="background-color: var(--info-color);">啟動相機掃碼</button>
+                             <button id="start-scan-btn" class="action-btn" style="background-color: var(--color-info);">啟動相機掃碼</button>
                         </div>
                         <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 20px auto 0; display: none;"></div>
                     </div>
@@ -1879,10 +1855,10 @@
     <div id="batch-actions-toolbar" class="batch-actions-toolbar">
         <span id="batch-selected-count">已選取 0 項</span>
         <div class="filter-group">
-            <button id="batch-publish-btn" class="action-btn" style="background-color: var(--success-color);">上架</button>
-            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--secondary-color);">下架</button>
-            <button id="batch-set-stock-btn" class="action-btn" style="background-color: var(--info-color);">設定庫存狀態</button>
-            <button id="batch-delete-btn" class="action-btn" style="background-color: var(--danger-color);">刪除選取項目</button>
+            <button id="batch-publish-btn" class="action-btn" style="background-color: var(--color-success);">上架</button>
+            <button id="batch-unpublish-btn" class="action-btn" style="background-color: var(--color-secondary);">下架</button>
+            <button id="batch-set-stock-btn" class="action-btn" style="background-color: var(--color-info);">設定庫存狀態</button>
+            <button id="batch-delete-btn" class="action-btn" style="background-color: var(--color-danger);">刪除選取項目</button>
         </div>
     </div>
 
@@ -1995,10 +1971,10 @@
                     </div>
                     <input type="hidden" id="booking-selected-user-id">
                 </div>
-                <hr style="border-color: var(--border-color); margin: 20px 0;">
+                <hr style="border-color: var(--color-border); margin: 20px 0;">
 
                 <label>預約細節</label>
-                <div class="sub-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
+                <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
                     <div class="form-group">
                         <label id="booking-date-label" for="booking-date-input">日期</label>
                         <input type="text" id="booking-date-input" required>
@@ -2012,10 +1988,10 @@
                     <div class="form-group">
                         <label>預約項目</label>
                         <div id="admin-booking-items-container"></div>
-                        <button type="button" id="admin-add-booking-item-btn" class="cta-button" style="margin-top: 10px; background-color: var(--color-secondary); font-size: 0.9rem; padding: 8px;">⊕ 新增項目</button>
+                        <button type="button" id="admin-add-booking-item-btn" style="margin-top: 10px; background-color: var(--color-secondary); font-size: 0.9rem; padding: 8px;">⊕ 新增項目</button>
                         <p id="items-subtotal" style="text-align: right; font-weight: bold; margin-top: 10px;"></p>
                     </div>
-                    <div class="sub-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
+                    <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 15px;">
                         <div class="form-group"><label for="booking-people-input">總人數</label><input type="number" id="booking-people-input" value="1" min="1" required></div>
                         <div class="form-group"><label for="booking-total-amount-input">預估總金額</label><input type="number" id="booking-total-amount-input" min="0" placeholder="會自動帶入小計"></div>
                     </div>
@@ -2041,7 +2017,7 @@
             </div>
             <div id="booking-datepicker-admin-container"></div>
             <div class="form-actions">
-                <button type="button" id="open-month-btn" class="action-btn" style="background-color: var(--info-color); float: left;">開啟本月所有日期</button>
+                <button type="button" id="open-month-btn" class="action-btn" style="background-color: var(--color-info); float: left;">開啟本月所有日期</button>
                 <button type="button" class="action-btn btn-cancel">取消</button>
                 <button type="button" id="save-booking-settings-btn" class="action-btn btn-save">儲存變更</button>
             </div>
@@ -2306,7 +2282,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 關閉彈窗並清空輸入框
     const closeModal = () => {
         if (modal) modal.style.display = 'none';
-        document.getElementById('newUsernameInput').value = '';
         document.getElementById('oldPasswordInput').value = '';
         document.getElementById('newPasswordInput').value = '';
     };
